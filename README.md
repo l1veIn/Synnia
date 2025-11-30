@@ -4,6 +4,8 @@
 
 > **From Chaos to Canon. Locally.**
 
+[中文说明](./README.zh.md)
+
 Synnie is a digital asset consistency engine and brand IP management tool.
 
 ## Overview
@@ -16,7 +18,9 @@ Synnie helps designers and independent developers organize their creative univer
 
 ## Status
 
-🚧 **In active development.**
+🚧 **In Active Development**
+
+This project is currently in the early stages of development. Features and data structures are subject to change.
 
 ---
 

@@ -1,0 +1,81 @@
+{
+  "app": {
+    "title": "Synnie",
+    "badge": "Brand IP Management",
+    "heading": "Synnie",
+    "subheading": "Synnie, reporting for duty! Ready to weave some digital magic?",
+    "stack": {
+      "react": "React 19 + Vite",
+      "shadcn": "Shadcn/Tailwind",
+      "tauri": "Tauri v2"
+    },
+    "status_online": "System Online",
+    "status_standby": "Standby"
+  },
+  "nav": {
+    "home": "Home",
+    "demo": "Routing Demo"
+  },
+  "ui": {
+    "theme_hint": "Toggle light / dark with a view transition animation.",
+    "dialog_title": "Example Dialog",
+    "dialog_desc": "Use this space for your forms or confirmations."
+  },
+  "loader": {
+    "subtitle": "Starting",
+    "title": "Loading workspace...",
+    "hint": "We will open the main window once assets are ready."
+  },
+  "demo": {
+    "title": "Routing demonstration",
+    "desc": "A second page to prove router wiring works. Add your own routes here.",
+    "tabs": {
+      "title": "Tabs example",
+      "desc": "Shadcn tabs wired to i18n.",
+      "one": "Tab One",
+      "two": "Tab Two",
+      "three": "Tab Three",
+      "content_one": "This is tab one content.",
+      "content_two": "This is tab two content.",
+      "content_three": "This is tab three content."
+    }
+  },
+  "sections": {
+    "quickstart": {
+      "title": "Quick start",
+      "desc": "A few common UI patterns already wired.",
+      "theme": { "title": "Theme", "desc": "View-transition theme toggle in the title bar. Reuse ThemeProvider and CustomTitleBar." },
+      "layout": { "title": "Layout", "desc": "Container grid + cards by default. Swap in routes or dashboards freely." },
+      "components": { "title": "Components", "desc": "Shadcn UI is ready: Button, Card, Tabs, Dialog, Toast styles." },
+      "tauri": { "title": "Tauri", "desc": "Sample invoke → Rust command. Put your logic in src-tauri/src/lib.rs." }
+    },
+    "settings": {
+      "title": "Preferences demo",
+      "desc": "Shows typical state components.",
+      "immersive": { "title": "Immersive mode", "desc": "Hide extra borders to focus on content." },
+      "ping": {
+        "title": "Call backend command:",
+        "cta": "Call Tauri ping()",
+        "loading": "Invoking...",
+        "empty": "Click the button above to see the result."
+      }
+    },
+    "cards": {
+      "title": "Base cards",
+      "desc": "Place lists, metrics, or welcome info here.",
+      "items": {
+        "decoupled": { "title": "Decoupled", "desc": "Keep domain logic in src/ and src-tauri/ by feature." },
+        "lightweight": { "title": "Lightweight", "desc": "Minimal deps, ready to extend." },
+        "extendable": { "title": "Extensible", "desc": "Add routes, dashboards, or forms quickly." }
+      },
+      "interactions": {
+        "title": "UI interactions",
+        "desc": "Toast & Dialog styles are preset.",
+        "toast": "Styles loaded — happy hacking!",
+        "toast_btn": "Show Toast",
+        "dialog_btn": "Open Dialog",
+        "dialog_body": "Put forms or confirmations here; styled for light/dark."
+      }
+    }
+  }
+}

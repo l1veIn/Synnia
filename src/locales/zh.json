@@ -1,0 +1,81 @@
+{
+  "app": {
+    "title": "Synnie",
+    "badge": "品牌 IP 管理",
+    "heading": "Synnie",
+    "subheading": "Synnie 报道！准备好编织一些数字魔法了吗？ (From Chaos to Canon. Locally.)",
+    "stack": {
+      "react": "React 19 + Vite",
+      "shadcn": "Shadcn/Tailwind",
+      "tauri": "Tauri v2"
+    },
+    "status_online": "系统在线",
+    "status_standby": "待机中"
+  },
+  "nav": {
+    "home": "首页",
+    "demo": "路由示例"
+  },
+  "ui": {
+    "theme_hint": "使用视图转换动画切换明暗主题。",
+    "dialog_title": "示例对话框",
+    "dialog_desc": "这里可以放表单或确认提示。"
+  },
+  "loader": {
+    "subtitle": "启动中",
+    "title": "正在加载工作区...",
+    "hint": "资源就绪后将自动打开主窗口。"
+  },
+  "demo": {
+    "title": "路由示例页面",
+    "desc": "第二个页面用于验证路由正常，可在此扩展你的功能。",
+    "tabs": {
+      "title": "Tabs 示例",
+      "desc": "基于 Shadcn 的标签页 + i18n。",
+      "one": "标签一",
+      "two": "标签二",
+      "three": "标签三",
+      "content_one": "这里是标签一的内容。",
+      "content_two": "这里是标签二的内容。",
+      "content_three": "这里是标签三的内容。"
+    }
+  },
+  "sections": {
+    "quickstart": {
+      "title": "快速开始",
+      "desc": "常见的 UI 与交互已就绪。",
+      "theme": { "title": "主题", "desc": "标题栏内置视图转换的主题切换；可复用 ThemeProvider 与 CustomTitleBar。" },
+      "layout": { "title": "布局", "desc": "默认容器栅格与卡片，可自由替换路由、仪表盘或表单。" },
+      "components": { "title": "组件", "desc": "Shadcn UI 可直接用：Button、Card、Tabs、Dialog、Toast 样式。" },
+      "tauri": { "title": "Tauri", "desc": "示例展示 invoke → Rust 命令；业务放在 src-tauri/src/lib.rs。" }
+    },
+    "settings": {
+      "title": "偏好设置示例",
+      "desc": "演示常见的状态组件。",
+      "immersive": { "title": "沉浸模式", "desc": "隐藏多余边框，突出内容区。" },
+      "ping": {
+        "title": "调用后端命令：",
+        "cta": "调用 Tauri ping()",
+        "loading": "调用中...",
+        "empty": "点击上方按钮查看返回结果。"
+      }
+    },
+    "cards": {
+      "title": "基础卡片布局",
+      "desc": "可放列表、统计或欢迎信息。",
+      "items": {
+        "decoupled": { "title": "无业务耦合", "desc": "按功能拆分到 src/ 与 src-tauri/，保持前后端解耦。" },
+        "lightweight": { "title": "轻量依赖", "desc": "最小依赖集，随时扩展。" },
+        "extendable": { "title": "易于扩展", "desc": "快速添加路由、仪表盘或表单。" }
+      },
+      "interactions": {
+        "title": "UI 行为演示",
+        "desc": "Toast 与 Dialog 样式已预设。",
+        "toast": "样式已加载，祝你编码愉快！",
+        "toast_btn": "弹出 Toast",
+        "dialog_btn": "打开 Dialog",
+        "dialog_body": "可放表单或确认提示；已适配明暗模式。"
+      }
+    }
+  }
+}

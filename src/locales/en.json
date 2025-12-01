@@ -1,9 +1,9 @@
 {
   "app": {
-    "title": "Synnie",
+    "title": "Synnia",
     "badge": "Brand IP Management",
-    "heading": "Synnie",
-    "subheading": "Synnie, reporting for duty! Ready to weave some digital magic?",
+    "heading": "Synnia",
+    "subheading": "Synnia, reporting for duty! Ready to weave some digital magic?",
     "stack": {
       "react": "React 19 + Vite",
       "shadcn": "Shadcn/Tailwind",

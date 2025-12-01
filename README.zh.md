@@ -1,16 +1,16 @@
-![Synnie Banner](public/assets/banner1.jpeg)
+![Synnia Banner](public/assets/banner1.jpeg)
 
-# Synnie
+# Synnia
 
 > **From Chaos to Canon. Locally.**
 
 [English](./README.md)
 
-Synnie 是一个数字资产一致性引擎与品牌 IP 管理工具。
+Synnia 是一个数字资产一致性引擎与品牌 IP 管理工具。
 
 ## 简介
 
-Synnie 致力于帮助设计师和独立开发者整理他们的创意宇宙。作为一个“本地优先”的品牌灵魂伴侣 (Brand Soulmate)，它确保您的数字资产在所有平台和语境中保持一致。
+Synnia 致力于帮助设计师和独立开发者整理他们的创意宇宙。作为一个“本地优先”的品牌灵魂伴侣 (Brand Soulmate)，它确保您的数字资产在所有平台和语境中保持一致。
 
 *   **身份 (Identity)**: 连贯的品牌管理。
 *   **一致性 (Consistency)**: 统一的资产组织。

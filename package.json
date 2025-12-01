@@ -1,7 +1,7 @@
 {
-  "name": "synnie",
+  "name": "synnia",
   "version": "0.0.1",
-  "description": "Synnie: 数字资产一致性引擎、品牌ip管理工具. Slogan: From Chaos to Canon. Locally.",
+  "description": "Synnia: 数字资产一致性引擎、品牌ip管理工具. Slogan: From Chaos to Canon. Locally.",
   "private": true,
   "type": "module",
   "scripts": {

@@ -1,9 +1,9 @@
 {
   "app": {
-    "title": "Synnie",
+    "title": "Synnia",
     "badge": "品牌 IP 管理",
-    "heading": "Synnie",
-    "subheading": "Synnie 报道！准备好编织一些数字魔法了吗？ (From Chaos to Canon. Locally.)",
+    "heading": "Synnia",
+    "subheading": "Synnia 报道！准备好编织一些数字魔法了吗？ (From Chaos to Canon. Locally.)",
     "stack": {
       "react": "React 19 + Vite",
       "shadcn": "Shadcn/Tailwind",

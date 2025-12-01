@@ -21,7 +21,7 @@ export default function HomePage() {
   const handlePing = async () => {
     try {
       setIsCalling(true);
-      const response = await invoke<GreetResponse>("ping", { name: "Synnie" });
+      const response = await invoke<GreetResponse>("ping", { name: "Synnia" });
       setPingMessage(response.greeting);
     } catch (error) {
       setPingMessage(`error:${String(error)}`);
@@ -49,10 +49,10 @@ export default function HomePage() {
             </div>
         </div>
         <div className="w-48 h-48 md:w-64 md:h-64 flex-shrink-0 relative">
-            {/* Placeholder for Synnie Character - assuming it will be at /assets/synnie-main.png */}
+            {/* Placeholder for Synnia Character - assuming it will be at /assets/synnia-main.png */}
             <img 
                 src="/assets/Key_Visual_(Master)_character-main.png" 
-                alt="Synnie" 
+                alt="Synnia" 
                 className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(255,0,119,0.3)] hover:drop-shadow-[0_0_25px_rgba(255,0,119,0.5)] transition-all duration-500"
             />
         </div>

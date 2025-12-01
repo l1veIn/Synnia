@@ -108,7 +108,7 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
     i18n.changeLanguage(i18n.language === "zh" ? "en" : "zh");
   };
   
-  const displayTitle = title ?? t("app.title", "Synnie");
+  const displayTitle = title ?? t("app.title", "Synnia");
 
   return (
     <div

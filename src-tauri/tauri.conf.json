@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Synnie",
+  "productName": "Synnia",
   "version": "1.0.0",
-  "identifier": "com.synnie.synnie",
+  "identifier": "com.synnia.synnia",
   "build": {
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "pnpm dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Synnie",
+        "title": "Synnia",
         "width": 1200,
         "height": 800,
         "label": "main",

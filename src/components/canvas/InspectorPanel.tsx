@@ -13,23 +13,57 @@ import { toast } from "sonner";
 
 interface InspectorPanelProps {
   node: Node<AssetNodeData> | null;
+  selectedCount: number; // New prop
   onClose: () => void;
-  onRefreshGraph: () => void; // Callback to refresh graph after agent action
+  onRefreshGraph: () => void;
+  onDelete: (id: string) => void; // Add onDelete prop
 }
 
-export function InspectorPanel({ node, onClose, onRefreshGraph }: InspectorPanelProps) {
+export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, onDelete }: InspectorPanelProps) {
   const [mode, setMode] = useState<'details' | 'chat'>('details');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleDelete = () => {
+      if (node) {
+          onDelete(node.id);
+          onClose(); // Close panel after delete
+      }
+  };
 
   // Reset state when node changes
   useEffect(() => {
       setMode('details');
       setMessages([]);
       setIsProcessing(false);
-  }, [node?.id]);
+  }, [node?.id, selectedCount]);
 
-  if (!node) return null;
+  if (selectedCount === 0) return null;
+  
+  // Multi-selection Mode
+  if (selectedCount > 1) {
+      return (
+        <div className="absolute top-4 right-4 w-80 bg-background/95 backdrop-blur border border-border/60 shadow-2xl rounded-xl overflow-hidden flex flex-col z-20 animate-in slide-in-from-right-10 fade-in duration-200">
+            <div className="h-14 px-4 border-b border-border/50 flex items-center justify-between bg-muted/30">
+                <span className="font-semibold">{selectedCount} Items Selected</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+                    <X className="w-4 h-4" />
+                </Button>
+            </div>
+            <div className="p-4 space-y-4">
+                <div className="p-3 bg-muted/50 rounded text-xs text-muted-foreground">
+                    Batch operations are coming soon.
+                    <br/>
+                    - Align Nodes
+                    - Group
+                    - Batch Delete
+                </div>
+            </div>
+        </div>
+      );
+  }
+
+  if (!node) return null; // Should be covered by selectedCount check but safe to keep
 
   const { data } = node;
 
@@ -47,39 +81,13 @@ export function InspectorPanel({ node, onClose, onRefreshGraph }: InspectorPanel
       setIsProcessing(true);
 
       try {
-          // 2. Call Backend Mock Agent
-          // For now, we simulate a delay and a hardcoded action
-          // In future: await invoke('chat_with_agent', { nodeId: node.id, prompt: content })
+          // 2. Call Backend Agent
+          const responseText = await invoke<string>('chat_with_agent', { 
+              nodeId: node.id, 
+              userPrompt: content 
+          });
           
-          // Simulation:
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          let responseText = "I heard you, but I don't know how to do that yet.";
-          
-          // Mock Logic for Demo
-          if (content.toLowerCase().includes("image") || content.toLowerCase().includes("picture")) {
-              responseText = "Sure! I'm generating an image variant based on this node.";
-              
-              // Trigger a graph update (Mock)
-              await invoke('create_node', { 
-                  projectId: "demo", 
-                  nodeType: "Image", 
-                  x: node.position.x + 300, 
-                  y: node.position.y 
-              });
-              
-              // We need to link them too, but let's keep it simple for now or assume the backend did it.
-              // In a real agent, the backend would return the ID of the new node, and we'd link it.
-          } else if (content.toLowerCase().includes("text") || content.toLowerCase().includes("write")) {
-              responseText = "Okay, drafting some text for you.";
-               await invoke('create_node', { 
-                  projectId: "demo", 
-                  nodeType: "Text", 
-                  x: node.position.x + 300, 
-                  y: node.position.y + 100 
-              });
-          }
-
+          // Add Agent Message
           const agentMsg: Message = {
               id: (Date.now() + 1).toString(),
               role: 'agent',
@@ -88,15 +96,20 @@ export function InspectorPanel({ node, onClose, onRefreshGraph }: InspectorPanel
           };
           setMessages(prev => [...prev, agentMsg]);
           
-          // Refresh the canvas to show new nodes
+          // Refresh the canvas (in case the agent made changes)
+          // Note: Currently chat_with_agent is read-only text, 
+          // but in Phase 4 we will make it return tool calls to update graph.
           onRefreshGraph();
 
       } catch (e) {
-          toast.error(`Agent Error: ${e}`);
+          console.error(e);
+          const errorMsg = typeof e === 'string' ? e : "Sorry, something went wrong. Please check your API Key in Settings.";
+          
+          toast.error(`Agent Error: ${errorMsg}`);
           setMessages(prev => [...prev, {
               id: Date.now().toString(),
               role: 'agent',
-              content: "Sorry, something went wrong.",
+              content: errorMsg, // Show error in chat too
               timestamp: Date.now()
           }]);
       } finally {
@@ -213,13 +226,12 @@ export function InspectorPanel({ node, onClose, onRefreshGraph }: InspectorPanel
 
       {/* Footer Actions (Only in details mode) */}
       {mode === 'details' && (
-        <div className="p-4 border-t border-border/50 bg-muted/10">
-            <Button variant="destructive" variant="outline" className="w-full gap-2 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20">
-                <Trash2 className="w-4 h-4" />
-                Delete Asset
-            </Button>
-        </div>
-      )}
+                <div className="p-4 border-t border-border/50 bg-muted/10">
+                      <Button variant="outline" className="w-full gap-2 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 text-destructive" onClick={handleDelete}>
+                          <Trash2 className="w-4 h-4" />
+                          Delete Asset
+                      </Button>
+                </div>      )}
     </div>
   );
 }

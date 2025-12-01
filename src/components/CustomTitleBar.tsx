@@ -6,6 +6,8 @@ import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 
+import { SettingsDialog } from "./settings/SettingsDialog";
+
 interface CustomTitleBarProps {
   running?: boolean;
   title?: string;
@@ -115,7 +117,7 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
       data-tauri-drag-region
       className={`h-9 flex items-center justify-between fixed top-0 left-0 right-0 z-[100] select-none px-2 transition-colors duration-200
         ${isMaximized ? "rounded-none" : "rounded-t-xl"}
-        bg-background/90 backdrop-blur border-b border-border/40
+        bg-background/80 backdrop-blur-md border-b border-border/40
       `}
     >
       {/* 左侧：应用图标和标题 */}
@@ -158,6 +160,9 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
       {/* 右侧：控制区域 */}
       <div className="flex items-center h-full">
         
+        {/* Settings Dialog */}
+        <SettingsDialog />
+
         {/* 语言切换 */}
         <Button 
             variant="ghost" 
@@ -175,7 +180,7 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
             variant="ghost" 
             size="sm" 
             onClick={toggleTheme}
-            className="h-full w-10 px-0 rounded-none hover:bg-muted text-muted-foreground hover:text-foreground transition-colors focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-full w-10 px-0 rounded-none hover:bg-muted text-muted-foreground hover:text-primary transition-colors focus-visible:ring-0 focus-visible:ring-offset-0"
         >
             <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

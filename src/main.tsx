@@ -2,23 +2,22 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "@/components/theme-provider";
 import App from "./App";
-import HomePage from "./pages/Home";
-import DemoPage from "./pages/Demo";
+import Dashboard from "./pages/Dashboard";
 import CanvasPage from "./pages/Canvas";
+import AgentsPage from "./pages/Agents"; // Import
 import "./index.css";
-import "sonner/dist/styles.css";
 import "@/lib/i18n";
 import { HashRouter, Route, Routes } from "react-router-dom";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme" attribute="class">
       <HashRouter>
         <Routes>
           <Route path="/" element={<App />}>
-            <Route index element={<HomePage />} />
-            <Route path="canvas" element={<CanvasPage />} />
-            <Route path="demo" element={<DemoPage />} />
+            <Route index element={<Dashboard />} />
+            <Route path="editor" element={<CanvasPage />} />
+            <Route path="agents" element={<AgentsPage />} /> {/* New Route */}
           </Route>
         </Routes>
       </HashRouter>

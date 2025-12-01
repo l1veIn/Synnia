@@ -3,11 +3,15 @@ use serde::{Serialize, Deserialize};
 use ts_rs::TS;
 use std::sync::Mutex;
 
-mod models;
-mod db;
 mod commands;
+mod db;
+mod models;
+mod services;
+mod error;
+mod config;
+mod state; // Added state module
 
-use commands::AppState;
+use state::AppState; // Use from new location
 
 #[derive(Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/bindings/greet_response.ts")]
@@ -32,6 +36,7 @@ pub fn run() {
             current_project_path: Mutex::new(None),
         })
         .setup(|app| {
+            app.handle().plugin(tauri_plugin_dialog::init())?; // Init dialog plugin
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -43,13 +48,45 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ping,
-            commands::init_project,
-            commands::create_node,
-            commands::get_nodes,
-            commands::create_edge,
-            commands::get_edges,
-            commands::update_node_pos,
-            commands::reset_project
+            // Project Commands
+            commands::project::init_project,
+            commands::project::get_recent_projects,
+            commands::project::get_default_projects_path,
+            commands::project::set_default_projects_path,
+            commands::project::create_project,
+            commands::project::get_current_project_path,
+            commands::project::delete_project, // New
+            commands::project::reset_project,
+            commands::project::set_thumbnail,
+            commands::project::open_in_browser,
+            commands::project::rename_project, // New
+
+            // Graph Commands
+            commands::graph::create_node,
+            commands::graph::get_nodes,
+            commands::graph::restore_node,
+            commands::graph::delete_node,
+            commands::graph::update_node_pos,
+            commands::graph::update_node_size,
+            commands::graph::rename_node,
+            commands::graph::create_edge,
+            commands::graph::get_edges,
+            commands::graph::delete_edge,
+            commands::graph::restore_edge,
+
+            // Agent Commands
+            commands::agent::save_settings,
+            commands::agent::get_api_key,
+            commands::agent::get_base_url,
+            commands::agent::get_model_name,
+            commands::agent::run_agent,
+            commands::agent::get_agents,
+            commands::agent::save_agent, // New
+            commands::agent::delete_agent, // New
+
+            // Asset Commands
+            commands::asset::import_file,
+            commands::asset::save_processed_image,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

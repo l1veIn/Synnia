@@ -5,8 +5,8 @@
   "identifier": "com.synnia.synnia",
   "build": {
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm gen:types && pnpm dev",
+    "beforeBuildCommand": "pnpm gen:types && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -20,17 +20,17 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": false,
-        "visible": false,
+        "visible": true,
         "center": true,
         "titleBarStyle": "Overlay",
         "theme": "Dark"
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/*"]
+        "scope": ["$APPDATA/**", "$DESKTOP/**", "$HOME/**", "$DOCUMENT/**"]
       }
     }
   },

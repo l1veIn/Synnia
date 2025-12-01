@@ -9,12 +9,15 @@ body {
 }
 
 /* 基础布局 */
-html, body {
+html,
+body {
   height: 100%;
   width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  @apply bg-background;
+  /* Ensure background color handles view transitions */
 }
 
 #root {
@@ -22,109 +25,129 @@ html, body {
   width: 100%;
 }
 
-code, pre {
+code,
+pre {
   font-family: 'JetBrains Mono', monospace;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Light Mode: Synnia #F5F7FA */
+    --background: 216 33% 97%;
+    --foreground: 229 16% 20%;
+    /* Synnia Dark Text */
+
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 229 16% 20%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 336 75% 50%; /* Natural Pink (Light Mode) */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 229 16% 20%;
+
+    /* Brand Pink #FF0077 */
+    --primary: 332 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 216 20% 90%;
+    --secondary-foreground: 229 16% 20%;
+
+    --muted: 216 20% 90%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 216 20% 90%;
+    --accent-foreground: 229 16% 20%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 336 75% 50%; /* Natural Pink Ring */
+
+    --border: 216 20% 85%;
+    --input: 216 20% 85%;
+    --ring: 332 100% 50%;
+
     --radius: 0.5rem;
   }
+
   .dark {
-    --background: 240 10% 10%;
-    --foreground: 240 5% 90%;
-    --card: 240 10% 12%;
-    --card-foreground: 240 5% 90%;
-    --popover: 240 10% 12%;
-    --popover-foreground: 240 5% 90%;
-    --primary: 336 75% 60%; /* Natural Pink (Dark Mode) - Softer */
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Dark Mode: Synnia #2A2D3A */
+    --background: 229 16% 20%;
+    --foreground: 216 33% 97%;
+    /* Synnia Light Text */
+
+    --card: 229 16% 25%;
+    /* Slightly lighter than BG */
+    --card-foreground: 216 33% 97%;
+
+    --popover: 229 16% 25%;
+    --popover-foreground: 216 33% 97%;
+
+    /* Brand Pink #FF0077 (Same, keeps pop) */
+    --primary: 332 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 229 16% 30%;
+    --secondary-foreground: 216 33% 97%;
+
+    --muted: 229 16% 30%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 229 16% 30%;
+    --accent-foreground: 216 33% 97%;
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 336 75% 60%; /* Natural Pink Ring */
+
+    --border: 229 16% 30%;
+    --input: 229 16% 30%;
+    --ring: 332 100% 50%;
   }
 }
-
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* Custom WebKit Scrollbar Styling for elegant look */
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
     width: 14px;
     height: 14px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
     margin-block: 4px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-muted-foreground/25 hover:bg-muted-foreground/40 rounded-full;
     border: 4px solid transparent;
     background-clip: padding-box;
   }
-
-  .custom-scrollbar::-webkit-scrollbar-corner {
-    background: transparent;
-  }
 }
-
 
 /* View Transition 动画配置 */
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: none; /* 禁用默认的淡入淡出 */
+  animation: none;
   mix-blend-mode: normal;
+  height: 100%;
+  overflow: clip;
 }
 
 /* 确保新视图始终在旧视图之上 */
 ::view-transition-new(root) {
   z-index: 9999;
 }
+
 ::view-transition-old(root) {
   z-index: 1;
 }
 
 ::view-transition-group(root) {
-  animation-duration: 0.5s; /* 后备时长 */
+  animation-duration: 0.5s;
 }
+

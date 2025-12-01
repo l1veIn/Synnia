@@ -13,6 +13,14 @@
     "core:window:allow-start-dragging",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
-    "core:window:allow-toggle-maximize"
+    "core:window:allow-toggle-maximize",
+    "dialog:default"
+  ],
+  "scopes": [
+    {
+      "name": "fs-scope",
+      "platforms": ["windows", "linux", "macOS"],
+      "allow": ["$HOME/**", "$DESKTOP/**", "$DOWNLOADS/**", "$DOCUMENT/**"]
+    }
   ]
 }

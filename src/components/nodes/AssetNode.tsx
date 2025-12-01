@@ -1,21 +1,49 @@
-import { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { memo, useMemo, useCallback } from 'react';
+import { Handle, Position, NodeProps, NodeResizer, ResizeParams } from '@xyflow/react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileText, Image as ImageIcon, Terminal, Link as LinkIcon, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
-// Define the data expected by this node
 export type AssetNodeData = {
   label: string;
   type: 'Image' | 'Text' | 'Prompt' | 'Link' | 'Grid' | 'Other';
   status: 'Active' | 'Outdated' | 'Processing' | 'Error';
-  preview?: string; // Text content or Image URL
+  preview?: string; 
+  projectPath?: string;
+  onResizeCommit?: (nodeId: string, oldWidth: number, oldHeight: number, newWidth: number, newHeight: number) => Promise<void>;
 };
 
-const AssetNode = ({ data, selected }: NodeProps<AssetNodeData>) => {
+const AssetNode = ({ id, data, selected, xPos, yPos, style }: NodeProps<AssetNodeData>) => {
   
+  const onResizeEnd = useCallback((event: any, params: ResizeParams) => {
+    // Current dimensions (before this resize applies to the node's style)
+    // params only contains new width/height. 
+    // If style.width is not set, we assume default min dimensions.
+    const oldWidth = style?.width ? Number(style.width) : 160;
+    const oldHeight = style?.height ? Number(style.height) : 100;
+
+    if (data.onResizeCommit) {
+      data.onResizeCommit(id, oldWidth, oldHeight, params.width, params.height);
+    }
+  }, [id, data.onResizeCommit, style]);
+
+  const imageUrl = useMemo(() => {
+      if (data.type === 'Image' && data.preview) {
+          if (data.preview.startsWith('http') || data.preview.startsWith('data:')) {
+              return data.preview;
+          }
+          if (data.projectPath) {
+             const rawPath = `${data.projectPath}/${data.preview}`;
+             const normalizedPath = rawPath.replace(/\\/g, '/').replace(/\/+/g, '/');
+             return convertFileSrc(normalizedPath);
+          }
+          return convertFileSrc(data.preview);
+      }
+      return null;
+  }, [data.preview, data.projectPath, data.type]);
+
   const getIcon = () => {
     switch (data.type) {
       case 'Image': return <ImageIcon className="w-4 h-4" />;
@@ -38,59 +66,56 @@ const AssetNode = ({ data, selected }: NodeProps<AssetNodeData>) => {
 
   return (
     <div className={cn(
-      "relative group transition-all duration-200",
-      selected ? "ring-2 ring-primary shadow-lg" : ""
+      "relative group transition-all duration-200 h-full w-full", 
+      selected ? "shadow-lg" : ""
     )}>
-      {/* Input Handle */}
+      <NodeResizer 
+        color="#3b82f6" 
+        isVisible={selected} 
+        minWidth={160} 
+        minHeight={100} 
+        onResizeEnd={onResizeEnd}
+      />
+
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-muted-foreground" />
 
-      <Card className="w-[240px] overflow-hidden border-border/60 bg-card shadow-sm">
+      <Card className={cn(
+          "h-full w-full overflow-hidden border-border/60 bg-card shadow-sm flex flex-col",
+          selected ? "ring-2 ring-primary" : ""
+        )}>
         {/* Header */}
-        <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0 border-b border-border/50 bg-muted/20">
-          <div className="flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", getStatusColor())} />
-            <div className="text-muted-foreground">
+        <CardHeader className="p-2 flex flex-row items-center justify-between space-y-0 border-b border-border/50 bg-muted/20 shrink-0 h-10">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className={cn("w-2 h-2 rounded-full shrink-0", getStatusColor())} />
+            <div className="text-muted-foreground shrink-0">
               {getIcon()}
             </div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {data.type}
+            <span className="text-xs font-semibold truncate text-muted-foreground">
+              {data.label}
             </span>
           </div>
-          <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
         </CardHeader>
 
-        {/* Content Preview */}
-        <CardContent className="p-0">
+        {/* Content Preview (Flexible Height) */}
+        <CardContent className="p-0 flex-1 min-h-0 relative">
           {data.type === 'Image' ? (
-            <div className="h-[140px] bg-secondary/50 flex items-center justify-center relative overflow-hidden">
-               {/* Placeholder for now */}
-               {data.preview ? (
-                 <img src={data.preview} alt="preview" className="w-full h-full object-cover" />
+            <div className="w-full h-full bg-secondary/50 flex items-center justify-center overflow-hidden">
+               {imageUrl ? (
+                 <img src={imageUrl} alt="preview" className="w-full h-full object-cover" />
                ) : (
                  <div className="text-muted-foreground/30 flex flex-col items-center gap-2">
                    <ImageIcon className="w-8 h-8" />
-                   <span className="text-xs">No Preview</span>
                  </div>
                )}
             </div>
           ) : (
-            <div className="h-[140px] p-3 text-xs text-muted-foreground font-mono bg-background/50 overflow-hidden relative">
+            <div className="w-full h-full p-3 text-xs text-muted-foreground font-mono bg-background/50 overflow-auto">
               {data.preview || "No content..."}
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent" />
             </div>
           )}
         </CardContent>
-
-        {/* Footer / Meta */}
-        <div className="p-2 bg-muted/20 border-t border-border/50 flex justify-between items-center text-[10px] text-muted-foreground">
-           <span>v1.0</span>
-           <span className="font-mono">ID: {data.label.slice(0,4)}...</span>
-        </div>
       </Card>
 
-      {/* Output Handle */}
       <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-primary" />
     </div>
   );

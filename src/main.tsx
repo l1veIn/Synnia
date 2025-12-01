@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import App from "./App";
 import HomePage from "./pages/Home";
 import DemoPage from "./pages/Demo";
+import CanvasPage from "./pages/Canvas";
 import "./index.css";
 import "sonner/dist/styles.css";
 import "@/lib/i18n";
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <Routes>
           <Route path="/" element={<App />}>
             <Route index element={<HomePage />} />
+            <Route path="canvas" element={<CanvasPage />} />
             <Route path="demo" element={<DemoPage />} />
           </Route>
         </Routes>

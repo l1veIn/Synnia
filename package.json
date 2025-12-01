@@ -1,7 +1,7 @@
 {
   "name": "synnia",
   "version": "0.0.1",
-  "description": "Synnia: 数字资产一致性引擎、品牌ip管理工具. Slogan: From Chaos to Canon. Locally.",
+  "description": "Synnia: Open-source Digital Asset Consistency Engine & IP Management Tool. Asset-as-Node philosophy.",
   "private": true,
   "type": "module",
   "scripts": {
@@ -30,6 +30,7 @@
     "@radix-ui/react-toast": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@tauri-apps/api": "^2.2.4",
+    "@xyflow/react": "^12.9.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^24.2.2",

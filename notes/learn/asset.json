@@ -1,0 +1,84 @@
+{
+    "meta": {
+      "schema_version": "1.2.0",
+      "description": "Our Standard Asset Node Structure for Visual Asset Manager(Synnia), still in development"
+    },
+    "definitions": {
+      "node": {
+        "id": "uuid-v4-string",
+        "type": "media_node",
+        "position": { "x": 100, "y": 200 },
+        
+        "//_comment_1": "基础设施特性 5: 锁定与权限",
+        "locks": {
+          "deletable": true,
+          "movable": true,
+          "editable": true
+        },
+  
+        "//_comment_2": "基础设施特性 3: 生命周期钩子",
+        "hooks": {
+          "on_create": "action:log_creation",
+          "on_delete": "action:cleanup_resources"
+        },
+  
+        "data": {
+          "//_comment_3": "核心数据区域",
+          "properties": {
+            
+            "filename": {
+              "value": "my_photo.jpg",
+              "type": "string",
+              
+              "//_comment_4": "用户提出的特性: 校验规则",
+              "rules": [
+                { "pattern": "^[a-zA-Z0-9_\\-\\.]+$", "message": "Invalid filename characters" },
+                { "max_length": 255, "message": "Filename too long" }
+              ],
+  
+              "//_comment_5": "基础设施特性 2: UI 渲染提示",
+              "ui_hints": {
+                "widget": "text_input",
+                "label": "File Name",
+                "placeholder": "Enter name...",
+                "group": "Basic Info"
+              }
+            },
+  
+            "file_size_bytes": {
+              "value": 2048000,
+              "type": "number",
+              "ui_hints": { "widget": "number_input", "readonly": true }
+            },
+  
+            "file_size_display": {
+              "//_comment_6": "基础设施特性 1: 计算属性 (Derived State)",
+              "type": "computed",
+              "expression": "(this.file_size_bytes / 1024 / 1024).toFixed(2) + ' MB'",
+              "dependencies": ["file_size_bytes"],
+              "ui_hints": { "widget": "label", "group": "Stats" }
+            },
+  
+            "aspect_ratio": {
+              "type": "computed",
+              "expression": "this.width && this.height ? (this.width / this.height).toFixed(2) : 'N/A'",
+              "dependencies": ["width", "height"],
+              "ui_hints": { "widget": "tag", "color": "blue" }
+            },
+            
+            "tags": {
+              "value": ["photography", "nature"],
+              "type": "array",
+              "rules": [
+                { "max_items": 10, "message": "Max 10 tags allowed" }
+              ],
+              "ui_hints": {
+                "widget": "tag_input",
+                "allow_create": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }

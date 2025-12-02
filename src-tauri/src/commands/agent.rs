@@ -1,10 +1,10 @@
-use tauri::{State, AppHandle, Emitter};
-use tauri::Manager; // Import Manager trait
+use tauri::{State, AppHandle, Manager};
 use std::path::PathBuf;
 use crate::error::AppError;
-use crate::models::{AgentDefinition, AssetType};
+use crate::models::{AgentDefinition};
 use crate::services::agent_service::{call_gemini_agent, GraphAction};
 use crate::AppState;
+use crate::config::GlobalConfig;
 
 // Helper to get agents directory
 fn get_agents_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
@@ -46,7 +46,7 @@ pub fn get_agents(app: AppHandle) -> Result<Vec<AgentDefinition>, AppError> {
 #[tauri::command]
 pub fn save_agent(agent: AgentDefinition, app: AppHandle) -> Result<(), AppError> {
     let dir = get_agents_dir(&app)?;
-    // Sanitize ID just in case, though ID should be safe
+    // Sanitize ID just in case
     let safe_id: String = agent.id.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-').collect();
     let filename = format!("{}.json", safe_id);
     let path = dir.join(filename);
@@ -75,25 +75,16 @@ pub async fn run_agent(
     agent_def: AgentDefinition, 
     inputs: serde_json::Value,
     context_node_id: Option<String>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
     app: AppHandle
-) -> Result<String, AppError> {
+) -> Result<Vec<GraphAction>, AppError> {
     println!("Starting run_agent: {} with inputs: {:?}", agent_def.name, inputs); 
 
-    let (api_key, base_url, model_name, project_id) = {
-        let db_guard = state.db.lock().map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-        let db = db_guard.as_ref().ok_or(AppError::ProjectNotLoaded)?;
-        
-        let key = db.get_setting("gemini_api_key")?;
-        let url = db.get_setting("gemini_base_url")?
-            .unwrap_or("https://generativelanguage.googleapis.com".to_string());
-        let model = db.get_setting("gemini_model_name")?
-            .unwrap_or("gemini-1.5-flash".to_string());
-            
-        (key, url, model, "demo".to_string())
-    };
-
-    let api_key = api_key.ok_or(AppError::Agent("Please configure API Key in Settings".to_string()))?;
+    // 1. Load Config
+    let config = GlobalConfig::load(&app);
+    let api_key = config.gemini_api_key.ok_or(AppError::Agent("Please configure Gemini API Key in Settings".to_string()))?;
+    let base_url = config.gemini_base_url.unwrap_or("https://generativelanguage.googleapis.com".to_string());
+    let model_name = config.gemini_model_name.unwrap_or("gemini-1.5-flash".to_string());
     
     let context = if let Some(nid) = context_node_id {
          format!("User is focusing on Node: {}", nid)
@@ -101,7 +92,7 @@ pub async fn run_agent(
          "No specific node selected.".to_string()
     };
 
-    // Call Service
+    // 2. Call Service
     let actions = call_gemini_agent(
         &api_key, 
         &base_url, 
@@ -111,80 +102,34 @@ pub async fn run_agent(
         context
     ).await.map_err(|e| AppError::Network(e))?;
 
-    let mut response_text = String::new();
-    let mut nodes_created = 0;
-
-    {
-        let db_guard = state.db.lock().map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-        let db = db_guard.as_ref().ok_or(AppError::ProjectNotLoaded)?;
-
-        for action in actions {
-            match action {
-                GraphAction::Message { text } => {
-                    response_text.push_str(&text);
-                    response_text.push('\n');
-                },
-                GraphAction::CreateNode { node_type, label: _, description } => {
-                    let asset_type = match node_type.as_str() {
-                        "Text" => AssetType::Text,
-                        "Prompt" => AssetType::Prompt,
-                        "Image" => AssetType::Image,
-                        _ => AssetType::Text // Default fallback
-                    };
-                    
-                    // Use JSON string for description if it's structured data
-                    let payload = description;
-                    
-                    let offset = (nodes_created + 1) as f64 * 250.0;
-                    
-                    if let Err(e) = db.create_asset_with_payload(&project_id, asset_type, 100.0 + offset, 100.0, &payload) {
-                        println!("Failed to create node: {:?}", e);
-                    } else {
-                        nodes_created += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    if nodes_created > 0 {
-        app.emit("graph:updated", ()).map_err(|e| AppError::Unknown(e.to_string()))?;
-        response_text.push_str(&format!("\n(Created {} new nodes)", nodes_created));
-    }
-
-    Ok(response_text.trim().to_string())
+    // 3. Return actions to Frontend
+    Ok(actions)
 }
 
 #[tauri::command]
-pub fn save_settings(key: String, base_url: String, model_name: String, state: State<AppState>) -> Result<(), AppError> {
-    state.get_db(|db| {
-        db.set_setting("gemini_api_key", &key)?;
-        db.set_setting("gemini_base_url", &base_url)?;
-        db.set_setting("gemini_model_name", &model_name)?;
-        Ok(())
-    })
+pub fn save_settings(key: String, base_url: String, model_name: String, app: AppHandle) -> Result<(), AppError> {
+    let mut config = GlobalConfig::load(&app);
+    config.gemini_api_key = Some(key);
+    config.gemini_base_url = Some(base_url);
+    config.gemini_model_name = Some(model_name);
+    config.save(&app).map_err(|e| AppError::Unknown(e))?;
+    Ok(())
 }
 
 #[tauri::command]
-pub fn get_api_key(state: State<AppState>) -> Result<String, AppError> {
-    state.get_db(|db| {
-        let key = db.get_setting("gemini_api_key")?;
-        Ok(key.unwrap_or_default())
-    })
+pub fn get_api_key(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.gemini_api_key.unwrap_or_default())
 }
 
 #[tauri::command]
-pub fn get_base_url(state: State<AppState>) -> Result<String, AppError> {
-    state.get_db(|db| {
-        let url = db.get_setting("gemini_base_url")?;
-        Ok(url.unwrap_or("https://generativelanguage.googleapis.com".to_string()))
-    })
+pub fn get_base_url(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.gemini_base_url.unwrap_or("https://generativelanguage.googleapis.com".to_string()))
 }
 
 #[tauri::command]
-pub fn get_model_name(state: State<AppState>) -> Result<String, AppError> {
-    state.get_db(|db| {
-        let name = db.get_setting("gemini_model_name")?;
-        Ok(name.unwrap_or("gemini-1.5-flash".to_string()))
-    })
+pub fn get_model_name(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.gemini_model_name.unwrap_or("gemini-1.5-flash".to_string()))
 }

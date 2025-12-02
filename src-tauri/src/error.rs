@@ -4,13 +4,13 @@ use std::fmt;
 #[derive(Debug, Serialize)]
 #[serde(tag = "code", content = "message")]
 pub enum AppError {
-    Database(String),
     Io(String),
     Network(String),
     Agent(String),
     ProjectNotLoaded,
     NotFound(String),
     Unknown(String),
+    Serialization(String),
 }
 
 impl fmt::Display for AppError {
@@ -20,13 +20,6 @@ impl fmt::Display for AppError {
 }
 
 impl std::error::Error for AppError {}
-
-// Automatic conversion from SQL errors
-impl From<rusqlite::Error> for AppError {
-    fn from(err: rusqlite::Error) -> Self {
-        AppError::Database(err.to_string())
-    }
-}
 
 // Automatic conversion from IO errors
 impl From<std::io::Error> for AppError {
@@ -38,10 +31,6 @@ impl From<std::io::Error> for AppError {
 // Automatic conversion from Serde JSON errors
 impl From<serde_json::Error> for AppError {
     fn from(err: serde_json::Error) -> Self {
-        AppError::Unknown(format!("Serialization error: {}", err))
+        AppError::Serialization(err.to_string())
     }
 }
-
-// Allow converting AppError to String for Tauri's Command Result (temporary compat)
-// Ideally we return AppError directly, but Tauri requires the Error type to be Serialize.
-// Since we derived Serialize, it works!

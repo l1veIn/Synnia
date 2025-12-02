@@ -15,7 +15,12 @@ pub struct RecentProject {
 pub struct GlobalConfig {
     pub recent_projects: Vec<RecentProject>,
     pub theme: Option<String>,
-    pub default_workspace: Option<String>, // New field
+    pub default_workspace: Option<String>,
+    
+    // AI Settings
+    pub gemini_api_key: Option<String>,
+    pub gemini_base_url: Option<String>,
+    pub gemini_model_name: Option<String>,
 }
 
 impl GlobalConfig {

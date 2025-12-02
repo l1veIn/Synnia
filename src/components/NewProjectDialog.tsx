@@ -8,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+// DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { invoke } from "@tauri-apps/api/core";
@@ -115,11 +115,11 @@ export function NewProjectDialog({ open: isOpen, onOpenChange, onCreated }: NewP
           </div>
           <div className="grid gap-2">
             <Label>Location</Label>
-            <div className="flex gap-2">
-                <div className="flex-1 px-3 py-2 text-sm border rounded-md bg-muted text-muted-foreground truncate font-mono">
+            <div className="flex gap-2 w-full min-w-0">
+                <div className="flex-1 px-3 py-2 text-sm border rounded-md bg-muted text-muted-foreground truncate font-mono min-w-0">
                     {parentPath || "Loading..."}
                 </div>
-                <Button variant="outline" size="icon" onClick={handleChangePath} title="Change Location">
+                <Button variant="outline" size="icon" onClick={handleChangePath} title="Change Location" className="shrink-0">
                     <FolderOpen className="w-4 h-4" />
                 </Button>
             </div>

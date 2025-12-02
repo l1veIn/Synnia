@@ -5,8 +5,8 @@ const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 // nodeWidth/height should match your AssetNode size roughly
-const nodeWidth = 240;
-const nodeHeight = 200; 
+// const nodeWidth = 240;
+// const nodeHeight = 200; 
 
 export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
   const isHorizontal = direction === 'LR';

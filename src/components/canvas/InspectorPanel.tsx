@@ -1,33 +1,38 @@
 import { useState, useEffect } from "react";
-import { AssetNodeData } from "@/components/nodes/AssetNode";
+import { UIAssetNodeData } from "@/components/nodes/AssetNode";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, MessageSquare, History, Trash2, ChevronLeft } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { X, MessageSquare, Trash2, ChevronLeft } from "lucide-react";
 import { Node } from "@xyflow/react";
 import { ChatInterface, Message } from "./ChatInterface";
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
+import { useProjectStore } from "@/store/projectStore";
 
 interface InspectorPanelProps {
-  node: Node<AssetNodeData> | null;
-  selectedCount: number; // New prop
+  node: Node<UIAssetNodeData> | null;
+  selectedCount: number;
   onClose: () => void;
-  onRefreshGraph: () => void;
-  onDelete: (id: string) => void; // Add onDelete prop
+  onRefreshGraph: () => void; 
+  onDelete: (id: string) => void;
 }
 
-export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, onDelete }: InspectorPanelProps) {
+export function InspectorPanel({ node, selectedCount, onClose, onDelete }: InspectorPanelProps) {
   const [mode, setMode] = useState<'details' | 'chat'>('details');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const updateNodeData = useProjectStore(state => state.updateNodeData);
 
   const handleDelete = () => {
       if (node) {
           onDelete(node.id);
-          onClose(); // Close panel after delete
+          onClose();
       }
   };
 
@@ -40,7 +45,6 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
 
   if (selectedCount === 0) return null;
   
-  // Multi-selection Mode
   if (selectedCount > 1) {
       return (
         <div className="absolute top-4 right-4 w-80 bg-background/95 backdrop-blur border border-border/60 shadow-2xl rounded-xl overflow-hidden flex flex-col z-20 animate-in slide-in-from-right-10 fade-in duration-200">
@@ -52,69 +56,31 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
             </div>
             <div className="p-4 space-y-4">
                 <div className="p-3 bg-muted/50 rounded text-xs text-muted-foreground">
-                    Batch operations are coming soon.
-                    <br/>
-                    - Align Nodes
-                    - Group
-                    - Batch Delete
+                    Batch operations coming soon.
                 </div>
             </div>
         </div>
       );
   }
 
-  if (!node) return null; // Should be covered by selectedCount check but safe to keep
+  if (!node) return null;
 
   const { data } = node;
+  const label = (data.properties?.name as string) || (data as any).label || "Untitled";
+  const content = (data.properties?.content as string) || "";
+  const isTextBased = ['text_asset', 'prompt_asset', 'Text', 'Prompt'].includes(data.assetType);
+  const isReadOnly = !!data.provenance; // Generated nodes are read-only
 
-  const handleSendMessage = async (content: string) => {
-      if (!node) return;
-      
-      // 1. Add User Message
-      const userMsg: Message = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, userMsg]);
-      setIsProcessing(true);
+  const handleContentChange = (val: string) => {
+      updateNodeData(node.id, { properties: { content: val } });
+  };
 
-      try {
-          // 2. Call Backend Agent
-          const responseText = await invoke<string>('chat_with_agent', { 
-              nodeId: node.id, 
-              userPrompt: content 
-          });
-          
-          // Add Agent Message
-          const agentMsg: Message = {
-              id: (Date.now() + 1).toString(),
-              role: 'agent',
-              content: responseText,
-              timestamp: Date.now()
-          };
-          setMessages(prev => [...prev, agentMsg]);
-          
-          // Refresh the canvas (in case the agent made changes)
-          // Note: Currently chat_with_agent is read-only text, 
-          // but in Phase 4 we will make it return tool calls to update graph.
-          onRefreshGraph();
+  const handleNameChange = (val: string) => {
+      updateNodeData(node.id, { properties: { name: val } });
+  };
 
-      } catch (e) {
-          console.error(e);
-          const errorMsg = typeof e === 'string' ? e : "Sorry, something went wrong. Please check your API Key in Settings.";
-          
-          toast.error(`Agent Error: ${errorMsg}`);
-          setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              role: 'agent',
-              content: errorMsg, // Show error in chat too
-              timestamp: Date.now()
-          }]);
-      } finally {
-          setIsProcessing(false);
-      }
+  const handleSendMessage = async () => {
+     toast.info("Chat disabled in this version.");
   };
 
   return (
@@ -128,7 +94,7 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
                 </Button>
             )}
             <div className="font-semibold truncate pr-2">
-            {mode === 'chat' ? `Chat: ${data.label.slice(0,8)}...` : data.label}
+            {mode === 'chat' ? `Chat: ${label.slice(0,8)}...` : label}
             </div>
         </div>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onClose}>
@@ -139,9 +105,8 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
       {/* Body Switcher */}
       {mode === 'chat' ? (
           <ChatInterface 
-            nodeId={node.id} 
-            messages={messages} 
             onSendMessage={handleSendMessage} 
+            messages={messages} 
             isProcessing={isProcessing} 
           />
       ) : (
@@ -149,18 +114,19 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
         <div className="flex-1 overflow-hidden flex flex-col">
             <div className="p-4 pb-2">
                 <div className="flex items-center gap-2 mb-4">
-                <Badge variant="outline" className="uppercase text-[10px]">{data.type}</Badge>
+                <Badge variant="outline" className="uppercase text-[10px]">{data.assetType}</Badge>
                 <Badge className={
-                    data.status === 'Active' ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20" : 
-                    "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20"
+                    data.status === 'success' ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20" : 
+                    data.status === 'stale' ? "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20" :
+                    "bg-slate-500/10 text-slate-500 border-slate-500/20"
                 }>
                     {data.status}
                 </Badge>
                 </div>
                 
-                <Button className="w-full gap-2" size="lg" onClick={() => setMode('chat')}>
+                <Button className="w-full gap-2" size="lg" onClick={() => setMode('chat')} disabled>
                     <MessageSquare className="w-4 h-4" />
-                    Chat with Agent
+                    Chat with Agent (Soon)
                 </Button>
             </div>
 
@@ -169,54 +135,95 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
             <Tabs defaultValue="details" className="flex-1 flex flex-col">
                 <div className="px-4 pt-2">
                     <TabsList className="w-full grid grid-cols-3">
-                        <TabsTrigger value="details">Details</TabsTrigger>
-                        <TabsTrigger value="history">History</TabsTrigger>
+                        <TabsTrigger value="details">Editor</TabsTrigger>
+                        <TabsTrigger value="provenance">Graph</TabsTrigger>
                         <TabsTrigger value="debug">Raw</TabsTrigger>
                     </TabsList>
                 </div>
                 
                 <ScrollArea className="flex-1">
-                    <TabsContent value="details" className="p-4 space-y-4 m-0">
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground font-medium">Description</span>
-                            <p className="text-sm leading-relaxed text-muted-foreground/80">
-                                {data.preview || "No content available for this node."}
-                            </p>
-                        </div>
-                        
-                        <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground font-medium">Created At</span>
-                            <p className="text-sm font-mono text-foreground">2023-10-27 10:30:00</p>
+                    <TabsContent value="details" className="p-4 space-y-6 m-0">
+                        {isReadOnly && (
+                            <div className="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-[10px] text-yellow-600 dark:text-yellow-400">
+                                Generated Asset (Read-Only). Detach to edit.
+                            </div>
+                        )}
+
+                        {/* Name Field */}
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground font-medium">Name</Label>
+                            <Input 
+                                value={label} 
+                                onChange={(e) => handleNameChange(e.target.value)}
+                                className="h-8"
+                                // Name is usually editable even for generated assets? 
+                                // Houdini allows renaming. Let's allow it.
+                            />
                         </div>
 
+                        {/* Content Field (Conditional) */}
+                        {isTextBased && (
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground font-medium">Content</Label>
+                                <Textarea 
+                                    value={content} 
+                                    onChange={(e) => handleContentChange(e.target.value)}
+                                    className="min-h-[200px] font-mono text-xs"
+                                    disabled={isReadOnly} // LOCKED
+                                />
+                            </div>
+                        )}
+                        
+                        {/* Info */}
+                        <div className="space-y-1 pt-4 border-t border-border/50">
+                            <span className="text-xs text-muted-foreground font-medium">ID</span>
+                            <p className="text-[10px] font-mono text-muted-foreground truncate select-all">
+                                {node.id}
+                            </p>
+                        </div>
                         <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground font-medium">Dimensions / Specs</span>
-                            <p className="text-sm font-mono text-foreground">1024x1024 • PNG</p>
+                            <span className="text-xs text-muted-foreground font-medium">Hash</span>
+                            <p className="text-[10px] font-mono text-muted-foreground truncate select-all">
+                                {data.hash || 'No Hash'}
+                            </p>
                         </div>
                     </TabsContent>
                     
-                    <TabsContent value="history" className="p-4 m-0">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                            <History className="w-4 h-4" />
-                            <span>Version History</span>
-                        </div>
-                        <div className="border-l-2 border-muted ml-2 pl-4 space-y-6">
-                            <div className="relative">
-                                <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-primary ring-4 ring-background" />
-                                <p className="text-sm font-medium">Version 2 (Current)</p>
-                                <p className="text-xs text-muted-foreground">Updated prompt by Agent</p>
+                    <TabsContent value="provenance" className="p-4 m-0">
+                        {data.provenance ? (
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Recipe</Label>
+                                    <div className="text-sm font-medium">{data.provenance.recipeId}</div>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Generated At</Label>
+                                    <div className="text-xs text-muted-foreground">
+                                        {new Date(Number(data.provenance.generatedAt)).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Sources</Label>
+                                    {data.provenance.sources.map((s, i) => (
+                                        <div key={i} className="text-xs border p-2 rounded bg-muted/30">
+                                            <div className="font-mono truncate">{s.nodeId}</div>
+                                            <div className="text-muted-foreground text-[10px]">Hash: {s.nodeHash?.slice(0,8)}...</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="relative opacity-50">
-                                <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-muted ring-4 ring-background" />
-                                <p className="text-sm font-medium">Version 1</p>
-                                <p className="text-xs text-muted-foreground">Original upload</p>
+                        ) : (
+                            <div className="text-sm text-muted-foreground italic">
+                                This is a raw asset (Root Node).
                             </div>
-                        </div>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="debug" className="p-4 m-0">
                         <pre className="text-[10px] font-mono bg-muted p-2 rounded overflow-auto">
-                            {JSON.stringify(data, null, 2)}
+                            {JSON.stringify(data, (_key, value) => 
+                                typeof value === 'bigint' ? value.toString() : value
+                            , 2)}
                         </pre>
                     </TabsContent>
                 </ScrollArea>
@@ -224,14 +231,14 @@ export function InspectorPanel({ node, selectedCount, onClose, onRefreshGraph, o
         </div>
       )}
 
-      {/* Footer Actions (Only in details mode) */}
+      {/* Footer Actions */}
       {mode === 'details' && (
-                <div className="p-4 border-t border-border/50 bg-muted/10">
-                      <Button variant="outline" className="w-full gap-2 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 text-destructive" onClick={handleDelete}>
-                          <Trash2 className="w-4 h-4" />
-                          Delete Asset
-                      </Button>
-                </div>      )}
+            <div className="p-4 border-t border-border/50 bg-muted/10">
+                    <Button variant="outline" className="w-full gap-2 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 text-destructive" onClick={handleDelete}>
+                        <Trash2 className="w-4 h-4" />
+                        Delete Asset
+                    </Button>
+            </div>      )}
     </div>
   );
 }

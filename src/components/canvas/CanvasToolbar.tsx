@@ -1,40 +1,54 @@
 import { Button } from '@/components/ui/button';
 import { 
-    Home, Trash2, Type, Image as ImageIcon, Terminal, 
-    MousePointer2, Hand, Undo, Redo, Maximize, Grip, Loader2, Check
+    Home, Type, Image as ImageIcon, Terminal, 
+    MousePointer2, Hand, Undo, Redo, Maximize, Grip, Loader2, Save
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { useProjectStore } from '@/store/projectStore';
+import { useStore } from 'zustand'; // Correct import
+import { ASSET_TYPES } from '@/config/menuRegistry';
 
 interface CanvasToolbarProps {
     activeTool: 'select' | 'hand';
-    syncStatus: 'saved' | 'saving' | 'error';
     onToolChange: (tool: 'select' | 'hand') => void;
-    onAddNode: (type: string) => void;
+    onAddNode: (type: string, initialData?: any) => void;
     onImportImage: () => void;
     onLayout: () => void;
     onFitView: () => void;
-    onUndo: () => void;
-    onRedo: () => void;
-    canUndo?: boolean;
-    canRedo?: boolean;
 }
 
 export function CanvasToolbar({ 
-    activeTool, syncStatus, onToolChange,
+    activeTool, onToolChange,
     onAddNode, onImportImage,
     onLayout, onFitView,
-    onUndo, onRedo,
-    canUndo = false, canRedo = false
 }: CanvasToolbarProps) {
     const navigate = useNavigate();
+    
+    // Access Undo/Redo
+    const { undo, redo, pastStates, futureStates } = useStore(useProjectStore.temporal, (state) => state);
+    const canUndo = pastStates.length > 0;
+    const canRedo = futureStates.length > 0;
+
+    // Access Store State
+    const isSaving = useProjectStore((state) => state.isSaving);
+    const saveProject = useProjectStore((state) => state.saveProject);
+
+    const handleAdd = (registryId: string) => {
+        const def = ASSET_TYPES[registryId];
+        if (def) {
+            onAddNode(registryId, def.initialData);
+        } else {
+            // Fallback for non-registry calls if any
+            onAddNode(registryId);
+        }
+    };
 
     return (
         <TooltipProvider delayDuration={300}>
             <div className="h-14 border-b flex items-center px-4 gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 shadow-sm shrink-0 select-none">
-                {/* Home */}
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground mr-2" onClick={() => navigate('/')}>
@@ -46,11 +60,26 @@ export function CanvasToolbar({
                 
                 <Separator orientation="vertical" className="h-6 mx-1" />
 
-                {/* History Group */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 opacity-70 hover:opacity-100" 
+                            onClick={() => saveProject()}
+                        >
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Save Project (Ctrl+S)</TooltipContent>
+                </Tooltip>
+
+                <Separator orientation="vertical" className="h-6 mx-1" />
+
                 <div className="flex items-center gap-0.5 mr-2">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70" onClick={onUndo} disabled={!canUndo}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70" onClick={() => undo()} disabled={!canUndo}>
                                 <Undo className="w-4 h-4" />
                             </Button>
                         </TooltipTrigger>
@@ -58,7 +87,7 @@ export function CanvasToolbar({
                     </Tooltip>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70" onClick={onRedo} disabled={!canRedo}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-70" onClick={() => redo()} disabled={!canRedo}>
                                 <Redo className="w-4 h-4" />
                             </Button>
                         </TooltipTrigger>
@@ -68,7 +97,6 @@ export function CanvasToolbar({
 
                 <Separator orientation="vertical" className="h-6 mx-1" />
 
-                {/* Modes Group */}
                 <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border border-border/50">
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -100,11 +128,10 @@ export function CanvasToolbar({
 
                 <Separator orientation="vertical" className="h-6 mx-1" />
 
-                {/* Creation Group */}
                 <div className="flex items-center gap-1">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent" onClick={() => onAddNode("Text")}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent" onClick={() => handleAdd("text_asset")}>
                                 <Type className="w-4 h-4" />
                             </Button>
                         </TooltipTrigger>
@@ -122,7 +149,7 @@ export function CanvasToolbar({
 
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent" onClick={() => onAddNode("Prompt")}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent" onClick={() => handleAdd("prompt_asset")}>
                                 <Terminal className="w-4 h-4" />
                             </Button>
                         </TooltipTrigger>
@@ -132,25 +159,7 @@ export function CanvasToolbar({
                 
                 <div className="flex-1" />
 
-                {/* View & System Group */}
                 <div className="flex items-center gap-3">
-                    {/* Sync Status Indicator */}
-                    <div className="flex items-center justify-end w-24 mr-2 select-none pointer-events-none">
-                        {syncStatus === 'saving' ? (
-                            <div className="flex items-center text-xs text-primary animate-pulse font-medium">
-                                <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                                Saving...
-                            </div>
-                        ) : (
-                            <div className="flex items-center text-xs text-muted-foreground/60 transition-all duration-500">
-                                <Check className="w-3.5 h-3.5 mr-1.5 text-green-500/80" />
-                                Saved
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="h-4 w-px bg-border/50 mx-1" />
-
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onFitView}>

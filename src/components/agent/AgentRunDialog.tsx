@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AgentDefinition } from '@/types/synnia';
+import { AgentDefinition } from '@/types/project';
 import { SchemaForm, SchemaField } from './SchemaForm';
 import { Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,11 +21,11 @@ export const AgentRunDialog: React.FC<AgentRunDialogProps> = ({ agent, open, onO
     useEffect(() => {
         if (agent && open) {
             try {
-                const parsed = JSON.parse(agent.input_schema);
+                // Models.rs exports camelCase, so it is inputSchema
+                const parsed = JSON.parse(agent.inputSchema);
                 setSchema(parsed);
                 // Initialize defaults
                 const defaults: any = {};
-                // Simple default extractor (non-recursive for now, just root level)
                 if (parsed.properties) {
                     Object.entries(parsed.properties).forEach(([k, v]: [string, any]) => {
                         if (v.default !== undefined) defaults[k] = v.default;
@@ -57,7 +57,6 @@ export const AgentRunDialog: React.FC<AgentRunDialogProps> = ({ agent, open, onO
             onOpenChange(false); // Close on success
         } catch (e) {
             console.error(e);
-            // Error is handled by parent toaster usually, but we can keep dialog open
         } finally {
             setRunning(false);
         }

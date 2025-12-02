@@ -1,4 +1,4 @@
-import { AgentDefinition } from "@/types/synnia";
+import { AgentDefinition } from "@/types/project";
 
 // ==========================================
 // AGENT A: THE ARCHITECT (NAMING)
@@ -140,36 +140,36 @@ export const SYSTEM_AGENTS: AgentDefinition[] = [
         id: "sys_architect",
         name: "The Architect (Naming)",
         description: "Phase 1: Semiotics & Naming Strategy. Generates the naming matrix.",
-        system_prompt: NAMING_SYSTEM_PROMPT,
-        input_schema: NAMING_INPUT_SCHEMA,
-        output_config: JSON.stringify({ format: "json", targetNode: "Data" }),
-        is_system: true
+        systemPrompt: NAMING_SYSTEM_PROMPT,
+        inputSchema: NAMING_INPUT_SCHEMA,
+        outputConfig: JSON.stringify({ format: "json", targetNode: "Data" }),
+        isSystem: true
     },
     {
         id: "sys_storyteller",
         name: "The Storyteller (Persona)",
         description: "Phase 2: Character Design. Fleshes out the name into a Soul Profile with Visual DNA.",
-        system_prompt: PERSONA_SYSTEM_PROMPT,
-        input_schema: PERSONA_INPUT_SCHEMA,
-        output_config: JSON.stringify({ format: "json", targetNode: "Data" }),
-        is_system: true
+        systemPrompt: PERSONA_SYSTEM_PROMPT,
+        inputSchema: PERSONA_INPUT_SCHEMA,
+        outputConfig: JSON.stringify({ format: "json", targetNode: "Data" }),
+        isSystem: true
     },
     {
         id: "sys_pm",
         name: "The Product Manager",
         description: "Phase 3: Requirements Analysis. Plans the Asset Manifest based on product needs.",
-        system_prompt: PLANNING_SYSTEM_PROMPT,
-        input_schema: PLANNING_INPUT_SCHEMA,
-        output_config: JSON.stringify({ format: "json", targetNode: "Data" }),
-        is_system: true
+        systemPrompt: PLANNING_SYSTEM_PROMPT,
+        inputSchema: PLANNING_INPUT_SCHEMA,
+        outputConfig: JSON.stringify({ format: "json", targetNode: "Data" }),
+        isSystem: true
     },
     {
         id: "sys_art_director",
         name: "The Art Director",
         description: "Phase 4: Prompt Engineering. Converts the manifest into executable Visual Blueprints.",
-        system_prompt: PROMPTING_SYSTEM_PROMPT,
-        input_schema: PROMPTING_INPUT_SCHEMA,
-        output_config: JSON.stringify({ format: "json", targetNode: "Data" }),
-        is_system: true
+        systemPrompt: PROMPTING_SYSTEM_PROMPT,
+        inputSchema: PROMPTING_INPUT_SCHEMA,
+        outputConfig: JSON.stringify({ format: "json", targetNode: "Data" }),
+        isSystem: true
     }
 ];

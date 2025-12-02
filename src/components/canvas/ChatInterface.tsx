@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +15,13 @@ export interface Message {
 }
 
 interface ChatInterfaceProps {
-  nodeId: string;
-  onSendMessage: (content: string) => Promise<void>;
+  // nodeId: string; // Removed as per refactor
+  onSendMessage: () => Promise<void>;
   messages: Message[];
   isProcessing: boolean;
 }
 
-export function ChatInterface({ nodeId, onSendMessage, messages, isProcessing }: ChatInterfaceProps) {
+export function ChatInterface({ onSendMessage, messages, isProcessing }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -34,9 +34,9 @@ export function ChatInterface({ nodeId, onSendMessage, messages, isProcessing }:
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return;
-    const content = input;
+    // const content = input; // Unused now
+    await onSendMessage(); 
     setInput("");
-    await onSendMessage(content);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

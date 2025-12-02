@@ -138,7 +138,6 @@ pre {
   overflow: clip;
 }
 
-/* 确保新视图始终在旧视图之上 */
 ::view-transition-new(root) {
   z-index: 9999;
 }

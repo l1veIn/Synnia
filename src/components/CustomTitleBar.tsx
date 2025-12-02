@@ -16,10 +16,15 @@ interface CustomTitleBarProps {
 export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [appWindow, setAppWindow] = useState<Window | null>(null);
+  const [isMac, setIsMac] = useState(false);
   const { setTheme, resolvedTheme } = useTheme();
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
+    // Detect OS via userAgent (Simpler and more robust for this use case than plugin-os)
+    const userAgent = window.navigator.userAgent;
+    setIsMac(userAgent.includes('Mac OS X'));
+
     let unlisten: (() => void) | undefined;
     
     const setupWindow = async () => {
@@ -114,15 +119,15 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
 
   return (
     <div
-      data-tauri-drag-region
       className={`h-9 flex items-center justify-between fixed top-0 left-0 right-0 z-[100] select-none px-2 transition-colors duration-200
         ${isMaximized ? "rounded-none" : "rounded-t-xl"}
         bg-background/80 backdrop-blur-md border-b border-border/40
       `}
+      data-tauri-drag-region
     >
       {/* 左侧：应用图标和标题 */}
       <div 
-        className="flex items-center gap-4 px-4 flex-1 h-full"
+        className={`flex items-center gap-4 flex-1 h-full ${isMac ? "pl-20" : "px-4"}`}
         data-tauri-drag-region
         onDoubleClick={handleMaximize}
       >
@@ -188,39 +193,43 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
         </Button>
 
         {/* 分隔线 */}
-        <div className="w-[1px] h-4 bg-border mx-1"></div>
+        {!isMac && <div className="w-[1px] h-4 bg-border mx-1"></div>}
 
-        {/* 窗口控制按钮 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-full w-12 p-0 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={handleMinimize}
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-full w-12 p-0 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={handleMaximize}
-        >
-          {isMaximized ? (
-            <Minimize2 className="h-3.5 w-3.5" />
-          ) : (
-            <Maximize2 className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-full w-12 p-0 rounded-none hover:bg-red-500 hover:text-white text-muted-foreground transition-all"
-          onClick={handleClose}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        {/* 窗口控制按钮 (Windows Only) */}
+        {!isMac && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-full w-12 p-0 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={handleMinimize}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-full w-12 p-0 rounded-none hover:bg-zinc-200 dark:hover:bg-zinc-800 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={handleMaximize}
+            >
+              {isMaximized ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-full w-12 p-0 rounded-none hover:bg-red-500 hover:text-white text-muted-foreground transition-all"
+              onClick={handleClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

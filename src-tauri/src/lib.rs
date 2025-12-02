@@ -4,14 +4,14 @@ use ts_rs::TS;
 use std::sync::Mutex;
 
 mod commands;
-mod db;
+// mod db; // Removed
 mod models;
 mod services;
 mod error;
 mod config;
-mod state; // Added state module
+mod state; 
 
-use state::AppState; // Use from new location
+use state::AppState; 
 
 #[derive(Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../src/bindings/greet_response.ts")]
@@ -32,7 +32,7 @@ async fn ping(name: String) -> GreetResponse {
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
-            db: Mutex::new(None),
+            // db: Mutex::new(None), // Removed
             current_project_path: Mutex::new(None),
         })
         .setup(|app| {
@@ -44,6 +44,20 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            if let Some(window) = app.get_webview_window("main") {
+                // Windows: Manual borderless
+                #[cfg(target_os = "windows")]
+                let _ = window.set_decorations(false);
+
+                // macOS: Clear title to avoid text over custom bar
+                #[cfg(target_os = "macos")]
+                let _ = window.set_title("");
+                
+                #[cfg(debug_assertions)]
+                window.open_devtools();
+            }
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,25 +68,16 @@ pub fn run() {
             commands::project::get_default_projects_path,
             commands::project::set_default_projects_path,
             commands::project::create_project,
+            commands::project::load_project, // New
+            commands::project::save_project, // New
             commands::project::get_current_project_path,
-            commands::project::delete_project, // New
+            commands::project::delete_project,
             commands::project::reset_project,
             commands::project::set_thumbnail,
             commands::project::open_in_browser,
-            commands::project::rename_project, // New
+            commands::project::rename_project,
 
-            // Graph Commands
-            commands::graph::create_node,
-            commands::graph::get_nodes,
-            commands::graph::restore_node,
-            commands::graph::delete_node,
-            commands::graph::update_node_pos,
-            commands::graph::update_node_size,
-            commands::graph::rename_node,
-            commands::graph::create_edge,
-            commands::graph::get_edges,
-            commands::graph::delete_edge,
-            commands::graph::restore_edge,
+            // Graph Commands REMOVED
 
             // Agent Commands
             commands::agent::save_settings,
@@ -81,8 +86,8 @@ pub fn run() {
             commands::agent::get_model_name,
             commands::agent::run_agent,
             commands::agent::get_agents,
-            commands::agent::save_agent, // New
-            commands::agent::delete_agent, // New
+            commands::agent::save_agent,
+            commands::agent::delete_agent,
 
             // Asset Commands
             commands::asset::import_file,

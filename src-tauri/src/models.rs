@@ -1,111 +1,173 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
+use std::collections::HashMap;
 
 // ==========================================
-// Enums
+// Core Structs (SPF v3.1 - Hash Consistency)
 // ==========================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub enum AssetType {
-    Image,
-    Text,
-    Prompt,
-    Link, // External URL
-    Grid, // e.g. 9-grid image
-    Other,
+#[serde(rename_all = "camelCase")]
+pub struct SynniaProject {
+    pub version: String,
+    pub meta: ProjectMeta,
+    pub viewport: Viewport,
+    pub graph: Graph,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "Record<string, any>")]
+    pub settings: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub enum NodeStatus {
-    Active,
-    Outdated, // Upstream changed
-    Archived,
-    Processing, // Agent is working on it
-    Error,
-}
-
-// ==========================================
-// Core Structs
-// ==========================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct Project {
+#[serde(rename_all = "camelCase")]
+pub struct ProjectMeta {
     pub id: String,
     pub name: String,
-    pub created_at: String, // ISO 8601
-    pub path: String, // Local file system path
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct AssetNode {
-    pub id: String,
-    pub project_id: String,
-    pub type_: AssetType,
-    pub status: NodeStatus,
-    pub current_version_id: Option<String>, 
-    pub x: f64,
-    pub y: f64,
-    
-    pub label: Option<String>, // Display Name
-    pub width: Option<f64>,    // For Resizing
-    pub height: Option<f64>,
-    
     pub created_at: String,
     pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumbnail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct AssetVersion {
-    pub id: String,
-    pub asset_id: String,
-    pub payload: String, 
-    pub meta: Option<String>, 
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct Edge {
-    pub id: String,
-    pub source_id: String,
-    pub target_id: String,
-    pub recipe: Option<String>, 
-    pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct AssetNodeWithData {
-    pub id: String,
-    pub type_: AssetType,
-    pub status: NodeStatus,
+#[serde(rename_all = "camelCase")]
+pub struct Viewport {
     pub x: f64,
     pub y: f64,
-    pub label: Option<String>,
-    pub width: Option<f64>,
-    pub height: Option<f64>,
-    pub payload: Option<String>, 
+    pub zoom: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Graph {
+    pub nodes: Vec<SynniaNode>,
+    pub edges: Vec<SynniaEdge>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SynniaNode {
+    pub id: String,
+    pub type_: String, // Always "Asset" for ReactFlow compatibility
+    pub position: Position,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<f64>,
+    pub data: AssetData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct Position {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetData {
+    pub asset_type: String,
+    pub status: NodeStatus,
+    
+    // Content Fingerprint for Consistency Check
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hash: Option<String>,
+
+    // Core Properties (KV Store)
+    #[ts(type = "Record<string, any>")]
+    pub properties: HashMap<String, serde_json::Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<Provenance>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "string[]")]
+    pub validation_errors: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")] 
+pub enum NodeStatus {
+    Idle,
+    Processing,
+    Success,
+    Error,
+    Stale, // Upstream hash mismatch
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Provenance {
+    pub recipe_id: String,
+    #[ts(type = "number")]
+    pub generated_at: i64, // Timestamp
+    pub sources: Vec<ProvenanceSource>,
+    #[ts(type = "Record<string, any>")]
+    pub params_snapshot: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ProvenanceSource {
+    pub node_id: String,
+    pub node_version: i32, // Keep for human readable history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_hash: Option<String>, // For automated stale checks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SynniaEdge {
+    pub id: String,
+    pub source: String,
+    pub target: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_handle: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_handle: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animated: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 pub struct AgentDefinition {
     pub id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    // Not exporting system_prompt to frontend usually, but for editing custom agents we might need it
     pub system_prompt: String, 
-    pub input_schema: String, // JSON String
+    pub input_schema: String, 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub output_config: Option<String>,
     pub is_system: bool,
 }
+
+// ==========================================
+// Tests & Binding Generation
+// ==========================================
 
 #[cfg(test)]
 mod tests {
@@ -115,52 +177,36 @@ mod tests {
 
     #[test]
     fn export_bindings() {
-        // Define the output directory relative to the cargo manifest dir
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let bindings_dir = manifest_dir.parent().unwrap().join("src").join("bindings");
 
-        // Create dir if not exists
         if !bindings_dir.exists() {
             std::fs::create_dir_all(&bindings_dir).unwrap();
         }
 
-        // Export each type
-        // Note: TS::export() usually writes to a default location, 
-        // but we want to control it or just let it write to default and we move them?
-        // Actually ts-rs creates individual files. Let's rely on its default behavior 
-        // but configure the output path via the export_to attribute if possible, 
-        // or just write manually using TS::decl().
-        
-        // Strategy: We'll write a single `index.ts` for convenience, 
-        // or just write individual files to the frontend bindings folder.
-        
-        // Let's use the `export_to` attribute approach in the struct definitions?
-        // No, that's invasive. Let's write them manually here for full control.
-        
         let mut file_content = String::from("// This file is auto-generated by Rust. Do not edit.\n\n");
 
-        // Helper macro to append type definitions
         macro_rules! export_type {
             ($t:ty) => {
                 file_content.push_str(&format!("// {}\n", stringify!($t)));
-                file_content.push_str("export "); // Add export keyword
+                file_content.push_str("export "); 
                 file_content.push_str(&<$t>::decl());
                 file_content.push_str("\n\n");
             };
         }
 
-        export_type!(AssetType);
         export_type!(NodeStatus);
-        export_type!(Project);
-        export_type!(AssetNode);
-        export_type!(AssetVersion);
-        export_type!(Edge);
-        export_type!(AssetNodeWithData);
+        export_type!(SynniaProject);
+        export_type!(SynniaNode);
+        export_type!(SynniaEdge);
+        export_type!(AssetData);
+        export_type!(Provenance);
+        export_type!(ProvenanceSource);
         export_type!(AgentDefinition);
-        
-        // Add GraphAction from agent module if we can access it, or move it to models.
-        // Ideally GraphAction should be in models if it's shared. 
-        // For now, let's stick to what is in models.rs.
+        export_type!(ProjectMeta);
+        export_type!(Viewport);
+        export_type!(Graph);
+        export_type!(Position);
 
         let output_path = bindings_dir.join("synnia.ts");
         std::fs::write(output_path, file_content).unwrap();

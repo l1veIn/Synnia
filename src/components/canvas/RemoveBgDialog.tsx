@@ -14,13 +14,13 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 interface RemoveBgDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  nodeId: string;
+  // nodeId: string; // Removed
   imagePath: string;
   projectPath: string;
   onSave: (blob: Blob) => Promise<void>;
 }
 
-export function RemoveBgDialog({ open, onOpenChange, nodeId, imagePath, projectPath, onSave }: RemoveBgDialogProps) {
+export function RemoveBgDialog({ open, onOpenChange, imagePath, projectPath, onSave }: RemoveBgDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function RemoveBgDialog({ open, onOpenChange, nodeId, imagePath, projectP
           
           const config = {
               debug: true, // Enable debug logs in console
-              progress: (key: string, current: number, total: number) => {
+              progress: (_key: string, _current: number, _total: number) => {
                   // console.log(`Downloading ${key}: ${current} of ${total}`);
               },
               // We can't easily switch models without hosting them, 

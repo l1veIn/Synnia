@@ -11,7 +11,7 @@ import {
     Connection
 } from '@xyflow/react';
 import { SynniaProject, SynniaNode, SynniaEdge, AssetData, ProjectMeta } from '@/types/project';
-import { invoke } from '@tauri-apps/api/core';
+import { apiClient } from '@/lib/apiClient'; // Switched to Mock/API Client
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { RECIPES } from '@/config/recipeRegistry';
@@ -67,21 +67,25 @@ interface ProjectState {
     // Flags
     isLoading: boolean;
     isSaving: boolean;
+    isGlobalDragging: boolean; // New Flag
     projectPath: string | null;
 
     // Actions
     setNodes: (nodes: Node<AssetData>[]) => void;
     setEdges: (edges: Edge[]) => void;
+    setIsGlobalDragging: (isDragging: boolean) => void; // New Action
     onNodesChange: OnNodesChange;
     onEdgesChange: OnEdgesChange;
     onConnect: OnConnect;
     
     addNode: (type: string, position: { x: number, y: number }, initialData?: any) => void;
     updateNodeData: (id: string, data: Partial<AssetData>) => void;
+    updateNodeParent: (nodeId: string, newParentId: string | undefined) => void; // New Action
     deleteNode: (id: string) => void;
     
     // Recipe Action
-    runRecipe: (recipeId: string, sourceNodeId: string) => Promise<void>;
+    runRecipe: (recipeId: string, sourceNodeId?: string, position?: { x: number, y: number }) => Promise<void>;
+    runNodeRecipe: (nodeId: string) => Promise<void>; // New Action
     remakeNode: (nodeId: string) => Promise<void>;
     detachNode: (nodeId: string) => void; // Add this
     createShortcut: (sourceNodeId: string, position?: { x: number, y: number }) => void;
@@ -110,10 +114,12 @@ export const useProjectStore = create<ProjectState>()(
             viewport: { x: 0, y: 0, zoom: 1 },
             isLoading: false,
             isSaving: false,
+            isGlobalDragging: false,
             projectPath: null,
 
             setNodes: (nodes) => set({ nodes }),
             setEdges: (edges) => set({ edges }),
+            setIsGlobalDragging: (isDragging) => set({ isGlobalDragging: isDragging }),
 
             onNodesChange: (changes) => {
                 set({
@@ -134,22 +140,6 @@ export const useProjectStore = create<ProjectState>()(
                 // Currently, manual wiring is disabled because we use Smart Wiring (Recipe Picker)
                 // or Shortcuts for connections. Direct connections imply data flow which needs Slot logic.
                 toast.info("Drag to empty space to create a new node from recipe.");
-                
-                /* 
-                // Cycle Prevention & Edge Addition (Disabled for v3.1)
-                const nodes = get().nodes;
-                const edges = get().edges;
-                const tempEdge: Edge = { id: 'temp', source, target };
-                
-                if (hasCycle(nodes, edges, tempEdge)) {
-                    toast.error("Cycle detected! Cannot connect.");
-                    return;
-                }
-
-                set({
-                    edges: addEdge(connection, get().edges),
-                });
-                */
             },
 
             addNode: (type, position, initialData) => {
@@ -199,13 +189,30 @@ export const useProjectStore = create<ProjectState>()(
                     ? { ...currentProps, ...data.properties }
                     : currentProps;
                 
+                // Check for Collapsed State Change
+                let updatedNodes = get().nodes;
+                
+                // If this is a collection and 'collapsed' changed
+                if (node.data.assetType === 'collection_asset' && data.properties && 'collapsed' in data.properties) {
+                    const newCollapsed = data.properties.collapsed;
+                    const oldCollapsed = (node.data.properties as any).collapsed;
+                    
+                    if (newCollapsed !== oldCollapsed) {
+                        // Update direct children visibility
+                        updatedNodes = updatedNodes.map(child => {
+                            if (child.parentId === id) {
+                                return { ...child, hidden: !!newCollapsed };
+                            }
+                            return child;
+                        });
+                    }
+                }
+
                 // Compute New Hash
-                // We construct a temp object representing the new state to compute hash
                 const tempData: AssetData = { 
                     ...node.data, 
                     ...data, 
                     properties: newProps,
-                    // Ensure required fields for AssetData if data is partial
                     assetType: data.assetType || node.data.assetType,
                     status: data.status || node.data.status,
                     validationErrors: data.validationErrors || node.data.validationErrors || []
@@ -214,30 +221,24 @@ export const useProjectStore = create<ProjectState>()(
                 const newHash = computeNodeHash(tempData);
                 const oldHash = node.data.hash;
 
-                // Update State
-                set({
-                    nodes: get().nodes.map((n) => {
-                        if (n.id === id) {
-                            return { 
-                                ...n, 
-                                data: { 
-                                    ...n.data, 
-                                    ...data,
-                                    properties: newProps,
-                                    hash: newHash 
-                                } 
-                            };
-                        }
-                        return n;
-                    }),
+                // Update Target Node
+                updatedNodes = updatedNodes.map((n) => {
+                    if (n.id === id) {
+                        return { 
+                            ...n, 
+                            data: { 
+                                ...n.data, 
+                                ...data,
+                                properties: newProps,
+                                hash: newHash 
+                            } 
+                        };
+                    }
+                    return n;
                 });
 
-                // If Hash Changed, Propagate Stale
-                // Propagate if:
-                // 1. Hash actually changed
-                // 2. AND (Node was NOT processing OR Node IS NOW becoming success/idle/error)
-                // Essentially, avoid propagating intermediate processing states if hash is unstable,
-                // but MUST propagate when result lands.
+                // Update State
+                set({ nodes: updatedNodes });
                 
                 const isFinishing = data.status === 'success' || data.status === 'idle' || data.status === 'error';
                 const wasNotProcessing = node.data.status !== 'processing';
@@ -247,6 +248,62 @@ export const useProjectStore = create<ProjectState>()(
                 }
             },
 
+            updateNodeParent: (nodeId, newParentId) => {
+                const nodes = get().nodes;
+                const node = nodes.find(n => n.id === nodeId);
+                if (!node) return;
+
+                // 1. Detaching (Ejecting)
+                if (!newParentId) {
+                    if (!node.parentId) return; // Already root
+
+                    const parent = nodes.find(n => n.id === node.parentId);
+                    let newPos = node.position;
+
+                    if (parent) {
+                        newPos = {
+                            x: parent.position.x + node.position.x,
+                            y: parent.position.y + node.position.y
+                        };
+                    }
+
+                    set({
+                        nodes: nodes.map(n => 
+                            n.id === nodeId 
+                                ? { ...n, parentId: undefined, extent: undefined, position: newPos } 
+                                : n
+                        )
+                    });
+                    return;
+                }
+
+                // 2. Attaching (Dropping into Collection)
+                const parent = nodes.find(n => n.id === newParentId);
+                if (!parent) return;
+
+                // Calculate Relative Position
+                // Note: This assumes node.position is currently absolute (if it was root)
+                // If moving from one parent to another, we'd need more complex logic. 
+                // For now, assume Root -> Collection flow.
+                const relativeX = node.position.x - parent.position.x;
+                const relativeY = node.position.y - parent.position.y;
+
+                const updatedNode = {
+                    ...node,
+                    parentId: newParentId,
+                    extent: 'parent', // Constrain to parent bounds? Optional.
+                    position: { x: relativeX, y: relativeY }
+                };
+
+                // Reorder nodes: Parent must come BEFORE Child for correct rendering/event handling in ReactFlow
+                const otherNodes = nodes.filter(n => n.id !== nodeId);
+                // We don't strictly need to sort ALL, just ensure child is appended/after parent.
+                // But safely, let's just append the updated node to the end.
+                set({
+                    nodes: [...otherNodes, updatedNode] // Move to end (top z-index)
+                });
+            },
+
             deleteNode: (id) => {
                  set({
                     nodes: get().nodes.filter(n => n.id !== id),
@@ -254,21 +311,23 @@ export const useProjectStore = create<ProjectState>()(
                 });
             },
 
-            runRecipe: async (recipeId: string, sourceNodeId: string) => {
+            runRecipe: async (recipeId: string, sourceNodeId?: string, position?: { x: number, y: number }) => {
                 const recipe = RECIPES.find(r => r.id === recipeId);
                 if (!recipe) {
                     toast.error(`Recipe not found: ${recipeId}`);
                     return;
                 }
 
-                const sourceNode = get().nodes.find(n => n.id === sourceNodeId);
-                if (!sourceNode) return;
-
                 const outputId = uuidv4();
-                const offset = 300;
-                const outputPos = { x: sourceNode.position.x + offset, y: sourceNode.position.y };
+                let outputPos = position || { x: 100, y: 100 };
 
-                const sourceHash = sourceNode.data.hash || computeNodeHash(sourceNode.data);
+                // If source node exists, calculate position relative to it
+                if (sourceNodeId) {
+                    const sourceNode = get().nodes.find(n => n.id === sourceNodeId);
+                    if (sourceNode) {
+                        outputPos = { x: sourceNode.position.x + 300, y: sourceNode.position.y };
+                    }
+                }
 
                 const outputNode: Node<AssetData> = {
                     id: outputId,
@@ -276,75 +335,158 @@ export const useProjectStore = create<ProjectState>()(
                     position: outputPos,
                     data: {
                         assetType: recipe.output.assetType,
-                        status: 'processing', 
-                        properties: { ...recipe.output.initialProperties },
-                        hash: 'processing',
+                        status: 'idle', 
+                        properties: { 
+                            ...recipe.output.initialProperties,
+                            name: `${recipe.label} Output`
+                        },
+                        hash: 'idle',
                         provenance: {
                             recipeId: recipe.id,
-                            generatedAt: Date.now(),
-                            sources: [{ 
-                                nodeId: sourceNodeId, 
-                                nodeVersion: 1, 
-                                nodeHash: sourceHash, 
-                                slot: 'default' 
-                            }],
+                            generatedAt: 0, 
+                            sources: [], 
                             paramsSnapshot: {}
                         },
                         validationErrors: []
                     }
                 };
 
-                const newEdge: Edge = {
-                    id: `e-${sourceNodeId}-${outputId}`,
-                    source: sourceNodeId,
-                    target: outputId,
-                    type: 'default',
-                    animated: true
-                };
+                const newEdges: Edge[] = [];
+                if (sourceNodeId) {
+                    const newEdge: Edge = {
+                        id: `e-${sourceNodeId}-${outputId}`,
+                        source: sourceNodeId,
+                        target: outputId,
+                        type: 'default',
+                        animated: true
+                    };
+                    newEdges.push(newEdge);
+                }
 
                 set({ 
                     nodes: [...get().nodes, outputNode],
-                    edges: [...get().edges, newEdge]
+                    edges: [...get().edges, ...newEdges]
+                });
+                
+                // Flow A: Source provided -> Auto Run
+                if (sourceNodeId) {
+                    toast.info("Auto-running recipe...");
+                    // Small delay to ensure React Flow registers the edge
+                    setTimeout(() => {
+                        get().runNodeRecipe(outputId);
+                    }, 100);
+                } else {
+                    // Flow B: Manual creation -> Idle
+                    toast.success("Recipe Node created. Connect inputs to run.");
+                }
+            },
+
+            runNodeRecipe: async (nodeId: string) => {
+                const node = get().nodes.find(n => n.id === nodeId);
+                if (!node || !node.data.provenance) return;
+
+                const recipeId = node.data.provenance.recipeId;
+                const recipe = RECIPES.find(r => r.id === recipeId);
+                if (!recipe) return;
+
+                // 1. Identify Inputs from Edges
+                const edges = get().edges.filter(e => e.target === nodeId);
+                
+                // Check if we have enough inputs
+                // Current logic assumes 1 input slot for simplicity, or we map by order
+                // TODO: Robust slot mapping (Handle ID -> Input Slot). 
+                // For now, we map all sources to the first input requirement, or just check count.
+                
+                const requiredInputCount = recipe.inputs.length;
+                if (edges.length < requiredInputCount) {
+                    toast.error(`Missing inputs. Required: ${requiredInputCount}, Found: ${edges.length}`);
+                    return;
+                }
+
+                const sources = edges.map(e => {
+                    const sourceNode = get().nodes.find(n => n.id === e.source);
+                    return {
+                        nodeId: e.source,
+                        nodeVersion: 1,
+                        nodeHash: sourceNode?.data.hash || 'unknown',
+                        slot: 'default',
+                        data: sourceNode?.data
+                    };
                 });
 
-                // 3. Execute Logic (Async)
-                // For "debug_echo_id", we implement logic right here for now.
-                // Later this will call `invoke('run_agent', ...)`
-                if (recipeId.startsWith('debug_')) {
-                     setTimeout(() => {
-                         let resultProps = {};
-                         
-                         if (recipeId === 'debug_echo_id') {
-                            resultProps = {
-                                 name: 'Node ID Info',
-                                 content: `Source ID:\n${sourceNodeId}\n\nRecipe:\n${recipe.label}`
-                            };
-                         } else if (recipeId === 'debug_echo_hash') {
-                             resultProps = {
-                                 name: 'Hash Info',
-                                 content: sourceHash
-                             };
-                         } else if (recipeId === 'debug_reverse_text') {
-                             const text = sourceNode.data.properties.content || "";
-                             resultProps = {
-                                 name: 'Reversed',
-                                 content: text.split('').reverse().join('')
-                             };
-                         }
+                // 2. Validate Inputs
+                for (let i = 0; i < requiredInputCount; i++) {
+                    const inputDef = recipe.inputs[i];
+                    const source = sources[i]; // Simple mapping
+                    
+                    if (!source || !source.data) continue;
 
-                         get().updateNodeData(outputId, {
-                             status: 'success',
-                             properties: resultProps
-                         });
-                         toast.success("Debug recipe complete");
-                     }, 1000); // Fake delay
-                } else {
-                    // TODO: Call Backend Agent
-                    toast.info(`Agent ${recipe.agentId} triggered (Mock)`);
-                    setTimeout(() => {
-                         get().updateNodeData(outputId, { status: 'success' });
-                    }, 2000);
+                    // Type Check
+                    const type = source.data.assetType;
+                    const accepts = inputDef.accepts;
+                    if (!accepts.includes('*') && !accepts.some(t => t === type || t === type.toLowerCase())) {
+                        toast.error(`Input ${i+1} (${inputDef.label}) expects ${accepts.join(',')}, got ${type}`);
+                        return;
+                    }
+
+                    // Custom Validation
+                    if (inputDef.validate) {
+                        const error = inputDef.validate(source.data);
+                        if (error) {
+                            toast.error(`Input ${i+1} error: ${error}`);
+                            return;
+                        }
+                    }
                 }
+
+                // 3. Set Status to Processing
+                get().updateNodeData(nodeId, { status: 'processing' });
+                
+                // 4. Mock Execution
+                setTimeout(() => {
+                     let resultProps = {};
+                     
+                     const sourceNode = get().nodes.find(n => n.id === sources[0].nodeId);
+                     const sourceContent = sourceNode?.data.properties.content || "";
+
+                     if (recipeId === 'debug_echo_id') {
+                        resultProps = {
+                             name: 'Node ID Info',
+                             content: `Source ID:\n${sources[0].nodeId}\n\nRecipe:\n${recipe.label}`
+                        };
+                     } else if (recipeId === 'debug_echo_hash') {
+                         resultProps = {
+                             name: 'Hash Info',
+                             content: sources[0].nodeHash
+                         };
+                     } else if (recipeId === 'debug_reverse_text') {
+                         resultProps = {
+                             name: 'Reversed',
+                             content: (sourceContent as string).split('').reverse().join('')
+                         };
+                     } else if (recipeId === 'text_to_image') {
+                         resultProps = {
+                             name: 'AI Generated Image',
+                             content: 'https://placehold.co/600x400/png?text=AI+Generated'
+                         };
+                     } else {
+                         resultProps = {
+                             name: recipe.output.initialProperties?.name || 'Result',
+                             content: 'Processed Content'
+                         };
+                     }
+
+                     get().updateNodeData(nodeId, {
+                         status: 'success',
+                         properties: { ...node.data.properties, ...resultProps },
+                         provenance: {
+                             ...node.data.provenance!,
+                             generatedAt: Date.now(),
+                             sources: sources.map(s => ({ nodeId: s.nodeId, nodeVersion: s.nodeVersion, nodeHash: s.nodeHash, slot: s.slot }))
+                         }
+                     });
+                     toast.success("Recipe executed successfully");
+                }, 1500);
             },
 
             remakeNode: async (nodeId: string) => {
@@ -372,15 +514,12 @@ export const useProjectStore = create<ProjectState>()(
                     return;
                 }
 
-                // 1. Update Status -> Processing
                 get().updateNodeData(nodeId, { status: 'processing' });
                 toast.info(`Remaking ${node.data.properties.name || 'Node'}...`);
 
-                // 2. Calculate New Source Hash (In case it changed)
                 const currentSourceHash = sourceNode.data.hash || computeNodeHash(sourceNode.data);
 
-                // 3. Execute Logic (Async) - Reusing logic from runRecipe roughly
-                // In a real app, we'd refactor the execution logic into a shared helper.
+                // Mock Execution
                 if (prov.recipeId.startsWith('debug_')) {
                      setTimeout(() => {
                          let resultProps = {};
@@ -403,7 +542,6 @@ export const useProjectStore = create<ProjectState>()(
                              };
                          }
 
-                         // 4. Update Node with Result AND New Provenance
                          get().updateNodeData(nodeId, {
                              status: 'success',
                              properties: resultProps,
@@ -412,8 +550,8 @@ export const useProjectStore = create<ProjectState>()(
                                  generatedAt: Date.now(),
                                  sources: [{ 
                                      nodeId: sourceId, 
-                                     nodeVersion: prov.sources[0].nodeVersion, // Should we bump source version? Not strictly needed for hash check.
-                                     nodeHash: currentSourceHash, // CRITICAL: Update stored hash to match current source
+                                     nodeVersion: prov.sources[0].nodeVersion, 
+                                     nodeHash: currentSourceHash,
                                      slot: 'default' 
                                  }]
                              }
@@ -421,10 +559,7 @@ export const useProjectStore = create<ProjectState>()(
                          toast.success("Remake complete");
                      }, 1000);
                 } else {
-                     // Mock Backend Call
                      setTimeout(() => {
-                         // Assume result props might change or stay same. 
-                         // For mock, we just set status success and update timestamp.
                          get().updateNodeData(nodeId, { 
                              status: 'success',
                              provenance: {
@@ -443,14 +578,10 @@ export const useProjectStore = create<ProjectState>()(
             },
 
             detachNode: (id: string) => {
-                // 1. Clear Provenance (make it a raw asset)
                 get().updateNodeData(id, { provenance: null });
-                
-                // 2. Remove Incoming Edges (physically disconnect from parents)
                 set({
                     edges: get().edges.filter(e => e.target !== id)
                 });
-                
                 toast.success("Node detached.");
             },
 
@@ -472,7 +603,7 @@ export const useProjectStore = create<ProjectState>()(
                             name: `Shortcut to ${sourceNode.data.properties.name || 'Asset'}`, 
                             targetId: sourceNodeId 
                         },
-                        hash: null, // Hash of reference? Or null? Let's say null for now or compute it.
+                        hash: null, 
                         provenance: null,
                         validationErrors: []
                     }
@@ -531,7 +662,8 @@ export const useProjectStore = create<ProjectState>()(
             loadProject: async (path: string) => {
                 set({ isLoading: true });
                 try {
-                    const project = await invoke<SynniaProject>('load_project', { path });
+                    // Use Mock/API Client
+                    const project = await apiClient.loadProject(path);
                     
                     const flowNodes: Node<AssetData>[] = project.graph.nodes.map(n => ({
                         id: n.id,
@@ -539,6 +671,11 @@ export const useProjectStore = create<ProjectState>()(
                         position: n.position,
                         width: n.width ?? undefined, 
                         height: n.height ?? undefined,
+                        // --- Parent/Child Mapping ---
+                        parentId: n.parentId,
+                        extent: n.extent,
+                        expandParent: n.expandParent,
+                        // ----------------------------
                         data: n.data
                     }));
 
@@ -574,12 +711,6 @@ export const useProjectStore = create<ProjectState>()(
                 const { nodes, edges, meta, viewport, projectPath } = get();
                 if (!projectPath) return;
 
-                // DEBUG: Log count
-                console.log(`Saving project with ${nodes.length} nodes and ${edges.length} edges.`);
-                if (nodes.length > 0) {
-                    console.log("First node sample:", nodes[0]);
-                }
-
                 set({ isSaving: true });
 
                 const synniaNodes: SynniaNode[] = nodes.map(n => ({
@@ -588,6 +719,11 @@ export const useProjectStore = create<ProjectState>()(
                     position: n.position,
                     width: n.measured?.width || n.width || null,
                     height: n.measured?.height || n.height || null,
+                    // --- Parent/Child Mapping ---
+                    parentId: n.parentId,
+                    extent: n.extent,
+                    expandParent: n.expandParent,
+                    // ----------------------------
                     data: n.data
                 }));
 
@@ -614,7 +750,8 @@ export const useProjectStore = create<ProjectState>()(
                 };
 
                 try {
-                    await invoke('save_project', { project });
+                    // Use Mock/API Client
+                    await apiClient.saveGraph?.(); // Noop or console log
                     set({ isSaving: false, meta: project.meta });
                     toast.success(`Project saved (${nodes.length} nodes)`);
                 } catch (e) {
@@ -625,7 +762,9 @@ export const useProjectStore = create<ProjectState>()(
             },
             
             initProject: async (path: string) => {
-                 await get().loadProject(path);
+                 // Force load mock project
+                 console.log("[Dev] Force loading Mock Project");
+                 await get().loadProject('mock-id');
             }
         }),
         {

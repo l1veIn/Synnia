@@ -3,26 +3,31 @@ import {
     CustomMenuSeparator, 
     CustomMenuLabel 
 } from "@/components/ui/custom-menu";
-import { getRecipesForAsset } from '@/config/recipeRegistry';
+import { getRecipesForAsset, RECIPES } from '@/config/recipeRegistry';
 import { Wand2, Link } from 'lucide-react';
-import { useProjectStore } from '@/store/projectStore'; // To access nodes
+import { useProjectStore } from '@/store/projectStore'; 
 
 interface RecipePickerMenuProps {
-    sourceNodeId: string;
-    onRunRecipe: (recipeId: string, sourceNodeId: string) => void;
+    sourceNodeId?: string;
+    onRunRecipe: (recipeId: string, sourceNodeId?: string) => void;
     onClose: () => void;
 }
 
 export function RecipePickerMenu({ sourceNodeId, onRunRecipe, onClose }: RecipePickerMenuProps) {
     
     const nodes = useProjectStore(state => state.nodes);
-    const createShortcut = useProjectStore(state => state.createShortcut); // Access createShortcut
-    const sourceNode = nodes.find(n => n.id === sourceNodeId);
+    const createShortcut = useProjectStore(state => state.createShortcut);
     
-    if (!sourceNode) return null;
+    let recipes = RECIPES;
+    let showReference = false;
 
-    const assetType = sourceNode.data.assetType;
-    const recipes = getRecipesForAsset(assetType);
+    if (sourceNodeId) {
+        const sourceNode = nodes.find(n => n.id === sourceNodeId);
+        if (sourceNode) {
+            recipes = getRecipesForAsset(sourceNode.data.assetType);
+            showReference = true;
+        }
+    }
 
     const handleRecipe = (id: string) => {
         onRunRecipe(id, sourceNodeId);
@@ -30,29 +35,27 @@ export function RecipePickerMenu({ sourceNodeId, onRunRecipe, onClose }: RecipeP
     };
 
     const handleCreateReference = () => {
-        // Create shortcut slightly offset from original, or we might want to pass the drop position?
-        // The menu position is usually where the user dropped. 
-        // But createShortcut currently uses a simple offset or passed position.
-        // For now, we let the store decide or simple offset.
-        // To be precise, we should pass the drop position if we had it here.
-        // Since we don't have exact drop coords in props easily without passing them down,
-        // we'll rely on default offset for now.
-        createShortcut(sourceNodeId);
+        if (sourceNodeId) {
+            createShortcut(sourceNodeId);
+        }
         onClose();
     };
 
     return (
         <>
             <CustomMenuLabel className="text-xs uppercase text-muted-foreground tracking-wider">
-                Connect & Process
+                {sourceNodeId ? "Connect & Process" : "New Recipe Node"}
             </CustomMenuLabel>
 
-            <CustomMenuItem onClick={handleCreateReference}>
-                <Link className="w-4 h-4 mr-2" />
-                Create Reference (Shortcut)
-            </CustomMenuItem>
-            
-            <CustomMenuSeparator />
+            {showReference && (
+                <>
+                    <CustomMenuItem onClick={handleCreateReference}>
+                        <Link className="w-4 h-4 mr-2" />
+                        Create Reference (Shortcut)
+                    </CustomMenuItem>
+                    <CustomMenuSeparator />
+                </>
+            )}
 
             {recipes.length > 0 ? (
                 <>

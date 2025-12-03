@@ -1,12 +1,18 @@
-import { 
-    Wand2, 
-    Image as ImageIcon, 
-    FileText, 
-    Scissors, 
+import {
+    Wand2,
+    Image as ImageIcon,
+    FileText,
+    Scissors,
     Languages,
     Info, // For debug icon
     LucideIcon
 } from 'lucide-react';
+
+export interface RecipeInput {
+    label: string;
+    accepts: string[]; // Asset Types (e.g. ['image_asset', 'text_asset'])
+    validate?: (node: any) => string | null; // Return error message if failed, null if success
+}
 
 export interface RecipeDefinition {
     id: string;
@@ -15,12 +21,18 @@ export interface RecipeDefinition {
     icon: LucideIcon;
     agentId: string; // Maps to backend Agent ID
     
-    // Input Constraints
-    input: {
-        requiredTags?: string[];
-        accepts: string[]; // Asset Types (e.g. ['image_asset', 'text_asset'])
-        // '*' means accepts anything
-    };
+    // Input Constraints (Multi-input support)
+    inputs: RecipeInput[];
+
+    // Parameters Schema (JSON Schema style)
+    paramsSchema?: Record<string, {
+        type: 'string' | 'number' | 'boolean' | 'select';
+        label: string;
+        default?: any;
+        options?: string[]; // For select
+        min?: number;
+        max?: number;
+    }>;
 
     // Output Definition
     output: {
@@ -35,10 +47,11 @@ export const RECIPES: RecipeDefinition[] = [
         label: 'Debug: Echo ID',
         description: 'Output the ID of the source node',
         icon: Info,
-        agentId: 'system_echo', // Special system agent
-        input: {
-            accepts: ['*'] // Wildcard
-        },
+        agentId: 'system_echo',
+        inputs: [{
+            label: 'Source',
+            accepts: ['*']
+        }],
         output: {
             assetType: 'text_asset',
             initialProperties: { name: 'Node ID Info' }
@@ -47,12 +60,13 @@ export const RECIPES: RecipeDefinition[] = [
     {
         id: 'debug_echo_hash',
         label: 'Debug: Echo Hash',
-        description: 'Output the Hash of the source node (for testing consistency)',
+        description: 'Output the Hash of the source node',
         icon: Info,
         agentId: 'system_echo_hash',
-        input: {
+        inputs: [{
+            label: 'Source',
             accepts: ['*']
-        },
+        }],
         output: {
             assetType: 'text_asset',
             initialProperties: { name: 'Hash Info' }
@@ -61,12 +75,18 @@ export const RECIPES: RecipeDefinition[] = [
     {
         id: 'debug_reverse_text',
         label: 'Debug: Reverse Text',
-        description: 'Reverses the content string (deterministic transformation)',
+        description: 'Reverses the content string',
         icon: Info,
         agentId: 'system_reverse',
-        input: {
-            accepts: ['text_asset', 'text']
-        },
+        inputs: [{
+            label: 'Text Source',
+            accepts: ['text_asset', 'text'],
+            validate: (node) => {
+                // Example validation: Content length must be > 5
+                const content = node.properties?.content || "";
+                return content.length > 5 ? null : "Content length must be > 5";
+            }
+        }],
         output: {
             assetType: 'text_asset',
             initialProperties: { name: 'Reversed Text' }
@@ -77,9 +97,25 @@ export const RECIPES: RecipeDefinition[] = [
         label: 'Text to Image',
         description: 'Generate an image from this text/prompt',
         icon: ImageIcon,
-        agentId: 'sd_agent', // Mock ID
-        input: {
+        agentId: 'sd_agent',
+        inputs: [{
+            label: 'Prompt',
             accepts: ['text_asset', 'prompt_asset']
+        }],
+        paramsSchema: {
+            style: {
+                type: 'select',
+                label: 'Style',
+                default: 'realistic',
+                options: ['realistic', 'anime', 'sketch', 'oil painting']
+            },
+            steps: {
+                type: 'number',
+                label: 'Steps',
+                default: 20,
+                min: 10,
+                max: 50
+            }
         },
         output: {
             assetType: 'image_asset',
@@ -92,9 +128,10 @@ export const RECIPES: RecipeDefinition[] = [
         description: 'Create a summary of this note',
         icon: FileText,
         agentId: 'llm_agent',
-        input: {
+        inputs: [{
+            label: 'Document',
             accepts: ['text_asset', 'document_asset']
-        },
+        }],
         output: {
             assetType: 'text_asset',
             initialProperties: { name: 'Summary', content: 'Generating summary...' }
@@ -106,9 +143,10 @@ export const RECIPES: RecipeDefinition[] = [
         description: 'Translate content',
         icon: Languages,
         agentId: 'llm_translator',
-        input: {
+        inputs: [{
+            label: 'Text',
             accepts: ['text_asset']
-        },
+        }],
         output: {
             assetType: 'text_asset',
             initialProperties: { name: 'Translation', content: 'Translating...' }
@@ -120,9 +158,10 @@ export const RECIPES: RecipeDefinition[] = [
         description: 'Remove background from image',
         icon: Scissors,
         agentId: 'rembg_agent',
-        input: {
+        inputs: [{
+            label: 'Image',
             accepts: ['image_asset']
-        },
+        }],
         output: {
             assetType: 'image_asset',
             initialProperties: { name: 'No-BG Image' }
@@ -134,9 +173,10 @@ export const RECIPES: RecipeDefinition[] = [
         description: 'Generate variations of this image',
         icon: Wand2,
         agentId: 'sd_img2img',
-        input: {
+        inputs: [{
+            label: 'Image',
             accepts: ['image_asset']
-        },
+        }],
         output: {
             assetType: 'image_asset',
             initialProperties: { name: 'Variation' }
@@ -146,6 +186,10 @@ export const RECIPES: RecipeDefinition[] = [
 
 export const getRecipesForAsset = (assetType: string): RecipeDefinition[] => {
     return RECIPES.filter(r => 
-        r.input.accepts.includes('*') || r.input.accepts.includes(assetType)
+        // Check the first input slot for compatibility context menu
+        r.inputs.length > 0 && (
+            r.inputs[0].accepts.includes('*') || 
+            r.inputs[0].accepts.includes(assetType)
+        )
     );
 };

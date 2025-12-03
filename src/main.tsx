@@ -7,7 +7,7 @@ import CanvasPage from "./pages/Canvas";
 import AgentsPage from "./pages/Agents"; // Import
 import "./index.css";
 import "@/lib/i18n";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes, Navigate } from "react-router-dom"; // Import Navigate
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -15,7 +15,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <HashRouter>
         <Routes>
           <Route path="/" element={<App />}>
-            <Route index element={<Dashboard />} />
+            {/* Redirect root to editor for detached mode development */}
+            <Route index element={<Navigate to="/editor" replace />} /> 
             <Route path="editor" element={<CanvasPage />} />
             <Route path="agents" element={<AgentsPage />} /> {/* New Route */}
           </Route>

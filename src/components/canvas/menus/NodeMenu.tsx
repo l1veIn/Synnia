@@ -5,25 +5,27 @@ import {
 } from "@/components/ui/custom-menu";
 import { AssetData, AgentDefinition } from '@/types/project';
 import { getRecipesForAsset } from '@/config/recipeRegistry';
-import { Wand2, Trash2, Layers, ImageMinus, Link, Unlink, RefreshCw } from 'lucide-react'; // Added RefreshCw
+import { Wand2, Trash2, Layers, ImageMinus, Link, Unlink, RefreshCw, LogOut } from 'lucide-react'; // Added LogOut
 import { toast } from 'sonner';
 import { useProjectStore } from '@/store/projectStore'; 
 
 interface NodeMenuProps {
     node: { id: string, data: AssetData };
+    parentId?: string; // New prop
     agents: AgentDefinition[];
     onRunRecipe: (recipeId: string, sourceNodeId: string) => void;
     onCallAgent: (agent: AgentDefinition) => void;
     onRemoveBackground: () => void;
     onSetCover: () => void;
+    onEject: () => void; // New prop
     onDelete: () => void;
     onClose: () => void;
 }
 
 export function NodeMenu({ 
-    node, 
+    node, parentId,
     onRunRecipe, 
-    onRemoveBackground, onSetCover, onDelete, onClose 
+    onRemoveBackground, onSetCover, onEject, onDelete, onClose 
 }: NodeMenuProps) {
     
     const createShortcut = useProjectStore(state => state.createShortcut);
@@ -71,6 +73,11 @@ export function NodeMenu({
         detachNode(node.id);
         onClose();
     }
+    
+    const handleEject = () => {
+        onEject();
+        onClose();
+    }
 
     const handleRelink = () => {
         const candidate = nodes.find(n => n.id !== node.id && n.data.assetType !== 'reference_asset');
@@ -87,6 +94,17 @@ export function NodeMenu({
              <CustomMenuLabel className="text-xs uppercase text-muted-foreground tracking-wider flex items-center gap-2">
                 {isBroken ? <><Unlink className="w-3 h-3 text-red-500"/> Broken Shortcut</> : "Node Actions"}
             </CustomMenuLabel>
+
+            {/* Collection Eject (New) */}
+            {parentId && (
+                 <>
+                    <CustomMenuItem onClick={handleEject}>
+                        <LogOut className="w-4 h-4 mr-2 text-orange-500" />
+                        Eject from Collection
+                    </CustomMenuItem>
+                    <CustomMenuSeparator />
+                </>
+            )}
             
             {/* Remake (High Priority) */}
             {canRemake && (

@@ -7,13 +7,16 @@ import {
 import { CONTEXT_MENU_STRUCTURE, MenuItem, ASSET_TYPES } from '@/config/menuRegistry';
 import { toast } from 'sonner';
 
+import { Wand2 } from 'lucide-react';
+
 interface PaneMenuProps {
     onAddNode: (type: string, initialData?: any) => void;
     onImportImage: () => void;
+    onOpenRecipePicker: () => void; // New Prop
     onClose: () => void;
 }
 
-export function PaneMenu({ onAddNode, onImportImage, onClose }: PaneMenuProps) {
+export function PaneMenu({ onAddNode, onImportImage, onOpenRecipePicker, onClose }: PaneMenuProps) {
 
     const handleAction = (item: MenuItem) => {
         if (item.action === 'import' && item.assetTypeId === 'image_asset') {
@@ -71,6 +74,17 @@ export function PaneMenu({ onAddNode, onImportImage, onClose }: PaneMenuProps) {
                 Create New Asset
             </CustomMenuLabel>
             {CONTEXT_MENU_STRUCTURE.map(item => renderMenuItem(item))}
+            
+            <CustomMenuSeparator />
+            <CustomMenuItem 
+                onClick={() => { onOpenRecipePicker(); onClose(); }}
+                className="justify-between"
+            >
+                <div className="flex items-center text-primary">
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Browse Recipes...
+                </div>
+            </CustomMenuItem>
         </>
     );
 }

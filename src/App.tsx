@@ -1,37 +1,10 @@
 import { Outlet } from "react-router-dom";
 import { CustomTitleBar } from "@/components/CustomTitleBar";
 import { Toaster } from "sonner";
-import { useEffect, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
+import { useState } from "react";
 
 export default function App() {
   const [title, setTitle] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    const init = async () => {
-        const window = getCurrentWindow();
-        await window.show();
-        await window.setFocus(); 
-        
-        // Listen for project activation
-        const unlisten = await listen<{ name: string }>('project:active', (e) => {
-            setTitle(`Synnia / ${e.payload.name}`);
-        });
-        
-        // Also listen for reset
-        const unlistenReset = await listen('project:reset', () => {
-            setTitle(undefined);
-        });
-
-        return () => {
-            unlisten();
-            unlistenReset();
-        };
-    };
-    
-    init();
-  }, []);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">

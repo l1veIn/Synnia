@@ -4,6 +4,46 @@ import { Node, Edge, Position } from '@xyflow/react';
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
+// --- Collision Helpers ---
+
+interface Rect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    x2: number;
+    y2: number;
+}
+
+export const getBounds = (node: Node): Rect => {
+    const x = node.position.x;
+    const y = node.position.y;
+    const width = node.measured?.width || (typeof node.style?.width === 'number' ? node.style.width : 280) as number || 280;
+    const height = node.measured?.height || (typeof node.style?.height === 'number' ? node.style.height : 200) as number || 200;
+    
+    return {
+        x, y, width, height,
+        x2: x + width,
+        y2: y + height
+    };
+};
+
+// Check if innerNode's center is inside outerNode
+export const isNodeInside = (innerNode: Node, outerNode: Node): boolean => {
+    const inner = getBounds(innerNode);
+    const outer = getBounds(outerNode);
+    
+    const centerX = inner.x + inner.width / 2;
+    const centerY = inner.y + inner.height / 2;
+
+    return (
+        centerX >= outer.x &&
+        centerX <= outer.x2 &&
+        centerY >= outer.y &&
+        centerY <= outer.y2
+    );
+};
+
 // nodeWidth/height should match your AssetNode size roughly
 // const nodeWidth = 240;
 // const nodeHeight = 200; 

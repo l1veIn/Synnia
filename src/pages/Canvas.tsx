@@ -1,9 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, OnSelectionChangeParams, ReactFlowProvider, useReactFlow, Node, OnConnectStartParams } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, OnSelectionChangeParams, ReactFlowProvider, useReactFlow, OnConnectStartParams } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-dialog';
+import { getLayoutedElements } from '@/lib/layoutUtils'; 
 import { AgentDefinition } from '@/types/project';
 import AssetNode, { UIAssetNodeData } from '@/components/nodes/AssetNode';
 import { InspectorPanel } from '@/components/canvas/InspectorPanel';
@@ -12,12 +10,12 @@ import { RemoveBgDialog } from '@/components/canvas/RemoveBgDialog';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useTheme } from "next-themes";
-import { useNavigate } from 'react-router-dom';
 import { CanvasToolbar } from '@/components/canvas/CanvasToolbar';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SYSTEM_AGENTS } from '@/lib/systemAgents';
 import { useProjectStore } from '@/store/projectStore';
 import { useStore as useZustandStore } from 'zustand';
+import { useCanvasDrag } from '@/hooks/useCanvasDrag'; // New Import
 
 // New Menus
 import { CustomMenu } from '@/components/ui/custom-menu';
@@ -32,7 +30,7 @@ type MenuState =
   | { type: 'pane', x: number, y: number }
   | { type: 'node', x: number, y: number, nodeId: string }
   | { type: 'selection', x: number, y: number }
-  | { type: 'recipe-picker', x: number, y: number, sourceNodeId: string };
+  | { type: 'recipe-picker', x: number, y: number, sourceNodeId?: string };
 
 function CanvasContent() {
   // --- Store ---
@@ -40,7 +38,7 @@ function CanvasContent() {
       nodes, edges, projectPath, isLoading,
       onNodesChange, onEdgesChange, onConnect, 
       loadProject, saveProject, addNode, updateNodeData, deleteNode,
-      setNodes, runRecipe
+      setNodes, runRecipe, initProject // Ensure initProject is here
   } = useProjectStore();
 
   const { undo, redo, pause, resume } = useZustandStore(useProjectStore.temporal, (state) => state);
@@ -52,12 +50,14 @@ function CanvasContent() {
   const menuRef = useRef<HTMLDivElement>(null);
   
   const { theme } = useTheme();
-  const navigate = useNavigate(); 
   const { screenToFlowPosition, fitView } = useReactFlow();
   const [toolMode, setToolMode] = useState<'select' | 'hand'>('hand');
   
   // --- Connection State ---
   const connectionStartRef = useRef<OnConnectStartParams | null>(null);
+  
+  // --- Custom Hooks ---
+  const { onNodeDrag, onNodeDragStop: onHookDragStop } = useCanvasDrag(); // Alias hook method
 
   // --- Dialog States ---
   const [agentDialogOpen, setAgentDialogOpen] = useState(false);
@@ -71,31 +71,12 @@ function CanvasContent() {
   const closeMenu = useCallback(() => setMenuState({ type: 'hidden' }), []);
 
   // --- Initialization ---
-  const isInitialized = useRef(false);
-
+  // --- Initialization (Detached Mode) ---
   useEffect(() => {
-    if (isInitialized.current) return;
-    isInitialized.current = true;
-
-    const init = async () => {
-        try {
-            const currentProjectPath = await invoke<string>('get_current_project_path');
-            if (currentProjectPath) {
-                await loadProject(currentProjectPath);
-                const dbAgents = await invoke<AgentDefinition[]>('get_agents');
-                const uniqueDbAgents = dbAgents.filter(da => !SYSTEM_AGENTS.find(sa => sa.id === da.id));
-                setAgents([...SYSTEM_AGENTS, ...uniqueDbAgents]);
-            } else {
-                toast.error("No project loaded. Redirecting to Dashboard.");
-                navigate('/');
-            }
-        } catch (e) {
-            console.error(e);
-            navigate('/');
-        }
-    };
-    init();
-  }, [loadProject, navigate]);
+    // Force load mock project on mount
+    initProject('mock-id'); 
+    setAgents(SYSTEM_AGENTS); // Use system agents for mock
+  }, [initProject]);
 
   // --- Global Click Listener to Close Menu ---
   useEffect(() => {
@@ -110,52 +91,37 @@ function CanvasContent() {
 
   // --- Event Listeners ---
   const handleImportFiles = useCallback(async (files: string[]) => {
-      toast.info(`Importing ${files.length} file(s)...`);
+      toast.info(`Mock: Importing ${files.length} file(s)...`);
       for (const file of files) {
-          try {
-              const relativePath = await invoke<string>('import_file', { filePath: file });
-              const pos = { x: Math.random() * 400, y: Math.random() * 400 };
-              addNode("Image", pos, relativePath);
-          } catch (e) {
-              toast.error(`Failed to import ${file}: ${e}`);
-          }
+          // Simulate import logic
+          const pos = { x: Math.random() * 400, y: Math.random() * 400 };
+          addNode("Image", pos, { assetType: 'image_asset', properties: { name: `Mock Image ${file.split('/').pop()}`, src: 'https://picsum.photos/200/300' } });
       }
-      toast.success("Import complete");
+      toast.success("Mock: Import complete");
   }, [addNode]);
 
-  useEffect(() => {
-      const unlistenDrop = listen<string[]>('tauri://file-drop', async (ev) => handleImportFiles(ev.payload));
-      return () => { unlistenDrop.then(f => f()); };
-  }, [handleImportFiles]);
+  // Removed Tauri file-drop listener
+  // useEffect(() => {
+  //     const unlistenDrop = listen<string[]>('tauri://file-drop', async (ev) => handleImportFiles(ev.payload));
+  //     return () => { unlistenDrop.then(f => f()); };
+  // }, [handleImportFiles]);
 
   // --- Handlers ---
   const handleImportClick = async () => {
-      try {
-          const selected = await open({
-              multiple: true,
-              filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }]
-          });
-          if (selected) {
-              const files = Array.isArray(selected) ? selected : [selected];
-              await handleImportFiles(files);
-          }
-      } catch (e) { console.error(e); }
+      // Mock file open dialog
+      const mockFiles = ['mock/path/to/image1.png', 'mock/path/to/image2.jpg'];
+      handleImportFiles(mockFiles);
   };
 
   const handleRunAgent = async (_agentId: string, inputs: any) => {
       if (!selectedAgent) return;
       try {
-          toast.info(`Running ${selectedAgent.name}...`);
-          // Mock Agent Run for now as per current backend state
-          await invoke<any[]>('run_agent', {
-              agentDef: selectedAgent, 
-              inputs,
-              contextNodeId: selectedNodeId
-          });
-          toast.success("Agent task completed!");
+          toast.info(`Mock: Running ${selectedAgent.name}...`);
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate agent work
+          toast.success("Mock: Agent task completed!");
           // Handle results...
       } catch (e) {
-          toast.error(`Agent failed: ${e}`);
+          toast.error(`Mock: Agent failed: ${e}`);
           throw e; 
       }
   };
@@ -163,18 +129,13 @@ function CanvasContent() {
   const handleSaveBgRemoval = async (blob: Blob) => {
       if (!selectedNodeId) return;
       try {
-          toast.info("Saving processed image...");
-          const arrayBuffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const byteArr = Array.from(bytes);
-          
-          const relativePath = await invoke<string>('save_processed_image', { nodeId: selectedNodeId, imageData: byteArr });
-          
+          toast.info("Mock: Saving processed image...");
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
           updateNodeData(selectedNodeId, { 
-              properties: { content: relativePath } 
+              properties: { content: `mock/processed/image_${selectedNodeId}.png` } 
           });
-          toast.success("Background removed & saved!");
-      } catch (e) { toast.error(`Failed to save image: ${e}`); }
+          toast.success("Mock: Background removed & saved!");
+      } catch (e) { toast.error(`Mock: Failed to save image: ${e}`); }
   };
 
   const handleSetCover = async () => {
@@ -196,6 +157,12 @@ function CanvasContent() {
               n.id === nodeId ? { ...n, width: newW, height: newH, style: { ...n.style, width: newW, height: newH } } : n
           )
       }));
+  }, []);
+
+  // --- Eject Handler ---
+  const handleEject = useCallback((nodeId: string) => {
+      useProjectStore.getState().updateNodeParent(nodeId, undefined);
+      toast.success("Ejected from collection");
   }, []);
 
   // --- Connection Handlers ---
@@ -222,11 +189,15 @@ function CanvasContent() {
   // --- Context Menu Handlers ---
   const onNodeDragStart = useCallback(() => {
       pause();
+      useProjectStore.getState().setIsGlobalDragging(true);
   }, [pause]);
-
-  const onNodeDragStop = useCallback(() => {
-      resume();
-  }, [resume]);
+  
+  const onNodeDragStop = useCallback((event: any, node: Node, nodes: Node[]) => {
+      // Call the hook's logic first (collection logic)
+      onHookDragStop(event, node, nodes);
+      // Then reset global drag state
+      useProjectStore.getState().setIsGlobalDragging(false);
+  }, [onHookDragStop]);
 
   // Correctly typing the event to satisfy ReactFlow's expectation
   const onPaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
@@ -316,6 +287,7 @@ function CanvasContent() {
                 onConnectStart={onConnectStart}
                 onConnectEnd={onConnectEnd}
                 onNodeDragStart={onNodeDragStart}
+                onNodeDrag={onNodeDrag} // New Handler
                 onNodeDragStop={onNodeDragStop}
                 
                 // New Menu Handlers
@@ -352,6 +324,7 @@ function CanvasContent() {
                         <PaneMenu 
                             onAddNode={(type, initialData) => addNode(type, screenToFlowPosition({ x: menuState.x, y: menuState.y }), initialData)}
                             onImportImage={handleImportClick}
+                            onOpenRecipePicker={() => setMenuState({ type: 'recipe-picker', x: menuState.x, y: menuState.y })}
                             onClose={closeMenu}
                         />
                     )}
@@ -362,11 +335,13 @@ function CanvasContent() {
                         return (
                             <NodeMenu 
                                 node={{ id: node.id, data: node.data }}
+                                parentId={node.parentId}
                                 agents={agents}
                                 onRunRecipe={runRecipe}
                                 onCallAgent={(agent) => { setSelectedAgent(agent); setAgentDialogOpen(true); }}
                                 onRemoveBackground={() => setRemoveBgDialogOpen(true)}
                                 onSetCover={handleSetCover}
+                                onEject={() => handleEject(node.id)}
                                 onDelete={() => deleteNode(node.id)}
                                 onClose={closeMenu}
                             />

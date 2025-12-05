@@ -1,0 +1,429 @@
+{
+  "nodes": [
+    {
+      "id": "HbCDbMbxboQrJzbulh88a",
+      "data": {
+        "title": "Beats",
+        "icon": "Grid3x3",
+        "state": "paused",
+        "rows": [
+          {
+            "instrument": "dr",
+            "pattern": [
+              false,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true,
+              true
+            ]
+          },
+          {
+            "instrument": "dr55",
+            "pattern": [
+              false,
+              false,
+              true,
+              true,
+              false,
+              false,
+              true,
+              false
+            ]
+          },
+          {
+            "instrument": "electro1",
+            "pattern": [
+              false,
+              true,
+              true,
+              false,
+              false,
+              false,
+              true,
+              true
+            ]
+          }
+        ]
+      },
+      "position": {
+        "x": -630.5163015210027,
+        "y": 517.695668880619
+      },
+      "type": "beat-machine-node",
+      "measured": {
+        "width": 592,
+        "height": 296
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "LSm6tGiflnirnWDUd8uRm",
+      "data": {
+        "title": "Polyrhythm",
+        "icon": "Layers",
+        "state": "paused",
+        "polySound1": "bd",
+        "polySound2": "house",
+        "polySound3": "hh",
+        "polyPattern1": "euclidean(7,20)",
+        "pattern1Active": true,
+        "polyPattern2": "euclidean(7,20)",
+        "pattern2Active": true,
+        "polyPattern3": "euclidean(2,12)",
+        "pattern3Active": true
+      },
+      "position": {
+        "x": 402.9583695440439,
+        "y": -207.085789445981
+      },
+      "type": "polyrhythm-node",
+      "measured": {
+        "width": 346,
+        "height": 438
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "guwlxzNEicnLB6UQtvc4c",
+      "data": {
+        "title": "Pan",
+        "icon": "Move",
+        "state": "paused",
+        "pan": "0.73"
+      },
+      "position": {
+        "x": -618.5403508563703,
+        "y": 206.70780689246385
+      },
+      "type": "pan-node",
+      "measured": {
+        "width": 346,
+        "height": 204
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "KQEAlB5NcvTZ2f3AiMNov",
+      "data": {
+        "title": "Pan",
+        "icon": "Move",
+        "state": "paused",
+        "pan": "0.26"
+      },
+      "position": {
+        "x": 241.18753080762667,
+        "y": 503.99452787346945
+      },
+      "type": "pan-node",
+      "measured": {
+        "width": 346,
+        "height": 204
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "D5j3qvHYPDN2MFHL7Nfkj",
+      "data": {
+        "title": "Arpeggiator",
+        "icon": "Zap",
+        "state": "paused",
+        "selectedPattern": "up-down",
+        "selectedChordType": "minor",
+        "selectedKey": "D#",
+        "octave": 4,
+        "octaveRange": 2
+      },
+      "position": {
+        "x": -570.3893351105369,
+        "y": -171.43209718527822
+      },
+      "type": "arpeggiator-node",
+      "measured": {
+        "width": 346,
+        "height": 286
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "h5OpINEVVhTNVg_Ube-TW",
+      "data": {
+        "title": "Pad",
+        "icon": "Spline",
+        "state": "paused",
+        "grid": [
+          [
+            true,
+            false,
+            false,
+            false,
+            false,
+            true,
+            true,
+            true
+          ],
+          [
+            false,
+            false,
+            true,
+            false,
+            true,
+            true,
+            false,
+            false
+          ],
+          [
+            true,
+            false,
+            false,
+            false,
+            true,
+            false,
+            false,
+            true
+          ],
+          [
+            true,
+            false,
+            true,
+            false,
+            false,
+            false,
+            false,
+            true
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        ],
+        "mode": "chord",
+        "octave": 3,
+        "buttonModifiers": {},
+        "selectedKey": "D#",
+        "selectedScaleType": "minor",
+        "steps": 4,
+        "columnModifiers": {
+          "1": {
+            "type": "modifier",
+            "value": "/3"
+          }
+        }
+      },
+      "position": {
+        "x": 7.337989402371107,
+        "y": -407.8589133476278
+      },
+      "type": "pad-node",
+      "measured": {
+        "width": 254,
+        "height": 522
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "ZePNkSAAlR2AYZV4jgRMK",
+      "data": {
+        "title": "Synths",
+        "sound": "sid",
+        "icon": "CheckCheck",
+        "state": "paused"
+      },
+      "position": {
+        "x": -84.17357390227318,
+        "y": 390.7820076592739
+      },
+      "type": "synth-select-node",
+      "measured": {
+        "width": 191,
+        "height": 126
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "LSm6tGiflnirnWDUd8uRm-isU5HZyikJReTj2DtaUQg",
+      "source": "LSm6tGiflnirnWDUd8uRm",
+      "target": "isU5HZyikJReTj2DtaUQg",
+      "type": "default"
+    },
+    {
+      "id": "HbCDbMbxboQrJzbulh88a-IQ-PsqXTfVWsQCBw7hs2H",
+      "source": "HbCDbMbxboQrJzbulh88a",
+      "target": "IQ-PsqXTfVWsQCBw7hs2H",
+      "type": "default"
+    },
+    {
+      "id": "HbCDbMbxboQrJzbulh88a-guwlxzNEicnLB6UQtvc4c",
+      "source": "HbCDbMbxboQrJzbulh88a",
+      "target": "guwlxzNEicnLB6UQtvc4c",
+      "type": "default"
+    },
+    {
+      "id": "LSm6tGiflnirnWDUd8uRm-KQEAlB5NcvTZ2f3AiMNov",
+      "source": "LSm6tGiflnirnWDUd8uRm",
+      "target": "KQEAlB5NcvTZ2f3AiMNov",
+      "type": "default"
+    },
+    {
+      "id": "h5OpINEVVhTNVg_Ube-TW-HGK924e7WuOoJFlhEBcHp",
+      "source": "h5OpINEVVhTNVg_Ube-TW",
+      "target": "HGK924e7WuOoJFlhEBcHp",
+      "type": "default"
+    },
+    {
+      "id": "HGK924e7WuOoJFlhEBcHp-bO5VYAoSBymAyoxbTsv51",
+      "source": "HGK924e7WuOoJFlhEBcHp",
+      "target": "bO5VYAoSBymAyoxbTsv51",
+      "type": "default"
+    },
+    {
+      "id": "h5OpINEVVhTNVg_Ube-TW-bO5VYAoSBymAyoxbTsv51",
+      "source": "h5OpINEVVhTNVg_Ube-TW",
+      "target": "bO5VYAoSBymAyoxbTsv51",
+      "type": "default"
+    },
+    {
+      "id": "D5j3qvHYPDN2MFHL7Nfkj-ZePNkSAAlR2AYZV4jgRMK",
+      "source": "D5j3qvHYPDN2MFHL7Nfkj",
+      "target": "ZePNkSAAlR2AYZV4jgRMK",
+      "type": "default"
+    },
+    {
+      "id": "h5OpINEVVhTNVg_Ube-TW-ZePNkSAAlR2AYZV4jgRMK",
+      "source": "h5OpINEVVhTNVg_Ube-TW",
+      "target": "ZePNkSAAlR2AYZV4jgRMK",
+      "type": "default"
+    }
+  ],
+  "theme": "catppuccin",
+  "colorMode": "light",
+  "cpm": "71",
+  "bpc": "2"
+}

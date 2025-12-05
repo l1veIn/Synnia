@@ -1,392 +1,146 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, OnSelectionChangeParams, ReactFlowProvider, useReactFlow, OnConnectStartParams } from '@xyflow/react';
+import { useCallback } from 'react';
+import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { getLayoutedElements } from '@/lib/layoutUtils'; 
-import { AgentDefinition } from '@/types/project';
-import AssetNode, { UIAssetNodeData } from '@/components/nodes/AssetNode';
-import { InspectorPanel } from '@/components/canvas/InspectorPanel';
-import { AgentRunDialog } from '@/components/agent/AgentRunDialog';
-import { RemoveBgDialog } from '@/components/canvas/RemoveBgDialog';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-import { useTheme } from "next-themes";
-import { CanvasToolbar } from '@/components/canvas/CanvasToolbar';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { SYSTEM_AGENTS } from '@/lib/systemAgents';
-import { useProjectStore } from '@/store/projectStore';
-import { useStore as useZustandStore } from 'zustand';
-import { useCanvasDrag } from '@/hooks/useCanvasDrag'; // New Import
 
-// New Menus
-import { CustomMenu } from '@/components/ui/custom-menu';
-import { PaneMenu } from '@/components/canvas/menus/PaneMenu';
-import { NodeMenu } from '@/components/canvas/menus/NodeMenu';
-import { SelectionMenu } from '@/components/canvas/menus/SelectionMenu';
-import { RecipePickerMenu } from '@/components/canvas/menus/RecipePickerMenu';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { AssetNode } from '@/components/workflow/nodes/AssetNode';
+import { GroupNode } from '@/components/workflow/nodes/GroupNode';
+import { NodeType } from '@/types/project';
+import { Button } from '@/components/ui/button';
+import { Plus, Save, Box } from 'lucide-react';
+import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
+import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
+import { useAutoSave } from '@/hooks/useAutoSave';
 
-// --- Types ---
-type MenuState = 
-  | { type: 'hidden' }
-  | { type: 'pane', x: number, y: number }
-  | { type: 'node', x: number, y: number, nodeId: string }
-  | { type: 'selection', x: number, y: number }
-  | { type: 'recipe-picker', x: number, y: number, sourceNodeId?: string };
+// 注册节点类型
+const nodeTypes = {
+  [NodeType.ASSET]: AssetNode,
+  [NodeType.GROUP]: GroupNode,
+  // 临时使用 AssetNode 渲染其他类型，防止报错，后续替换
+  [NodeType.RECIPE]: AssetNode, 
+  [NodeType.NOTE]: AssetNode,
+  [NodeType.COLLECTION]: AssetNode,
+};
 
-function CanvasContent() {
-  // --- Store ---
-  const { 
-      nodes, edges, projectPath, isLoading,
-      onNodesChange, onEdgesChange, onConnect, 
-      loadProject, saveProject, addNode, updateNodeData, deleteNode,
-      setNodes, runRecipe, initProject // Ensure initProject is here
-  } = useProjectStore();
+import { useHistory } from '@/hooks/useHistory';
 
-  const { undo, redo, pause, resume } = useZustandStore(useProjectStore.temporal, (state) => state);
+// ...
 
-  // --- Local State ---
-  const [agents, setAgents] = useState<AgentDefinition[]>([]);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [menuState, setMenuState] = useState<MenuState>({ type: 'hidden' });
-  const menuRef = useRef<HTMLDivElement>(null);
+function CanvasFlow() {
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    onNodeDragStop,
+    onNodeDragStart,
+    onNodeDrag,
+    addNode
+  } = useWorkflowStore();
+
+  // 启用 Hooks
+  useAutoSave();
+  useGlobalShortcuts();
+  const { onDragOver, onDrop } = useFileUploadDrag();
   
-  const { theme } = useTheme();
-  const { screenToFlowPosition, fitView } = useReactFlow();
-  const [toolMode, setToolMode] = useState<'select' | 'hand'>('hand');
-  
-  // --- Connection State ---
-  const connectionStartRef = useRef<OnConnectStartParams | null>(null);
-  
-  // --- Custom Hooks ---
-  const { onNodeDrag, onNodeDragStop: onHookDragStop } = useCanvasDrag(); // Alias hook method
+  const { pause, resume } = useHistory();
 
-  // --- Dialog States ---
-  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<AgentDefinition | null>(null);
-  const [removeBgDialogOpen, setRemoveBgDialogOpen] = useState(false);
+  const handleNodeDragStart = useCallback((event: any, node: any, nodes: any) => {
+    pause();
+    onNodeDragStart(event, node, nodes);
+  }, [pause, onNodeDragStart]);
 
-  // Memoize nodeTypes
-  const nodeTypes = useMemo(() => ({ Asset: AssetNode }), []);
+  const handleNodeDragStop = useCallback((event: any, node: any, nodes: any) => {
+    resume();
+    onNodeDragStop(event, node, nodes);
+  }, [resume, onNodeDragStop]);
 
-  // --- Helpers ---
-  const closeMenu = useCallback(() => setMenuState({ type: 'hidden' }), []);
-
-  // --- Initialization ---
-  // --- Initialization (Detached Mode) ---
-  useEffect(() => {
-    // Force load mock project on mount
-    initProject('mock-id'); 
-    setAgents(SYSTEM_AGENTS); // Use system agents for mock
-  }, [initProject]);
-
-  // --- Global Click Listener to Close Menu ---
-  useEffect(() => {
-      const handleClick = (e: MouseEvent) => {
-          if (menuRef.current && !menuRef.current.contains(e.target as HTMLElement)) {
-              closeMenu();
-          }
-      };
-      document.addEventListener('click', handleClick);
-      return () => document.removeEventListener('click', handleClick);
-  }, [closeMenu]);
-
-  // --- Event Listeners ---
-  const handleImportFiles = useCallback(async (files: string[]) => {
-      toast.info(`Mock: Importing ${files.length} file(s)...`);
-      for (const file of files) {
-          // Simulate import logic
-          const pos = { x: Math.random() * 400, y: Math.random() * 400 };
-          addNode("Image", pos, { assetType: 'image_asset', properties: { name: `Mock Image ${file.split('/').pop()}`, src: 'https://picsum.photos/200/300' } });
-      }
-      toast.success("Mock: Import complete");
-  }, [addNode]);
-
-  // Removed Tauri file-drop listener
-  // useEffect(() => {
-  //     const unlistenDrop = listen<string[]>('tauri://file-drop', async (ev) => handleImportFiles(ev.payload));
-  //     return () => { unlistenDrop.then(f => f()); };
-  // }, [handleImportFiles]);
-
-  // --- Handlers ---
-  const handleImportClick = async () => {
-      // Mock file open dialog
-      const mockFiles = ['mock/path/to/image1.png', 'mock/path/to/image2.jpg'];
-      handleImportFiles(mockFiles);
+  const handleAddNode = (type: NodeType) => {
+    // 简单的随机位置偏移，防止重叠
+    const x = 100 + Math.random() * 50;
+    const y = 100 + Math.random() * 50;
+    addNode(type, { x, y });
   };
 
-  const handleRunAgent = async (_agentId: string, inputs: any) => {
-      if (!selectedAgent) return;
-      try {
-          toast.info(`Mock: Running ${selectedAgent.name}...`);
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate agent work
-          toast.success("Mock: Agent task completed!");
-          // Handle results...
-      } catch (e) {
-          toast.error(`Mock: Agent failed: ${e}`);
-          throw e; 
-      }
-  };
+  const handleSave = useCallback(() => {
+    const projectData = {
+      version: '1.0.0',
+      timestamp: Date.now(),
+      nodes,
+      edges,
+    };
 
-  const handleSaveBgRemoval = async (blob: Blob) => {
-      if (!selectedNodeId) return;
-      try {
-          toast.info("Mock: Saving processed image...");
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
-          updateNodeData(selectedNodeId, { 
-              properties: { content: `mock/processed/image_${selectedNodeId}.png` } 
-          });
-          toast.success("Mock: Background removed & saved!");
-      } catch (e) { toast.error(`Mock: Failed to save image: ${e}`); }
-  };
-
-  const handleSetCover = async () => {
-      if (!selectedNodeId) return;
-      const node = nodes.find(n => n.id === selectedNodeId);
-      if (node && (node.data.assetType === 'image_asset' || node.data.assetType === 'Image')) {
-          useProjectStore.setState(state => ({
-              meta: { ...state.meta, thumbnail: node.data.properties.content as string }
-          }));
-          toast.success("Set as project cover (Save to persist)");
-      } else {
-          toast.error("Select an image node first");
-      }
-  };
-
-  const handleNodeResizeCommit = useCallback(async (nodeId: string, _oldW: number, _oldH: number, newW: number, newH: number) => {
-      useProjectStore.setState(state => ({
-          nodes: state.nodes.map(n => 
-              n.id === nodeId ? { ...n, width: newW, height: newH, style: { ...n.style, width: newW, height: newH } } : n
-          )
-      }));
-  }, []);
-
-  // --- Eject Handler ---
-  const handleEject = useCallback((nodeId: string) => {
-      useProjectStore.getState().updateNodeParent(nodeId, undefined);
-      toast.success("Ejected from collection");
-  }, []);
-
-  // --- Connection Handlers ---
-  const onConnectStart = useCallback((_: any, params: OnConnectStartParams) => {
-      connectionStartRef.current = params;
-  }, []);
-
-  const onConnectEnd = useCallback((event: any) => {
-      // Check if target is pane (not a handle or node)
-      const targetIsPane = event.target.classList.contains('react-flow__pane');
-      
-      if (targetIsPane && connectionStartRef.current?.nodeId) {
-          const { clientX, clientY } = event;
-          setMenuState({ 
-              type: 'recipe-picker', 
-              x: clientX, 
-              y: clientY, 
-              sourceNodeId: connectionStartRef.current.nodeId 
-          });
-      }
-      connectionStartRef.current = null;
-  }, []);
-
-  // --- Context Menu Handlers ---
-  const onNodeDragStart = useCallback(() => {
-      pause();
-      useProjectStore.getState().setIsGlobalDragging(true);
-  }, [pause]);
-  
-  const onNodeDragStop = useCallback((event: any, node: Node, nodes: Node[]) => {
-      // Call the hook's logic first (collection logic)
-      onHookDragStop(event, node, nodes);
-      // Then reset global drag state
-      useProjectStore.getState().setIsGlobalDragging(false);
-  }, [onHookDragStop]);
-
-  // Correctly typing the event to satisfy ReactFlow's expectation
-  const onPaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
-      event.preventDefault();
-      setMenuState({ type: 'pane', x: event.clientX, y: event.clientY });
-  }, []);
-
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
-      event.preventDefault();
-      const selected = nodes.filter(n => n.selected);
-      if (selected.length > 1) {
-          setMenuState({ type: 'selection', x: event.clientX, y: event.clientY });
-      } else {
-          if (!node.selected) {
-              setNodes(nodes.map(n => ({ ...n, selected: n.id === node.id })));
-          }
-          setMenuState({ type: 'node', x: event.clientX, y: event.clientY, nodeId: node.id });
-      }
-  }, [nodes, setNodes]);
-
-  // --- Shortcuts ---
-  useKeyboardShortcuts({
-      handleManualSave: saveProject,
-      setNodes: (update) => {
-          const currentNodes = useProjectStore.getState().nodes;
-          const newNodes = update(currentNodes);
-          setNodes(newNodes);
-      },
-      setToolMode,
-      fitView,
-      undo,
-      redo,
-      onDelete: () => selectedNodeId && deleteNode(selectedNodeId),
-      onCopy: () => {}, 
-      onPaste: () => {} 
-  });
-
-  // --- Selection ---
-  const onSelectionChange = ({ nodes: selectedNodes }: OnSelectionChangeParams) => {
-     setSelectedNodeId(selectedNodes.length > 0 ? selectedNodes[0].id : null);
-  };
-  const selectedNode = useMemo(() => nodes.find(n => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
-  const selectedCount = useMemo(() => nodes.filter(n => n.selected).length, [nodes]);
-
-  const nodesWithHandler = useMemo(() => nodes.map(n => ({
-      ...n,
-      data: { ...n.data, onResizeCommit: handleNodeResizeCommit, projectPath }
-  })), [nodes, handleNodeResizeCommit, projectPath]);
-
-  if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin" /></div>;
-  const isDark = theme === 'dark' || theme === 'system';
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `synnia-workflow-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [nodes, edges]);
 
   return (
-    <div className="h-full w-full flex flex-col relative">
-       <AgentRunDialog 
-          agent={selectedAgent} 
-          open={agentDialogOpen} 
-          onOpenChange={setAgentDialogOpen}
-          onRun={handleRunAgent}
-      />
+    <div
+      className="h-screen w-screen bg-background text-foreground"
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeDragStart={handleNodeDragStart}
+        onNodeDragStop={handleNodeDragStop}
+        onNodeDrag={onNodeDrag}        nodeTypes={nodeTypes}
+        deleteKeyCode={null} // 禁用默认删除，交给 useGlobalShortcuts 处理级联删除
+        fitView
+        className="bg-dot-pattern" // 假设我们在 globals.css 里定义了这个
+      >
+        <Background gap={20} color="#888" className="opacity-20" />
+        <Controls />
+        <MiniMap className="border bg-card" />
+        
+        {/* 临时工具栏 */}
+        <Panel position="top-center" className="m-4">
+          <div className="flex items-center gap-2 bg-card/80 backdrop-blur p-2 rounded-lg border shadow-lg">
+             <span className="text-xs font-bold text-muted-foreground px-2">ADD NODE</span>
+             
+             <Button size="sm" variant="secondary" onClick={() => handleAddNode(NodeType.ASSET)}>
+               <Plus className="w-3 h-3 mr-1" /> Asset
+             </Button>
+             
+             <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.RECIPE)}>
+               Recipe
+             </Button>
+             
+             <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.GROUP)}>
+               <Box className="w-3 h-3 mr-1" /> Group
+             </Button>
+             
+             <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.NOTE)}>
+               Note
+             </Button>
 
-      <RemoveBgDialog 
-          open={removeBgDialogOpen}
-          onOpenChange={setRemoveBgDialogOpen}
-          imagePath={selectedNode?.data.properties?.content as string || ""}
-          projectPath={projectPath || ""}
-          onSave={handleSaveBgRemoval}
-      />
-
-      <CanvasToolbar 
-          activeTool={toolMode}
-          onToolChange={setToolMode}
-          onAddNode={(type, initialData) => addNode(type, { x: Math.random() * 400, y: Math.random() * 400 }, initialData)} 
-          onImportImage={handleImportClick} 
-          onLayout={() => {}} 
-          onFitView={() => fitView({ duration: 400, padding: 0.2 })}
-      />
-      
-      <div className="flex-1 w-full h-full bg-secondary/10 relative" onContextMenu={(e) => e.preventDefault()}>
-            <ReactFlow
-                nodes={nodesWithHandler}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onSelectionChange={onSelectionChange}
-                onConnect={onConnect}
-                onConnectStart={onConnectStart}
-                onConnectEnd={onConnectEnd}
-                onNodeDragStart={onNodeDragStart}
-                onNodeDrag={onNodeDrag} // New Handler
-                onNodeDragStop={onNodeDragStop}
-                
-                // New Menu Handlers
-                onPaneContextMenu={onPaneContextMenu}
-                onNodeContextMenu={onNodeContextMenu}
-                
-                nodeTypes={nodeTypes}
-                fitView
-                proOptions={{ hideAttribution: true }}
-                selectionOnDrag={toolMode === 'select'}
-                panOnDrag={toolMode === 'hand' ? true : [1, 2]}
-                panOnScroll={false}
-                zoomOnScroll={true}
-                selectionMode={toolMode === 'select' ? undefined : undefined}
-            >
-            <Background color={isDark ? "#555" : "#ddd"} gap={16} />
-            <Controls className="m-4 bg-card border border-border shadow-sm rounded-md" />
-            <MiniMap 
-                className="border border-border rounded-lg overflow-hidden !pointer-events-auto z-[50]"
-                nodeColor={isDark ? "#333" : "#eee"} 
-                maskColor={isDark ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.6)"}
-                style={{ backgroundColor: isDark ? "#1a1a1a" : "#fff" }}
-                position="bottom-left"
-            />
-            </ReactFlow>
-
-            {/* --- Explicit Context Menus --- */}
-            {menuState.type !== 'hidden' && (
-                <CustomMenu 
-                    ref={menuRef}
-                    style={{ top: menuState.y, left: menuState.x }}
-                >
-                    {menuState.type === 'pane' && (
-                        <PaneMenu 
-                            onAddNode={(type, initialData) => addNode(type, screenToFlowPosition({ x: menuState.x, y: menuState.y }), initialData)}
-                            onImportImage={handleImportClick}
-                            onOpenRecipePicker={() => setMenuState({ type: 'recipe-picker', x: menuState.x, y: menuState.y })}
-                            onClose={closeMenu}
-                        />
-                    )}
-                    
-                    {menuState.type === 'node' && (() => {
-                        const node = nodes.find(n => n.id === menuState.nodeId);
-                        if (!node) return null;
-                        return (
-                            <NodeMenu 
-                                node={{ id: node.id, data: node.data }}
-                                parentId={node.parentId}
-                                agents={agents}
-                                onRunRecipe={runRecipe}
-                                onCallAgent={(agent) => { setSelectedAgent(agent); setAgentDialogOpen(true); }}
-                                onRemoveBackground={() => setRemoveBgDialogOpen(true)}
-                                onSetCover={handleSetCover}
-                                onEject={() => handleEject(node.id)}
-                                onDelete={() => deleteNode(node.id)}
-                                onClose={closeMenu}
-                            />
-                        );
-                    })()}
-
-                    {menuState.type === 'selection' && (
-                        <SelectionMenu 
-                            selectionCount={nodes.filter(n => n.selected).length}
-                            agents={agents}
-                            onCallAgent={(agent) => { setSelectedAgent(agent); setAgentDialogOpen(true); }}
-                            onDelete={() => {
-                                const selected = nodes.filter(n => n.selected).map(n => n.id);
-                                selected.forEach(id => deleteNode(id));
-                            }}
-                            onClose={closeMenu}
-                        />
-                    )}
-
-                    {menuState.type === 'recipe-picker' && (
-                        <RecipePickerMenu 
-                            sourceNodeId={menuState.sourceNodeId}
-                            onRunRecipe={runRecipe}
-                            onClose={closeMenu}
-                        />
-                    )}
-                </CustomMenu>
-            )}
-
-        <InspectorPanel 
-            node={selectedNode as Node<UIAssetNodeData>} 
-            selectedCount={selectedCount}
-            onClose={() => { setSelectedNodeId(null); setNodes(nodes.map((n) => ({ ...n, selected: false }))); }}
-            onRefreshGraph={() => {}} 
-            onDelete={async (id) => deleteNode(id)}
-        />
-      </div>
+             <div className="w-px h-4 bg-border mx-1" />
+             
+             <Button size="sm" variant="outline" title="Save (JSON)" onClick={handleSave}>
+               <Save className="w-4 h-4" />
+             </Button>
+          </div>
+        </Panel>
+      </ReactFlow>
     </div>
   );
 }
 
-export default function CanvasPage() {
-    return (
-        <ReactFlowProvider>
-            <CanvasContent />
-        </ReactFlowProvider>
-    );
+export default function Canvas() {
+  return (
+    <ReactFlowProvider>
+      <CanvasFlow />
+    </ReactFlowProvider>
+  );
 }

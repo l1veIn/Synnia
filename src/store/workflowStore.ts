@@ -6,19 +6,22 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   Connection,
-  Edge,
   EdgeChange,
   NodeChange,
   OnConnect,
   OnEdgesChange,
   OnNodesChange,
   XYPosition,
-  Node,
   OnNodeDrag,
 } from '@xyflow/react';
 import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
 import { nodesConfig } from '@/components/workflow/nodes/registry';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+    isNodeInsideGroup, 
+    sortNodesTopologically, 
+    getDescendants 
+} from '@/lib/graphUtils';
 
 let isHistoryPaused = false;
 
@@ -26,6 +29,11 @@ export interface WorkflowState {
   nodes: SynniaNode[];
   edges: SynniaEdge[];
   highlightedGroupId: string | null;
+  contextMenuTarget: { 
+    type: 'node' | 'group' | 'canvas' | 'selection'; 
+    id?: string;
+    position?: { x: number; y: number };
+  } | null;
 }
 
 export interface WorkflowActions {
@@ -46,84 +54,11 @@ export interface WorkflowActions {
 
   pauseHistory: () => void;
   resumeHistory: () => void;
+  setContextMenuTarget: (target: WorkflowState['contextMenuTarget']) => void;
+  duplicateNode: (node: SynniaNode, position?: XYPosition) => void;
+  handleAltDragStart: (nodeId: string) => string;
+  handleDragStopOpacity: (nodeId: string) => void;
 }
-
-// Helper: 检测 node 是否在 group 内部
-const isNodeInsideGroup = (node: Node, group: Node) => {
-  if (!node.measured || !group.measured) return false;
-  
-  const nodeX = node.position.x;
-  const nodeY = node.position.y;
-  const nodeW = node.measured.width || 0;
-  const nodeH = node.measured.height || 0;
-
-  const groupX = group.position.x;
-  const groupY = group.position.y;
-  const groupW = group.measured.width || 0;
-  const groupH = group.measured.height || 0;
-
-  const centerX = nodeX + nodeW / 2;
-  const centerY = nodeY + nodeH / 2;
-
-  return (
-    centerX > groupX &&
-    centerX < groupX + groupW &&
-    centerY > groupY &&
-    centerY < groupY + groupH
-  );
-};
-
-// Helper: 拓扑排序，确保 Parent 在 Child 前面
-const sortNodesTopologically = (nodes: SynniaNode[]): SynniaNode[] => {
-  const nodeMap = new Map(nodes.map(n => [n.id, n]));
-  const childrenMap = new Map<string, string[]>();
-  const roots: string[] = [];
-
-  nodes.forEach(node => {
-    if (!node.parentId || !nodeMap.has(node.parentId)) {
-      roots.push(node.id);
-    } else {
-      const existing = childrenMap.get(node.parentId) || [];
-      existing.push(node.id);
-      childrenMap.set(node.parentId, existing);
-    }
-  });
-
-  // 根节点排序：Group 优先
-  roots.sort((a, b) => {
-    const nodeA = nodeMap.get(a)!;
-    const nodeB = nodeMap.get(b)!;
-    if (nodeA.type === NodeType.GROUP && nodeB.type !== NodeType.GROUP) return -1;
-    if (nodeA.type !== NodeType.GROUP && nodeB.type === NodeType.GROUP) return 1;
-    return 0;
-  });
-
-  const result: SynniaNode[] = [];
-  const queue = [...roots];
-
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    const node = nodeMap.get(id);
-    if (node) {
-      result.push(node);
-      const children = childrenMap.get(id);
-      if (children) {
-        // 子节点排序：Group 优先
-        children.sort((a, b) => {
-          const nodeA = nodeMap.get(a)!;
-          const nodeB = nodeMap.get(b)!;
-          if (nodeA.type === NodeType.GROUP && nodeB.type !== NodeType.GROUP) return -1;
-          if (nodeA.type !== NodeType.GROUP && nodeB.type === NodeType.GROUP) return 1;
-          return 0;
-        });
-        
-        children.forEach(childId => queue.push(childId));
-      }
-    }
-  }
-
-  return result;
-};
 
 export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
   subscribeWithSelector(
@@ -132,9 +67,124 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         nodes: [],
         edges: [],
         highlightedGroupId: null,
+        contextMenuTarget: null,
 
         pauseHistory: () => { isHistoryPaused = true; },
         resumeHistory: () => { isHistoryPaused = false; },
+        setContextMenuTarget: (target) => set({ contextMenuTarget: target }),
+        
+        duplicateNode: (node: SynniaNode, position?: XYPosition) => {
+           const { nodes } = get();
+           const newId = uuidv4();
+           
+           const newNode: SynniaNode = {
+             ...node,
+             id: newId,
+             position: position || { x: node.position.x + 20, y: node.position.y + 20 },
+             selected: true,
+             data: { ...JSON.parse(JSON.stringify(node.data)) },
+             parentId: node.parentId,
+             extent: node.extent,
+           };
+           
+           const deselectedNodes = nodes.map(n => ({ ...n, selected: false }));
+           const finalNodes = sortNodesTopologically([...deselectedNodes, newNode]);
+           set({ nodes: finalNodes });
+        },
+
+        handleAltDragStart: (nodeId: string) => {
+            const { nodes, edges } = get();
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) return ""; 
+        
+            // 1. Identify Tree to Clone (Root + Descendants)
+            const nodesToClone = [node, ...getDescendants(nodes, node.id)];
+            const idMap = new Map<string, string>();
+            nodesToClone.forEach(n => idMap.set(n.id, uuidv4()));
+
+            // 2. Create Stationary Clones (Left behind)
+            const stationaryNodes = nodesToClone.map(original => {
+                const newId = idMap.get(original.id)!;
+                
+                let newParentId = original.parentId;
+                if (original.parentId && idMap.has(original.parentId)) {
+                    newParentId = idMap.get(original.parentId);
+                }
+                
+                return {
+                    ...original,
+                    id: newId,
+                    parentId: newParentId,
+                    selected: false,
+                    data: JSON.parse(JSON.stringify(original.data))
+                };
+            });
+
+            // 3. Clone Edges for Stationary Nodes
+            const newEdges: SynniaEdge[] = [];
+            edges.forEach(edge => {
+                const sourceIsCloned = idMap.has(edge.source);
+                const targetIsCloned = idMap.has(edge.target);
+                
+                if (sourceIsCloned || targetIsCloned) {
+                    const newEdge = {
+                        ...edge,
+                        id: uuidv4(),
+                        source: sourceIsCloned ? idMap.get(edge.source)! : edge.source,
+                        target: targetIsCloned ? idMap.get(edge.target)! : edge.target,
+                        selected: false
+                    };
+                    newEdges.push(newEdge);
+                }
+            });
+
+            // 4. Detach Moving Root Node
+            let newPosition = node.position;
+            let newParentId = node.parentId;
+            let newExtent = node.extent;
+
+            if (node.parentId) {
+                const parentNode = nodes.find(n => n.id === node.parentId);
+                if (parentNode) {
+                    newPosition = {
+                        x: parentNode.position.x + node.position.x,
+                        y: parentNode.position.y + node.position.y
+                    };
+                    newParentId = undefined;
+                    newExtent = undefined;
+                }
+            }
+            
+            const updatedMovingNode = {
+                ...node,
+                parentId: newParentId,
+                position: newPosition,
+                extent: newExtent,
+                style: { ...node.style, opacity: 0.5 },
+            };
+            
+            // 5. Apply Changes
+            const finalNodes = nodes.map(n => n.id === nodeId ? updatedMovingNode : n).concat(stationaryNodes);
+
+            set({
+                nodes: sortNodesTopologically(finalNodes),
+                edges: [...edges, ...newEdges]
+            });
+            
+            return idMap.get(node.id)!;
+        },
+        
+        handleDragStopOpacity: (nodeId: string) => {
+             set(state => ({
+                 nodes: state.nodes.map(n => {
+                    if (n.id === nodeId) {
+                        const { opacity, ...restStyle } = n.style || {};
+                        return { ...n, style: { ...restStyle, opacity: 1 } };
+                    }
+                    return n;
+                 })
+             }));
+        },
 
         onNodesChange: (changes: NodeChange<SynniaNode>[]) => {
           set({
@@ -269,7 +319,6 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                    ...node,
                    id: newId,
                    parentId: newParentId,
-                   // 关键修复：如果没有父节点，清除 extent 限制
                    extent: newParentId ? 'parent' : undefined,
                    selected: true, 
                    position: { 

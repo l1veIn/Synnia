@@ -4,7 +4,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
 
 export function useGlobalShortcuts() {
-  const { getNodes } = useReactFlow();
+  const { getNodes, getEdges, deleteElements } = useReactFlow();
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const pasteNodes = useWorkflowStore((state) => state.pasteNodes);
   const { undo, redo } = useHistory();
@@ -20,14 +20,27 @@ export function useGlobalShortcuts() {
         return;
       }
 
-      // Delete / Backspace
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        const selectedNodes = getNodes().filter(n => n.selected);
-        if (selectedNodes.length > 0) {
-          event.preventDefault();
-          selectedNodes.forEach(n => removeNode(n.id));
+        // Delete
+        else if (event.key === 'Backspace' || event.key === 'Delete') {
+            // 忽略输入框内的删除
+            if (['INPUT', 'TEXTAREA'].includes((event.target as HTMLElement).tagName)) return;
+
+            event.preventDefault();
+            
+            // Handle Node Deletion
+            const selectedNodes = getNodes().filter(n => n.selected);
+            if (selectedNodes.length > 0) {
+                selectedNodes.forEach(node => {
+                    removeNode(node.id);
+                });
+            }
+
+            // Handle Edge Deletion
+            const selectedEdges = getEdges().filter(e => e.selected);
+            if (selectedEdges.length > 0) {
+                deleteElements({ edges: selectedEdges });
+            }
         }
-      }
 
       // Shortcuts with Modifier (Cmd/Ctrl)
       if (event.metaKey || event.ctrlKey) {

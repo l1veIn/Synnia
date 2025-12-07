@@ -26,6 +26,41 @@ export interface ExtendedMetadata extends RustMetadata {
     text?: TextMetadata;
 }
 
+// ==========================================
+// Form / Recipe Schema Definitions
+// ==========================================
+
+export type FieldType = 'string' | 'number' | 'boolean' | 'select';
+export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select';
+
+export interface FieldRule {
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: string[]; // For select
+    required?: boolean;
+    placeholder?: string;
+}
+
+export interface FieldDefinition {
+    id: string; // Internal ID for UI key stability
+    key: string; // The actual variable name
+    label?: string; // Human readable label
+    type: FieldType;
+    widget?: WidgetType;
+    rules?: FieldRule;
+    defaultValue?: any;
+}
+
+export interface FormAssetContent {
+    schema: FieldDefinition[];
+    values: Record<string, any>;
+}
+
+export const isFormAsset = (content: any): content is FormAssetContent => {
+    return content && typeof content === 'object' && Array.isArray(content.schema);
+};
+
 /**
  * The unified Asset interface for the frontend Asset Store.
  */

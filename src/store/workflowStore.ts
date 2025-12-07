@@ -604,12 +604,25 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           let assetId = options.assetId;
           
           // Architecture V2: Automatically create backing asset for Asset Nodes
-          if (type === NodeType.ASSET && !assetId) {
-               const assetType = options.assetType || 'text';
-               const content = options.content || '';
+          if ((type === NodeType.ASSET || type === NodeType.RECIPE) && !assetId) {
+               let assetType = options.assetType;
+               let content = options.content;
                const name = options.assetName || config.title;
                const extraMeta = options.metadata || {};
-               // Default to a generic Text asset for now
+
+               if (type === NodeType.RECIPE) {
+                   assetType = 'json';
+                   if (!content) {
+                       // Initialize as Form Asset
+                       content = { schema: [], values: {} };
+                   }
+               } else {
+                   // Default ASSET
+                   assetType = assetType || 'text';
+                   content = content || '';
+               }
+               
+               // Default to a generic Asset for now
                assetId = get().createAsset(assetType, content, { name, ...extraMeta });
           }
 

@@ -21,7 +21,6 @@ const getNodeHeight = (node: SynniaNode): number => {
     // Expanded Logic:
     // 1. Trust manual style height
     if (node.style?.height && typeof node.style.height === 'number') {
-        console.log("[RackLayout] Using style height for", node.id, node.style.height);
         return node.style.height;
     }
     
@@ -30,7 +29,6 @@ const getNodeHeight = (node: SynniaNode): number => {
     // was just collapsed and hasn't re-rendered yet (stale data). Ignore it to prevent layout shrinking.
     const measuredH = node.measured?.height ?? 0;
     if (measuredH > RACK_CONFIG.ASSET_HEIGHT + 10) {
-        console.log("[RackLayout] Using measured height for", node.id, measuredH);
         return measuredH;
     }
 

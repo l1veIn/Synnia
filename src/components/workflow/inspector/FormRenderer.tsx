@@ -1,0 +1,131 @@
+import { FieldDefinition } from '@/types/assets';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+interface RendererProps {
+    schema: FieldDefinition[];
+    values: Record<string, any>;
+    onChange: (values: Record<string, any>) => void;
+}
+
+export function FormRenderer({ schema, values, onChange }: RendererProps) {
+    
+    const handleChange = (key: string, val: any) => {
+        onChange({
+            ...values,
+            [key]: val
+        });
+    };
+
+    if (!schema || schema.length === 0) {
+        return (
+            <div className="text-center py-8 text-muted-foreground text-xs">
+                No fields defined. <br/>Switch to <b>Schema</b> tab to build your form.
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-5">
+            {schema.map((field) => (
+                <div key={field.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                         <Label className="text-xs font-medium text-muted-foreground">
+                            {field.label || field.key}
+                            {field.rules?.required && <span className="text-destructive ml-0.5">*</span>}
+                         </Label>
+                         {/* Optional: Show current value for slider? */}
+                    </div>
+                    
+                    {renderWidget(field, values[field.key], (v) => handleChange(field.key, v))}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void) {
+    const rules = field.rules || {};
+    
+    // Default fallback values
+    const safeVal = value ?? field.defaultValue ?? '';
+
+    switch (field.type) {
+        case 'boolean':
+            return (
+                <div className="flex items-center h-8">
+                    <Switch checked={!!value} onCheckedChange={onChange} />
+                    <span className="ml-2 text-xs text-muted-foreground">{value ? 'True' : 'False'}</span>
+                </div>
+            );
+        case 'select':
+            return (
+                <Select value={String(safeVal)} onValueChange={onChange}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(rules.options || []).map(opt => (
+                        <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            );
+        case 'number':
+            if (field.widget === 'slider') {
+                 const min = rules.min ?? 0;
+                 const max = rules.max ?? 100;
+                 const step = rules.step ?? 1;
+                 const valNum = Number(safeVal) || min;
+                 return (
+                     <div className="flex items-center gap-2">
+                        <Slider 
+                            value={[valNum]} 
+                            min={min} max={max} step={step} 
+                            onValueChange={(vals) => onChange(vals[0])}
+                            className="flex-1"
+                        />
+                        <Input 
+                            type="number" 
+                            className="w-12 h-7 text-xs text-right p-1" 
+                            value={safeVal}
+                            onChange={e => onChange(Number(e.target.value))}
+                        />
+                     </div>
+                 );
+            }
+            return (
+                <Input 
+                    type="number" 
+                    className="h-8 text-xs"
+                    value={safeVal}
+                    min={rules.min} max={rules.max} step={rules.step}
+                    onChange={(e) => onChange(Number(e.target.value))}
+                />
+            );
+        case 'string':
+        default:
+            if (field.widget === 'textarea') {
+                return (
+                    <Textarea 
+                        className="text-xs min-h-[80px]" 
+                        value={safeVal} 
+                        onChange={e => onChange(e.target.value)} 
+                        placeholder={rules.placeholder}
+                    />
+                );
+            }
+            return (
+                 <Input 
+                    className="h-8 text-xs" 
+                    value={safeVal} 
+                    onChange={e => onChange(e.target.value)} 
+                    placeholder={rules.placeholder}
+                />
+            );
+    }
+}

@@ -2,6 +2,9 @@ import { BaseNodeFrame, BaseNodeFrameProps } from './base-node-frame';
 import { useAsset } from '@/hooks/useAsset';
 import { TextAssetView } from './views/TextAssetView';
 import { ImageAssetView } from './views/ImageAssetView';
+import { JsonAssetView } from './views/JsonAssetView';
+import { FormAssetView } from './views/FormAssetView';
+import { isFormAsset } from '@/types/assets';
 import { NodeResizer } from '@xyflow/react';
 
 export function AssetNode(props: BaseNodeFrameProps) {
@@ -29,6 +32,12 @@ export function AssetNode(props: BaseNodeFrameProps) {
               return <TextAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
           case 'image':
               return <ImageAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
+          case 'json':
+              // Smart Routing: Check if it's a Structured Form or Raw JSON
+              if (isFormAsset(asset.content)) {
+                  return <FormAssetView asset={asset} />;
+              }
+              return <JsonAssetView asset={asset} />;
           default:
               return <div className="text-xs text-muted-foreground">Unsupported Asset Type: {asset.type}</div>;
       }

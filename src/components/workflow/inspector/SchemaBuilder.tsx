@@ -91,7 +91,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                              <div className="grid grid-cols-2 gap-2">
                                  <div className="space-y-1">
                                      <Label className="text-[10px] text-muted-foreground">Type</Label>
-                                     <Select value={field.type} onValueChange={(v: FieldType) => updateField(index, { type: v })}>
+                                     <Select value={field.type} onValueChange={(v: FieldType) => updateField(index, { type: v, widget: undefined })}>
                                         <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="string">String</SelectItem>
@@ -103,15 +103,28 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                  </div>
                                  <div className="space-y-1">
                                      <Label className="text-[10px] text-muted-foreground">Widget</Label>
-                                     <Select value={field.widget || 'text'} onValueChange={(v: WidgetType) => updateField(index, { widget: v })}>
+                                     <Select value={field.widget || (field.type === 'boolean' ? 'switch' : 'text')} onValueChange={(v: WidgetType) => updateField(index, { widget: v })}>
                                         <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="text">Input</SelectItem>
-                                            <SelectItem value="textarea">Text Area</SelectItem>
-                                            <SelectItem value="number">Number Input</SelectItem>
-                                            <SelectItem value="slider">Slider</SelectItem>
-                                            <SelectItem value="switch">Switch</SelectItem>
-                                            <SelectItem value="select">Select Menu</SelectItem>
+                                            {field.type === 'string' && (
+                                                <>
+                                                    <SelectItem value="text">Input</SelectItem>
+                                                    <SelectItem value="textarea">Text Area</SelectItem>
+                                                    <SelectItem value="select">Select Menu</SelectItem>
+                                                </>
+                                            )}
+                                            {field.type === 'number' && (
+                                                <>
+                                                    <SelectItem value="number">Number Input</SelectItem>
+                                                    <SelectItem value="slider">Slider</SelectItem>
+                                                </>
+                                            )}
+                                            {field.type === 'boolean' && (
+                                                <SelectItem value="switch">Switch</SelectItem>
+                                            )}
+                                            {field.type === 'select' && (
+                                                <SelectItem value="select">Select Menu</SelectItem>
+                                            )}
                                         </SelectContent>
                                      </Select>
                                  </div>

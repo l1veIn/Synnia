@@ -7,20 +7,30 @@ import { FormAssetView } from './views/FormAssetView';
 import { isFormAsset } from '@/types/assets';
 import { NodeResizer } from '@xyflow/react';
 import { useRunAgent } from '@/hooks/useRunAgent';
+import { NodeType } from '@/types/project';
+import { toast } from 'sonner';
 
 export function AssetNode(props: BaseNodeFrameProps) {
-  const { id, data, selected } = props;
+  const { id, data, selected, type } = props;
   const { asset, setContent, exists } = useAsset(data.assetId);
   const { runAgent } = useRunAgent();
   const isReadOnly = !!data.isReference;
 
   // Check if this asset has a bound agent/recipe
   const agentId = asset?.metadata?.extra?.agentId;
+  const isRecipeNode = type === NodeType.RECIPE;
+  const isBound = !!agentId;
 
   const handleRun = () => {
       if (agentId && data.assetId) {
           runAgent(id, data.assetId);
       }
+  };
+  
+  const handleDisabledRun = () => {
+      toast("Recipe not bound", {
+          description: "Please select the node and choose a Logic in the Inspector panel.",
+      });
   };
 
   // Dispatcher Logic: Choose the right view based on Asset Type
@@ -57,10 +67,13 @@ export function AssetNode(props: BaseNodeFrameProps) {
   return (
     <BaseNodeFrame 
         {...props} 
-        onToggleRun={agentId ? handleRun : undefined}
+        onToggleRun={isBound ? handleRun : undefined}
+        isRunDisabled={isRecipeNode && !isBound}
+        onRunDisabledClick={handleDisabledRun}
+        isSourceConnectable={!isRecipeNode} // Disable manual output connection for Recipe Nodes (Factory Mode)
     >
       <NodeResizer 
-        isVisible={selected && !isReadOnly} 
+        isVisible={selected && !isReadOnly && !isRecipeNode} 
         minWidth={200} 
         minHeight={200}
         color="#3b82f6"

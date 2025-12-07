@@ -20,6 +20,9 @@ export type BaseNodeFrameProps = NodeProps<SynniaNode> & {
   children?: React.ReactNode;
   // onToggleRun 目前还是通过 props 传，或者后续也在内部实现
   onToggleRun?: () => void;
+  isRunDisabled?: boolean;
+  onRunDisabledClick?: () => void;
+  isSourceConnectable?: boolean;
 };
 
 export const BaseNodeFrame = memo(({ 
@@ -28,7 +31,10 @@ export const BaseNodeFrame = memo(({
   type, 
   selected, 
   children,
-  onToggleRun
+  onToggleRun,
+  isRunDisabled,
+  onRunDisabledClick,
+  isSourceConnectable
 }: BaseNodeFrameProps) => {
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const updateNodeData = useWorkflowStore((state) => state.updateNodeData);
@@ -52,6 +58,10 @@ export const BaseNodeFrame = memo(({
 
   const handleToggleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isRunDisabled) {
+        if (onRunDisabledClick) onRunDisabledClick();
+        return;
+    }
     if (onToggleRun) {
       onToggleRun();
     } else {
@@ -113,7 +123,8 @@ export const BaseNodeFrame = memo(({
            {(onToggleRun || config?.category === 'Process') && (
              <NodeHeaderAction 
                 onClick={handleToggleRun}
-                title={isRunning ? "Pause" : "Run"}
+                title={isRunDisabled ? "Bind a recipe to run" : (isRunning ? "Pause" : "Run")}
+                className={cn(isRunDisabled && "opacity-40 cursor-not-allowed hover:bg-transparent text-muted-foreground hover:text-muted-foreground")}
               >
                {isRunning ? <CirclePause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
              </NodeHeaderAction>
@@ -154,6 +165,7 @@ export const BaseNodeFrame = memo(({
         type="source" 
         position={sourcePosition} 
         className={sourceClass}
+        isConnectable={isSourceConnectable !== false}
       />
     </BaseNode>
   );

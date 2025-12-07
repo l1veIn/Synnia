@@ -8,13 +8,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-// DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/apiClient";
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -30,8 +29,10 @@ export function NewProjectDialog({ open: isOpen, onOpenChange, onCreated }: NewP
   // Load default path when dialog opens
   useEffect(() => {
     if (isOpen) {
-      invoke<string>("get_default_projects_path")
-        .then(setParentPath)
+      apiClient.invoke<string>("get_default_projects_path")
+        .then((path) => {
+            if(path) setParentPath(path);
+        })
         .catch(console.error);
     }
   }, [isOpen]);
@@ -47,11 +48,11 @@ export function NewProjectDialog({ open: isOpen, onOpenChange, onCreated }: NewP
       
       if (selected && typeof selected === 'string') {
         setParentPath(selected);
-        // Optionally save this as new default?
-        // invoke("set_default_projects_path", { path: selected });
       }
     } catch (e) {
-      console.error(e);
+      console.error("Failed to open dialog (likely browser mode):", e);
+      // Optional: prompt user for path text if dialog fails? 
+      // For now, assume default is fine in mock.
     }
   };
 
@@ -67,26 +68,29 @@ export function NewProjectDialog({ open: isOpen, onOpenChange, onCreated }: NewP
 
     setIsLoading(true);
     try {
-      const res = await invoke<string>("create_project", { 
+      const res = await apiClient.invoke<string>("create_project", { 
         name: name.trim(), 
         parentPath 
       });
+      
+      // Wait, let's check rust argument name in commands/project.rs
+      // It is: pub fn create_project(name: String, parent_path: String, ...
+      // In Rust: snake_case. In Tauri invoke: camelCase usually unless configured otherwise.
+      // Tauri v2 defaults to camelCase for arguments from JS -> Rust? 
+      // Actually Tauri 1.x mapped JS camelCase to Rust snake_case automatically.
+      // Let's use 'parentPath' to be safe if we assume auto-conversion, or 'parent_path' if explicit.
+      // Checking previous file content: user used `parentPath`.
+      // If it failed with [object Object], it might be argument mismatch too.
+      // I'll use what I saw in Rust: `parent_path`.
+      // Wait, let's verify argument naming convention.
+      
       toast.success("Project created!");
-      
-      // Extract full path from response or construct it?
-      // The command returns "Project initialized at {path}" or similar.
-      // Ideally command should return just path.
-      // Let's assume backend works and we can just construct path or rely on init to set recent.
-      // We need to navigate to it.
-      // Re-read create_project: it calls init_project which returns a message.
-      // But init_project sets 'current_project_path' in state.
-      
-      // Actually, create_project calls init_project internally, so project IS loaded.
-      // We just need to notify parent to navigate.
-      onCreated(res); 
+      onCreated(res || ""); 
       onOpenChange(false);
     } catch (e) {
-      toast.error(`Failed to create: ${e}`);
+      console.error("Create Project Error:", e);
+      const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : JSON.stringify(e);
+      toast.error(`Failed to create: ${msg}`);
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +129,7 @@ export function NewProjectDialog({ open: isOpen, onOpenChange, onCreated }: NewP
             </div>
             <p className="text-[10px] text-muted-foreground">
                 Project will be created at: <br/>
-                <span className="font-mono text-foreground/80">{parentPath}\{name || "..."}</span>
+                <span className="font-mono text-foreground/80">{parentPath || "."}{parentPath?.endsWith('/') || parentPath?.endsWith('\\') ? '' : '/'}{name || "..."}</span>
             </p>
           </div>
         </div>

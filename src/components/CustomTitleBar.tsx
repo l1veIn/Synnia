@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { Minus, X, Maximize2, Minimize2, Activity, Sun, Moon, Languages } from "lucide-react";
+import { Minus, X, Maximize2, Minimize2, Activity, Sun, Moon, Languages, Home } from "lucide-react";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { SettingsDialog } from "./settings/SettingsDialog";
 
@@ -19,6 +20,10 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
   const [isMac, setIsMac] = useState(false);
   const { setTheme, resolvedTheme } = useTheme();
   const { t, i18n } = useTranslation();
+  
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isDashboard = location.pathname === '/';
 
   useEffect(() => {
     // Detect OS via userAgent (Simpler and more robust for this use case than plugin-os)
@@ -129,36 +134,24 @@ export function CustomTitleBar({ running = false, title }: CustomTitleBarProps) 
       <div 
         className={`flex items-center gap-4 flex-1 h-full ${isMac ? "pl-20" : "px-4"}`}
         data-tauri-drag-region
-        onDoubleClick={handleMaximize}
       >
         {/* 状态点与标题组合 */}
-        <div className="flex items-center gap-3 group" data-tauri-drag-region>
-          <div className={`relative flex items-center justify-center w-2 h-2 rounded-full transition-all duration-500 ${running ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-zinc-400 dark:bg-zinc-600"}`} data-tauri-drag-region>
-            {running && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75" data-tauri-drag-region></div>}
+        <div 
+           className="flex items-center gap-3 group cursor-pointer hover:opacity-80 transition-opacity" 
+           onClick={() => navigate('/')}
+           title="Go to Dashboard"
+           // Note: Since parent has data-tauri-drag-region, we rely on Tauri allowing clicks on interactive children.
+        >
+          <div className={`relative flex items-center justify-center w-2 h-2 rounded-full transition-all duration-500 ${running ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-zinc-400 dark:bg-zinc-600"}`}>
+            {running && <div className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></div>}
           </div>
           
           <span 
             className="text-xs font-medium tracking-wide text-muted-foreground group-hover:text-foreground transition-colors"
             suppressHydrationWarning
-            data-tauri-drag-region
           >
             {displayTitle}
           </span>
-
-          {/* 分隔符 */}
-          <div className="h-3 w-[1px] bg-border" data-tauri-drag-region></div>
-
-          {/* 运行状态文字 */}
-          <div className="flex items-center gap-1.5" data-tauri-drag-region>
-            <Activity className={`w-3 h-3 ${running ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-600"}`} data-tauri-drag-region />
-            <span 
-              className={`text-[10px] uppercase font-bold tracking-wider ${running ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-600"}`}
-              suppressHydrationWarning
-              data-tauri-drag-region
-            >
-              {running ? t("app.status_online", "Online") : t("app.status_standby", "Standby")}
-            </span>
-          </div>
         </div>
       </div>
 

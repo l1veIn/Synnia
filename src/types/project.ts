@@ -28,8 +28,28 @@ export interface BaseNodeData extends Record<string, unknown> {
   handlePosition?: 'top-bottom' | 'left-right';
   originalPosition?: XYPosition;
 
-  // 业务属性 (动态，不强制 schema)
-  // 例如：text, imageUrl, value, prompt, ...
+  // --- Architecture V2: Data Linkage ---
+  // The 'assetId' connects this View Node to the Data Store.
+  assetId?: string; 
+  
+  // Is this a read-only shortcut?
+  isReference?: boolean; 
+  
+  // If this is a shortcut, where does it point to in the Graph? (Optional, for jumping)
+  originalNodeId?: string; 
+
+  // --- Architecture V2: Container Strategy ---
+  // Replaces hardcoded Group logic. Defines how this node manages its children.
+  layoutMode?: 'free' | 'rack' | 'list' | 'grid';
+
+  // --- Legacy / Transitional Fields ---
+  // These will be migrated to the Asset Store eventually.
+  /** @deprecated Use assetId and Assets Store */
+  assetType?: 'image' | 'text' | 'json'; 
+  /** @deprecated Use assetId and Assets Store */
+  content?: string; 
+  /** @deprecated Use assetId and Assets Store */
+  preview?: string; 
 }
 
 /**
@@ -53,22 +73,18 @@ export type SynniaEdge = Edge;
  * 用于映射 React Flow 的 nodeTypes
  */
 export enum NodeType {
-  // 基础类型
-  ASSET = 'asset-node',       // 通用资产节点 (图片, 文本, 等)
-  RECIPE = 'recipe-node',     // 处理节点 (API 调用, 转换等)
-  NOTE = 'note-node',         // 纯注释/便签
-  
-  // 集合/容器类型
-  GROUP = 'group-node',       // 基础分组
-  COLLECTION = 'collection-node' // 带有特定业务逻辑的集合
+  ASSET = 'asset-node',
+  GROUP = 'group-node',
+  RACK = 'rack-node',
+  RECIPE = 'recipe-node',
+  NOTE = 'note-node',
+  COLLECTION = 'collection-node',
 }
 
 // --- Specific Node Data Interfaces (Optional but recommended for TS) ---
 
 export interface AssetNodeData extends BaseNodeData {
-  assetType: 'image' | 'text' | 'json'; // 简单的类型标识
-  content: string; // url or text content
-  preview?: string; // optional preview url
+  // Overriding/Refining BaseNodeData for Asset Nodes
 }
 
 export interface RecipeNodeData extends BaseNodeData {

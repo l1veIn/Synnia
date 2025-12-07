@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use std::collections::HashMap;
 
-// ==========================================
-// Core Structs (SPF v3.1 - Hash Consistency)
-// ==========================================
+// ========================================== 
+// Synnia Architecture V2 Models
+// ========================================== 
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -14,6 +14,11 @@ pub struct SynniaProject {
     pub meta: ProjectMeta,
     pub viewport: Viewport,
     pub graph: Graph,
+    
+    // V2: Central Asset Registry
+    #[ts(type = "Record<string, Asset>")]
+    pub assets: HashMap<String, Asset>,
+    
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(type = "Record<string, any>")]
     pub settings: Option<HashMap<String, serde_json::Value>>,
@@ -25,7 +30,7 @@ pub struct SynniaProject {
 pub struct ProjectMeta {
     pub id: String,
     pub name: String,
-    pub created_at: String,
+    pub created_at: String, // ISO String or Timestamp
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thumbnail: Option<String>,
@@ -33,6 +38,54 @@ pub struct ProjectMeta {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
+}
+
+// ========================================== 
+// Asset System (Data Layer)
+// ========================================== 
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Asset {
+    pub id: String,
+    pub type_: String, // "text", "image", "recipe", "video", etc.
+    
+    // Content can be a String, a complex Object, or a File Path (handled by Rust)
+    #[ts(type = "any")]
+    pub content: serde_json::Value, 
+    
+    pub metadata: AssetMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetMetadata {
+    pub name: String,
+    #[ts(type = "number")]
+    pub created_at: i64,
+    #[ts(type = "number")]
+    pub updated_at: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>, // "user", "generated", "imported"
+    
+    // Flatten removed for cleaner TS generation and stricter schema
+    #[serde(default)]
+    #[ts(type = "Record<string, any>")]
+    pub extra: HashMap<String, serde_json::Value>,
+}
+
+// ========================================== 
+// Graph System (View Layer)
+// ========================================== 
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Graph {
+    pub nodes: Vec<SynniaNode>,
+    pub edges: Vec<SynniaEdge>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -47,23 +100,20 @@ pub struct Viewport {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct Graph {
-    pub nodes: Vec<SynniaNode>,
-    pub edges: Vec<SynniaEdge>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 pub struct SynniaNode {
     pub id: String,
-    pub type_: String, // Always "Asset" for ReactFlow compatibility
+    pub type_: String, // "asset-node", "group", "note", etc.
     pub position: Position,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<f64>,
-    pub data: AssetData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extent: Option<String>, // "parent" or undefined
+    
+    pub data: SynniaNodeData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -76,59 +126,29 @@ pub struct Position {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct AssetData {
-    pub asset_type: String,
-    pub status: NodeStatus,
+pub struct SynniaNodeData {
+    pub title: String,
     
-    // Content Fingerprint for Consistency Check
+    // V2: Asset Pointer & View State
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hash: Option<String>,
-
-    // Core Properties (KV Store)
-    #[ts(type = "Record<string, any>")]
-    pub properties: HashMap<String, serde_json::Value>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub provenance: Option<Provenance>,
+    pub asset_id: Option<String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(type = "string[]")]
-    pub validation_errors: Option<Vec<String>>,
-}
+    pub is_reference: Option<bool>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collapsed: Option<bool>, // Rack / Group collapse state
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_mode: Option<String>, // "free", "rack", "grid"
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
-#[ts(export)]
-#[serde(rename_all = "lowercase")] 
-pub enum NodeStatus {
-    Idle,
-    Processing,
-    Success,
-    Error,
-    Stale, // Upstream hash mismatch
-}
+    // Generic State
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>, // "idle", "running", "error"
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct Provenance {
-    pub recipe_id: String,
-    #[ts(type = "number")]
-    pub generated_at: i64, // Timestamp
-    pub sources: Vec<ProvenanceSource>,
+    #[serde(default)]
     #[ts(type = "Record<string, any>")]
-    pub params_snapshot: HashMap<String, serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct ProvenanceSource {
-    pub node_id: String,
-    pub node_version: i32, // Keep for human readable history
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node_hash: Option<String>, // For automated stale checks
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub slot: Option<String>,
+    pub other: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -165,9 +185,9 @@ pub struct AgentDefinition {
     pub is_system: bool,
 }
 
-// ==========================================
+// ========================================== 
 // Tests & Binding Generation
-// ==========================================
+// ========================================== 
 
 #[cfg(test)]
 mod tests {
@@ -178,13 +198,14 @@ mod tests {
     #[test]
     fn export_bindings() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        // Export to src/bindings/synnia.ts for easier import
         let bindings_dir = manifest_dir.parent().unwrap().join("src").join("bindings");
 
         if !bindings_dir.exists() {
             std::fs::create_dir_all(&bindings_dir).unwrap();
         }
 
-        let mut file_content = String::from("// This file is auto-generated by Rust. Do not edit.\n\n");
+        let mut file_content = String::from("// This file is auto-generated by Rust (ts-rs). Do not edit.\n\n");
 
         macro_rules! export_type {
             ($t:ty) => {
@@ -195,18 +216,17 @@ mod tests {
             };
         }
 
-        export_type!(NodeStatus);
         export_type!(SynniaProject);
-        export_type!(SynniaNode);
-        export_type!(SynniaEdge);
-        export_type!(AssetData);
-        export_type!(Provenance);
-        export_type!(ProvenanceSource);
-        export_type!(AgentDefinition);
         export_type!(ProjectMeta);
         export_type!(Viewport);
         export_type!(Graph);
+        export_type!(Asset);
+        export_type!(AssetMetadata);
+        export_type!(SynniaNode);
+        export_type!(SynniaNodeData);
         export_type!(Position);
+        export_type!(SynniaEdge);
+        export_type!(AgentDefinition);
 
         let output_path = bindings_dir.join("synnia.ts");
         std::fs::write(output_path, file_content).unwrap();

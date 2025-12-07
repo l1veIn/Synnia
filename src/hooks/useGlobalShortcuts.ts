@@ -3,10 +3,11 @@ import { useReactFlow } from '@xyflow/react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
 
-export function useGlobalShortcuts() {
+export function useGlobalShortcuts(onSave?: () => void) {
   const { getNodes, getEdges, deleteElements } = useReactFlow();
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const pasteNodes = useWorkflowStore((state) => state.pasteNodes);
+  const duplicateNode = useWorkflowStore((state) => state.duplicateNode);
   const { undo, redo } = useHistory();
 
   useEffect(() => {
@@ -44,8 +45,13 @@ export function useGlobalShortcuts() {
 
       // Shortcuts with Modifier (Cmd/Ctrl)
       if (event.metaKey || event.ctrlKey) {
+        // Save (Cmd+S)
+        if (event.code === 'KeyS') {
+            event.preventDefault();
+            onSave?.();
+        }
         // Undo / Redo
-        if (event.code === 'KeyZ') {
+        else if (event.code === 'KeyZ') {
           event.preventDefault();
           if (event.shiftKey) {
             redo();
@@ -57,6 +63,14 @@ export function useGlobalShortcuts() {
         else if (event.key === 'y') {
             event.preventDefault();
             redo();
+        }
+        // Duplicate (Cmd+D)
+        else if (event.key === 'd') {
+            event.preventDefault();
+            const selectedNodes = getNodes().filter(n => n.selected);
+            selectedNodes.forEach(node => {
+                duplicateNode(node as any);
+            });
         }
         // Copy (Cmd+C)
         else if (event.key === 'c') {
@@ -112,5 +126,5 @@ export function useGlobalShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [getNodes, removeNode, undo, redo, pasteNodes]);
+  }, [getNodes, removeNode, undo, redo, pasteNodes, duplicateNode, onSave]);
 }

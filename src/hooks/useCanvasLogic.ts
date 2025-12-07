@@ -15,7 +15,7 @@ export function useCanvasLogic() {
   } = useWorkflowStore();
 
   const { pause, resume } = useHistory();
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes } = useReactFlow();
 
   // --- Drag Logic ---
   const handleNodeDragStart = useCallback((event: any, _node: any, nodes: any[]) => {
@@ -50,13 +50,19 @@ export function useCanvasLogic() {
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: any) => {
+      // Check for Multi-Selection
+      // React Flow usually selects the node on right click if not selected.
+      // If it IS selected, and others are too, it's a multi-select action.
+      const selectedNodes = getNodes().filter(n => n.selected);
+      const isMultiSelect = selectedNodes.length > 1 && selectedNodes.some(n => n.id === node.id);
+      
       setContextMenuTarget({
-        type: node.type === NodeType.GROUP ? 'group' : 'node',
+        type: isMultiSelect ? 'selection' : (node.type === NodeType.GROUP ? 'group' : 'node'),
         id: node.id,
         position: { x: event.clientX, y: event.clientY },
       });
     },
-    [setContextMenuTarget]
+    [setContextMenuTarget, getNodes]
   );
 
   const onPaneContextMenu = useCallback(

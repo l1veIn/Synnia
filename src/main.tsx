@@ -15,8 +15,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <HashRouter>
         <Routes>
           <Route path="/" element={<App />}>
-            {/* Redirect root to editor for detached mode development */}
-            <Route index element={<Navigate to="/editor" replace />} /> 
+            <Route index element={<Dashboard />} />
             <Route path="editor" element={<CanvasPage />} />
             <Route path="agents" element={<AgentsPage />} /> {/* New Route */}
           </Route>

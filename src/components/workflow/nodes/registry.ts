@@ -17,6 +17,8 @@ export interface NodeConfig {
   category: NodeCategory;
   icon: LucideIcon;
   description?: string;
+  defaultWidth?: number;
+  defaultHeight?: number;
 }
 
 export const nodesConfig: Record<NodeType, NodeConfig> = {
@@ -24,7 +26,7 @@ export const nodesConfig: Record<NodeType, NodeConfig> = {
     type: NodeType.ASSET,
     title: 'Asset',
     category: 'Asset',
-    icon: ImageIcon, // 默认图标，具体实例可能会覆盖
+    icon: ImageIcon, 
     description: 'Static content like images or text',
   },
   [NodeType.RECIPE]: {
@@ -41,16 +43,28 @@ export const nodesConfig: Record<NodeType, NodeConfig> = {
     icon: StickyNote,
     description: 'Annotation',
   },
-  [NodeType.GROUP]: {
-    type: NodeType.GROUP,
-    title: 'Group',
-    category: 'Container',
-    icon: Box,
-  },
-  [NodeType.COLLECTION]: {
-    type: NodeType.COLLECTION,
-    title: 'Collection',
+  // [NodeType.GROUP]: {
+  //   type: NodeType.GROUP,
+  //   title: 'Group',
+  //   category: 'Container',
+  //   icon: Box,
+  //   description: 'A collapsible group container',
+  //   defaultWidth: 400,
+  //   defaultHeight: 300,
+  // },
+  [NodeType.RACK]: {
+    type: NodeType.RACK,
+    title: 'Rack',
     category: 'Container',
     icon: Layers,
+    description: 'Linear container for assets',
+    defaultWidth: 300,
+    defaultHeight: 400,
   },
+  // [NodeType.COLLECTION]: {
+  //   type: NodeType.COLLECTION,
+  //   title: 'Collection',
+  //   category: 'Container',
+  //   icon: Layers,
+  // },
 };

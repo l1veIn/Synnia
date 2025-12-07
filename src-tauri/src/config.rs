@@ -1,68 +1,71 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::fs;
 use tauri::AppHandle;
 use tauri::Manager;
+use std::path::PathBuf;
+use std::fs;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RecentProject {
-    pub name: String,
-    pub path: String,
-    pub last_opened: String, // ISO String
-}
-
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GlobalConfig {
     pub recent_projects: Vec<RecentProject>,
-    pub theme: Option<String>,
     pub default_workspace: Option<String>,
+    pub theme: Option<String>,
+    pub language: Option<String>,
     
-    // AI Settings
+    // AI Configuration
     pub gemini_api_key: Option<String>,
     pub gemini_base_url: Option<String>,
     pub gemini_model_name: Option<String>,
 }
 
-impl GlobalConfig {
-    fn get_config_path(app: &AppHandle) -> Option<PathBuf> {
-        app.path().app_config_dir().ok().map(|p| p.join("global_config.json"))
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecentProject {
+    pub name: String,
+    pub path: String,
+    pub last_opened: String, // ISO Date
+}
 
+impl GlobalConfig {
     pub fn load(app: &AppHandle) -> Self {
-        if let Some(path) = Self::get_config_path(app) {
-            if path.exists() {
-                if let Ok(content) = fs::read_to_string(path) {
-                    if let Ok(config) = serde_json::from_str(&content) {
-                        return config;
-                    }
-                }
-            }
+        // Retrieve the app configuration directory
+        // e.g., on macOS: ~/Library/Application Support/com.your-domain.synnia/
+        let config_dir = app.path().app_config_dir().unwrap_or_else(|_| PathBuf::from("."));
+        
+        if !config_dir.exists() {
+            let _ = fs::create_dir_all(&config_dir);
         }
-        Self::default()
+        
+        let config_path = config_dir.join("config.json");
+        
+        if config_path.exists() {
+            let content = fs::read_to_string(&config_path).unwrap_or_default();
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            GlobalConfig::default()
+        }
     }
 
     pub fn save(&self, app: &AppHandle) -> Result<(), String> {
-        if let Some(path) = Self::get_config_path(app) {
-            if let Some(parent) = path.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            let content = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-            fs::write(path, content).map_err(|e| e.to_string())?;
-            Ok(())
-        } else {
-            Err("Could not resolve config directory".to_string())
+        let config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+        if !config_dir.exists() {
+            fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
         }
+        let config_path = config_dir.join("config.json");
+        let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
+        fs::write(config_path, json).map_err(|e| e.to_string())
     }
 
     pub fn add_recent(&mut self, name: String, path: String) {
+        // Remove existing entry if present (deduplication)
         self.recent_projects.retain(|p| p.path != path);
         
+        // Add to top (MRU)
         self.recent_projects.insert(0, RecentProject {
             name,
             path,
             last_opened: chrono::Utc::now().to_rfc3339(),
         });
 
+        // Limit to 10 items
         if self.recent_projects.len() > 10 {
             self.recent_projects.truncate(10);
         }

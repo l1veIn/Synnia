@@ -1,67 +1,49 @@
-import { useState, useCallback } from 'react';
 import { BaseNodeFrame, BaseNodeFrameProps } from './base-node-frame';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { useAsset } from '@/hooks/useAsset';
+import { TextAssetView } from './views/TextAssetView';
+import { ImageAssetView } from './views/ImageAssetView';
 
 export function AssetNode(props: BaseNodeFrameProps) {
-  // 这里暂时用本地 state 模拟，后面会接入 Store
-  const [content, setContent] = useState(props.data.content as string || '');
-  const [assetType, setAssetType] = useState(props.data.assetType as string || 'text');
+  const { data } = props;
+  const { asset, setContent, exists } = useAsset(data.assetId);
+  const isReadOnly = !!data.isReference;
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-    setContent(e.target.value);
-    // TODO: updateNodeData(id, { content: e.target.value })
-  }, []);
+  // Dispatcher Logic: Choose the right view based on Asset Type
+  const renderContent = () => {
+      if (!exists || !asset) {
+          // Legacy Fallback for nodes created before V2 migration
+          if (data.content) {
+             return (
+                 <div className="p-2 border border-dashed rounded bg-muted/20">
+                     <div className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">Legacy Content</div>
+                     <div className="text-xs whitespace-pre-wrap font-mono">{data.content as string}</div>
+                 </div>
+             );
+          }
+          return <div className="text-xs text-destructive font-mono">Asset Not Found (ID: {data.assetId})</div>;
+      }
+
+      switch (asset.type) {
+          case 'text':
+              return <TextAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
+          case 'image':
+              return <ImageAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
+          default:
+              return <div className="text-xs text-muted-foreground">Unsupported Asset Type: {asset.type}</div>;
+      }
+  };
 
   return (
     <BaseNodeFrame {...props}>
       <div className="flex flex-col gap-3">
-        {/* 类型选择器 (简化版) */}
-        <div className="flex gap-2 text-xs">
-           <span 
-             className={`cursor-pointer px-2 py-1 rounded ${assetType === 'text' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground'}`}
-             onClick={() => setAssetType('text')}
-           >
-             Text
-           </span>
-           <span 
-             className={`cursor-pointer px-2 py-1 rounded ${assetType === 'image' ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground'}`}
-             onClick={() => setAssetType('image')}
-           >
-             Image
-           </span>
-        </div>
-
-        {/* 内容区域 */}
-        {assetType === 'text' ? (
-          <div className="grid w-full gap-1.5">
-            <Label htmlFor={`text-${props.id}`} className="text-xs text-muted-foreground">Content</Label>
-            <Textarea 
-              id={`text-${props.id}`} 
-              placeholder="Enter text asset..." 
-              value={content}
-              onChange={handleChange}
-              className="text-xs resize-y min-h-[60px] nodrag" // nodrag 很重要，否则无法选中文本
-            />
-          </div>
-        ) : (
-          <div className="grid w-full gap-1.5">
-            <Label htmlFor={`url-${props.id}`} className="text-xs text-muted-foreground">Image URL</Label>
-            <Input 
-              id={`url-${props.id}`} 
-              placeholder="https://..." 
-              value={content}
-              onChange={handleChange}
-              className="text-xs nodrag"
-            />
-            {content && (
-              <div className="mt-2 rounded-md overflow-hidden border bg-muted aspect-video relative">
-                <img src={content} alt="Asset Preview" className="object-cover w-full h-full" />
-              </div>
-            )}
-          </div>
+        {isReadOnly && (
+            <div className="flex items-center gap-1 text-[10px] text-blue-500 font-medium uppercase tracking-wider select-none">
+                <span className="bg-blue-100 px-1 rounded">REF</span>
+                <span>Read Only</span>
+            </div>
         )}
+        
+        {renderContent()}
       </div>
     </BaseNodeFrame>
   );

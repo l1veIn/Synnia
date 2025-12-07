@@ -4,6 +4,17 @@ use std::io::Write;
 use crate::models::SynniaProject;
 use crate::error::AppError;
 
+pub fn save_project_autosave(project_root: &Path, project: &SynniaProject) -> Result<(), AppError> {
+    if !project_root.exists() {
+        return Err(AppError::Io(format!("Project path does not exist: {:?}", project_root)));
+    }
+    let file_path = project_root.join("synnia.json.autosave");
+    // Compact JSON for performance
+    let json_content = serde_json::to_string(project)?; 
+    fs::write(file_path, json_content)?;
+    Ok(())
+}
+
 pub fn save_project(project_root: &Path, project: &SynniaProject) -> Result<(), AppError> {
     // 1. Validate path
     if !project_root.exists() {
@@ -24,17 +35,33 @@ pub fn save_project(project_root: &Path, project: &SynniaProject) -> Result<(), 
     // 4. Rename (Atomic replace)
     fs::rename(&tmp_path, &file_path)?;
 
+    // 5. Hot Exit Cleanup: Remove autosave file as we just successfully saved manually
+    let autosave_path = project_root.join("synnia.json.autosave");
+    if autosave_path.exists() {
+        let _ = fs::remove_file(autosave_path);
+    }
+
     Ok(())
 }
 
 pub fn load_project(project_root: &Path) -> Result<SynniaProject, AppError> {
-    let file_path = project_root.join("synnia.json");
+    // Hot Exit: Prefer autosave file if it exists (means dirty exit)
+    let autosave_path = project_root.join("synnia.json.autosave");
+    let main_path = project_root.join("synnia.json");
 
-    if !file_path.exists() {
+    let path_to_load = if autosave_path.exists() {
+        // We could verify timestamps, but existence of .autosave usually implies
+        // unsaved changes were pending.
+        autosave_path
+    } else {
+        main_path
+    };
+
+    if !path_to_load.exists() {
         return Err(AppError::NotFound("synnia.json not found in project directory".to_string()));
     }
 
-    let content = fs::read_to_string(&file_path)?;
+    let content = fs::read_to_string(&path_to_load)?;
     let project: SynniaProject = serde_json::from_str(&content)?;
 
     Ok(project)
@@ -45,7 +72,6 @@ pub fn init_project(project_root: &Path, name: &str) -> Result<SynniaProject, Ap
     let file_path = project_root.join("synnia.json");
     if file_path.exists() {
         // If it exists, we treat initialization as "loading"
-        // This prevents accidental overwrites
         return load_project(project_root);
     }
 
@@ -64,6 +90,7 @@ pub fn init_project(project_root: &Path, name: &str) -> Result<SynniaProject, Ap
         },
         viewport: crate::models::Viewport { x: 0.0, y: 0.0, zoom: 1.0 },
         graph: crate::models::Graph { nodes: vec![], edges: vec![] },
+        assets: std::collections::HashMap::new(),
         settings: None,
     };
 

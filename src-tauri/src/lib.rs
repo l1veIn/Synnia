@@ -70,6 +70,7 @@ pub fn run() {
             commands::project::create_project,
             commands::project::load_project, // New
             commands::project::save_project, // New
+            commands::project::save_project_autosave, // New
             commands::project::get_current_project_path,
             commands::project::delete_project,
             commands::project::reset_project,

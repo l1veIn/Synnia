@@ -50,7 +50,11 @@ const getDepth = (nodeId: string, nodes: SynniaNode[]): number => {
  * Core Layout Engine: Re-calculates layout for ALL Rack Groups.
  */
 export const fixRackLayout = (nodes: SynniaNode[]): SynniaNode[] => {
-    const rackGroups = nodes.filter(n => n.type === NodeType.GROUP && n.data.collapsed);
+    // Include both RACK nodes and collapsed GROUP nodes
+    const rackGroups = nodes.filter(n => 
+        n.type === NodeType.RACK || 
+        (n.type === NodeType.GROUP && n.data.collapsed)
+    );
     
     if (rackGroups.length === 0) return nodes;
     

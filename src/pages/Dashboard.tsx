@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
@@ -8,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, FolderOpen, Clock, ChevronRight, Command, Trash2, Github, Pencil } from "lucide-react";
 import { open } from '@tauri-apps/plugin-dialog';
-// import { cn } from '@/lib/utils';
 import { SynniaIcon } from "@/components/SynniaIcon";
 import { SynniaSticker } from "@/components/SynniaSticker";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
+import { apiClient } from '@/lib/apiClient'; // Use our wrapper
 
 interface RecentProject {
     name: string;
@@ -26,9 +25,15 @@ function ProjectCard({ project, onClick, onDelete, onRename }: { project: Recent
     const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
-        const thumbPath = `${project.path}/thumbnail.png`; 
-        const url = convertFileSrc(thumbPath);
-        setImgSrc(url);
+        // Only try to load real file src if NOT in pure mock mode
+        // For now, in mock mode, convertFileSrc might fail or return invalid URL
+        try {
+            const thumbPath = `${project.path}/thumbnail.png`; 
+            const url = convertFileSrc(thumbPath);
+            setImgSrc(url);
+        } catch(e) {
+            setHasError(true);
+        }
     }, [project.path]);
 
     const stickerIndex = project.name.length % 9;
@@ -104,8 +109,8 @@ export default function Dashboard() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        emit('project:reset'); 
-        invoke<RecentProject[]>('get_recent_projects').then(setRecents).catch(console.error);
+        // Use Mock API
+        apiClient.invoke<RecentProject[]>('get_recent_projects').then(setRecents).catch(console.error);
     }, []);
 
     // Rename Effect
@@ -127,6 +132,9 @@ export default function Dashboard() {
 
     const handleImport = async () => {
         try {
+            // open dialog relies on Tauri plugin, might fail in browser
+            // Wrap or mock?
+            // For now, keep as is, it might just throw in browser which is handled by catch
             const selected = await open({
                 directory: true,
                 multiple: false,
@@ -135,12 +143,12 @@ export default function Dashboard() {
             if (selected && typeof selected === 'string') {
                 await openProject(selected);
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Import failed (likely browser mode)", e); }
     };
 
     const openProject = async (path: string) => {
         try {
-            await invoke('init_project', { path });
+            await apiClient.invoke('init_project', { path });
             navigate('/editor');
         } catch (e) { console.error(e); }
     };
@@ -148,9 +156,10 @@ export default function Dashboard() {
     const confirmDelete = async () => {
         if (!projectToDelete) return;
         try {
-            await invoke('delete_project', { path: projectToDelete });
-            const list = await invoke<RecentProject[]>('get_recent_projects');
-            setRecents(list);
+            await apiClient.invoke('delete_project', { path: projectToDelete });
+            // Refresh
+            const list = await apiClient.invoke<RecentProject[]>('get_recent_projects');
+            setRecents(list || []); 
             setProjectToDelete(null);
         } catch (e) {
             console.error(e);
@@ -162,13 +171,13 @@ export default function Dashboard() {
         if (!projectToRename || !newName.trim()) return;
         
         try {
-            await invoke('rename_project', { 
+            await apiClient.invoke('rename_project', { 
                 oldPath: projectToRename.path, 
                 newName: newName.trim() 
             });
             
-            const list = await invoke<RecentProject[]>('get_recent_projects');
-            setRecents(list);
+            const list = await apiClient.invoke<RecentProject[]>('get_recent_projects');
+            setRecents(list || []);
             setProjectToRename(null);
         } catch (e) {
             console.error(e);
@@ -281,7 +290,7 @@ export default function Dashboard() {
                 <div className="mt-auto pt-4 border-t border-border/50">
                     <div 
                         className="p-4 rounded-lg bg-muted/50 border border-border hover:bg-muted hover:border-primary/30 cursor-pointer transition-all group"
-                        onClick={() => invoke('open_in_browser', { url: 'https://github.com/l1veIn/Synnia' })}
+                        onClick={() => apiClient.invoke('open_in_browser', { url: 'https://github.com/l1veIn/Synnia' })}
                     >
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-background rounded-full border border-border group-hover:border-primary/50 transition-colors">

@@ -1,13 +1,14 @@
 import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { AssetNode } from '@/components/workflow/nodes/AssetNode';
 import { GroupNode } from '@/components/workflow/nodes/GroupNode';
+import { RackNode } from '@/components/workflow/nodes/RackNode';
 import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, Box } from 'lucide-react';
+import { Plus, Save, Box, Home } from 'lucide-react';
 import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -16,8 +17,15 @@ import { InspectorPanel } from '@/components/workflow/InspectorPanel';
 import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { saveProjectToFile } from '@/lib/projectUtils';
+import { SynniaProject } from '@/bindings/synnia';
+import { apiClient } from '@/lib/apiClient';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+
+const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {
+  const navigate = useNavigate();
   const {
     nodes,
     edges,
@@ -25,12 +33,58 @@ function CanvasFlow() {
     onEdgesChange,
     onConnect,
     onNodeDrag,
+    loadProject,
+    restoreDraft
   } = useWorkflowStore();
+
+  // Hydration Logic
+  useEffect(() => {
+      const hydrate = async () => {
+          try {
+              // 1. Try to get active project from Rust
+              // In Mock mode, this returns null or empty unless we mock it to return a path
+              const path = await apiClient.invoke<string>('get_current_project_path');
+              
+              if (path) {
+                  console.log("[Hydration] Loading active project:", path);
+                  const project = await apiClient.invoke<SynniaProject>('load_project', { path });
+                  loadProject(project);
+              } else {
+                  // 2. Fallback to LocalStorage (Draft)
+                  // console.log("[Hydration] No active project. Checking localStorage...");
+                  const saved = localStorage.getItem(STORAGE_KEY);
+                  if (saved) {
+                      try {
+                          const parsed = JSON.parse(saved);
+                          if (Array.isArray(parsed.nodes)) {
+                              restoreDraft(parsed.nodes, parsed.edges || [], parsed.assets || {});
+                          }
+                      } catch(e) { console.error("Draft parse error", e); }
+                  }
+              }
+          } catch (e) {
+              // console.warn("[Hydration] Backend check failed (normal in browser):", e);
+              // Fallback to Draft
+              const saved = localStorage.getItem(STORAGE_KEY);
+              if (saved) {
+                  try {
+                      const parsed = JSON.parse(saved);
+                      if (Array.isArray(parsed.nodes)) {
+                          restoreDraft(parsed.nodes, parsed.edges || [], parsed.assets || {});
+                      }
+                  } catch(e) { console.error("Draft parse error", e); }
+              }
+          }
+      };
+      
+      hydrate();
+  }, []);
 
   // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders/warnings
   const nodeTypes = useMemo(() => ({
     [NodeType.ASSET]: AssetNode,
     [NodeType.GROUP]: GroupNode,
+    [NodeType.RACK]: RackNode,
     [NodeType.RECIPE]: AssetNode, 
     [NodeType.NOTE]: AssetNode,
     [NodeType.COLLECTION]: AssetNode,
@@ -42,7 +96,6 @@ function CanvasFlow() {
 
   // 启用 Hooks
   useAutoSave();
-  useGlobalShortcuts();
   const { onDragOver, onDrop } = useFileUploadDrag();
   
   // 提取的逻辑 Hook
@@ -55,7 +108,31 @@ function CanvasFlow() {
     handleAddNode
   } = useCanvasLogic();
 
-  const handleSave = () => saveProjectToFile(nodes, edges);
+  const handleSave = async () => {
+      const { nodes, edges, assets, projectMeta, viewport } = useWorkflowStore.getState();
+      
+      if (projectMeta) {
+          try {
+              const project: SynniaProject = {
+                  version: "2.0.0",
+                  meta: projectMeta,
+                  viewport,
+                  graph: { nodes: nodes as any, edges: edges as any },
+                  assets,
+                  settings: {}
+              };
+              await apiClient.invoke('save_project', { project });
+              toast.success("Project saved");
+          } catch(e) {
+              toast.error("Save failed: " + String(e));
+              console.error(e);
+          }
+      } else {
+          saveProjectToFile(nodes, edges);
+      }
+  };
+
+  useGlobalShortcuts(handleSave);
 
   return (
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden">
@@ -91,6 +168,12 @@ function CanvasFlow() {
             {/* 临时工具栏 */}
             <Panel position="top-center" className="m-4">
               <div className="flex items-center gap-2 bg-card/80 backdrop-blur p-2 rounded-lg border shadow-lg">
+                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => navigate('/')}>
+                    <Home className="w-4 h-4" />
+                 </Button>
+                 
+                 <div className="w-px h-4 bg-border mx-1" />
+                 
                  <span className="text-xs font-bold text-muted-foreground px-2">ADD NODE</span>
                  
                  <Button size="sm" variant="secondary" onClick={() => handleAddNode(NodeType.ASSET)}>
@@ -101,9 +184,9 @@ function CanvasFlow() {
                    Recipe
                  </Button>
                  
-                 <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.GROUP)}>
+                 {/* <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.GROUP)}>
                    <Box className="w-3 h-3 mr-1" /> Group
-                 </Button>
+                 </Button> */}
                  
                  <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.NOTE)}>
                    Note

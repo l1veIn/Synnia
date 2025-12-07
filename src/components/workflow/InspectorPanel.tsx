@@ -51,14 +51,14 @@ export const InspectorPanel = () => {
   const outDegree = edges.filter(e => e.source === selectedNode.id).length;
 
   return (
-    <div className="absolute top-20 right-4 w-[320px] max-h-[calc(100vh-6rem)] bg-card/95 backdrop-blur-sm border rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200">
-      <div className="p-4 border-b font-semibold bg-muted/50 flex items-center justify-between">
+    <div className="absolute right-4 top-1/2 -translate-y-1/2 w-[320px] h-[80vh] min-h-[300px] bg-card/95 backdrop-blur-sm border rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200">
+      <div className="p-4 border-b font-semibold bg-muted/50 flex items-center justify-between shrink-0">
           <span>Inspector</span>
           <div className="flex items-center gap-2">
              {/* Optional actions like Close could go here */}
           </div>
       </div>
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-4 w-full min-h-0">
         <div className="space-y-6">
             {/* Basic Info */}
             <div className="space-y-4">

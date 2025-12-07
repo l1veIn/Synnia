@@ -110,6 +110,18 @@ pub fn load_project(path: String, state: State<AppState>, app: AppHandle) -> Res
 }
 
 #[tauri::command]
+pub fn save_project_autosave(project: SynniaProject, state: State<AppState>) -> Result<(), AppError> {
+    let project_path_str = {
+        let path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
+        path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
+    };
+    
+    let project_path = PathBuf::from(project_path_str);
+    io::save_project_autosave(&project_path, &project)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn save_project(project: SynniaProject, state: State<AppState>) -> Result<(), AppError> {
     let project_path_str = {
         let path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;

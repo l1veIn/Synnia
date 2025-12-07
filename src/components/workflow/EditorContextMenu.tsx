@@ -15,23 +15,31 @@ import { useReactFlow } from "@xyflow/react";
 import { NodeType, SynniaNode } from "@/types/project";
 import { nodesConfig } from "./nodes/registry";
 import { v4 as uuidv4 } from "uuid";
+import { useNavigate } from "react-router-dom";
+import { Home } from "lucide-react";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
 }
 
 export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
+  const navigate = useNavigate();
   const contextMenuTarget = useWorkflowStore((state) => state.contextMenuTarget);
   const addNode = useWorkflowStore((state) => state.addNode);
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const detachNode = useWorkflowStore((state) => state.detachNode);
   const nodes = useWorkflowStore((state) => state.nodes);
   const pasteNodes = useWorkflowStore((state) => state.pasteNodes);
+  const duplicateNode = useWorkflowStore((state) => state.duplicateNode);
+  const createShortcut = useWorkflowStore((state) => state.createShortcut);
+  const createRackFromSelection = useWorkflowStore((state) => state.createRackFromSelection);
   
   const { screenToFlowPosition } = useReactFlow();
   
   const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
   const hasParent = !!targetNode?.parentId;
+  const parentNode = hasParent ? nodes.find(n => n.id === targetNode?.parentId) : null;
+  const parentLabel = parentNode?.type === NodeType.RACK ? 'Rack' : 'Group';
 
   const handleAddNode = (type: NodeType) => {
     if (contextMenuTarget?.position) {
@@ -42,6 +50,48 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
       addNode(type, position);
     }
   };
+  
+  const handleCreateRack = () => {
+     createRackFromSelection();
+  };
+
+  const getClipboardNodes = (): SynniaNode[] => {
+      try {
+          const raw = localStorage.getItem('synnia-clipboard');
+          if (raw) {
+              const parsed = JSON.parse(raw);
+              return Array.isArray(parsed) ? parsed : [];
+          }
+      } catch (e) { console.error("Clipboard parse error", e); }
+      return [];
+  };
+
+  const repositionNodes = (nodes: SynniaNode[]) => {
+      if (!contextMenuTarget?.position || nodes.length === 0) return nodes;
+      
+      const targetPos = screenToFlowPosition({
+          x: contextMenuTarget.position.x,
+          y: contextMenuTarget.position.y,
+      });
+
+      const minX = Math.min(...nodes.map(n => n.position.x));
+      const minY = Math.min(...nodes.map(n => n.position.y));
+      
+      return nodes.map(n => ({
+          ...n,
+          position: { 
+              x: targetPos.x + (n.position.x - minX), 
+              y: targetPos.y + (n.position.y - minY) 
+          }
+      }));
+  };
+
+  const handlePaste = () => {
+      const nodes = getClipboardNodes();
+      if (nodes.length > 0) {
+          pasteNodes(repositionNodes(nodes));
+      }
+  };
 
   const handleDetach = () => {
       if (contextMenuTarget?.id) {
@@ -50,37 +100,41 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   };
 
   const handleDelete = () => {
+    const selectedNodes = nodes.filter(n => n.selected);
+    if (selectedNodes.length > 0) {
+        selectedNodes.forEach(n => removeNode(n.id));
+        return;
+    }
     if (contextMenuTarget?.id) {
       removeNode(contextMenuTarget.id);
     }
   };
   
   const handleDuplicate = () => {
+     const selectedNodes = nodes.filter(n => n.selected);
+     if (selectedNodes.length > 0) {
+         selectedNodes.forEach(n => duplicateNode(n));
+         return;
+     }
+
      if (contextMenuTarget?.id) {
         const node = nodes.find(n => n.id === contextMenuTarget.id);
         if (node) {
-            const newId = uuidv4();
-            // Shallow clone is fine for basic nodes, but careful with data
-            const newNode: SynniaNode = {
-                ...node,
-                id: newId,
-                // Offset slightly
-                position: { x: node.position.x + 20, y: node.position.y + 20 },
-                selected: true,
-                data: { ...JSON.parse(JSON.stringify(node.data)) }
-            };
-            // Use pasteNodes to handle selection/history properly
-            pasteNodes([newNode]);
+            duplicateNode(node);
         }
      }
+  };
+
+  const handleCreateShortcut = () => {
+      if (contextMenuTarget?.id) {
+          createShortcut(contextMenuTarget.id);
+      }
   };
 
   const handleCopy = () => {
       if (contextMenuTarget?.id) {
         const node = nodes.find(n => n.id === contextMenuTarget.id);
         if(node) {
-             // TODO: Use the recursive copy helper from hooks if available
-             // For now, simple copy
              localStorage.setItem('synnia-clipboard', JSON.stringify([node]));
              console.log('Copied node to clipboard');
         }
@@ -107,8 +161,27 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 ))}
               </ContextMenuSubContent>
             </ContextMenuSub>
-            <ContextMenuItem disabled>Paste (Cmd+V)</ContextMenuItem>
+            <ContextMenuItem onSelect={handlePaste}>Paste</ContextMenuItem>
           </>
+        )}
+
+        {contextMenuTarget?.type === 'selection' && (
+            <>
+                <ContextMenuLabel>Selection Actions</ContextMenuLabel>
+                <ContextMenuSeparator />
+                <ContextMenuItem onSelect={handleCreateRack}>Create Rack</ContextMenuItem>
+                <ContextMenuItem disabled>Group (Legacy)</ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
+                <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem 
+                    onSelect={handleDelete} 
+                    className="text-red-600 focus:text-red-600"
+                >
+                    Delete
+                </ContextMenuItem>
+            </>
         )}
 
         {(contextMenuTarget?.type === 'node' || contextMenuTarget?.type === 'group') && (
@@ -119,10 +192,14 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
             <ContextMenuSeparator />
             {hasParent && (
                 <ContextMenuItem onSelect={handleDetach}>
-                    Detach from Group
+                    Detach from {parentLabel}
                 </ContextMenuItem>
             )}
             <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
+            {/* Only Asset Nodes can be shortcutted */}
+            {targetNode?.type === NodeType.ASSET && (
+                 <ContextMenuItem onSelect={handleCreateShortcut}>Create Shortcut</ContextMenuItem>
+            )}
             <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem 
@@ -133,6 +210,12 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
             </ContextMenuItem>
           </>
         )}
+        
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => navigate('/')}>
+             <Home className="w-4 h-4 mr-2" />
+             Back to Home
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );

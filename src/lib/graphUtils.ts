@@ -5,25 +5,25 @@ import { SynniaNode, NodeType } from '@/types/project';
 export const isNodeInsideGroup = (node: Node, group: Node) => {
   if (!node.measured || !group.measured) return false;
   
-  const nodeX = node.position.x;
-  const nodeY = node.position.y;
-  const nodeW = node.measured.width || 0;
-  const nodeH = node.measured.height || 0;
+  const nX = node.position.x;
+  const nY = node.position.y;
+  const nW = node.measured.width || 0;
+  const nH = node.measured.height || 0;
 
-  const groupX = group.position.x;
-  const groupY = group.position.y;
-  const groupW = group.measured.width || 0;
-  const groupH = group.measured.height || 0;
+  const gX = group.position.x;
+  const gY = group.position.y;
+  const gW = group.measured.width || 0;
+  const gH = group.measured.height || 0;
 
-  const centerX = nodeX + nodeW / 2;
-  const centerY = nodeY + nodeH / 2;
+  // Calculate Overlap Area
+  const x_overlap = Math.max(0, Math.min(nX + nW, gX + gW) - Math.max(nX, gX));
+  const y_overlap = Math.max(0, Math.min(nY + nH, gY + gH) - Math.max(nY, gY));
+  
+  const overlapArea = x_overlap * y_overlap;
+  const nodeArea = nW * nH;
 
-  return (
-    centerX > groupX &&
-    centerX < groupX + groupW &&
-    centerY > groupY &&
-    centerY < groupY + groupH
-  );
+  // Heuristic: Overlap must be significant (>20% of dragged node area)
+  return overlapArea > 0 && overlapArea > (nodeArea * 0.2);
 };
 
 // Helper: 拓扑排序，确保 Parent 在 Child 前面

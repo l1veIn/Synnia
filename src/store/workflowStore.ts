@@ -15,6 +15,7 @@ import {
   OnNodeDrag,
 } from '@xyflow/react';
 import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
+import { Asset, AssetType } from '@/types/assets';
 import { nodesConfig } from '@/components/workflow/nodes/registry';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -30,12 +31,18 @@ import {
     fixRackLayout,
     applyGroupAutoLayout
 } from '@/lib/rackLayout';
+import { getContainerStrategy } from '@/lib/strategies/registry';
+import { SynniaProject, ProjectMeta, Viewport } from '@/bindings/synnia';
 
 let isHistoryPaused = false;
 
+
 export interface WorkflowState {
+  projectMeta: ProjectMeta | null;
+  viewport: Viewport;
   nodes: SynniaNode[];
   edges: SynniaEdge[];
+  assets: Record<string, Asset>;
   highlightedGroupId: string | null;
   contextMenuTarget: { 
     type: 'node' | 'group' | 'canvas' | 'selection'; 
@@ -45,13 +52,22 @@ export interface WorkflowState {
 }
 
 export interface WorkflowActions {
+  loadProject: (project: SynniaProject) => void;
+  restoreDraft: (nodes: SynniaNode[], edges: SynniaEdge[], assets: Record<string, Asset>) => void;
   onNodesChange: OnNodesChange<SynniaNode>;
   onEdgesChange: OnEdgesChange<SynniaEdge>;
+
   onConnect: OnConnect;
   onNodeDragStop: OnNodeDrag;
   onNodeDragStart: OnNodeDrag;
   onNodeDrag: OnNodeDrag;
   
+  // Asset Management
+  createAsset: (type: AssetType, content: any, metadata?: Partial<Asset['metadata']>) => string;
+  updateAsset: (id: string, content: any) => void;
+  deleteAsset: (id: string) => void;
+  getAsset: (id: string) => Asset | undefined;
+
   addNode: (type: NodeType, position: XYPosition) => string;
   removeNode: (id: string) => void;
   updateNodeData: (id: string, data: Partial<SynniaNode['data']>) => void;
@@ -59,6 +75,7 @@ export interface WorkflowActions {
   setWorkflow: (nodes: SynniaNode[], edges: SynniaEdge[]) => void;
   triggerCommit: () => void;
   pasteNodes: (copiedNodes: SynniaNode[]) => void;
+  pasteNodesAsShortcut: (copiedNodes: SynniaNode[]) => void;
 
   pauseHistory: () => void;
   resumeHistory: () => void;
@@ -74,19 +91,92 @@ export interface WorkflowActions {
 
 export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
   subscribeWithSelector(
-    temporal(
-      (set, get) => ({
-        nodes: [],
-        edges: [],
-        highlightedGroupId: null,
-        contextMenuTarget: null,
+        temporal(
+          (set, get) => ({
+            projectMeta: null,
+            viewport: { x: 0, y: 0, zoom: 1 },
+            nodes: [],
+            edges: [],
+            assets: {},
+            highlightedGroupId: null,
+            contextMenuTarget: null,
+    
+            loadProject: (project: SynniaProject) => {
+                let loadedNodes = project.graph.nodes as unknown as SynniaNode[];
+                // Ensure Rack Layout is consistent (handles, dimensions)
+                loadedNodes = fixRackLayout(loadedNodes);
+                
+                set({
+                    nodes: loadedNodes,
+                    edges: project.graph.edges as unknown as SynniaEdge[],
+                    assets: project.assets,
+                    projectMeta: project.meta,
+                    viewport: project.viewport,
+                });
+            },
 
-        pauseHistory: () => { isHistoryPaused = true; },
-        resumeHistory: () => { isHistoryPaused = false; },
-        setContextMenuTarget: (target) => set({ contextMenuTarget: target }),
-        
-                autoLayoutGroup: (groupId: string) => {
-                    const { nodes } = get();
+            restoreDraft: (nodes, edges, assets) => {
+                const fixedNodes = fixRackLayout(nodes);
+                set({
+                    nodes: fixedNodes,
+                    edges,
+                    assets,
+                    projectMeta: null,
+                    viewport: { x: 0, y: 0, zoom: 1 }
+                });
+            },
+
+            pauseHistory: () => { isHistoryPaused = true; },
+            resumeHistory: () => { isHistoryPaused = false; },
+            setContextMenuTarget: (target) => set({ contextMenuTarget: target }),
+            
+            createAsset: (type, content, metadata = {}) => {
+                const id = uuidv4();
+                const now = Date.now();
+                const newAsset: Asset = {
+                    id,
+                    type,
+                    content,
+                    metadata: {
+                        createdAt: now,
+                        updatedAt: now,
+                        source: 'user',
+                        extra: {},
+                        ...metadata,
+                        name: metadata.name || 'New Asset'
+                    }
+                };
+                set(state => ({ assets: { ...state.assets, [id]: newAsset } }));
+                return id;
+            },
+    
+            updateAsset: (id, content) => {
+                 set(state => {
+                     const asset = state.assets[id];
+                     if (!asset) return state;
+                     return {
+                         assets: {
+                             ...state.assets,
+                             [id]: {
+                                 ...asset,
+                                 content,
+                                 metadata: { ...asset.metadata, updatedAt: Date.now() }
+                             }
+                         }
+                     };
+                 });
+            },
+            
+            deleteAsset: (id) => {
+                 set(state => {
+                     const { [id]: deleted, ...remainingAssets } = state.assets;
+                     return { assets: remainingAssets };
+                 });
+            },
+            
+            getAsset: (id) => get().assets[id],
+            
+            autoLayoutGroup: (groupId: string) => {                    const { nodes } = get();
                     const group = nodes.find(n => n.id === groupId);
                     if (!group) return;
                     
@@ -183,12 +273,98 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             set({ nodes: updatedNodes });
         },
         
-        duplicateNode: (node: SynniaNode, position?: XYPosition) => {
+        createShortcut: (nodeId: string) => {
            const { nodes } = get();
+           const node = nodes.find(n => n.id === nodeId);
+           if (!node || node.type !== NodeType.ASSET) return;
+           
+           const newId = uuidv4();
+           const sanitizedNode = sanitizeNodeForClipboard(node);
+           
+           const newNode: SynniaNode = {
+               ...sanitizedNode,
+               id: newId,
+               position: { x: node.position.x + 20, y: node.position.y + 20 },
+               selected: true,
+               parentId: node.parentId,
+               extent: node.extent,
+               data: {
+                   ...sanitizedNode.data,
+                   isReference: true,
+                   // assetId matches original
+               }
+           };
+           
+           const deselectedNodes = nodes.map(n => ({ ...n, selected: false }));
+           const finalNodes = sortNodesTopologically([...deselectedNodes, newNode]);
+           set({ nodes: finalNodes });
+        },
+
+        createRackFromSelection: () => {
+           const { nodes } = get();
+           const selectedNodes = nodes.filter(n => n.selected && n.type !== NodeType.RACK && n.type !== NodeType.GROUP);
+           
+           if (selectedNodes.length === 0) return;
+           
+           const minX = Math.min(...selectedNodes.map(n => n.position.x));
+           const minY = Math.min(...selectedNodes.map(n => n.position.y));
+           
+           const rackId = uuidv4();
+           
+           const rackNode: SynniaNode = {
+               id: rackId,
+               type: NodeType.RACK,
+               position: { x: minX - 20, y: minY - 50 },
+               data: { title: 'New Rack', state: 'idle' },
+               style: { width: 300, height: 400 },
+               selected: true,
+               draggable: true
+           };
+           
+           const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+           
+           const updatedChildren = sortedNodes.map(node => ({
+               ...node,
+               parentId: rackId,
+               extent: 'parent',
+               position: { x: 0, y: 0 },
+               selected: false,
+               data: { ...node.data, collapsed: true } // Force collapse for Rack
+           } as SynniaNode));
+           
+           const selectedIds = new Set(selectedNodes.map(n => n.id));
+           const unselectedNodes = nodes.filter(n => !selectedIds.has(n.id));
+
+           let allNodes = [...unselectedNodes, rackNode, ...updatedChildren];
+           
+           allNodes = fixRackLayout(allNodes);
+           
+           set({ nodes: sortNodesTopologically(allNodes) });
+        },
+
+        duplicateNode: (node: SynniaNode, position?: XYPosition) => {
+           const { nodes, assets, createAsset } = get();
            const newId = uuidv4();
            
            // Sanitize Data for Duplicate
            const sanitizedNode = sanitizeNodeForClipboard(node);
+
+           // Architecture V2: Deep Copy Asset
+           let newAssetId = sanitizedNode.data.assetId;
+           if (newAssetId && assets[newAssetId]) {
+               const originalAsset = assets[newAssetId];
+               // Simple deep clone for content
+               const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
+               
+               newAssetId = createAsset(
+                   originalAsset.type, 
+                   contentClone,
+                   { 
+                       name: `${originalAsset.metadata.name} (Copy)`,
+                       source: 'user'
+                   }
+               );
+           }
            
            const newNode: SynniaNode = {
              ...sanitizedNode,
@@ -197,6 +373,10 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
              selected: true,
              parentId: node.parentId,
              extent: node.extent,
+             data: {
+                 ...sanitizedNode.data,
+                 assetId: newAssetId
+             }
            };
            
            const deselectedNodes = nodes.map(n => ({ ...n, selected: false }));
@@ -275,6 +455,10 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                 position: newPosition,
                 extent: newExtent,
                 style: { ...sanitizedNode.style, opacity: 0.5 },
+                data: {
+                    ...sanitizedNode.data,
+                    isReference: true
+                }
             };
             
             // 5. Apply Changes
@@ -301,9 +485,25 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         },
 
         onNodesChange: (changes: NodeChange<SynniaNode>[]) => {
-          set({
-            nodes: applyNodeChanges(changes, get().nodes),
+          const { nodes } = get();
+          const updatedNodes = applyNodeChanges(changes, nodes) as SynniaNode[];
+          
+          // Detect dimension changes to nodes inside Racks/Collapsed Groups
+          // This ensures layout recalculation when a child expands/resizes
+          const shouldRelayout = changes.some(c => {
+               if (c.type !== 'dimensions') return false;
+               const node = updatedNodes.find(n => n.id === c.id);
+               if (!node || !node.parentId) return false;
+               
+               const parent = updatedNodes.find(p => p.id === node.parentId);
+               return parent && (parent.type === NodeType.RACK || (parent.type === NodeType.GROUP && parent.data.collapsed));
           });
+          
+          if (shouldRelayout) {
+               set({ nodes: fixRackLayout(updatedNodes) });
+          } else {
+               set({ nodes: updatedNodes });
+          }
         },
 
         onEdgesChange: (changes: EdgeChange<SynniaEdge>[]) => {
@@ -320,7 +520,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         
         onNodeDrag: (_event, node) => {
            const { nodes } = get();
-           const groups = nodes.filter(n => n.type === NodeType.GROUP && n.id !== node.id);
+           const groups = nodes.filter(n => (n.type === NodeType.GROUP || n.type === NodeType.RACK) && n.id !== node.id);
            const intersectingGroups = groups.filter(group => isNodeInsideGroup(node, group));
            
            let targetGroup = null;
@@ -344,7 +544,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
            set({ highlightedGroupId: null }); 
            
            const { nodes } = get();
-           const groups = nodes.filter((n) => n.type === NodeType.GROUP && n.id !== node.id);
+           const groups = nodes.filter((n) => (n.type === NodeType.GROUP || n.type === NodeType.RACK) && n.id !== node.id);
            
            const intersectingGroups = groups.filter(group => isNodeInsideGroup(node, group));
            let targetGroup = null;
@@ -360,37 +560,22 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
            
            if (targetGroup && node.parentId !== targetGroup.id) {
              
-             // Prevent Group Nesting: Do not allow a Group to be inside another Group
-             if (node.type === NodeType.GROUP) {
+             // Prevent Group/Rack Nesting
+             if (node.type === NodeType.GROUP || node.type === NodeType.RACK) {
                  return;
              }
 
-             const isRackMode = !!targetGroup.data.collapsed;
-             let updatedNodes = nodes;
-
-             if (isRackMode) {
-                 // --- Rack Mode Insertion Logic (Delegated) ---
-                 updatedNodes = insertNodeIntoRack(nodes, node, targetGroup);
-             } else {
-                 // --- Standard Grouping Logic ---
-                 updatedNodes = nodes.map((n) => {
-                     if (n.id === node.id) {
-                       return {
-                         ...n,
-                         parentId: targetGroup.id,
-                         extent: 'parent',
-                         position: {
-                           x: node.position.x - targetGroup.position.x,
-                           y: node.position.y - targetGroup.position.y,
-                         },
-                       } as SynniaNode;
-                     }
-                     return n;
-                   });
+             // Architecture V2: Strategy Pattern
+             // Strategy needs to handle RACK insertion (auto-collapse)
+             const strategy = getContainerStrategy(targetGroup);
+             
+             if (strategy) {
+                 const result = strategy.onDrop(nodes, node, targetGroup);
+                 if (result.handled) {
+                     set({ nodes: sortNodesTopologically(result.updatedNodes) });
+                     hasGrouped = true;
+                 }
              }
-
-             set({ nodes: sortNodesTopologically(updatedNodes) });
-             hasGrouped = true;
            } 
            
            if (!hasGrouped) {
@@ -410,6 +595,14 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           const config = nodesConfig[type];
           const isGroup = type === NodeType.GROUP;
           
+          let assetId: string | undefined;
+          
+          // Architecture V2: Automatically create backing asset for Asset Nodes
+          if (type === NodeType.ASSET) {
+               // Default to a generic Text asset for now
+               assetId = get().createAsset('text', '', { name: config.title });
+          }
+
           const newNode: SynniaNode = {
             id: uuidv4(),
             type,
@@ -417,6 +610,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             data: {
               title: config.title,
               state: 'idle',
+              assetId,
             },
             ...(isGroup ? {
               style: { width: 400, height: 300 },
@@ -430,7 +624,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         },
 
         pasteNodes: (copiedNodes: SynniaNode[]) => {
-           const { nodes } = get();
+           const { nodes, assets, createAsset } = get();
            const idMap = new Map<string, string>();
            copiedNodes.forEach(n => idMap.set(n.id, uuidv4()));
 
@@ -446,6 +640,28 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
 
                // Sanitize for Paste
                const sanitizedNode = sanitizeNodeForClipboard(node);
+               
+               // Architecture V2: Clone Asset
+               let newAssetId = sanitizedNode.data.assetId;
+               if (newAssetId) {
+                   if (assets[newAssetId]) {
+                       // Asset exists in store -> Clone it
+                       const originalAsset = assets[newAssetId];
+                       const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
+                       newAssetId = createAsset(
+                           originalAsset.type,
+                           contentClone,
+                           { name: `${originalAsset.metadata.name} (Copy)` }
+                       );
+                   } else {
+                       // Asset ID exists but not in store (broken link/external paste) -> Create Placeholder
+                       newAssetId = createAsset(
+                           'text', 
+                           'Content unavailable (Source asset missing)', 
+                           { name: 'Missing Asset' }
+                       );
+                   }
+               }
 
                return {
                    ...sanitizedNode,
@@ -456,6 +672,10 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                    position: { 
                        x: node.position.x + 50, 
                        y: node.position.y + 50 
+                   },
+                   data: {
+                       ...sanitizedNode.data,
+                       assetId: newAssetId
                    }
                } as SynniaNode;
            });
@@ -508,6 +728,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         partialize: (state) => ({
           nodes: state.nodes,
           edges: state.edges,
+          assets: state.assets,
         }),
         limit: 100,
         equality: (past, current) => {

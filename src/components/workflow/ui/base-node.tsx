@@ -22,7 +22,7 @@ export const BaseNode = forwardRef<HTMLDivElement, BaseNodeProps>(
       <div
         ref={ref}
         className={cn(
-          'relative rounded-xl border bg-card text-card-foreground shadow-sm transition-all duration-200',
+          'relative flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm transition-all duration-200',
           'min-w-[200px]',
           selected ? 'border-primary shadow-md ring-1 ring-primary' : '',
           stateStyles[state],

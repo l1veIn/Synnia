@@ -19,15 +19,16 @@ export interface NodeConfig {
   description?: string;
   defaultWidth?: number;
   defaultHeight?: number;
+  hidden?: boolean;
 }
 
 export const nodesConfig: Record<NodeType, NodeConfig> = {
   [NodeType.ASSET]: {
     type: NodeType.ASSET,
-    title: 'Asset',
+    title: 'Text',
     category: 'Asset',
-    icon: ImageIcon, 
-    description: 'Static content like images or text',
+    icon: FileText, 
+    description: 'Text block',
   },
   [NodeType.RECIPE]: {
     type: NodeType.RECIPE,
@@ -42,16 +43,18 @@ export const nodesConfig: Record<NodeType, NodeConfig> = {
     category: 'Utility',
     icon: StickyNote,
     description: 'Annotation',
+    hidden: true,
   },
-  // [NodeType.GROUP]: {
-  //   type: NodeType.GROUP,
-  //   title: 'Group',
-  //   category: 'Container',
-  //   icon: Box,
-  //   description: 'A collapsible group container',
-  //   defaultWidth: 400,
-  //   defaultHeight: 300,
-  // },
+  [NodeType.GROUP]: {
+    type: NodeType.GROUP,
+    title: 'Group',
+    category: 'Container',
+    icon: Box,
+    description: 'A collapsible group container',
+    defaultWidth: 400,
+    defaultHeight: 300,
+    hidden: true,
+  },
   [NodeType.RACK]: {
     type: NodeType.RACK,
     title: 'Rack',
@@ -61,10 +64,11 @@ export const nodesConfig: Record<NodeType, NodeConfig> = {
     defaultWidth: 300,
     defaultHeight: 400,
   },
-  // [NodeType.COLLECTION]: {
-  //   type: NodeType.COLLECTION,
-  //   title: 'Collection',
-  //   category: 'Container',
-  //   icon: Layers,
-  // },
+  [NodeType.COLLECTION]: {
+    type: NodeType.COLLECTION,
+    title: 'Collection',
+    category: 'Container',
+    icon: Layers,
+    hidden: true,
+  },
 };

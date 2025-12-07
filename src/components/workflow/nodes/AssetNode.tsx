@@ -2,9 +2,10 @@ import { BaseNodeFrame, BaseNodeFrameProps } from './base-node-frame';
 import { useAsset } from '@/hooks/useAsset';
 import { TextAssetView } from './views/TextAssetView';
 import { ImageAssetView } from './views/ImageAssetView';
+import { NodeResizer } from '@xyflow/react';
 
 export function AssetNode(props: BaseNodeFrameProps) {
-  const { data } = props;
+  const { data, selected } = props;
   const { asset, setContent, exists } = useAsset(data.assetId);
   const isReadOnly = !!data.isReference;
 
@@ -35,7 +36,14 @@ export function AssetNode(props: BaseNodeFrameProps) {
 
   return (
     <BaseNodeFrame {...props}>
-      <div className="flex flex-col gap-3">
+      <NodeResizer 
+        isVisible={selected && !isReadOnly} 
+        minWidth={200} 
+        minHeight={200}
+        color="#3b82f6"
+        handleStyle={{ width: 8, height: 8, borderRadius: 4 }}
+      />
+      <div className="flex flex-col gap-3 h-full overflow-hidden">
         {isReadOnly && (
             <div className="flex items-center gap-1 text-[10px] text-blue-500 font-medium uppercase tracking-wider select-none">
                 <span className="bg-blue-100 px-1 rounded">REF</span>

@@ -2,4 +2,4 @@
 import type { Position } from "./Position";
 import type { SynniaNodeData } from "./SynniaNodeData";
 
-export type SynniaNode = { id: string, type: string, position: Position, width: number | null, height: number | null, parentId: string | null, extent: string | null, data: SynniaNodeData, };
+export type SynniaNode = { id: string, type: string, position: Position, width: number | null, height: number | null, parentId: string | null, extent: string | null, style: Record<string, any>, data: SynniaNodeData, };

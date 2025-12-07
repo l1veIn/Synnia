@@ -113,6 +113,10 @@ pub struct SynniaNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extent: Option<String>, // "parent" or undefined
     
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "Record<string, any>")]
+    pub style: Option<HashMap<String, serde_json::Value>>,
+
     pub data: SynniaNodeData,
 }
 

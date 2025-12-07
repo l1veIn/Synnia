@@ -5,10 +5,21 @@ use std::path::PathBuf;
 
 #[tauri::command]
 pub fn import_file(file_path: String, state: State<AppState>, _app: AppHandle) -> Result<String, AppError> {
-    let project_root = {
+    let project_path_str = {
         let path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
         path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
     };
+
+    let project_path = PathBuf::from(project_path_str);
+
+    // FIX: If project_path is a file (e.g. synnia.json), get its parent directory
+    let project_root = if project_path.extension().is_some() {
+        project_path.parent().unwrap_or(&project_path).to_path_buf()
+    } else {
+        project_path
+    };
+    
+    println!("[Asset] Project Root: {:?}", project_root);
 
     let source_path = PathBuf::from(&file_path);
     if !source_path.exists() {
@@ -25,6 +36,8 @@ pub fn import_file(file_path: String, state: State<AppState>, _app: AppHandle) -
     let new_filename = format!("{}.{}", uuid::Uuid::new_v4(), ext);
     let relative_path = format!("assets/{}", new_filename);
     let target_path = PathBuf::from(&project_root).join(&relative_path);
+    
+    println!("[Asset] Copying from {:?} to {:?}", source_path, target_path);
 
     std::fs::copy(&source_path, &target_path)?;
 
@@ -40,9 +53,17 @@ pub fn save_processed_image(
     _app: AppHandle
 ) -> Result<String, AppError> {
     // 1. Get project root
-    let project_root = {
+    let project_path_str = {
         let path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
         path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
+    };
+    
+    let project_path = PathBuf::from(project_path_str);
+
+    let project_root = if project_path.extension().is_some() {
+        project_path.parent().unwrap_or(&project_path).to_path_buf()
+    } else {
+        project_path
     };
     
     let assets_dir = PathBuf::from(&project_root).join("assets");

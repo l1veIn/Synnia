@@ -88,7 +88,7 @@ export const BaseNodeFrame = memo(({
   const handleKeySuffix = isLeftRight ? 'lr' : 'tb';
 
   return (
-    <BaseNode selected={selected} state={state} className="min-w-[240px]">
+    <BaseNode selected={selected} state={state} className="min-w-[240px] h-full">
       {/* Input Handle */}
       <BaseHandle 
         key={`target-${handleKeySuffix}`}
@@ -138,7 +138,7 @@ export const BaseNodeFrame = memo(({
 
       {/* 内容区域 */}
       {!isCollapsed && (
-        <div className="p-3 min-h-[40px]">
+        <div className="p-3 min-h-[40px] flex-1 flex flex-col">
           {data.errorMessage && (
             <div className="mb-2 text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
               {data.errorMessage}

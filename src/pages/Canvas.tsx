@@ -8,7 +8,7 @@ import { GroupNode } from '@/components/workflow/nodes/GroupNode';
 import { RackNode } from '@/components/workflow/nodes/RackNode';
 import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, Box, Home } from 'lucide-react';
+import { Plus, Save, Box, Home, Image as ImageIcon, FileText } from 'lucide-react';
 import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -21,6 +21,7 @@ import { SynniaProject } from '@/bindings/synnia';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { dirname } from '@tauri-apps/api/path';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
@@ -39,14 +40,34 @@ function CanvasFlow() {
 
   // Hydration Logic
   useEffect(() => {
+      // Hydrate from backend if there's an active project
       const hydrate = async () => {
+          // 1. Get Server Port (Critical for Assets)
           try {
-              // 1. Try to get active project from Rust
-              // In Mock mode, this returns null or empty unless we mock it to return a path
+              const port = await apiClient.invoke<number>('get_server_port');
+              console.log("[System] Local Asset Server port:", port);
+              useWorkflowStore.getState().setServerPort(port);
+          } catch (e) {
+              console.warn("Failed to get server port (Assets may not load)", e);
+          }
+
+          // 2. Get Project Path
+          try {
               const path = await apiClient.invoke<string>('get_current_project_path');
+              const isTauri = !!(window as any).__TAURI_INTERNALS__;
               
               if (path) {
-                  console.log("[Hydration] Loading active project:", path);
+                  console.log("[Hydration] Loading active project path:", path);
+                  try {
+                      // Fix: If path is a file, get dirname. If it's a directory, use it as is.
+                      let root = path;
+                      if (path.toLowerCase().endsWith('.json') || path.toLowerCase().endsWith('.synnia')) {
+                          root = await dirname(path);
+                      }
+                      console.log("[Hydration] Resolved Project Root:", root);
+                      useWorkflowStore.getState().setProjectRoot(root);
+                  } catch (e) { console.warn("Failed to resolve project root", e); }
+                  
                   const project = await apiClient.invoke<SynniaProject>('load_project', { path });
                   loadProject(project);
               } else {
@@ -105,7 +126,8 @@ function CanvasFlow() {
     onNodeDoubleClick,
     onNodeContextMenu,
     onPaneContextMenu,
-    handleAddNode
+    handleAddNode,
+    handleAddImage
   } = useCanvasLogic();
 
   const handleSave = async () => {
@@ -177,7 +199,11 @@ function CanvasFlow() {
                  <span className="text-xs font-bold text-muted-foreground px-2">ADD NODE</span>
                  
                  <Button size="sm" variant="secondary" onClick={() => handleAddNode(NodeType.ASSET)}>
-                   <Plus className="w-3 h-3 mr-1" /> Asset
+                   <FileText className="w-3 h-3 mr-1" /> Text
+                 </Button>
+                 
+                 <Button size="sm" variant="ghost" onClick={() => handleAddImage()}>
+                   <ImageIcon className="w-3 h-3 mr-1" /> Image
                  </Button>
                  
                  <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.RECIPE)}>
@@ -188,9 +214,9 @@ function CanvasFlow() {
                    <Box className="w-3 h-3 mr-1" /> Group
                  </Button> */}
                  
-                 <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.NOTE)}>
+                 {/* <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.NOTE)}>
                    Note
-                 </Button>
+                 </Button> */}
 
                  <div className="w-px h-4 bg-border mx-1" />
                  

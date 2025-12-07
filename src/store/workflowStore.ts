@@ -27,7 +27,6 @@ import {
 import {
     applyRackCollapse,
     applyRackExpand,
-    insertNodeIntoRack,
     fixRackLayout,
     applyGroupAutoLayout
 } from '@/lib/rackLayout';
@@ -39,6 +38,8 @@ let isHistoryPaused = false;
 
 export interface WorkflowState {
   projectMeta: ProjectMeta | null;
+  projectRoot: string | null;
+  serverPort: number | null;
   viewport: Viewport;
   nodes: SynniaNode[];
   edges: SynniaEdge[];
@@ -68,9 +69,12 @@ export interface WorkflowActions {
   deleteAsset: (id: string) => void;
   getAsset: (id: string) => Asset | undefined;
 
-  addNode: (type: NodeType, position: XYPosition) => string;
+  addNode: (type: NodeType, position: XYPosition, options?: { assetType?: AssetType, content?: any, assetId?: string, assetName?: string, metadata?: any, style?: any }) => string;
   removeNode: (id: string) => void;
+  updateNode: (id: string, updates: Partial<SynniaNode>) => void;
   updateNodeData: (id: string, data: Partial<SynniaNode['data']>) => void;
+  setProjectRoot: (path: string) => void;
+  setServerPort: (port: number) => void;
   
   setWorkflow: (nodes: SynniaNode[], edges: SynniaEdge[]) => void;
   triggerCommit: () => void;
@@ -98,6 +102,8 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             nodes: [],
             edges: [],
             assets: {},
+            projectRoot: null,
+            serverPort: null,
             highlightedGroupId: null,
             contextMenuTarget: null,
     
@@ -223,7 +229,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                     let finalNodes = nodes.map(n => n.id === nodeId ? updatedNode : n);
                     
                     // Trigger Layout Fix (Old parent might shrink)
-                    finalNodes = fixRackLayout(finalNodes);
+                    finalNodes = fixRackLayout(finalNodes) as SynniaNode[];
                     
                     set({ nodes: sortNodesTopologically(finalNodes) });
                 },
@@ -337,7 +343,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
 
            let allNodes = [...unselectedNodes, rackNode, ...updatedChildren];
            
-           allNodes = fixRackLayout(allNodes);
+           allNodes = fixRackLayout(allNodes) as SynniaNode[];
            
            set({ nodes: sortNodesTopologically(allNodes) });
         },
@@ -570,7 +576,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
              const strategy = getContainerStrategy(targetGroup);
              
              if (strategy) {
-                 const result = strategy.onDrop(nodes, node, targetGroup);
+                 const result = strategy.onDrop(nodes, node as SynniaNode, targetGroup);
                  if (result.handled) {
                      set({ nodes: sortNodesTopologically(result.updatedNodes) });
                      hasGrouped = true;
@@ -591,30 +597,37 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             set(state => ({ nodes: [...state.nodes] }));
         },
 
-        addNode: (type: NodeType, position: XYPosition) => {
+        addNode: (type: NodeType, position: XYPosition, options = {}) => {
           const config = nodesConfig[type];
           const isGroup = type === NodeType.GROUP;
           
-          let assetId: string | undefined;
+          let assetId = options.assetId;
           
           // Architecture V2: Automatically create backing asset for Asset Nodes
-          if (type === NodeType.ASSET) {
+          if (type === NodeType.ASSET && !assetId) {
+               const assetType = options.assetType || 'text';
+               const content = options.content || '';
+               const name = options.assetName || config.title;
+               const extraMeta = options.metadata || {};
                // Default to a generic Text asset for now
-               assetId = get().createAsset('text', '', { name: config.title });
+               assetId = get().createAsset(assetType, content, { name, ...extraMeta });
           }
+
+          const nodeTitle = options.assetName || config.title;
 
           const newNode: SynniaNode = {
             id: uuidv4(),
             type,
             position,
             data: {
-              title: config.title,
+              title: nodeTitle,
               state: 'idle',
               assetId,
             },
             ...(isGroup ? {
               style: { width: 400, height: 300 },
-            } : {})
+            } : {}),
+            style: options.style || {},
           };
 
           const newNodes = [...get().nodes, newNode];
@@ -685,6 +698,11 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
            set({ nodes: finalNodes });
         },
 
+        pasteNodesAsShortcut: (copiedNodes: SynniaNode[]) => {
+            // TODO: Implement shortcut pasting logic
+            console.warn("pasteNodesAsShortcut not implemented");
+        },
+
         removeNode: (id: string) => {
           const { nodes, edges } = get();
           
@@ -700,11 +718,22 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           }
           
           const filteredNodes = nodes.filter((n) => !nodesToDelete.has(n.id));
-          const finalNodes = fixRackLayout(filteredNodes);
+          const finalNodes = fixRackLayout(filteredNodes) as SynniaNode[];
 
           set({
             nodes: finalNodes,
             edges: edges.filter((e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)),
+          });
+        },
+
+        updateNode: (id: string, updates: Partial<SynniaNode>) => {
+          set({
+            nodes: get().nodes.map((node) => {
+              if (node.id === id) {
+                return { ...node, ...updates };
+              }
+              return node;
+            }),
           });
         },
 
@@ -721,6 +750,9 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             }),
           });
         },
+
+        setProjectRoot: (path: string) => set({ projectRoot: path }),
+        setServerPort: (port: number) => set({ serverPort: port }),
         
         setWorkflow: (nodes, edges) => set({ nodes, edges }),
       }),

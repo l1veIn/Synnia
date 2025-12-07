@@ -21,6 +21,7 @@ const getNodeHeight = (node: SynniaNode): number => {
     // Expanded Logic:
     // 1. Trust manual style height
     if (node.style?.height && typeof node.style.height === 'number') {
+        console.log("[RackLayout] Using style height for", node.id, node.style.height);
         return node.style.height;
     }
     
@@ -29,6 +30,7 @@ const getNodeHeight = (node: SynniaNode): number => {
     // was just collapsed and hasn't re-rendered yet (stale data). Ignore it to prevent layout shrinking.
     const measuredH = node.measured?.height ?? 0;
     if (measuredH > RACK_CONFIG.ASSET_HEIGHT + 10) {
+        console.log("[RackLayout] Using measured height for", node.id, measuredH);
         return measuredH;
     }
 
@@ -203,6 +205,7 @@ export const insertNodeIntoRack = (
     nodeToInsert: SynniaNode, 
     targetGroup: SynniaNode
 ): SynniaNode[] => {
+    console.log("[Rack] Inserting node:", nodeToInsert.id, "Height:", nodeToInsert.style?.height);
     
     // 1. Clean/Sanitize node state for insertion
     const updatedDragNode = {
@@ -210,6 +213,15 @@ export const insertNodeIntoRack = (
          parentId: targetGroup.id,
          extent: 'parent',
          draggable: false,
+         // CRITICAL: Reset root dimensions so React Flow doesn't force a size based on old resize state
+         width: undefined,
+         height: undefined, 
+         // Reset dimensions to defaults so it fits nicely in the rack
+         style: {
+             ...nodeToInsert.style,
+             width: undefined,
+             height: 240 // Force reset to standard height (for when it expands)
+         },
          // Temporary position, will be fixed by layout engine
          position: { x: RACK_CONFIG.PADDING_X, y: 0 }, 
          data: {
@@ -223,6 +235,8 @@ export const insertNodeIntoRack = (
          }
     };
     
+    console.log("[Rack] Updated Node Collapsed:", updatedDragNode.data.collapsed, "Style:", updatedDragNode.style);
+
     // 2. Replace node in list
     const tempNodes = nodes.map(n => n.id === nodeToInsert.id ? updatedDragNode : n);
     

@@ -16,7 +16,8 @@ import { NodeType, SynniaNode } from "@/types/project";
 import { nodesConfig } from "./nodes/registry";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { Home } from "lucide-react";
+import { Home, Image as ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -49,6 +50,43 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
       });
       addNode(type, position);
     }
+  };
+  
+  const handleAddImage = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+           const file = (e.target as HTMLInputElement).files?.[0];
+           if (file) {
+               const toastId = toast.loading("Importing image...");
+               
+               const reader = new FileReader();
+               reader.onload = (ev) => {
+                   const base64 = ev.target?.result;
+                   if (base64) {
+                       const position = contextMenuTarget?.position 
+                           ? screenToFlowPosition({
+                                x: contextMenuTarget.position.x,
+                                y: contextMenuTarget.position.y,
+                             })
+                           : { x: 100, y: 100 };
+
+                       addNode(NodeType.ASSET, position, { 
+                           assetType: 'image', 
+                           content: base64 as string,
+                           assetName: file.name
+                       });
+                       toast.success("Image added", { id: toastId });
+                   } else {
+                       toast.error("Failed to read file", { id: toastId });
+                   }
+               };
+               reader.onerror = () => toast.error("Failed to read file", { id: toastId });
+               reader.readAsDataURL(file);
+           }
+      };
+      input.click();
   };
   
   const handleCreateRack = () => {
@@ -154,11 +192,16 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
             <ContextMenuSub>
               <ContextMenuSubTrigger>Add Node</ContextMenuSubTrigger>
               <ContextMenuSubContent>
-                {Object.entries(nodesConfig).map(([type, config]) => (
+                {Object.entries(nodesConfig)
+                    .filter(([_, config]) => !config.hidden)
+                    .map(([type, config]) => (
                   <ContextMenuItem key={type} onSelect={() => handleAddNode(type as NodeType)}>
                     {config.title}
                   </ContextMenuItem>
                 ))}
+                <ContextMenuItem onSelect={handleAddImage}>
+                    Image
+                </ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
             <ContextMenuItem onSelect={handlePaste}>Paste</ContextMenuItem>

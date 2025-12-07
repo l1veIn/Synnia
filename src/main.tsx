@@ -9,6 +9,14 @@ import "./index.css";
 import "@/lib/i18n";
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom"; // Import Navigate
 
+// Ignore ResizeObserver loop limit exceeded error
+const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';
+window.addEventListener('error', (e) => {
+    if (e.message && e.message.includes(resizeObserverLoopErr)) {
+        e.stopImmediatePropagation();
+    }
+});
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme" attribute="class">

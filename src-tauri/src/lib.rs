@@ -1,7 +1,7 @@
-use tauri::Manager;
+use tauri::{Manager, State};
 use serde::{Serialize, Deserialize};
 use ts_rs::TS;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 
 mod commands;
 // mod db; // Removed
@@ -28,12 +28,23 @@ async fn ping(name: String) -> GreetResponse {
     }
 }
 
+#[tauri::command]
+fn get_server_port(state: State<AppState>) -> u16 {
+    state.server_port
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Shared State for Project Path (between Tauri Commands and Actix)
+    let current_project_path = Arc::new(Mutex::new(None));
+
+    // Start Local File Server
+    let server_port = services::file_server::init(current_project_path.clone());
+
     tauri::Builder::default()
         .manage(AppState {
-            // db: Mutex::new(None), // Removed
-            current_project_path: Mutex::new(None),
+            current_project_path,
+            server_port,
         })
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?; // Init dialog plugin
@@ -62,6 +73,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ping,
+            get_server_port,
             // Project Commands
             commands::project::init_project,
             commands::project::get_recent_projects,

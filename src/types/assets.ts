@@ -6,19 +6,37 @@ import { Asset as RustAsset, AssetMetadata as RustMetadata } from '@/bindings/sy
 
 export type AssetType = 'text' | 'image' | 'json' | 'script' | 'file' | string;
 
-export type AssetMetadata = RustMetadata;
+export interface ImageMetadata {
+    width: number;
+    height: number;
+    size: number;
+    mimeType: string;
+    thumbnail?: string; // Base64 data URI
+    hash?: string;
+}
+
+export interface TextMetadata {
+    length: number;
+    encoding?: string;
+}
+
+// Frontend Metadata Extension (maps to 'extra' or extended fields)
+export interface ExtendedMetadata extends RustMetadata {
+    image?: ImageMetadata;
+    text?: TextMetadata;
+}
 
 /**
  * The unified Asset interface for the frontend Asset Store.
- * Extends the Rust binding with generic content support.
  */
-export interface Asset<T = any> extends Omit<RustAsset, 'content' | 'type'> {
+export interface Asset<T = any> extends Omit<RustAsset, 'content' | 'type' | 'metadata'> {
     type: AssetType;
     content: T; 
+    metadata: ExtendedMetadata;
 }
 
-// Helper: Factory for creating default assets
-export const createDefaultMetadata = (name: string): AssetMetadata => ({
+// Helper: Factory for creating default metadata
+export const createDefaultMetadata = (name: string): ExtendedMetadata => ({
     name,
     createdAt: Date.now(),
     updatedAt: Date.now(),

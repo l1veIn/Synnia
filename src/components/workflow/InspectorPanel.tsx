@@ -9,11 +9,11 @@ import { FormAssetEditor } from "./inspector/FormAssetEditor";
 
 // Helper Component for Asset Editing
 const AssetInspector = ({ assetId }: { assetId: string }) => {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setContent, setMetadata } = useAsset(assetId);
     if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset not found ({assetId})</div>;
 
     if (asset.type === 'json') {
-        return <FormAssetEditor asset={asset} onUpdate={setContent} />;
+        return <FormAssetEditor asset={asset} onUpdate={setContent} onMetaUpdate={setMetadata} />;
     }
     
     // Fallback for other assets

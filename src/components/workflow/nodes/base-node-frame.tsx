@@ -109,8 +109,8 @@ export const BaseNodeFrame = memo(({
         <NodeHeaderTitle>{title}</NodeHeaderTitle>
         
         <NodeHeaderActions>
-           {/* 运行/暂停按钮 */}
-           {config?.category === 'Process' && (
+           {/* Run/Pause Button - Show if explicitly provided via props (e.g. Bound Recipe) OR if category is Process */}
+           {(onToggleRun || config?.category === 'Process') && (
              <NodeHeaderAction 
                 onClick={handleToggleRun}
                 title={isRunning ? "Pause" : "Run"}

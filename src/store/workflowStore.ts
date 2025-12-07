@@ -66,6 +66,7 @@ export interface WorkflowActions {
   // Asset Management
   createAsset: (type: AssetType, content: any, metadata?: Partial<Asset['metadata']>) => string;
   updateAsset: (id: string, content: any) => void;
+  updateAssetMetadata: (id: string, metadata: Partial<Asset['metadata']>) => void;
   deleteAsset: (id: string) => void;
   getAsset: (id: string) => Asset | undefined;
 
@@ -167,6 +168,22 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                                  ...asset,
                                  content,
                                  metadata: { ...asset.metadata, updatedAt: Date.now() }
+                             }
+                         }
+                     };
+                 });
+            },
+
+            updateAssetMetadata: (id, metaUpdates) => {
+                 set(state => {
+                     const asset = state.assets[id];
+                     if (!asset) return state;
+                     return {
+                         assets: {
+                             ...state.assets,
+                             [id]: {
+                                 ...asset,
+                                 metadata: { ...asset.metadata, ...metaUpdates, updatedAt: Date.now() }
                              }
                          }
                      };

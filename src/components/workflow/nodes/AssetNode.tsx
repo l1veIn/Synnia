@@ -6,11 +6,22 @@ import { JsonAssetView } from './views/JsonAssetView';
 import { FormAssetView } from './views/FormAssetView';
 import { isFormAsset } from '@/types/assets';
 import { NodeResizer } from '@xyflow/react';
+import { useRunAgent } from '@/hooks/useRunAgent';
 
 export function AssetNode(props: BaseNodeFrameProps) {
-  const { data, selected } = props;
+  const { id, data, selected } = props;
   const { asset, setContent, exists } = useAsset(data.assetId);
+  const { runAgent } = useRunAgent();
   const isReadOnly = !!data.isReference;
+
+  // Check if this asset has a bound agent/recipe
+  const agentId = asset?.metadata?.extra?.agentId;
+
+  const handleRun = () => {
+      if (agentId && data.assetId) {
+          runAgent(id, data.assetId);
+      }
+  };
 
   // Dispatcher Logic: Choose the right view based on Asset Type
   const renderContent = () => {
@@ -44,7 +55,10 @@ export function AssetNode(props: BaseNodeFrameProps) {
   };
 
   return (
-    <BaseNodeFrame {...props}>
+    <BaseNodeFrame 
+        {...props} 
+        onToggleRun={agentId ? handleRun : undefined}
+    >
       <NodeResizer 
         isVisible={selected && !isReadOnly} 
         minWidth={200} 

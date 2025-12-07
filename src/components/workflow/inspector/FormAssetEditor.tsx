@@ -1,33 +1,33 @@
-import { Asset, FormAssetContent, isFormAsset } from '@/types/assets';
+import { Asset, FormAssetContent, isFormAsset, FieldDefinition } from '@/types/assets';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SchemaBuilder } from './SchemaBuilder';
 import { FormRenderer } from './FormRenderer';
 import { useState, useEffect } from 'react';
+import { SYSTEM_AGENTS, getSystemAgent } from '@/lib/systemAgents';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Sparkles } from 'lucide-react';
 
 interface EditorProps {
     asset: Asset;
     onUpdate: (content: any) => void;
+    onMetaUpdate: (meta: any) => void;
 }
 
-export function FormAssetEditor({ asset, onUpdate }: EditorProps) {
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) {
     const [activeTab, setActiveTab] = useState('values');
 
     // Init Logic: Ensure structure exists
     useEffect(() => {
         if (!isFormAsset(asset.content)) {
-            // Upgrade legacy JSON or create new
             const legacyValues = typeof asset.content === 'object' ? asset.content : {};
-            
-            // Init with empty schema + existing values
              const initContent: FormAssetContent = {
                 schema: [],
                 values: legacyValues || {}
             };
-            
-            // Only update if it's totally wrong to avoid loop
-            // We check if it is NOT a form asset (which we already did)
-            // But we must be careful not to trigger infinite loop if onUpdate changes prop 'asset' immediately
-            // Since we rely on 'asset.content', if it's not valid, we fix it once.
             if (JSON.stringify(asset.content) !== JSON.stringify(initContent)) {
                  onUpdate(initContent);
             }
@@ -39,23 +39,81 @@ export function FormAssetEditor({ asset, onUpdate }: EditorProps) {
     }
 
     const { schema, values } = asset.content;
+    const currentAgentId = asset.metadata.extra?.agentId;
 
     const handleSchemaUpdate = (newSchema: any) => {
-        onUpdate({
-            schema: newSchema,
-            values: values // Preserve values
-        });
+        onUpdate({ schema: newSchema, values });
     };
 
     const handleValuesUpdate = (newValues: any) => {
-        onUpdate({
-            schema: schema,
-            values: newValues
+        onUpdate({ schema, values: newValues });
+    };
+
+    const handleAgentChange = (agentId: string) => {
+        const newExtra = { ...asset.metadata.extra };
+        if (agentId === 'none') {
+            delete newExtra.agentId;
+        } else {
+            newExtra.agentId = agentId;
+        }
+        onMetaUpdate({ ...asset.metadata, extra: newExtra });
+    };
+
+    const applyAgentSchema = () => {
+        if (!currentAgentId) return;
+        const agent = getSystemAgent(currentAgentId);
+        if (!agent) return;
+
+        const newSchema = [...schema];
+        const existingKeys = new Set(newSchema.map(f => f.key));
+        
+        let addedCount = 0;
+        agent.requiredFields.forEach(key => {
+            if (!existingKeys.has(key)) {
+                newSchema.push({
+                    id: generateId(),
+                    key,
+                    label: key.charAt(0).toUpperCase() + key.slice(1),
+                    type: 'number', // Smart inference? For Division it's number. For now default to string or number based on key? 
+                    // MVP: Default to number if key is 'a' or 'b', else string
+                    widget: 'text',
+                    rules: { required: true }
+                });
+                addedCount++;
+            }
         });
+        
+        if (addedCount > 0) {
+            handleSchemaUpdate(newSchema);
+            setActiveTab('values'); // Switch to values to fill them
+        }
     };
 
     return (
         <div className="flex flex-col h-full">
+            {/* Agent Binding Section */}
+            <div className="px-4 py-3 border-b space-y-2 bg-muted/10">
+                <div className="flex items-center justify-between">
+                     <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bound Logic</Label>
+                     {currentAgentId && (
+                         <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1 text-primary" onClick={applyAgentSchema} title="Add missing fields from recipe">
+                            <Sparkles className="w-3 h-3 mr-1" /> Auto-Fill Schema
+                         </Button>
+                     )}
+                </div>
+                <Select value={currentAgentId || "none"} onValueChange={handleAgentChange}>
+                    <SelectTrigger className="h-7 text-xs bg-background">
+                        <SelectValue placeholder="Select Recipe..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">None (Pure Data)</SelectItem>
+                        {SYSTEM_AGENTS.map(agent => (
+                            <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
                 <div className="px-4 pt-2 shrink-0">
                     <TabsList className="grid w-full grid-cols-2">

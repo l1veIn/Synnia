@@ -14,6 +14,7 @@ export function useAsset(assetId?: string) {
     ));
     
     const updateAssetContent = useWorkflowStore(state => state.updateAsset);
+    const updateAssetMeta = useWorkflowStore(state => state.updateAssetMetadata);
     
     const setContent = useCallback((content: any) => {
         if (assetId) {
@@ -21,9 +22,16 @@ export function useAsset(assetId?: string) {
         }
     }, [assetId, updateAssetContent]);
 
+    const setMetadata = useCallback((meta: any) => {
+        if (assetId) {
+            updateAssetMeta(assetId, meta);
+        }
+    }, [assetId, updateAssetMeta]);
+
     return {
         asset,
         setContent,
+        setMetadata,
         isLoading: false, // Placeholder for future async/lazy loading logic
         exists: !!asset
     };

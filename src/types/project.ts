@@ -20,6 +20,13 @@ export interface BaseNodeData extends Record<string, unknown> {
   // 状态属性
   state?: NodeExecutionState;
   errorMessage?: string;
+  
+  // UI State
+  collapsed?: boolean;
+  expandedWidth?: number;
+  expandedHeight?: number;
+  handlePosition?: 'top-bottom' | 'left-right';
+  originalPosition?: XYPosition;
 
   // 业务属性 (动态，不强制 schema)
   // 例如：text, imageUrl, value, prompt, ...

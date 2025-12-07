@@ -24,10 +24,14 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const contextMenuTarget = useWorkflowStore((state) => state.contextMenuTarget);
   const addNode = useWorkflowStore((state) => state.addNode);
   const removeNode = useWorkflowStore((state) => state.removeNode);
+  const detachNode = useWorkflowStore((state) => state.detachNode);
   const nodes = useWorkflowStore((state) => state.nodes);
   const pasteNodes = useWorkflowStore((state) => state.pasteNodes);
   
   const { screenToFlowPosition } = useReactFlow();
+  
+  const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
+  const hasParent = !!targetNode?.parentId;
 
   const handleAddNode = (type: NodeType) => {
     if (contextMenuTarget?.position) {
@@ -37,6 +41,12 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
       });
       addNode(type, position);
     }
+  };
+
+  const handleDetach = () => {
+      if (contextMenuTarget?.id) {
+          detachNode(contextMenuTarget.id);
+      }
   };
 
   const handleDelete = () => {
@@ -107,6 +117,11 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 {contextMenuTarget.type === 'group' ? 'Group Actions' : 'Node Actions'}
             </ContextMenuLabel>
             <ContextMenuSeparator />
+            {hasParent && (
+                <ContextMenuItem onSelect={handleDetach}>
+                    Detach from Group
+                </ContextMenuItem>
+            )}
             <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
             <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
             <ContextMenuSeparator />

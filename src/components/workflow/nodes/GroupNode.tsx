@@ -4,20 +4,33 @@ import { SynniaNode } from '@/types/project';
 import { cn } from '@/lib/utils';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp, BoxSelect, AlignJustify } from 'lucide-react';
 
 export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) => {
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const triggerCommit = useWorkflowStore((state) => state.triggerCommit);
   const highlightedGroupId = useWorkflowStore((state) => state.highlightedGroupId);
+  const toggleGroupCollapse = useWorkflowStore((state) => state.toggleGroupCollapse);
+  const autoLayoutGroup = useWorkflowStore((state) => state.autoLayoutGroup);
+  
   const { pause, resume } = useHistory();
   
   const isHighlighted = highlightedGroupId === id;
+  const isCollapsed = !!data.collapsed;
 
-  // 简单的删除逻辑
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     removeNode(id);
+  };
+
+  const handleAutoLayout = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    autoLayoutGroup(id);
+  };
+  
+  const handleToggle = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleGroupCollapse(id);
   };
   
   const onResizeStart = () => pause();
@@ -27,54 +40,95 @@ export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) =>
   };
 
   return (
-    <div
-      className={cn(
-        'relative h-full w-full rounded-xl border-2 border-dashed transition-all duration-200',
-        selected ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 bg-muted/10',
-        isHighlighted ? 'border-primary bg-primary/10 ring-4 ring-primary/20 scale-[1.01]' : '',
-        'group' // for hover effects
-      )}
-    >
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        className="w-3 h-3 bg-muted-foreground border-2 border-background -top-1.5 left-1/2 -translate-x-1/2 transition-all duration-200 hover:bg-primary hover:border-primary hover:ring-2 hover:ring-offset-1 hover:ring-primary/40" 
-      />
-
+    <>
       <NodeResizer 
-        isVisible={selected} 
-        minWidth={300} 
-        minHeight={200}
+        isVisible={selected && !isCollapsed} 
+        minWidth={200} 
+        minHeight={100}
         lineClassName="border-primary"
         handleClassName="h-3 w-3 bg-primary border-2 border-background rounded"
         onResizeStart={onResizeStart}
         onResizeEnd={onResizeEnd}
       />
       
-      {/* 标题栏 */}
-      <div className="absolute -top-8 left-0 flex items-center gap-2">
-        <span className="text-sm font-bold text-muted-foreground group-hover:text-primary transition-colors px-1">
-          {data.title || 'Group'}
-        </span>
-        
-        {/* 只有选中时才显示删除按钮，避免误触 */}
-        {selected && (
-           <button 
-             onClick={handleDelete}
-             className="p-1 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-             title="Delete Group"
-           >
-             <Trash2 className="w-3 h-3" />
-           </button>
+      <div
+        className={cn(
+          'relative transition-all duration-300 rounded-2xl border-2',
+          // Base Styles
+          isCollapsed 
+            ? 'w-full h-full bg-card border-solid border-border shadow-sm' // Collapsed: Solid Card
+            : 'h-full w-full bg-muted/5 backdrop-blur-[1px] border-dashed border-muted-foreground/20', // Expanded: Glass Frame
+          
+          // Selection / Highlight Styles
+          selected && !isCollapsed && 'border-primary bg-primary/5',
+          selected && isCollapsed && 'border-primary ring-1 ring-primary',
+          isHighlighted && 'border-primary bg-primary/10 ring-4 ring-primary/20 scale-[1.01]',
+          
+          'group' // for hover effects
         )}
-      </div>
+      >
+        {/* Top Handle (Always visible) */}
+        <Handle 
+            type="target" 
+            position={Position.Top} 
+            className="w-3 h-3 bg-muted-foreground border-2 border-background -top-1.5 left-1/2 -translate-x-1/2 transition-all duration-200 hover:bg-primary hover:border-primary" 
+        />
 
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        className="w-3 h-3 bg-muted-foreground border-2 border-background -bottom-1.5 left-1/2 -translate-x-1/2 transition-all duration-200 hover:bg-primary hover:border-primary hover:ring-2 hover:ring-offset-1 hover:ring-primary/40" 
-      />
-    </div>
+        {/* Header Area */}
+        <div className={cn(
+             "absolute left-0 px-3 py-2 flex items-center gap-2 transition-all duration-300 z-10",
+             // Expanded: Top-Left floating header
+             // Collapsed: Full width header at Top
+             isCollapsed ? "top-0 w-full justify-between border-b bg-muted/20 rounded-t-xl" : "top-0"
+        )}>
+           <div className="flex items-center gap-2">
+               <button 
+                 onClick={handleToggle} 
+                 className="nodrag p-0.5 rounded hover:bg-muted-foreground/10 text-muted-foreground transition-colors"
+               >
+                   {isCollapsed ? <ChevronDown className="w-4 h-4"/> : <ChevronUp className="w-4 h-4"/>}
+               </button>
+               
+               <span className={cn(
+                   "font-semibold text-muted-foreground flex items-center gap-1 select-none",
+                   isCollapsed && "text-foreground"
+               )}>
+                   <BoxSelect className="w-3 h-3 opacity-70"/> 
+                   {data.title || 'Group'}
+               </span>
+           </div>
+           
+           {/* Actions */}
+           {selected && (
+               <div className="flex items-center gap-1">
+                   {!isCollapsed && (
+                       <button 
+                         onClick={handleAutoLayout}
+                         className="nodrag p-1 rounded-full hover:bg-muted-foreground/10 text-muted-foreground transition-colors"
+                         title="Auto Layout Children"
+                       >
+                         <AlignJustify className="w-3 h-3" />
+                       </button>
+                   )}
+                   <button 
+                     onClick={handleDelete}
+                     className="nodrag p-1 rounded-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                     title="Delete Group"
+                   >
+                     <Trash2 className="w-3 h-3" />
+                   </button>
+               </div>
+           )}
+        </div>
+
+        {/* Bottom Handle (Always visible) */}
+        <Handle 
+            type="source" 
+            position={Position.Bottom} 
+            className="w-3 h-3 bg-muted-foreground border-2 border-background -bottom-1.5 left-1/2 -translate-x-1/2 transition-all duration-200 hover:bg-primary hover:border-primary" 
+        />
+      </div>
+    </>
   );
 });
 

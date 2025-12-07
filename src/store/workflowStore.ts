@@ -20,8 +20,16 @@ import { v4 as uuidv4 } from 'uuid';
 import { 
     isNodeInsideGroup, 
     sortNodesTopologically, 
-    getDescendants 
+    getDescendants,
+    sanitizeNodeForClipboard
 } from '@/lib/graphUtils';
+import {
+    applyRackCollapse,
+    applyRackExpand,
+    insertNodeIntoRack,
+    fixRackLayout,
+    applyGroupAutoLayout
+} from '@/lib/rackLayout';
 
 let isHistoryPaused = false;
 
@@ -58,6 +66,10 @@ export interface WorkflowActions {
   duplicateNode: (node: SynniaNode, position?: XYPosition) => void;
   handleAltDragStart: (nodeId: string) => string;
   handleDragStopOpacity: (nodeId: string) => void;
+  toggleNodeCollapse: (nodeId: string) => void;
+  toggleGroupCollapse: (groupId: string) => void;
+  autoLayoutGroup: (groupId: string) => void;
+  detachNode: (nodeId: string) => void;
 }
 
 export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
@@ -73,16 +85,116 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         resumeHistory: () => { isHistoryPaused = false; },
         setContextMenuTarget: (target) => set({ contextMenuTarget: target }),
         
+                autoLayoutGroup: (groupId: string) => {
+                    const { nodes } = get();
+                    const group = nodes.find(n => n.id === groupId);
+                    if (!group) return;
+                    
+                    const updatedNodes = applyGroupAutoLayout(nodes, group);
+                    set({ nodes: updatedNodes });
+                },
+                
+                detachNode: (nodeId: string) => {
+                    const { nodes } = get();
+                    const node = nodes.find(n => n.id === nodeId);
+                    if (!node || !node.parentId) return;
+        
+                    const parent = nodes.find(n => n.id === node.parentId);
+                    
+                    // Calculate absolute position
+                    let newPos = { ...node.position };
+                    if (parent) {
+                        newPos = {
+                            x: parent.position.x + node.position.x,
+                            y: parent.position.y + node.position.y
+                        };
+                    }
+                    
+                    // Sanitize (remove Rack constraints)
+                    const sanitizedNode = sanitizeNodeForClipboard(node);
+                    
+                    const updatedNode = {
+                        ...sanitizedNode,
+                        id: nodeId,
+                        parentId: undefined,
+                        extent: undefined,
+                        position: newPos,
+                        draggable: true,
+                        hidden: false,
+                        style: { ...sanitizedNode.style, width: undefined, height: undefined },
+                        data: {
+                            ...sanitizedNode.data,
+                            collapsed: false, 
+                            handlePosition: 'top-bottom'
+                        }
+                    };
+                    
+                    // Update nodes list
+                    let finalNodes = nodes.map(n => n.id === nodeId ? updatedNode : n);
+                    
+                    // Trigger Layout Fix (Old parent might shrink)
+                    finalNodes = fixRackLayout(finalNodes);
+                    
+                    set({ nodes: sortNodesTopologically(finalNodes) });
+                },
+        
+                toggleGroupCollapse: (groupId: string) => {            const { nodes } = get();
+            const group = nodes.find(n => n.id === groupId);
+            if (!group) return;
+            
+            const isCollapsing = !group.data.collapsed;
+            let updatedNodes = [];
+            
+            if (isCollapsing) {
+                updatedNodes = applyRackCollapse(nodes, group);
+            } else {
+                updatedNodes = applyRackExpand(nodes, group);
+            }
+            
+            // Re-calculate global layout to handle nested rack resizing
+            updatedNodes = fixRackLayout(updatedNodes);
+            
+            set({ nodes: updatedNodes });
+        },
+
+        toggleNodeCollapse: (nodeId: string) => {
+            const { nodes } = get();
+            let updatedNodes = nodes.map(n => {
+                if (n.id === nodeId) {
+                    const willBeCollapsed = !n.data.collapsed;
+                    const newStyle = { ...n.style };
+                    
+                    // If expanding and height is missing, set a default to prevent layout shrinking
+                    if (!willBeCollapsed && !newStyle.height) {
+                         newStyle.height = 200; 
+                    }
+                    
+                    return { 
+                        ...n, 
+                        style: newStyle,
+                        data: { ...n.data, collapsed: willBeCollapsed } 
+                    };
+                }
+                return n;
+            });
+            
+            updatedNodes = fixRackLayout(updatedNodes);
+
+            set({ nodes: updatedNodes });
+        },
+        
         duplicateNode: (node: SynniaNode, position?: XYPosition) => {
            const { nodes } = get();
            const newId = uuidv4();
            
+           // Sanitize Data for Duplicate
+           const sanitizedNode = sanitizeNodeForClipboard(node);
+           
            const newNode: SynniaNode = {
-             ...node,
+             ...sanitizedNode,
              id: newId,
              position: position || { x: node.position.x + 20, y: node.position.y + 20 },
              selected: true,
-             data: { ...JSON.parse(JSON.stringify(node.data)) },
              parentId: node.parentId,
              extent: node.extent,
            };
@@ -102,7 +214,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             const idMap = new Map<string, string>();
             nodesToClone.forEach(n => idMap.set(n.id, uuidv4()));
 
-            // 2. Create Stationary Clones (Left behind)
+            // 2. Create Stationary Clones (Left behind) - Preserve State (e.g. inside Rack)
             const stationaryNodes = nodesToClone.map(original => {
                 const newId = idMap.get(original.id)!;
                 
@@ -138,7 +250,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                 }
             });
 
-            // 4. Detach Moving Root Node
+            // 4. Detach Moving Root Node - Sanitize State (Dragging out)
             let newPosition = node.position;
             let newParentId = node.parentId;
             let newExtent = node.extent;
@@ -155,12 +267,14 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                 }
             }
             
+            const sanitizedNode = sanitizeNodeForClipboard(node);
+
             const updatedMovingNode = {
-                ...node,
+                ...sanitizedNode,
                 parentId: newParentId,
                 position: newPosition,
                 extent: newExtent,
-                style: { ...node.style, opacity: 0.5 },
+                style: { ...sanitizedNode.style, opacity: 0.5 },
             };
             
             // 5. Apply Changes
@@ -245,20 +359,35 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
            let hasGrouped = false;
            
            if (targetGroup && node.parentId !== targetGroup.id) {
-             const updatedNodes = nodes.map((n) => {
-                 if (n.id === node.id) {
-                   return {
-                     ...n,
-                     parentId: targetGroup.id,
-                     extent: 'parent',
-                     position: {
-                       x: node.position.x - targetGroup.position.x,
-                       y: node.position.y - targetGroup.position.y,
-                     },
-                   } as SynniaNode;
-                 }
-                 return n;
-               });
+             
+             // Prevent Group Nesting: Do not allow a Group to be inside another Group
+             if (node.type === NodeType.GROUP) {
+                 return;
+             }
+
+             const isRackMode = !!targetGroup.data.collapsed;
+             let updatedNodes = nodes;
+
+             if (isRackMode) {
+                 // --- Rack Mode Insertion Logic (Delegated) ---
+                 updatedNodes = insertNodeIntoRack(nodes, node, targetGroup);
+             } else {
+                 // --- Standard Grouping Logic ---
+                 updatedNodes = nodes.map((n) => {
+                     if (n.id === node.id) {
+                       return {
+                         ...n,
+                         parentId: targetGroup.id,
+                         extent: 'parent',
+                         position: {
+                           x: node.position.x - targetGroup.position.x,
+                           y: node.position.y - targetGroup.position.y,
+                         },
+                       } as SynniaNode;
+                     }
+                     return n;
+                   });
+             }
 
              set({ nodes: sortNodesTopologically(updatedNodes) });
              hasGrouped = true;
@@ -315,8 +444,11 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                    newParentId = undefined; 
                }
 
+               // Sanitize for Paste
+               const sanitizedNode = sanitizeNodeForClipboard(node);
+
                return {
-                   ...node,
+                   ...sanitizedNode,
                    id: newId,
                    parentId: newParentId,
                    extent: newParentId ? 'parent' : undefined,
@@ -324,8 +456,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                    position: { 
                        x: node.position.x + 50, 
                        y: node.position.y + 50 
-                   },
-                   data: { ...JSON.parse(JSON.stringify(node.data)) } 
+                   }
                } as SynniaNode;
            });
 
@@ -347,9 +478,12 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             const children = nodes.filter(n => n.parentId === currentId);
             children.forEach(child => queue.push(child.id));
           }
+          
+          const filteredNodes = nodes.filter((n) => !nodesToDelete.has(n.id));
+          const finalNodes = fixRackLayout(filteredNodes);
 
           set({
-            nodes: nodes.filter((n) => !nodesToDelete.has(n.id)),
+            nodes: finalNodes,
             edges: edges.filter((e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)),
           });
         },

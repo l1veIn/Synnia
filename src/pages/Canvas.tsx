@@ -1,5 +1,6 @@
 import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { useMemo } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { AssetNode } from '@/components/workflow/nodes/AssetNode';
@@ -16,20 +17,6 @@ import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { saveProjectToFile } from '@/lib/projectUtils';
 
-// 注册节点类型
-const nodeTypes = {
-  [NodeType.ASSET]: AssetNode,
-  [NodeType.GROUP]: GroupNode,
-  // 临时使用 AssetNode 渲染其他类型，防止报错，后续替换
-  [NodeType.RECIPE]: AssetNode, 
-  [NodeType.NOTE]: AssetNode,
-  [NodeType.COLLECTION]: AssetNode,
-};
-
-const edgeTypes = {
-  deletable: DeletableEdge,
-};
-
 function CanvasFlow() {
   const {
     nodes,
@@ -39,6 +26,19 @@ function CanvasFlow() {
     onConnect,
     onNodeDrag,
   } = useWorkflowStore();
+
+  // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders/warnings
+  const nodeTypes = useMemo(() => ({
+    [NodeType.ASSET]: AssetNode,
+    [NodeType.GROUP]: GroupNode,
+    [NodeType.RECIPE]: AssetNode, 
+    [NodeType.NOTE]: AssetNode,
+    [NodeType.COLLECTION]: AssetNode,
+  }), []);
+
+  const edgeTypes = useMemo(() => ({
+    deletable: DeletableEdge,
+  }), []);
 
   // 启用 Hooks
   useAutoSave();

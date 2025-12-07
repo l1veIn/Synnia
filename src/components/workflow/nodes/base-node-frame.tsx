@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import { Position, NodeProps } from '@xyflow/react';
+import { memo, useEffect } from 'react';
+import { Position, NodeProps, useUpdateNodeInternals } from '@xyflow/react';
 import { BaseNode } from '../ui/base-node';
 import { 
   NodeHeader, 
@@ -11,8 +11,9 @@ import {
 import { BaseHandle } from '../ui/base-handle';
 import { nodesConfig } from './registry';
 import { SynniaNode, NodeType } from '@/types/project';
-import { Trash2, Play, CirclePause, AlertCircle } from 'lucide-react';
+import { Trash2, Play, CirclePause, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { cn } from '@/lib/utils';
 
 // 扩展 React Flow 的 NodeProps
 export type BaseNodeFrameProps = NodeProps<SynniaNode> & {
@@ -31,6 +32,8 @@ export const BaseNodeFrame = memo(({
 }: BaseNodeFrameProps) => {
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const updateNodeData = useWorkflowStore((state) => state.updateNodeData);
+  const toggleNodeCollapse = useWorkflowStore((state) => state.toggleNodeCollapse);
+  const updateNodeInternals = useUpdateNodeInternals();
 
   // 安全地转换 type
   const nodeType = type as NodeType;
@@ -40,6 +43,7 @@ export const BaseNodeFrame = memo(({
   const title = data.title || config?.title || 'Unknown Node';
   const state = data.state || 'idle';
   const isRunning = state === 'running';
+  const isCollapsed = !!data.collapsed;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -56,16 +60,44 @@ export const BaseNodeFrame = memo(({
     }
   };
 
+  const handleToggleCollapse = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleNodeCollapse(id);
+  };
+
+  const handlePos = data.handlePosition || 'top-bottom';
+  
+  // Force update handles when position mode changes
+  useEffect(() => {
+      updateNodeInternals(id);
+  }, [handlePos, id, updateNodeInternals]);
+
+  const isLeftRight = handlePos === 'left-right';
+  
+  const targetPosition = isLeftRight ? Position.Left : Position.Top;
+  const sourcePosition = isLeftRight ? Position.Right : Position.Bottom;
+
+  const targetClass = isLeftRight 
+    ? "-left-2 top-1/2 -translate-y-1/2" 
+    : "-top-2 left-1/2 -translate-x-1/2";
+  
+  const sourceClass = isLeftRight
+    ? "-right-2 top-1/2 -translate-y-1/2"
+    : "-bottom-2 left-1/2 -translate-x-1/2";
+
+  const handleKeySuffix = isLeftRight ? 'lr' : 'tb';
+
   return (
     <BaseNode selected={selected} state={state} className="min-w-[240px]">
-      {/* 顶部 Handle - Input */}
+      {/* Input Handle */}
       <BaseHandle 
+        key={`target-${handleKeySuffix}`}
         type="target" 
-        position={Position.Top} 
-        className="-top-2" 
+        position={targetPosition} 
+        className={targetClass}
       />
 
-      <NodeHeader>
+      <NodeHeader className={cn("rounded-t-xl", isCollapsed && "rounded-b-xl border-b-0")}>
         <NodeHeaderIcon>
           {state === 'error' ? (
             <AlertCircle className="h-4 w-4 text-destructive" />
@@ -87,6 +119,13 @@ export const BaseNodeFrame = memo(({
              </NodeHeaderAction>
            )}
            
+           <NodeHeaderAction
+              onClick={handleToggleCollapse}
+              title={isCollapsed ? "Expand" : "Collapse"}
+           >
+              {isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+           </NodeHeaderAction>
+
            <NodeHeaderAction 
               onClick={handleDelete}
               className="hover:text-destructive"
@@ -98,20 +137,23 @@ export const BaseNodeFrame = memo(({
       </NodeHeader>
 
       {/* 内容区域 */}
-      <div className="p-3 min-h-[40px]">
-        {data.errorMessage && (
-          <div className="mb-2 text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
-            {data.errorMessage}
-          </div>
-        )}
-        {children}
-      </div>
+      {!isCollapsed && (
+        <div className="p-3 min-h-[40px]">
+          {data.errorMessage && (
+            <div className="mb-2 text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
+              {data.errorMessage}
+            </div>
+          )}
+          {children}
+        </div>
+      )}
 
-      {/* 底部 Handle - Output */}
+      {/* Output Handle */}
       <BaseHandle 
+        key={`source-${handleKeySuffix}`}
         type="source" 
-        position={Position.Bottom} 
-        className="-bottom-2"
+        position={sourcePosition} 
+        className={sourceClass}
       />
     </BaseNode>
   );

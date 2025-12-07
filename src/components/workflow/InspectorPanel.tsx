@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 export const InspectorPanel = () => {
   const nodes = useWorkflowStore((state) => state.nodes);
+  const edges = useWorkflowStore((state) => state.edges);
   const updateNodeData = useWorkflowStore((state) => state.updateNodeData);
   
   // Find selected node (single selection only for now)
@@ -46,6 +47,9 @@ export const InspectorPanel = () => {
   // Safe check
   if (!selectedNode) return null;
 
+  const inDegree = edges.filter(e => e.target === selectedNode.id).length;
+  const outDegree = edges.filter(e => e.source === selectedNode.id).length;
+
   return (
     <div className="absolute top-20 right-4 w-[320px] max-h-[calc(100vh-6rem)] bg-card/95 backdrop-blur-sm border rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right-4 fade-in duration-200">
       <div className="p-4 border-b font-semibold bg-muted/50 flex items-center justify-between">
@@ -66,6 +70,18 @@ export const InspectorPanel = () => {
                         onChange={handleTitleChange} 
                         className="bg-background"
                     />
+                </div>
+
+                {/* Connection Stats */}
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-muted/30 rounded p-2 flex flex-col items-center border border-border/50">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Inputs</span>
+                        <span className="text-lg font-mono font-medium text-primary">{inDegree}</span>
+                    </div>
+                    <div className="bg-muted/30 rounded p-2 flex flex-col items-center border border-border/50">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Outputs</span>
+                        <span className="text-lg font-mono font-medium text-primary">{outDegree}</span>
+                    </div>
                 </div>
                 
                 <div className="grid w-full max-w-sm items-center gap-1.5">

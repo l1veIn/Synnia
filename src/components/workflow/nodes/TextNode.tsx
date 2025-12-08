@@ -10,6 +10,30 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
+// --- Inspector Component ---
+export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
+    const { asset, setContent } = useAsset(assetId);
+    if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset Not Found</div>;
+
+    return (
+        <div className="p-4 space-y-4 h-full flex flex-col">
+             <div className="space-y-2 flex-1 flex flex-col">
+                 <Label className="text-xs text-muted-foreground">Text Content</Label>
+                 <Textarea 
+                    className="flex-1 font-mono text-xs resize-none"
+                    value={asset.content as string}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Enter text here..."
+                 />
+             </div>
+             <div className="text-[10px] text-muted-foreground font-mono">
+                 ID: {asset.id}
+             </div>
+        </div>
+    );
+};
+
+// --- Node Component ---
 export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const { id, data, selected } = props;
   const { asset, setContent } = useAsset(data.assetId);

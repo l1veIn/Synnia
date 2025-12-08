@@ -1,7 +1,8 @@
-import { Asset, FormAssetContent, isFormAsset, FieldDefinition } from '@/types/assets';
+import { FormAssetContent, isFormAsset } from '@/types/assets';
+import { useAsset } from '@/hooks/useAsset';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SchemaBuilder } from './SchemaBuilder';
-import { FormRenderer } from './FormRenderer';
+import { SchemaBuilder } from '../../inspector/SchemaBuilder';
+import { FormRenderer } from '../../inspector/FormRenderer';
 import { useState, useEffect } from 'react';
 import { SYSTEM_AGENTS, getSystemAgent } from '@/lib/systemAgents';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,30 +10,27 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 
-interface EditorProps {
-    asset: Asset;
-    onUpdate: (content: any) => void;
-    onMetaUpdate: (meta: any) => void;
-}
-
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) {
+export const RecipeNodeInspector = ({ assetId }: { assetId: string }) => {
+    const { asset, setContent, setMetadata } = useAsset(assetId);
     const [activeTab, setActiveTab] = useState('values');
 
     // Init Logic: Ensure structure exists
     useEffect(() => {
-        if (!isFormAsset(asset.content)) {
+        if (asset && !isFormAsset(asset.content)) {
             const legacyValues = typeof asset.content === 'object' ? asset.content : {};
              const initContent: FormAssetContent = {
                 schema: [],
                 values: legacyValues || {}
             };
             if (JSON.stringify(asset.content) !== JSON.stringify(initContent)) {
-                 onUpdate(initContent);
+                 setContent(initContent);
             }
         }
-    }, [asset.content, onUpdate]);
+    }, [asset?.content, setContent]);
+
+    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
     if (!isFormAsset(asset.content)) {
          return <div className="text-xs text-muted-foreground p-4">Initializing Form Structure...</div>;
@@ -42,11 +40,11 @@ export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) 
     const currentAgentId = asset.metadata.extra?.agentId;
 
     const handleSchemaUpdate = (newSchema: any) => {
-        onUpdate({ schema: newSchema, values });
+        setContent({ schema: newSchema, values });
     };
 
     const handleValuesUpdate = (newValues: any) => {
-        onUpdate({ schema, values: newValues });
+        setContent({ schema, values: newValues });
     };
 
     const handleAgentChange = (agentId: string) => {
@@ -56,7 +54,7 @@ export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) 
         } else {
             newExtra.agentId = agentId;
         }
-        onMetaUpdate({ ...asset.metadata, extra: newExtra });
+        setMetadata({ ...asset.metadata, extra: newExtra });
     };
 
     const applyAgentSchema = () => {
@@ -74,8 +72,7 @@ export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) 
                     id: generateId(),
                     key,
                     label: key.charAt(0).toUpperCase() + key.slice(1),
-                    type: 'number', // Smart inference? For Division it's number. For now default to string or number based on key? 
-                    // MVP: Default to number if key is 'a' or 'b', else string
+                    type: 'string', // Default to string
                     widget: 'text',
                     rules: { required: true }
                 });
@@ -85,7 +82,7 @@ export function FormAssetEditor({ asset, onUpdate, onMetaUpdate }: EditorProps) 
         
         if (addedCount > 0) {
             handleSchemaUpdate(newSchema);
-            setActiveTab('values'); // Switch to values to fill them
+            setActiveTab('values');
         }
     };
 

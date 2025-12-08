@@ -8,7 +8,38 @@ import { useAsset } from '@/hooks/useAsset';
 import { Image as ImageIcon, Trash2 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
+// --- Inspector Component ---
+export const ImageNodeInspector = ({ assetId }: { assetId: string }) => {
+    const { asset, setContent } = useAsset(assetId);
+    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    
+    let src = '';
+    if (typeof asset.content === 'string') src = asset.content;
+    else if (typeof asset.content === 'object' && asset.content && 'src' in asset.content) src = (asset.content as any).src;
+
+    return (
+        <div className="p-4 space-y-4">
+             <div className="space-y-2">
+                 <Label className="text-xs text-muted-foreground">Source URL / Path</Label>
+                 <Input 
+                    className="text-xs font-mono"
+                    value={src}
+                    onChange={(e) => setContent(e.target.value)}
+                 />
+             </div>
+             <div className="space-y-1">
+                 <Label className="text-xs text-muted-foreground">Dimensions</Label>
+                 <div className="text-xs bg-muted p-2 rounded">
+                     {asset.metadata.image?.width || '?'} x {asset.metadata.image?.height || '?'} px
+                 </div>
+             </div>
+        </div>
+    );
+}
+
+// --- Node Component ---
 export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   const { id, data, selected } = props;
   const { asset, setContent } = useAsset(data.assetId);
@@ -33,8 +64,8 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
         return;
     }
 
-    if ((raw.startsWith('assets/') || raw.startsWith('assets\\')) && serverPort) {
-        const filename = raw.replace(/\\/g, '/').split('/').pop();
+    if ((raw.startsWith('assets/') || raw.startsWith('assets\')) && serverPort) {
+        const filename = raw.replace(/\/g, '/').split('/').pop();
         const url = `http://localhost:${serverPort}/assets/${filename}`;
         setLocalContent(url);
     } 

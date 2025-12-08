@@ -4,33 +4,35 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
-import { useAsset } from "@/hooks/useAsset";
-import { FormAssetEditor } from "./inspector/FormAssetEditor";
+import { SynniaNode, NodeType } from "@/types/project";
+import { TextNodeInspector } from './nodes/TextNode';
+import { ImageNodeInspector } from './nodes/ImageNode';
+import { RecipeNodeInspector } from './nodes/RecipeNode';
 
 // Helper Component for Asset Editing
-const AssetInspector = ({ assetId }: { assetId: string }) => {
-    const { asset, setContent, setMetadata } = useAsset(assetId);
-    if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset not found ({assetId})</div>;
+const NodeInspector = ({ node }: { node: SynniaNode }) => {
+    const assetId = node.data.assetId;
+    if (!assetId) return <div className="p-4 text-xs text-muted-foreground">Asset not found</div>;
 
-    if (asset.type === 'json') {
-        return <FormAssetEditor asset={asset} onUpdate={setContent} onMetaUpdate={setMetadata} />;
+    switch (node.type) {
+        case NodeType.TEXT:
+            return <TextNodeInspector assetId={assetId} />;
+        case NodeType.IMAGE:
+            return <ImageNodeInspector assetId={assetId} />;
+        case NodeType.RECIPE:
+            return <RecipeNodeInspector assetId={assetId} />;
+        default:
+            return (
+                <div className="p-4 space-y-4">
+                     <div className="text-xs text-muted-foreground">
+                         Properties for <span className="font-bold uppercase">{node.type}</span>
+                     </div>
+                     <div className="text-[10px] text-muted-foreground font-mono">
+                         Asset ID: {assetId}
+                     </div>
+                </div>
+            );
     }
-    
-    // Fallback for other assets
-    return (
-        <div className="p-4 space-y-4">
-             <div className="text-xs text-muted-foreground">
-                 Properties for <span className="font-bold uppercase">{asset.type}</span> asset.
-             </div>
-             <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label className="text-xs">Asset Name</Label>
-                <Input value={asset.metadata.name} readOnly className="h-8 text-xs bg-muted" />
-             </div>
-             <div className="text-[10px] text-muted-foreground font-mono">
-                 ID: {asset.id}
-             </div>
-        </div>
-    );
 };
 
 export const InspectorPanel = () => {
@@ -66,7 +68,7 @@ export const InspectorPanel = () => {
   const inDegree = edges.filter(e => e.target === selectedNode.id).length;
   const outDegree = edges.filter(e => e.source === selectedNode.id).length;
   
-  // Check if it's an Asset Node
+  // Check if it's an Asset Node (or has assetId)
   const assetId = selectedNode.data.assetId;
 
   return (
@@ -75,7 +77,7 @@ export const InspectorPanel = () => {
           <span>Inspector</span>
       </div>
       
-      {/* If it's an Asset Node with valid ID, show custom editor */}
+      {/* If it's an Asset-based Node, show custom editor */}
       {assetId ? (
           <div className="flex-1 flex flex-col min-h-0">
              {/* Common Header for Asset Nodes */}
@@ -93,7 +95,7 @@ export const InspectorPanel = () => {
              
              {/* Asset Specific Editor */}
              <div className="flex-1 min-h-0 relative">
-                 <AssetInspector assetId={assetId} />
+                 <NodeInspector node={selectedNode} />
              </div>
           </div>
       ) : (

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, ChevronDown } from 'lucide-react';
 
 interface BuilderProps {
@@ -127,6 +128,20 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                             )}
                                         </SelectContent>
                                      </Select>
+                                 </div>
+                             </div>
+
+                             {/* Connection Toggle */}
+                             <div className="flex items-center space-x-2 pt-2 border-t border-dashed">
+                                 <Checkbox 
+                                    id={`conn-${field.id}`} 
+                                    checked={field.connection?.enabled} 
+                                    onCheckedChange={(c) => updateField(index, { connection: { enabled: !!c, supportedTypes: field.connection?.supportedTypes } })}
+                                 />
+                                 <div className="grid gap-1.5 leading-none">
+                                    <Label htmlFor={`conn-${field.id}`} className="text-[10px] text-muted-foreground font-medium leading-none cursor-pointer hover:text-foreground transition-colors">
+                                        Allow Node Input (Left Handle)
+                                    </Label>
                                  </div>
                              </div>
                              

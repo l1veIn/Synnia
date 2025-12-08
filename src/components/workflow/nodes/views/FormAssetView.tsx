@@ -1,11 +1,68 @@
-import { FormAssetContent, Asset } from '@/types/assets';
+import { FormAssetContent, Asset, FieldDefinition } from '@/types/assets';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NodePort } from '../primitives/NodePort';
+import { Position, useHandleConnections } from '@xyflow/react';
+import { cn } from '@/lib/utils';
 
 interface ViewProps {
     asset: Asset;
+    isNodeView?: boolean;
+    nodeId?: string;
 }
 
-export function FormAssetView({ asset }: ViewProps) {
+const SimpleFieldRow = ({ field, value }: { field: FieldDefinition, value: any }) => {
+     const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
+     return (
+        <div className="relative flex items-center justify-between gap-2 overflow-visible group min-h-[20px]">
+            <span className={cn("shrink-0 max-w-[80px] truncate", isMissing ? 'text-destructive font-bold' : 'text-muted-foreground')} title={field.label || field.key}>
+                {field.label || field.key}:
+            </span>
+            <span className="text-foreground truncate font-medium bg-muted/50 px-1.5 py-0.5 rounded max-w-[120px]" title={String(value)}>
+                {value === undefined || value === '' ? <span className="text-muted-foreground/50">-</span> : String(value)}
+            </span>
+        </div>
+     );
+}
+
+const NodeFieldRow = ({ field, value, nodeId }: { field: FieldDefinition, value: any, nodeId?: string }) => {
+    // This hook is safe here because this component is only rendered inside React Flow context
+    const connections = useHandleConnections({
+        type: 'target',
+        id: field.key,
+        nodeId
+    });
+    const isConnected = connections.length > 0;
+    const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
+
+    return (
+        <div className="relative flex items-center justify-between gap-2 overflow-visible group min-h-[20px]">
+             {field.connection?.enabled && (
+                <NodePort 
+                    type="target"
+                    position={Position.Left}
+                    id={field.key}
+                    className={cn("-left-5 top-1/2 -translate-y-1/2", isConnected && "!bg-blue-500 !border-blue-500")}
+                />
+            )}
+            
+            <span className={cn("shrink-0 max-w-[80px] truncate", isMissing && !isConnected ? 'text-destructive font-bold' : 'text-muted-foreground')} title={field.label || field.key}>
+                {field.label || field.key}:
+            </span>
+
+            {isConnected ? (
+                 <span className="text-blue-500 text-[10px] italic font-medium truncate max-w-[120px] flex items-center gap-1 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                    Linked
+                </span>
+            ) : (
+                <span className="text-foreground truncate font-medium bg-muted/50 px-1.5 py-0.5 rounded max-w-[120px]" title={String(value)}>
+                    {value === undefined || value === '' ? <span className="text-muted-foreground/50">-</span> : String(value)}
+                </span>
+            )}
+        </div>
+    );
+}
+
+export function FormAssetView({ asset, isNodeView, nodeId }: ViewProps) {
     const content = asset.content as FormAssetContent;
     const { schema, values } = content;
     
@@ -26,22 +83,13 @@ export function FormAssetView({ asset }: ViewProps) {
              </div>
              
              <ScrollArea className="flex-1 w-full -mr-2 pr-2">
-                <div className="space-y-1.5 pb-2">
+                <div className="space-y-1.5 pb-2 pl-2">
                     {schema.map(field => {
                         const val = values[field.key];
-                        // Validation check (simple)
-                        const isMissing = field.rules?.required && (val === undefined || val === '' || val === null);
-                        
-                        return (
-                            <div key={field.id} className="flex items-center justify-between gap-2 overflow-hidden group">
-                                <span className={`shrink-0 max-w-[80px] truncate ${isMissing ? 'text-destructive font-bold' : 'text-muted-foreground'}`} title={field.label || field.key}>
-                                    {field.label || field.key}:
-                                </span>
-                                <span className="text-foreground truncate font-medium bg-muted/50 px-1.5 py-0.5 rounded max-w-[120px]" title={String(val)}>
-                                    {val === undefined || val === '' ? <span className="text-muted-foreground/50">-</span> : String(val)}
-                                </span>
-                            </div>
-                        );
+                        if (isNodeView) {
+                            return <NodeFieldRow key={field.id} field={field} value={val} nodeId={nodeId} />;
+                        }
+                        return <SimpleFieldRow key={field.id} field={field} value={val} />;
                     })}
                 </div>
              </ScrollArea>

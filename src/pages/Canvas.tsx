@@ -4,6 +4,7 @@ import { useMemo, useEffect } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { AssetNode } from '@/components/workflow/nodes/AssetNode';
+import { AssetNodeV2 } from '@/components/workflow/nodes/AssetNodeV2';
 import { GroupNode } from '@/components/workflow/nodes/GroupNode';
 import { RackNode } from '@/components/workflow/nodes/RackNode';
 import { NodeType } from '@/types/project';
@@ -106,7 +107,7 @@ function CanvasFlow() {
     [NodeType.ASSET]: AssetNode,
     [NodeType.GROUP]: GroupNode,
     [NodeType.RACK]: RackNode,
-    [NodeType.RECIPE]: AssetNode, 
+    [NodeType.RECIPE]: AssetNodeV2, // Use V2 for Recipe
     [NodeType.NOTE]: AssetNode,
     [NodeType.COLLECTION]: AssetNode,
   }), []);

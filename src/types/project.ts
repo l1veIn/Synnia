@@ -5,7 +5,7 @@ import { Node, Edge, XYPosition } from '@xyflow/react';
 /**
  * 核心节点状态，控制 UI 反馈
  */
-export type NodeExecutionState = 'idle' | 'running' | 'paused' | 'error' | 'success';
+export type NodeExecutionState = 'idle' | 'running' | 'paused' | 'error' | 'success' | 'stale';
 
 /**
  * 基础节点数据接口
@@ -67,16 +67,6 @@ export type SynniaNode<T extends BaseNodeData = BaseNodeData> = Node<T, string> 
 export type SynniaEdge = Edge;
 
 export type NodeStatus = NodeExecutionState;
-
-export interface AgentDefinition {
-    id: string;
-    name: string;
-    description: string;
-    type: 'system' | 'user';
-    inputSchema?: any;
-    outputSchema?: any;
-    execute?: (context: any) => Promise<any>;
-}
 
 export type AssetData = any;
 

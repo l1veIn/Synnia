@@ -3,7 +3,7 @@ import { HTMLAttributes, ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { graphEngine } from "@/lib/engine/GraphEngine";
 
-interface NodeHeaderProps extends HTMLAttributes<HTMLDivElement> {
+interface NodeHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: ReactNode;
   title?: ReactNode;
   actions?: ReactNode;

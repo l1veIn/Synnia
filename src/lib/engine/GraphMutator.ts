@@ -4,8 +4,6 @@ import { AssetType } from '@/types/assets';
 import { nodesConfig } from '@/components/workflow/nodes';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@/lib/graphUtils';
-import { fixRackLayout } from '@/lib/rackLayout';
-import { useWorkflowStore } from '@/store/workflowStore';
 import { XYPosition } from '@xyflow/react';
 
 export class GraphMutator {
@@ -53,8 +51,8 @@ export class GraphMutator {
                 content = content || '';
             }
             
-            // Delegate Asset Creation to Store (until AssetSystem is ready)
-            assetId = useWorkflowStore.getState().createAsset(assetType, content, { name, ...extraMeta });
+            // Use AssetSystem
+            assetId = this.engine.assets.create(assetType, content, { name, ...extraMeta });
         }
 
         const nodeTitle = options.assetName || config.title;
@@ -68,10 +66,13 @@ export class GraphMutator {
                 state: 'idle',
                 assetId,
             },
-            ...(isGroup ? {
-                style: { width: 400, height: 300 },
-            } : {}),
-            style: options.style || {},
+            style: {
+                ...(finalType === NodeType.GROUP ? { width: 400, height: 300 } : {}),
+                ...(finalType === NodeType.RACK ? { width: 300, height: 400 } : {}),
+                ...(finalType === NodeType.IMAGE ? { width: 300, height: 300 } : {}),
+                ...(finalType === NodeType.TEXT ? { width: 250, height: 200 } : {}),
+                ...(options.style || {}),
+            },
         };
 
         const { nodes } = this.engine.state;
@@ -82,11 +83,12 @@ export class GraphMutator {
     }
 
     public removeNode(id: string) {
-        const { nodes, edges } = this.engine.state;
+        const { nodes } = this.engine.state;
         
         const nodesToDelete = new Set<string>();
         const queue = [id];
         
+        // Determine all descendants
         while(queue.length > 0) {
             const currentId = queue.pop()!;
             nodesToDelete.add(currentId);
@@ -94,17 +96,13 @@ export class GraphMutator {
             const children = nodes.filter(n => n.parentId === currentId);
             children.forEach(child => queue.push(child.id));
         }
-        
-        const filteredNodes = nodes.filter((n) => !nodesToDelete.has(n.id));
-        const finalNodes = fixRackLayout(filteredNodes) as SynniaNode[];
 
-        this.engine.setNodes(finalNodes);
-        this.engine.setEdges(edges.filter((e) => !nodesToDelete.has(e.source) && !nodesToDelete.has(e.target)));
+        // Use Engine Batch Primitive
+        this.engine.deleteNodes(Array.from(nodesToDelete));
     }
 
     public duplicateNode(node: SynniaNode, position?: XYPosition) {
         const { nodes, assets } = this.engine.state;
-        const createAsset = useWorkflowStore.getState().createAsset;
         const newId = uuidv4();
         
         const sanitizedNode = sanitizeNodeForClipboard(node);
@@ -114,7 +112,8 @@ export class GraphMutator {
             const originalAsset = assets[newAssetId];
             const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
             
-            newAssetId = createAsset(
+            // Use AssetSystem
+            newAssetId = this.engine.assets.create(
                 originalAsset.type, 
                 contentClone,
                 { 
@@ -137,48 +136,22 @@ export class GraphMutator {
             }
         };
         
-        const deselectedNodes = nodes.map(n => ({ ...n, selected: false }));
-        const finalNodes = sortNodesTopologically([...deselectedNodes, newNode]);
+        this.engine.deselectAll();
+        
+        const finalNodes = sortNodesTopologically([...this.engine.state.nodes, newNode]);
         this.engine.setNodes(finalNodes);
     }
 
     public detachNode(nodeId: string) {
-        const { nodes } = this.engine.state;
-        const node = nodes.find(n => n.id === nodeId);
+        // Reuse reparentNode logic which now handles transform
+        // VerticalStackBehavior.onChildRemove handles all cleanup (reset flags, styles, resize)
+        const node = this.engine.state.nodes.find(n => n.id === nodeId);
         if (!node || !node.parentId) return;
 
-        const parent = nodes.find(n => n.id === node.parentId);
+        // 1. Reparent to Root (triggers hooks)
+        this.engine.reparentNode(nodeId, undefined);
         
-        let newPos = { ...node.position };
-        if (parent) {
-            newPos = {
-                x: parent.position.x + node.position.x,
-                y: parent.position.y + node.position.y
-            };
-        }
-        
-        const sanitizedNode = sanitizeNodeForClipboard(node);
-        
-        const updatedNode = {
-            ...sanitizedNode,
-            id: nodeId,
-            parentId: undefined,
-            extent: undefined,
-            position: newPos,
-            draggable: true,
-            hidden: false,
-            style: { ...sanitizedNode.style, width: undefined, height: undefined },
-            data: {
-                ...sanitizedNode.data,
-                collapsed: false, 
-                handlePosition: 'top-bottom'
-            }
-        } as SynniaNode;
-        
-        let finalNodes = nodes.map(n => n.id === nodeId ? updatedNode : n);
-        finalNodes = fixRackLayout(finalNodes) as SynniaNode[];
-        
-        this.engine.setNodes(sortNodesTopologically(finalNodes));
+        // Note: reparentNode automatically triggers fixGlobalLayout and setNodes
     }
 
     public createRackFromSelection() {
@@ -187,45 +160,121 @@ export class GraphMutator {
        
        if (selectedNodes.length === 0) return;
        
+       // Validation: Prevent creating Rack from already nested nodes
+       // This simplifies the model and avoids coordinate/layout recursion issues
+       const isNested = selectedNodes.some(n => !!n.parentId);
+       if (isNested) {
+           console.warn("[GraphMutator] Cannot create Rack from nested nodes. Detach them first.");
+           return;
+       }
+       
+       // 1. Calculate Dimensions (Fixed Width, Stack Height)
        const minX = Math.min(...selectedNodes.map(n => n.position.x));
        const minY = Math.min(...selectedNodes.map(n => n.position.y));
        
+       const FIXED_WIDTH = 300;
+       const GAP = 10;
+       const PADDING_TOP = 60; // Header + Top Padding
+       const PADDING_BOTTOM = 20;
+
+       let stackHeight = 0;
+       selectedNodes.forEach(n => {
+           // Estimate node height (priority: style > measured > fallback)
+           let h = n.style?.height;
+           if (typeof h !== 'number') {
+               h = n.measured?.height || n.height || 150; // Default to standard height if unknown
+           }
+           stackHeight += (typeof h === 'number' ? h : 150) + GAP;
+       });
+       
        const rackId = uuidv4();
        
+       // 2. Create Rack Node
        const rackNode: SynniaNode = {
            id: rackId,
            type: NodeType.RACK,
            position: { x: minX - 20, y: minY - 50 },
+           parentId: undefined, // Always root as per nested check
            data: { title: 'New Rack', state: 'idle' },
-           style: { width: 300, height: 400 },
+           style: { 
+               width: FIXED_WIDTH, 
+               height: stackHeight + PADDING_TOP + PADDING_BOTTOM
+           },
            selected: true,
            draggable: true
        };
        
-       const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
-       
-       const updatedChildren = sortedNodes.map(node => ({
-           ...node,
-           parentId: rackId,
-           extent: 'parent',
-           position: { x: 0, y: 0 },
-           selected: false,
-           data: { ...node.data, collapsed: true } // Force collapse for Rack
-       } as SynniaNode));
-       
-       const selectedIds = new Set(selectedNodes.map(n => n.id));
-       const unselectedNodes = nodes.filter(n => !selectedIds.has(n.id));
+       const newNodes = [...nodes, rackNode];
+       this.engine.setNodes(newNodes);
 
-       let allNodes = [...unselectedNodes, rackNode, ...updatedChildren];
-       
-       allNodes = fixRackLayout(allNodes) as SynniaNode[];
-       
-       this.engine.setNodes(sortNodesTopologically(allNodes));
+       // 3. Prepare nodes for Rack (Collapse them)
+       const selectedIds = selectedNodes.map(n => n.id);
+       const updates = selectedIds.map(id => {
+           const node = nodes.find(n => n.id === id)!;
+           // Determine current height to backup
+           // Priority: style > measured > fallback
+           let currentHeight = node.style?.height;
+           if (typeof currentHeight !== 'number') {
+                currentHeight = node.measured?.height || node.height;
+           }
+
+           return {
+               id,
+               patch: {
+                   style: {
+                       ...node.style,
+                       height: 50 // Force small height immediately
+                   },
+                   height: 50, // Force top-level height for React Flow
+                   data: { 
+                       ...node.data, 
+                       collapsed: true,
+                       other: {
+                           ...(node.data.other || {}),
+                           // Backup height if it's a number and reasonable (not already collapsed size)
+                           expandedHeight: (typeof currentHeight === 'number' && currentHeight > 60) ? currentHeight : undefined
+                       }
+                   }
+               } as Partial<SynniaNode>
+           };
+       });
+       this.engine.updateNodes(updates);
+
+       // 4. Batch Reparent Selected Nodes into Rack
+       this.engine.reparentNodes(selectedIds, rackId);
+    }
+
+    public createShortcut(nodeId: string) {
+        const { nodes } = this.engine.state;
+        const node = nodes.find(n => n.id === nodeId);
+        
+        const contentTypes = [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE];
+        if (!node || !contentTypes.includes(node.type as NodeType)) return;
+
+        const newId = uuidv4();
+        const sanitizedNode = sanitizeNodeForClipboard(node);
+
+        const newNode: SynniaNode = {
+            ...sanitizedNode,
+            id: newId,
+            position: { x: node.position.x + 20, y: node.position.y + 20 },
+            selected: true,
+            parentId: node.parentId,
+            extent: node.extent,
+            data: {
+                ...sanitizedNode.data,
+                isReference: true,
+                originalNodeId: node.id
+            }
+        };
+
+        this.engine.deselectAll();
+        const finalNodes = sortNodesTopologically([...this.engine.state.nodes, newNode]);
+        this.engine.setNodes(finalNodes);
     }
 
     public pasteNodes(copiedNodes: SynniaNode[]) {
-       const { nodes, assets } = this.engine.state;
-       const createAsset = useWorkflowStore.getState().createAsset;
+       const { assets } = this.engine.state;
        
        const idMap = new Map<string, string>();
        copiedNodes.forEach(n => idMap.set(n.id, uuidv4()));
@@ -247,13 +296,15 @@ export class GraphMutator {
                if (assets[newAssetId]) {
                    const originalAsset = assets[newAssetId];
                    const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
-                   newAssetId = createAsset(
+                   
+                   // Use AssetSystem
+                   newAssetId = this.engine.assets.create(
                        originalAsset.type,
                        contentClone,
                        { name: `${originalAsset.metadata.name} (Copy)` }
                    );
                } else {
-                   newAssetId = createAsset(
+                   newAssetId = this.engine.assets.create(
                        'text', 
                        'Content unavailable (Source asset missing)', 
                        { name: 'Missing Asset' }
@@ -278,8 +329,8 @@ export class GraphMutator {
            } as SynniaNode;
        });
 
-       const deselectedNodes = nodes.map(n => ({ ...n, selected: false }));
-       const finalNodes = sortNodesTopologically([...deselectedNodes, ...newNodes]);
+       this.engine.deselectAll();
+       const finalNodes = sortNodesTopologically([...this.engine.state.nodes, ...newNodes]);
        this.engine.setNodes(finalNodes);
     }
 }

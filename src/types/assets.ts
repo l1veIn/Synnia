@@ -30,14 +30,15 @@ export interface ExtendedMetadata extends RustMetadata {
 // Form / Recipe Schema Definitions
 // ==========================================
 
-export type FieldType = 'string' | 'number' | 'boolean' | 'select';
-export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select';
+export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object';
+export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'node-input' | 'none';
 
 export interface FieldRule {
     min?: number;
     max?: number;
     step?: number;
     options?: string[]; // For select
+    requiredKeys?: string[]; // For object (validation)
     required?: boolean;
     placeholder?: string;
 }

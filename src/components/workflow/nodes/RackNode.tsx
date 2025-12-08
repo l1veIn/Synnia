@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { GripHorizontal, Layers } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { NodeConfig } from '@/types/node-config';
+import { VerticalStackBehavior } from '@/lib/behaviors/VerticalStackBehavior';
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -17,6 +18,8 @@ export const config: NodeConfig = {
     defaultHeight: 400,
 };
 
+export const behavior = VerticalStackBehavior;
+
 // --- Node Component ---
 export const RackNode = memo(({ id, data, selected, width, height }: NodeProps<SynniaNode>) => {
     const highlightedGroupId = useWorkflowStore(state => state.highlightedGroupId);
@@ -25,8 +28,8 @@ export const RackNode = memo(({ id, data, selected, width, height }: NodeProps<S
     return (
         <div 
             className={cn(
-                "group relative flex flex-col rounded-xl border-2 transition-all duration-200",
-                "bg-card/40 backdrop-blur-md min-w-[200px] min-h-[100px]",
+                "group relative flex flex-col rounded-xl border-2 transition-all duration-200 antialiased transform-gpu",
+                "bg-card/40 min-w-[200px] min-h-[100px] backdrop-blur-md",
                 selected ? "border-primary shadow-lg shadow-primary/20" : "border-border/40 hover:border-border",
                 isHighlighted && "border-primary/50 bg-primary/5 ring-2 ring-primary/20",
             )}

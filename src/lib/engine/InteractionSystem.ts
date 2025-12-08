@@ -4,20 +4,15 @@ import {
     OnConnect, 
     OnNodesChange, 
     OnEdgesChange, 
-    NodeChange,
-    EdgeChange,
-    Connection,
     applyNodeChanges,
     applyEdgeChanges,
     addEdge
 } from '@xyflow/react';
 import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
-import { isNodeInsideGroup, sortNodesTopologically } from '@/lib/graphUtils';
-import { fixRackLayout } from '@/lib/rackLayout';
-import { getContainerStrategy } from '@/lib/strategies/registry';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { sortNodesTopologically } from '@/lib/graphUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { getDescendants, sanitizeNodeForClipboard } from '@/lib/graphUtils';
+import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@/lib/graphUtils';
+import { useWorkflowStore } from '@/store/workflowStore';
 
 export class InteractionSystem {
     private engine: GraphEngine;
@@ -141,7 +136,7 @@ export class InteractionSystem {
         });
         
         if (shouldRelayout) {
-             this.engine.setNodes(fixRackLayout(updatedNodes));
+             this.engine.setNodes(this.engine.layout.fixGlobalLayout(updatedNodes));
         } else {
              this.engine.setNodes(updatedNodes);
         }
@@ -158,65 +153,62 @@ export class InteractionSystem {
     };
 
     public onNodeDrag: OnNodeDrag = (_event, node) => {
-         const { nodes, highlightedGroupId } = this.engine.state;
-         
-         const groups = nodes.filter(n => (n.type === NodeType.GROUP || n.type === NodeType.RACK) && n.id !== node.id);
-         const intersectingGroups = groups.filter(group => isNodeInsideGroup(node, group));
-         
-         let targetGroup = null;
-         if (intersectingGroups.length > 0) {
-           targetGroup = intersectingGroups.reduce((prev, curr) => {
-             const prevArea = (prev.measured?.width || 0) * (prev.measured?.height || 0);
-             const currArea = (curr.measured?.width || 0) * (curr.measured?.height || 0);
-             return prevArea < currArea ? prev : curr;
-           });
-         }
-         
-         const newHighlight = targetGroup ? targetGroup.id : null;
-         
-         if (highlightedGroupId !== newHighlight) {
-           useWorkflowStore.setState({ highlightedGroupId: newHighlight });
-         }
+        // Detect hover over Rack/Group for highlighting
+        const { nodes, highlightedGroupId } = this.engine.state;
+        
+        // Only target top-level containers that are not the node itself
+        const targets = nodes.filter(n => 
+            (n.type === NodeType.RACK || n.type === NodeType.GROUP) && 
+            n.id !== node.id && 
+            !n.parentId
+        );
+
+        let foundId: string | null = null;
+        // Find topmost intersecting container
+        for (let i = targets.length - 1; i >= 0; i--) {
+            if (isNodeInsideGroup(node, targets[i])) {
+                foundId = targets[i].id;
+                break;
+            }
+        }
+
+        // Optimization: Only update store if changed
+        if (highlightedGroupId !== foundId) {
+            useWorkflowStore.setState({ highlightedGroupId: foundId });
+        }
     };
 
     public onNodeDragStop: OnNodeDrag = (_event, node) => {
-         useWorkflowStore.setState({ highlightedGroupId: null });
-         
-         const { nodes } = this.engine.state;
-         const groups = nodes.filter((n) => (n.type === NodeType.GROUP || n.type === NodeType.RACK) && n.id !== node.id);
-         
-         const intersectingGroups = groups.filter(group => isNodeInsideGroup(node, group));
-         let targetGroup = null;
-         if (intersectingGroups.length > 0) {
-           targetGroup = intersectingGroups.reduce((prev, curr) => {
-             const prevArea = (prev.measured?.width || 0) * (prev.measured?.height || 0);
-             const currArea = (curr.measured?.width || 0) * (curr.measured?.height || 0);
-             return prevArea < currArea ? prev : curr;
-           });
-         }
-         
-         let hasGrouped = false;
-         
-         if (targetGroup && node.parentId !== targetGroup.id) {
-           // Prevent Group/Rack Nesting (for now)
-           if (node.type === NodeType.GROUP || node.type === NodeType.RACK) {
-               return;
-           }
+        // Clear highlight
+        useWorkflowStore.setState({ highlightedGroupId: null });
 
-           const strategy = getContainerStrategy(targetGroup);
-           
-           if (strategy) {
-               const result = strategy.onDrop(nodes, node as SynniaNode, targetGroup);
-               if (result.handled) {
-                   this.engine.setNodes(sortNodesTopologically(result.updatedNodes));
-                   hasGrouped = true;
-               }
-           }
-         } 
-         
-         if (!hasGrouped) {
-             // Just trigger update to ensure state consistency (optional)
-             this.engine.setNodes([...nodes]);
-         }
+        // 1. Get Potential Targets (Racks or Groups)
+        // Only consider top-level containers for now to avoid complexity with nested coordinate systems during drag detection
+        const targets = this.engine.state.nodes.filter(n => 
+            (n.type === NodeType.RACK || n.type === NodeType.GROUP) && 
+            n.id !== node.id && 
+            !n.parentId // Target must be a root container
+        );
+
+        // If dragging a nested node, we might need world position calculation. 
+        // For "New Node -> Rack", the node is root (parentId is undefined), so direct comparison works.
+        if (node.parentId) return;
+
+        let droppedTarget: SynniaNode | null = null;
+
+        // 2. Find Intersection (Topmost first)
+        for (let i = targets.length - 1; i >= 0; i--) {
+            const target = targets[i];
+            if (isNodeInsideGroup(node, target)) {
+                droppedTarget = target;
+                break;
+            }
+        }
+
+        // 3. Reparent
+        if (droppedTarget) {
+            // This triggers VerticalStackBehavior.onChildAdd automatically
+            this.engine.reparentNode(node.id, droppedTarget.id);
+        }
     };
 }

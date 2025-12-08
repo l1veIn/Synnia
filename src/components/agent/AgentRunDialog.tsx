@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AgentDefinition } from '@/types/project';
+import { AgentDefinition } from '@/bindings/synnia';
 import { SchemaForm, SchemaField } from './SchemaForm';
 import { Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';

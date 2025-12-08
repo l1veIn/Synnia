@@ -70,7 +70,7 @@ export function useCanvasLogic() {
   );
 
   const onPaneContextMenu = useCallback(
-    (event: React.MouseEvent) => {
+    (event: React.MouseEvent | MouseEvent) => {
       setContextMenuTarget({
         type: 'canvas',
         position: { x: event.clientX, y: event.clientY },

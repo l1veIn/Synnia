@@ -51,6 +51,17 @@ export function FormRenderer({ schema, values, onChange }: RendererProps) {
 function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void) {
     const rules = field.rules || {};
     
+    // 1. Special Widget: Node Input (Read-only, Graph Driven)
+    if (field.widget === 'node-input') {
+        return (
+            <div className="h-8 w-full rounded border bg-muted/30 flex items-center px-3 text-xs text-muted-foreground select-none cursor-not-allowed">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse" />
+                <span className="font-medium mr-1">Node Input</span>
+                <span className="opacity-50 italic">- Connect on Canvas</span>
+            </div>
+        );
+    }
+    
     // Default fallback values
     const safeVal = value ?? field.defaultValue ?? '';
 

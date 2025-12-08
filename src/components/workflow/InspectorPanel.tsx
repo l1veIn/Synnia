@@ -89,7 +89,7 @@ export const InspectorPanel = () => {
              </div>
              
              {/* Asset Specific Editor */}
-             <div className="flex-1 min-h-0 relative">
+             <div className="flex-1 min-h-0 relative overflow-y-scroll">
                  <NodeInspector node={selectedNode} />
              </div>
           </div>

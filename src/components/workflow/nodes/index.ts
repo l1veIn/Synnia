@@ -1,6 +1,7 @@
 import { NodeType } from '@/types/project';
 import { NodeConfig } from '@/types/node-config';
 import { FallbackNode } from './FallbackNode'; 
+import { behaviorRegistry } from '@/lib/engine/BehaviorRegistry';
 
 // Auto-import all node modules
 const modules = import.meta.glob('./**/*.tsx', { eager: true });
@@ -20,7 +21,7 @@ export const nodesConfig: Record<string, NodeConfig> = {};
 // Legacy Configs (Manual migration needed eventually)
 import { FileText, StickyNote, Layers } from 'lucide-react';
 
-nodesConfig[NodeType.ASSET] = { type: NodeType.ASSET, title: 'Asset', category: 'Asset', icon: FileText, description: 'Generic Asset' };
+nodesConfig[NodeType.ASSET] = { type: NodeType.ASSET, title: 'Asset', category: 'Asset', icon: FileText, description: 'Generic Asset', hidden: true };
 nodesConfig[NodeType.NOTE] = { type: NodeType.NOTE, title: 'Note', category: 'Utility', icon: StickyNote, hidden: true };
 nodesConfig[NodeType.COLLECTION] = { type: NodeType.COLLECTION, title: 'Collection', category: 'Container', icon: Layers, hidden: true };
 
@@ -43,6 +44,11 @@ for (const path in modules) {
         
         // Register Metadata
         nodesConfig[type] = mod.config;
+
+        // Register Behavior
+        if (mod.behavior) {
+            behaviorRegistry.register(type, mod.behavior);
+        }
         
         // console.log(`[NodeRegistry] Auto-loaded node: ${type}`);
     }

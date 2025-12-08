@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AgentEditorDialog } from '@/components/agent/AgentEditorDialog';
-import { AgentDefinition } from '@/types/project';
+import { AgentDefinition } from '@/bindings/synnia';
 import { toast } from 'sonner';
-import { SYSTEM_AGENTS } from '@/lib/systemAgents';
+import { SYSTEM_AGENTS, SystemAgent } from '@/lib/systemAgents';
 import { AgentRunDialog } from '@/components/agent/AgentRunDialog';
 
 export default function AgentsPage() {
-    const [agents, setAgents] = useState<AgentDefinition[]>([]);
+    // We use a union type here because System Agents have extra properties (execute)
+    // but for the UI list, we treat them as AgentDefinition
+    const [agents, setAgents] = useState<(AgentDefinition | SystemAgent)[]>([]);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editingAgent, setEditingAgent] = useState<AgentDefinition | undefined>(undefined);
     const [runDialogOpen, setRunDialogOpen] = useState(false);

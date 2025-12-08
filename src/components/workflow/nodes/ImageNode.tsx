@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { NodeProps, Position, NodeResizer } from '@xyflow/react';
+import { NodeProps, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from './primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from './primitives/NodeHeader';
@@ -10,6 +10,8 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { NodeConfig } from '@/types/node-config';
+import { cn } from '@/lib/utils';
+import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -18,7 +20,10 @@ export const config: NodeConfig = {
     category: 'Asset',
     icon: ImageIcon,
     description: 'Image content',
+    hidden: true,
 };
+
+export const behavior = StandardAssetBehavior;
 
 // --- Inspector Component ---
 export const ImageNodeInspector = ({ assetId }: { assetId: string }) => {
@@ -54,10 +59,18 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   const { id, data, selected } = props;
   const { asset, setContent } = useAsset(data.assetId);
   const removeNode = useWorkflowStore((state) => state.removeNode);
+  const updateNode = useWorkflowStore((state) => state.updateNode);
   const serverPort = useWorkflowStore(s => s.serverPort);
+  const updateNodeInternals = useUpdateNodeInternals();
   const state = data.state || 'idle';
   const isReadOnly = !!data.isReference;
   const isCollapsed = !!data.collapsed;
+  const enableResize = data.other?.enableResize !== false;
+
+  // Trigger re-measure when collapsed state changes
+  useEffect(() => {
+      updateNodeInternals(id);
+  }, [isCollapsed, id, updateNodeInternals]);
 
   // Inline Logic
   const [localContent, setLocalContent] = useState('');
@@ -88,18 +101,28 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   const { width, height } = asset?.metadata?.image || {};
 
   return (
-    <NodeShell selected={selected} state={state} className="min-w-[200px] h-full">
+    <NodeShell selected={selected} state={state} className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}>
       <NodeResizer 
-        isVisible={selected && !isReadOnly && !isCollapsed} 
+        isVisible={selected && !isReadOnly && !isCollapsed && enableResize} 
         minWidth={200}
         minHeight={200}
         color="#3b82f6"
         handleStyle={{ width: 8, height: 8, borderRadius: 4 }}
+        onResizeEnd={(_e, params) => {
+            updateNode(id, {
+                style: {
+                    ...props.style,
+                    width: params.width,
+                    height: params.height,
+                },
+            });
+        }}
       />
       
-      <NodePort type="target" position={Position.Top} />
+      <NodePort type="target" position={Position.Top} className="!bg-stone-400" />
       
       <NodeHeader 
+        className={cn(isCollapsed && "border-b-0 rounded-xl")}
         icon={<ImageIcon className="h-4 w-4" />}
         title={data.title || 'Image'}
         actions={
@@ -139,7 +162,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
           </div>
       )}
 
-      <NodePort type="source" position={Position.Bottom} />
+      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" />
     </NodeShell>
   );
 });

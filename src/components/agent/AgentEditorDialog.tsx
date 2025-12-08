@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea"; // Re-added
-import { AgentDefinition } from '@/types/project';
+import { AgentDefinition } from '@/bindings/synnia';
+import { Switch } from "@/components/ui/switch";
+
 import { JsonSchemaEditor } from './JsonSchemaEditor';
 import { v4 as uuidv4 } from 'uuid';
 

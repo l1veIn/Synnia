@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { NodeProps, Position, useHandleConnections } from '@xyflow/react';
+import { NodeProps, Position, useNodeConnections, NodeResizer } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from '../primitives/NodeHeader';
@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig } from '@/types/node-config';
+import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -24,27 +25,30 @@ export const config: NodeConfig = {
     description: 'Processing unit',
 };
 
+// --- Behavior ---
+export const behavior = StandardAssetBehavior;
+
 export { RecipeNode as Node, RecipeNodeInspector as Inspector };
 
 // --- Inner Components ---
 
 const RecipeFieldRow = ({ field, value, nodeId }: { field: FieldDefinition, value: any, nodeId: string }) => {
-    const connections = useHandleConnections({
-        type: 'target',
-        id: field.key,
-        nodeId
+    const connections = useNodeConnections({
+        handleType: 'target',
+        handleId: field.key,
     });
     const isConnected = connections.length > 0;
     const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
 
     return (
         <div className="relative flex items-center justify-between gap-2 overflow-visible group min-h-[20px]">
-             {field.connection?.enabled && (
+             {field.widget === 'node-input' && (
                 <NodePort 
                     type="target"
                     position={Position.Left}
                     id={field.key}
-                    className={cn("-left-5 top-1/2 -translate-y-1/2", isConnected && "!bg-blue-500 !border-blue-500")}
+                    // Always blue to indicate input port
+                    className={cn("left-[-12px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-2 border-background !bg-blue-500 !border-blue-500")}
                 />
             )}
             
@@ -68,16 +72,18 @@ const RecipeFieldRow = ({ field, value, nodeId }: { field: FieldDefinition, valu
 // --- Main Node ---
 
 export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
-  const { id, data, selected } = props;
+  const { id, data, selected, style } = props;
   const { asset } = useAsset(data.assetId);
   const { runAgent } = useRunAgent();
   const removeNode = useWorkflowStore((state) => state.removeNode);
+  const updateNode = useWorkflowStore(s => s.updateNode);
   
   const agentId = asset?.metadata?.extra?.agentId;
   const isBound = !!agentId;
   const state = data.state || 'idle';
   const isRunning = state === 'running';
   const isCollapsed = !!data.collapsed;
+  const enableResize = data.other?.enableResize !== false;
 
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -117,7 +123,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
              </div>
              
              <ScrollArea className="flex-1 w-full -mr-2 pr-2">
-                <div className="space-y-1.5 pb-2 pl-2">
+                <div className="space-y-1.5 pb-2 pl-5">
                     {schema.map(field => {
                         const val = values[field.key];
                         return <RecipeFieldRow key={field.id} field={field} value={val} nodeId={id} />;
@@ -129,8 +135,29 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
   };
 
   return (
-    <NodeShell selected={selected} state={state} className="min-w-[240px]">
-      <NodePort type="target" position={Position.Top} />
+    <NodeShell 
+        selected={selected} 
+        state={state} 
+        className={cn("min-w-[240px]", isCollapsed ? "h-auto min-h-0" : "h-full")}
+    >
+      <NodeResizer 
+        isVisible={selected && !isCollapsed && enableResize} 
+        minWidth={240}
+        minHeight={150}
+        color="#3b82f6"
+        handleStyle={{ width: 8, height: 8, borderRadius: 4 }}
+        onResizeEnd={(_e, params) => {
+            updateNode(id, {
+                style: {
+                    ...style,
+                    width: params.width,
+                    height: params.height,
+                },
+            });
+        }}
+      />
+
+      <NodePort type="target" position={Position.Top} className="!bg-stone-400" />
       
       <NodeHeader 
         icon={<ScrollText className="h-4 w-4" />}
@@ -153,13 +180,16 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
       />
 
       {!isCollapsed && (
-          <div className="p-3 min-h-[40px] flex-1 flex flex-col">
+          <div className="p-3 min-h-[40px] flex-1 flex flex-col overflow-hidden">
               {renderContent()}
           </div>
       )}
 
-      <NodePort type="source" position={Position.Right} id="reference" />
-      <NodePort type="source" position={Position.Bottom} isConnectable={false} />
+      {/* Right: Reference (Data Context) -> Yellow */}
+      <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
+      
+      {/* Bottom: Product (Execution Result) -> Purple */}
+      <NodePort type="source" position={Position.Bottom} id="product" className="!bg-purple-500" />
     </NodeShell>
   );
 });

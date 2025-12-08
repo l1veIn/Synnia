@@ -14,9 +14,8 @@ import { useWorkflowStore } from "@/store/workflowStore";
 import { useReactFlow } from "@xyflow/react";
 import { NodeType, SynniaNode } from "@/types/project";
 import { nodesConfig } from "./nodes";
-import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
-import { Home, Image as ImageIcon } from "lucide-react";
+import { Home } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditorContextMenuProps {
@@ -41,6 +40,8 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const hasParent = !!targetNode?.parentId;
   const parentNode = hasParent ? nodes.find(n => n.id === targetNode?.parentId) : null;
   const parentLabel = parentNode?.type === NodeType.RACK ? 'Rack' : 'Group';
+
+  const isShortcuttable = targetNode && [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
 
   const handleAddNode = (type: NodeType) => {
     if (contextMenuTarget?.position) {
@@ -240,7 +241,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
             )}
             <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
             {/* Only Asset Nodes can be shortcutted */}
-            {targetNode?.type === NodeType.ASSET && (
+            {isShortcuttable && (
                  <ContextMenuItem onSelect={handleCreateShortcut}>Create Shortcut</ContextMenuItem>
             )}
             <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>

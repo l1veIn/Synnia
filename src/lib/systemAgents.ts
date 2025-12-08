@@ -1,9 +1,14 @@
-export interface SystemAgent {
-    id: string;
-    name: string;
-    description: string;
-    requiredFields: string[]; // Simple validation check
-    // In a real app, this would verify types too
+import { AgentDefinition } from '@/bindings/synnia';
+
+export interface SystemAgent extends Omit<AgentDefinition, 'inputSchema' | 'systemPrompt' | 'outputConfig' | 'isSystem'> {
+    // We override/add these to match the binding shape at runtime
+    inputSchema: string;
+    systemPrompt: string;
+    outputConfig: string | null;
+    isSystem: boolean;
+    
+    // Internal execution logic (not serialized)
+    requiredFields: string[]; 
     execute: (values: Record<string, any>) => Promise<{ type: 'text' | 'image' | 'json', content: any }>;
 }
 
@@ -12,7 +17,18 @@ export const SYSTEM_AGENTS: SystemAgent[] = [
         id: 'agent-division',
         name: 'Division Calculator',
         description: 'Divides A by B (B != 0)',
+        isSystem: true,
+        systemPrompt: 'INTERNAL_CODE',
+        outputConfig: null,
         requiredFields: ['a', 'b'],
+        inputSchema: JSON.stringify({
+            type: "object",
+            properties: {
+                a: { type: "number" },
+                b: { type: "number" }
+            },
+            required: ["a", "b"]
+        }),
         execute: async (values) => {
             // Helper to extract value from potential Asset object
             const extractNumber = (v: any) => {
@@ -46,7 +62,18 @@ export const SYSTEM_AGENTS: SystemAgent[] = [
         id: 'agent-concat',
         name: 'Text Concatenator',
         description: 'Joins two text inputs',
+        isSystem: true,
+        systemPrompt: 'INTERNAL_CODE',
+        outputConfig: null,
         requiredFields: ['text1', 'text2'],
+        inputSchema: JSON.stringify({
+             type: "object",
+             properties: {
+                 text1: { type: "string" },
+                 text2: { type: "string" }
+             },
+             required: ["text1", "text2"]
+        }),
         execute: async (values) => {
             const extract = (v: any) => {
                 if (typeof v === 'object' && v !== null && v.content) return String(v.content);

@@ -1,11 +1,17 @@
 import { useWorkflowStore, WorkflowState } from '@/store/workflowStore';
 import { LayoutSystem } from './LayoutSystem';
+import { InteractionSystem } from './InteractionSystem';
+import { GraphMutator } from './GraphMutator';
 
 export class GraphEngine {
     public layout: LayoutSystem;
+    public interaction: InteractionSystem;
+    public mutator: GraphMutator;
 
     constructor() {
         this.layout = new LayoutSystem(this);
+        this.interaction = new InteractionSystem(this);
+        this.mutator = new GraphMutator(this);
     }
 
     /**

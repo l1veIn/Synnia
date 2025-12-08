@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position } from '@xyflow/react';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from './primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from './primitives/NodeHeader';
 import { NodePort } from './primitives/NodePort';
@@ -9,6 +9,16 @@ import { FileText, Trash2 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { NodeConfig } from '@/types/node-config';
+
+// --- Configuration ---
+export const config: NodeConfig = {
+    type: NodeType.TEXT,
+    title: 'Text',
+    category: 'Asset',
+    icon: FileText,
+    description: 'Text content',
+};
 
 // --- Inspector Component ---
 export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
@@ -93,3 +103,6 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   );
 });
 TextNode.displayName = 'TextNode';
+
+// Standard Exports for Auto-Loader
+export { TextNode as Node, TextNodeInspector as Inspector };

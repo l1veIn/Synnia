@@ -5,34 +5,29 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
 import { SynniaNode, NodeType } from "@/types/project";
-import { TextNodeInspector } from './nodes/TextNode';
-import { ImageNodeInspector } from './nodes/ImageNode';
-import { RecipeNodeInspector } from './nodes/RecipeNode';
+import { inspectorTypes } from '@/components/workflow/nodes';
 
 // Helper Component for Asset Editing
 const NodeInspector = ({ node }: { node: SynniaNode }) => {
     const assetId = node.data.assetId;
     if (!assetId) return <div className="p-4 text-xs text-muted-foreground">Asset not found</div>;
 
-    switch (node.type) {
-        case NodeType.TEXT:
-            return <TextNodeInspector assetId={assetId} />;
-        case NodeType.IMAGE:
-            return <ImageNodeInspector assetId={assetId} />;
-        case NodeType.RECIPE:
-            return <RecipeNodeInspector assetId={assetId} />;
-        default:
-            return (
-                <div className="p-4 space-y-4">
-                     <div className="text-xs text-muted-foreground">
-                         Properties for <span className="font-bold uppercase">{node.type}</span>
-                     </div>
-                     <div className="text-[10px] text-muted-foreground font-mono">
-                         Asset ID: {assetId}
-                     </div>
-                </div>
-            );
+    const Inspector = inspectorTypes[node.type];
+    
+    if (Inspector) {
+        return <Inspector assetId={assetId} />;
     }
+
+    return (
+        <div className="p-4 space-y-4">
+             <div className="text-xs text-muted-foreground">
+                 Properties for <span className="font-bold uppercase">{node.type}</span>
+             </div>
+             <div className="text-[10px] text-muted-foreground font-mono">
+                 Asset ID: {assetId}
+             </div>
+        </div>
+    );
 };
 
 export const InspectorPanel = () => {

@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position, NodeResizer } from '@xyflow/react';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from './primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from './primitives/NodeHeader';
 import { NodePort } from './primitives/NodePort';
@@ -9,6 +9,16 @@ import { Image as ImageIcon, Trash2 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { NodeConfig } from '@/types/node-config';
+
+// --- Configuration ---
+export const config: NodeConfig = {
+    type: NodeType.IMAGE,
+    title: 'Image',
+    category: 'Asset',
+    icon: ImageIcon,
+    description: 'Image content',
+};
 
 // --- Inspector Component ---
 export const ImageNodeInspector = ({ assetId }: { assetId: string }) => {
@@ -65,7 +75,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
     }
 
     if ((raw.startsWith('assets/') || raw.startsWith('assets\')) && serverPort) {
-        const filename = raw.replace(/\/g, '/').split('/').pop();
+        const filename = raw.replace(/\\/g, '/').split('/').pop();
         const url = `http://localhost:${serverPort}/assets/${filename}`;
         setLocalContent(url);
     } 
@@ -128,3 +138,6 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   );
 });
 ImageNode.displayName = 'ImageNode';
+
+// Standard Exports
+export { ImageNode as Node, ImageNodeInspector as Inspector };

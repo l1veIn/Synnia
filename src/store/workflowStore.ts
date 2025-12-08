@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
 import { Asset, AssetType } from '@/types/assets';
-import { nodesConfig } from '@/components/workflow/nodes/registry';
+import { nodesConfig } from '@/components/workflow/nodes';
 import { v4 as uuidv4 } from 'uuid';
 import { 
     isNodeInsideGroup, 

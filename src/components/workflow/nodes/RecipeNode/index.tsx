@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { NodeProps, Position, useHandleConnections } from '@xyflow/react';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
@@ -13,8 +13,18 @@ import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
+import { NodeConfig } from '@/types/node-config';
 
-export { RecipeNodeInspector };
+// --- Configuration ---
+export const config: NodeConfig = {
+    type: NodeType.RECIPE,
+    title: 'Recipe',
+    category: 'Process',
+    icon: Play,
+    description: 'Processing unit',
+};
+
+export { RecipeNode as Node, RecipeNodeInspector as Inspector };
 
 // --- Inner Components ---
 

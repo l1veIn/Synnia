@@ -2,12 +2,8 @@ import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } fr
 import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect } from 'react';
 
-import { AssetNode } from '@/components/workflow/nodes/AssetNode';
-import { TextNode } from '@/components/workflow/nodes/TextNode';
-import { ImageNode } from '@/components/workflow/nodes/ImageNode';
-import { RecipeNode } from '@/components/workflow/nodes/RecipeNode';
-import { GroupNode } from '@/components/workflow/nodes/GroupNode';
-import { RackNode } from '@/components/workflow/nodes/RackNode';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { nodeTypes } from '@/components/workflow/nodes';
 import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Plus, Save, Box, Home, Image as ImageIcon, FileText } from 'lucide-react';
@@ -104,20 +100,7 @@ function CanvasFlow() {
   }, []);
 
   // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders/warnings
-  const nodeTypes = useMemo(() => ({
-    // Specific Types
-    'text-node': TextNode,
-    'image-node': ImageNode,
-    'recipe-node': RecipeNode,
-    
-    // Legacy / Generic Mappings
-    [NodeType.ASSET]: AssetNode,
-    [NodeType.GROUP]: GroupNode,
-    [NodeType.RACK]: RackNode,
-    [NodeType.RECIPE]: RecipeNode, // Map recipe-node to RecipeNode
-    [NodeType.NOTE]: AssetNode,
-    [NodeType.COLLECTION]: AssetNode,
-  }), []);
+  const memoizedNodeTypes = useMemo(() => nodeTypes, []);
 
   const edgeTypes = useMemo(() => ({
     deletable: DeletableEdge,
@@ -181,7 +164,7 @@ function CanvasFlow() {
             onNodeDragStart={handleNodeDragStart}
             onNodeDragStop={handleNodeDragStop}
             onNodeDrag={onNodeDrag}
-            nodeTypes={nodeTypes}
+            nodeTypes={memoizedNodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={{ type: 'deletable', animated: true }}
             deleteKeyCode={null} // 禁用默认删除，交给 useGlobalShortcuts 处理级联删除

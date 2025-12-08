@@ -1,10 +1,5 @@
 import { BaseNodeFrame, BaseNodeFrameProps } from './base-node-frame';
 import { useAsset } from '@/hooks/useAsset';
-import { TextAssetView } from './views/TextAssetView';
-import { ImageAssetView } from './views/ImageAssetView';
-import { JsonAssetView } from './views/JsonAssetView';
-import { FormAssetView } from './views/FormAssetView';
-import { isFormAsset } from '@/types/assets';
 import { NodeResizer } from '@xyflow/react';
 import { useRunAgent } from '@/hooks/useRunAgent';
 import { NodeType } from '@/types/project';
@@ -12,11 +7,10 @@ import { toast } from 'sonner';
 
 export function AssetNode(props: BaseNodeFrameProps) {
   const { id, data, selected, type } = props;
-  const { asset, setContent, exists } = useAsset(data.assetId);
+  const { asset, exists } = useAsset(data.assetId);
   const { runAgent } = useRunAgent();
   const isReadOnly = !!data.isReference;
 
-  // Check if this asset has a bound agent/recipe
   const agentId = asset?.metadata?.extra?.agentId;
   const isRecipeNode = type === NodeType.RECIPE;
   const isBound = !!agentId;
@@ -33,10 +27,8 @@ export function AssetNode(props: BaseNodeFrameProps) {
       });
   };
 
-  // Dispatcher Logic: Choose the right view based on Asset Type
   const renderContent = () => {
       if (!exists || !asset) {
-          // Legacy Fallback for nodes created before V2 migration
           if (data.content) {
              return (
                  <div className="p-2 border border-dashed rounded bg-muted/20">
@@ -50,15 +42,34 @@ export function AssetNode(props: BaseNodeFrameProps) {
 
       switch (asset.type) {
           case 'text':
-              return <TextAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
+              return (
+                  <div className="p-1 w-full h-full">
+                    <div className="text-xs text-muted-foreground mb-1 font-mono">Legacy Text</div>
+                    <textarea 
+                        readOnly 
+                        className="w-full h-full bg-transparent resize-none text-xs focus:outline-none"
+                        value={String(asset.content)} 
+                    />
+                  </div>
+              );
           case 'image':
-              return <ImageAssetView asset={asset} isReadOnly={isReadOnly} onUpdate={setContent} />;
+              let src = '';
+              if (typeof asset.content === 'string') src = asset.content;
+              else if (typeof asset.content === 'object' && asset.content && 'src' in asset.content) src = (asset.content as any).src;
+              
+              return (
+                  <div className="relative w-full h-full min-h-[100px] bg-muted">
+                       {src && <img src={src} className="absolute inset-0 w-full h-full object-cover" />}
+                       <div className="absolute top-1 left-1 bg-black/50 text-white text-[10px] px-1 rounded">Legacy Image</div>
+                  </div>
+              );
           case 'json':
-              // Smart Routing: Check if it's a Structured Form or Raw JSON
-              if (isFormAsset(asset.content)) {
-                  return <FormAssetView asset={asset} />;
-              }
-              return <JsonAssetView asset={asset} />;
+              return (
+                  <div className="p-2 text-[10px] font-mono overflow-auto h-full">
+                      <div className="text-muted-foreground mb-1">Legacy JSON</div>
+                      <pre>{JSON.stringify(asset.content, null, 2)}</pre>
+                  </div>
+              );
           default:
               return <div className="text-xs text-muted-foreground">Unsupported Asset Type: {asset.type}</div>;
       }
@@ -70,7 +81,7 @@ export function AssetNode(props: BaseNodeFrameProps) {
         onToggleRun={isBound ? handleRun : undefined}
         isRunDisabled={isRecipeNode && !isBound}
         onRunDisabledClick={handleDisabledRun}
-        isSourceConnectable={!isRecipeNode} // Disable manual output connection for Recipe Nodes (Factory Mode)
+        isSourceConnectable={!isRecipeNode}
     >
       <NodeResizer 
         isVisible={selected && !isReadOnly && !isRecipeNode} 

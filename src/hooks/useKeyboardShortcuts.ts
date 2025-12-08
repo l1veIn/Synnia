@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import { Node } from '@xyflow/react';
-import { UIAssetNodeData } from '@/components/nodes/AssetNode';
+import { SynniaNode } from '@/types/project';
 
 interface UseKeyboardShortcutsProps {
     handleManualSave: () => void;
-    setNodes: (update: (nds: Node<UIAssetNodeData>[]) => Node<UIAssetNodeData>[]) => void;
+    setNodes: (update: (nds: SynniaNode[]) => SynniaNode[]) => void;
     setToolMode: (mode: 'select' | 'hand') => void;
     fitView: (options?: any) => void;
     undo: () => void;

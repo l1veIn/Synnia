@@ -42,6 +42,11 @@ export interface FieldRule {
     placeholder?: string;
 }
 
+export interface FieldConnection {
+    enabled: boolean;
+    supportedTypes?: string[]; // e.g. ['image', 'json']
+}
+
 export interface FieldDefinition {
     id: string; // Internal ID for UI key stability
     key: string; // The actual variable name
@@ -49,6 +54,7 @@ export interface FieldDefinition {
     type: FieldType;
     widget?: WidgetType;
     rules?: FieldRule;
+    connection?: FieldConnection;
     defaultValue?: any;
 }
 

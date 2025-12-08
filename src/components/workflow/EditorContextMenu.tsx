@@ -13,7 +13,7 @@ import {
 import { useWorkflowStore } from "@/store/workflowStore";
 import { useReactFlow } from "@xyflow/react";
 import { NodeType, SynniaNode } from "@/types/project";
-import { nodesConfig } from "./nodes/registry";
+import { nodesConfig } from "./nodes";
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 import { Home, Image as ImageIcon } from "lucide-react";

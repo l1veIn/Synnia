@@ -9,7 +9,7 @@ import {
   NodeHeaderAction 
 } from '../ui/node-header';
 import { BaseHandle } from '../ui/base-handle';
-import { nodesConfig } from './registry';
+import { nodesConfig } from '.';
 import { SynniaNode, NodeType } from '@/types/project';
 import { Trash2, Play, CirclePause, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';

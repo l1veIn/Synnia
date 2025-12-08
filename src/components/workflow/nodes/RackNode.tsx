@@ -1,10 +1,23 @@
 import { memo } from 'react';
 import { NodeProps, Handle, Position } from '@xyflow/react';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode, NodeType } from '@/types/project';
 import { cn } from '@/lib/utils';
 import { GripHorizontal, Layers } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { NodeConfig } from '@/types/node-config';
 
+// --- Configuration ---
+export const config: NodeConfig = {
+    type: NodeType.RACK,
+    title: 'Rack',
+    category: 'Container',
+    icon: Layers,
+    description: 'Linear container for assets',
+    defaultWidth: 300,
+    defaultHeight: 400,
+};
+
+// --- Node Component ---
 export const RackNode = memo(({ id, data, selected, width, height }: NodeProps<SynniaNode>) => {
     const highlightedGroupId = useWorkflowStore(state => state.highlightedGroupId);
     const isHighlighted = highlightedGroupId === id;
@@ -42,3 +55,5 @@ export const RackNode = memo(({ id, data, selected, width, height }: NodeProps<S
         </div>
     );
 });
+
+export { RackNode as Node };

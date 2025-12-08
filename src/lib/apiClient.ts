@@ -38,7 +38,7 @@ const MOCK_NODES: SynniaNode[] = [
         id: 'node-1',
         type: 'asset-node',
         position: { x: 100, y: 100 },
-        width: null, height: null, parentId: null, extent: null,
+        width: null, height: null, parentId: null, extent: null, style: {},
         data: {
             title: 'Source Image',
             assetId: 'asset-img-1',
@@ -53,7 +53,7 @@ const MOCK_NODES: SynniaNode[] = [
         id: 'node-2',
         type: 'asset-node',
         position: { x: 400, y: 100 },
-        width: null, height: null, parentId: null, extent: null,
+        width: null, height: null, parentId: null, extent: null, style: {},
         data: {
             title: 'Processed Result',
             assetId: 'asset-txt-1',
@@ -70,7 +70,7 @@ const MOCK_NODES: SynniaNode[] = [
         position: { x: 100, y: 400 },
         width: 400,
         height: 300,
-        parentId: null, extent: null,
+        parentId: null, extent: null, style: {},
         data: {
             title: 'My Workspace',
             assetId: null,

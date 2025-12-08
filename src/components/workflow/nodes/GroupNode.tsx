@@ -1,11 +1,25 @@
 import { memo } from 'react';
 import { NodeResizer, NodeProps, Handle, Position } from '@xyflow/react';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode, NodeType } from '@/types/project';
 import { cn } from '@/lib/utils';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
-import { Trash2, ChevronDown, ChevronUp, BoxSelect, AlignJustify } from 'lucide-react';
+import { Trash2, ChevronDown, ChevronUp, BoxSelect, AlignJustify, Box } from 'lucide-react';
+import { NodeConfig } from '@/types/node-config';
 
+// --- Configuration ---
+export const config: NodeConfig = {
+    type: NodeType.GROUP,
+    title: 'Group',
+    category: 'Container',
+    icon: Box,
+    description: 'A collapsible group container',
+    defaultWidth: 400,
+    defaultHeight: 300,
+    hidden: true,
+};
+
+// --- Node Component ---
 export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) => {
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const triggerCommit = useWorkflowStore((state) => state.triggerCommit);
@@ -133,3 +147,5 @@ export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) =>
 });
 
 GroupNode.displayName = 'GroupNode';
+
+export { GroupNode as Node };

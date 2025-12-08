@@ -74,7 +74,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
         return;
     }
 
-    if ((raw.startsWith('assets/') || raw.startsWith('assets\')) && serverPort) {
+    if ((raw.startsWith('assets/') || raw.startsWith('assets\\')) && serverPort) {
         const filename = raw.replace(/\\/g, '/').split('/').pop();
         const url = `http://localhost:${serverPort}/assets/${filename}`;
         setLocalContent(url);

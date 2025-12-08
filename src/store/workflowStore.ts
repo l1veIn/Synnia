@@ -88,9 +88,6 @@ export interface WorkflowActions {
   duplicateNode: (node: SynniaNode, position?: XYPosition) => void;
   handleAltDragStart: (nodeId: string) => string;
   handleDragStopOpacity: (nodeId: string) => void;
-  toggleNodeCollapse: (nodeId: string) => void;
-  toggleGroupCollapse: (groupId: string) => void;
-  autoLayoutGroup: (groupId: string) => void;
   detachNode: (nodeId: string) => void;
 }
 
@@ -199,13 +196,6 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             
             getAsset: (id) => get().assets[id],
             
-            autoLayoutGroup: (groupId: string) => {                    const { nodes } = get();
-                    const group = nodes.find(n => n.id === groupId);
-                    if (!group) return;
-                    
-                    const updatedNodes = applyGroupAutoLayout(nodes, group);
-                    set({ nodes: updatedNodes });
-                },
                 
                 detachNode: (nodeId: string) => {
                     const { nodes } = get();
@@ -250,51 +240,6 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
                     
                     set({ nodes: sortNodesTopologically(finalNodes) });
                 },
-        
-                toggleGroupCollapse: (groupId: string) => {            const { nodes } = get();
-            const group = nodes.find(n => n.id === groupId);
-            if (!group) return;
-            
-            const isCollapsing = !group.data.collapsed;
-            let updatedNodes = [];
-            
-            if (isCollapsing) {
-                updatedNodes = applyRackCollapse(nodes, group);
-            } else {
-                updatedNodes = applyRackExpand(nodes, group);
-            }
-            
-            // Re-calculate global layout to handle nested rack resizing
-            updatedNodes = fixRackLayout(updatedNodes);
-            
-            set({ nodes: updatedNodes });
-        },
-
-        toggleNodeCollapse: (nodeId: string) => {
-            const { nodes } = get();
-            let updatedNodes = nodes.map(n => {
-                if (n.id === nodeId) {
-                    const willBeCollapsed = !n.data.collapsed;
-                    const newStyle = { ...n.style };
-                    
-                    // If expanding and height is missing, set a default to prevent layout shrinking
-                    if (!willBeCollapsed && !newStyle.height) {
-                         newStyle.height = 200; 
-                    }
-                    
-                    return { 
-                        ...n, 
-                        style: newStyle,
-                        data: { ...n.data, collapsed: willBeCollapsed } 
-                    };
-                }
-                return n;
-            });
-            
-            updatedNodes = fixRackLayout(updatedNodes);
-
-            set({ nodes: updatedNodes });
-        },
         
         createShortcut: (nodeId: string) => {
            const { nodes } = get();

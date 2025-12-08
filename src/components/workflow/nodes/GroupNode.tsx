@@ -6,6 +6,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
 import { Trash2, ChevronDown, ChevronUp, BoxSelect, AlignJustify, Box } from 'lucide-react';
 import { NodeConfig } from '@/types/node-config';
+import { graphEngine } from '@/lib/engine/GraphEngine';
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -24,8 +25,6 @@ export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) =>
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const triggerCommit = useWorkflowStore((state) => state.triggerCommit);
   const highlightedGroupId = useWorkflowStore((state) => state.highlightedGroupId);
-  const toggleGroupCollapse = useWorkflowStore((state) => state.toggleGroupCollapse);
-  const autoLayoutGroup = useWorkflowStore((state) => state.autoLayoutGroup);
   
   const { pause, resume } = useHistory();
   
@@ -39,12 +38,12 @@ export const GroupNode = memo(({ id, selected, data }: NodeProps<SynniaNode>) =>
 
   const handleAutoLayout = (e: React.MouseEvent) => {
     e.stopPropagation();
-    autoLayoutGroup(id);
+    graphEngine.layout.autoLayoutGroup(id);
   };
   
   const handleToggle = (e: React.MouseEvent) => {
       e.stopPropagation();
-      toggleGroupCollapse(id);
+      graphEngine.layout.toggleGroupCollapse(id);
   };
   
   const onResizeStart = () => pause();

@@ -1,16 +1,16 @@
 import { NodeType } from '@/types/project';
 import { NodeConfig } from '@/types/node-config';
-import { AssetNode } from './AssetNode'; 
+import { FallbackNode } from './FallbackNode'; 
 
 // Auto-import all node modules
 const modules = import.meta.glob('./**/*.tsx', { eager: true });
 
 export const nodeTypes: Record<string, any> = {
     // Fallbacks / Legacy
-    [NodeType.ASSET]: AssetNode,
-    // NOTE/COLLECTION map to AssetNode by default in legacy setup
-    [NodeType.NOTE]: AssetNode,
-    [NodeType.COLLECTION]: AssetNode,
+    [NodeType.ASSET]: FallbackNode,
+    // NOTE/COLLECTION map to FallbackNode by default
+    [NodeType.NOTE]: FallbackNode,
+    [NodeType.COLLECTION]: FallbackNode,
 };
 
 export const inspectorTypes: Record<string, any> = {};

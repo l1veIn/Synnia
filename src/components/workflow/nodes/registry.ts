@@ -6,7 +6,8 @@ import {
   StickyNote, 
   Layers, 
   Box,
-  LucideIcon
+  LucideIcon,
+  FileJson
 } from 'lucide-react';
 
 export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container';
@@ -25,10 +26,31 @@ export interface NodeConfig {
 export const nodesConfig: Record<NodeType, NodeConfig> = {
   [NodeType.ASSET]: {
     type: NodeType.ASSET,
+    title: 'Asset',
+    category: 'Asset',
+    icon: FileText, 
+    description: 'Generic Asset',
+  },
+  [NodeType.TEXT]: {
+    type: NodeType.TEXT,
     title: 'Text',
     category: 'Asset',
     icon: FileText, 
-    description: 'Text block',
+    description: 'Text content',
+  },
+  [NodeType.IMAGE]: {
+    type: NodeType.IMAGE,
+    title: 'Image',
+    category: 'Asset',
+    icon: ImageIcon, 
+    description: 'Image content',
+  },
+  [NodeType.JSON]: {
+    type: NodeType.JSON,
+    title: 'JSON',
+    category: 'Asset',
+    icon: FileJson, 
+    description: 'JSON content',
   },
   [NodeType.RECIPE]: {
     type: NodeType.RECIPE,

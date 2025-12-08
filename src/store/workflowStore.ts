@@ -615,31 +615,49 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         },
 
         addNode: (type: NodeType, position: XYPosition, options = {}) => {
-          const config = nodesConfig[type];
-          const isGroup = type === NodeType.GROUP;
+          // Determine specific type based on asset type option
+          let finalType = type;
+          if (type === NodeType.ASSET) {
+               const assetType = options.assetType || 'text';
+               switch (assetType) {
+                   case 'text': finalType = NodeType.TEXT; break;
+                   case 'image': finalType = NodeType.IMAGE; break;
+                   case 'json': finalType = NodeType.JSON; break;
+               }
+          }
+
+          const config = nodesConfig[finalType] || nodesConfig[NodeType.ASSET];
+          const isGroup = finalType === NodeType.GROUP;
           
           let assetId = options.assetId;
           
           // Architecture V2: Automatically create backing asset for Asset Nodes
-          if ((type === NodeType.ASSET || type === NodeType.RECIPE) && !assetId) {
+          // Check original 'type' or 'finalType' is essentially checking if it is an asset-like node
+          const isAssetNode = [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(finalType);
+
+          if (isAssetNode && !assetId) {
                let assetType = options.assetType;
                let content = options.content;
                const name = options.assetName || config.title;
                const extraMeta = options.metadata || {};
 
-               if (type === NodeType.RECIPE) {
+               if (finalType === NodeType.RECIPE) {
                    assetType = 'json';
                    if (!content) {
                        // Initialize as Form Asset
                        content = { schema: [], values: {} };
                    }
                } else {
-                   // Default ASSET
-                   assetType = assetType || 'text';
+                   // Default based on Final Type
+                   if (!assetType) {
+                       if (finalType === NodeType.TEXT) assetType = 'text';
+                       else if (finalType === NodeType.IMAGE) assetType = 'image';
+                       else if (finalType === NodeType.JSON) assetType = 'json';
+                       else assetType = 'text';
+                   }
                    content = content || '';
                }
                
-               // Default to a generic Asset for now
                assetId = get().createAsset(assetType, content, { name, ...extraMeta });
           }
 
@@ -647,7 +665,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
 
           const newNode: SynniaNode = {
             id: uuidv4(),
-            type,
+            type: finalType,
             position,
             data: {
               title: nodeTitle,

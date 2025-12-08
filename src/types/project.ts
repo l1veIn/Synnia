@@ -88,6 +88,9 @@ export type AssetData = any;
  */
 export enum NodeType {
   ASSET = 'asset-node',
+  TEXT = 'text-node',
+  IMAGE = 'image-node',
+  JSON = 'json-node',
   GROUP = 'group-node',
   RACK = 'rack-node',
   RECIPE = 'recipe-node',

@@ -2,9 +2,10 @@ import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } fr
 import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect } from 'react';
 
-import { useWorkflowStore } from '@/store/workflowStore';
 import { AssetNode } from '@/components/workflow/nodes/AssetNode';
-import { AssetNodeV2 } from '@/components/workflow/nodes/AssetNodeV2';
+import { TextNode } from '@/components/workflow/nodes/TextNode';
+import { ImageNode } from '@/components/workflow/nodes/ImageNode';
+import { RecipeNode } from '@/components/workflow/nodes/RecipeNode';
 import { GroupNode } from '@/components/workflow/nodes/GroupNode';
 import { RackNode } from '@/components/workflow/nodes/RackNode';
 import { NodeType } from '@/types/project';
@@ -104,10 +105,16 @@ function CanvasFlow() {
 
   // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders/warnings
   const nodeTypes = useMemo(() => ({
+    // Specific Types
+    'text-node': TextNode,
+    'image-node': ImageNode,
+    'recipe-node': RecipeNode,
+    
+    // Legacy / Generic Mappings
     [NodeType.ASSET]: AssetNode,
     [NodeType.GROUP]: GroupNode,
     [NodeType.RACK]: RackNode,
-    [NodeType.RECIPE]: AssetNodeV2, // Use V2 for Recipe
+    [NodeType.RECIPE]: RecipeNode, // Map recipe-node to RecipeNode
     [NodeType.NOTE]: AssetNode,
     [NodeType.COLLECTION]: AssetNode,
   }), []);

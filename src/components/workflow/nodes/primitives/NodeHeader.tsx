@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { HTMLAttributes, ReactNode } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { graphEngine } from "@/lib/engine/GraphEngine";
 
 interface NodeHeaderProps extends HTMLAttributes<HTMLDivElement> {
   icon?: ReactNode;
@@ -61,4 +63,25 @@ export function NodeHeaderAction({
             {children}
         </button>
     )
+}
+
+interface NodeCollapseActionProps {
+    nodeId: string;
+    isCollapsed?: boolean;
+}
+
+export function NodeCollapseAction({ nodeId, isCollapsed }: NodeCollapseActionProps) {
+    const handleToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        graphEngine.layout.toggleNodeCollapse(nodeId);
+    };
+
+    return (
+        <NodeHeaderAction 
+            onClick={handleToggle} 
+            title={isCollapsed ? "Expand" : "Collapse"}
+        >
+            {isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </NodeHeaderAction>
+    );
 }

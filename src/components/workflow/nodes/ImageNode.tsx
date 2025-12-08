@@ -2,7 +2,7 @@ import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position, NodeResizer } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from './primitives/NodeShell';
-import { NodeHeader, NodeHeaderAction } from './primitives/NodeHeader';
+import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from './primitives/NodeHeader';
 import { NodePort } from './primitives/NodePort';
 import { useAsset } from '@/hooks/useAsset';
 import { Image as ImageIcon, Trash2 } from 'lucide-react';
@@ -57,6 +57,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   const serverPort = useWorkflowStore(s => s.serverPort);
   const state = data.state || 'idle';
   const isReadOnly = !!data.isReference;
+  const isCollapsed = !!data.collapsed;
 
   // Inline Logic
   const [localContent, setLocalContent] = useState('');
@@ -89,7 +90,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   return (
     <NodeShell selected={selected} state={state} className="min-w-[200px] h-full">
       <NodeResizer 
-        isVisible={selected && !isReadOnly} 
+        isVisible={selected && !isReadOnly && !isCollapsed} 
         minWidth={200}
         minHeight={200}
         color="#3b82f6"
@@ -102,36 +103,41 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
         icon={<ImageIcon className="h-4 w-4" />}
         title={data.title || 'Image'}
         actions={
-            <NodeHeaderAction onClick={(e) => { e.stopPropagation(); removeNode(id); }} title="Delete">
-                <Trash2 className="h-4 w-4 hover:text-destructive" />
-            </NodeHeaderAction>
+            <>
+                <NodeCollapseAction nodeId={id} isCollapsed={isCollapsed} />
+                <NodeHeaderAction onClick={(e) => { e.stopPropagation(); removeNode(id); }} title="Delete">
+                    <Trash2 className="h-4 w-4 hover:text-destructive" />
+                </NodeHeaderAction>
+            </>
         }
       />
 
-      <div className="p-3 min-h-[40px] flex-1 flex flex-col h-full overflow-hidden">
-          {asset ? (
-            <div className="flex flex-col w-full h-full gap-1.5">
-                <Label className="text-xs text-muted-foreground select-none shrink-0">
-                    {asset.metadata.name || 'Image Asset'}
-                </Label>
-                 {localContent && (
-                  <div className="relative w-full flex-1 min-h-[100px] rounded-md overflow-hidden border bg-muted">
-                    <img 
-                        src={localContent} 
-                        alt="Preview" 
-                        loading="eager"
-                        className="absolute inset-0 w-full h-full object-cover" 
-                    />
-                  </div>
-                )}
-                <div className="text-[10px] text-muted-foreground font-mono shrink-0">
-                    {width ? `${width}x${height}` : ''}
+      {!isCollapsed && (
+          <div className="p-3 min-h-[40px] flex-1 flex flex-col h-full overflow-hidden">
+              {asset ? (
+                <div className="flex flex-col w-full h-full gap-1.5">
+                    <Label className="text-xs text-muted-foreground select-none shrink-0">
+                        {asset.metadata.name || 'Image Asset'}
+                    </Label>
+                     {localContent && (
+                      <div className="relative w-full flex-1 min-h-[100px] rounded-md overflow-hidden border bg-muted">
+                        <img 
+                            src={localContent} 
+                            alt="Preview" 
+                            loading="eager"
+                            className="absolute inset-0 w-full h-full object-cover" 
+                        />
+                      </div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground font-mono shrink-0">
+                        {width ? `${width}x${height}` : ''}
+                    </div>
                 </div>
-            </div>
-          ) : (
-             <div className="text-destructive text-xs">Asset Missing</div>
-          )}
-      </div>
+              ) : (
+                 <div className="text-destructive text-xs">Asset Missing</div>
+              )}
+          </div>
+      )}
 
       <NodePort type="source" position={Position.Bottom} />
     </NodeShell>

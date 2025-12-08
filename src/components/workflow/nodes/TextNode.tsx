@@ -2,7 +2,7 @@ import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from './primitives/NodeShell';
-import { NodeHeader, NodeHeaderAction } from './primitives/NodeHeader';
+import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from './primitives/NodeHeader';
 import { NodePort } from './primitives/NodePort';
 import { useAsset } from '@/hooks/useAsset';
 import { FileText, Trash2 } from 'lucide-react';
@@ -50,6 +50,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const state = data.state || 'idle';
   const isReadOnly = !!data.isReference;
+  const isCollapsed = !!data.collapsed;
 
   // Inline View Logic
   const [localContent, setLocalContent] = useState('');
@@ -72,31 +73,36 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
         icon={<FileText className="h-4 w-4" />}
         title={data.title || 'Text'}
         actions={
-            <NodeHeaderAction onClick={(e) => { e.stopPropagation(); removeNode(id); }} title="Delete">
-                <Trash2 className="h-4 w-4 hover:text-destructive" />
-            </NodeHeaderAction>
+            <>
+                <NodeCollapseAction nodeId={id} isCollapsed={isCollapsed} />
+                <NodeHeaderAction onClick={(e) => { e.stopPropagation(); removeNode(id); }} title="Delete">
+                    <Trash2 className="h-4 w-4 hover:text-destructive" />
+                </NodeHeaderAction>
+            </>
         }
       />
 
-      <div className="p-3 min-h-[40px] flex-1 flex flex-col">
-          {asset ? (
-            <div className="grid w-full gap-1.5">
-                <Label className="text-xs text-muted-foreground select-none">
-                    {asset.metadata?.name || 'Text Content'}
-                </Label>
-                <Textarea 
-                    value={localContent}
-                    onChange={(e) => setLocalContent(e.target.value)}
-                    onBlur={handleBlur}
-                    disabled={isReadOnly}
-                    className="text-xs resize-y min-h-[60px] nodrag bg-background/50 focus:bg-background transition-colors"
-                    placeholder="Enter text..."
-                />
-            </div>
-          ) : (
-             <div className="text-destructive text-xs">Asset Missing</div>
-          )}
-      </div>
+      {!isCollapsed && (
+          <div className="p-3 min-h-[40px] flex-1 flex flex-col">
+              {asset ? (
+                <div className="grid w-full gap-1.5">
+                    <Label className="text-xs text-muted-foreground select-none">
+                        {asset.metadata?.name || 'Text Content'}
+                    </Label>
+                    <Textarea 
+                        value={localContent}
+                        onChange={(e) => setLocalContent(e.target.value)}
+                        onBlur={handleBlur}
+                        disabled={isReadOnly}
+                        className="text-xs resize-y min-h-[60px] nodrag bg-background/50 focus:bg-background transition-colors"
+                        placeholder="Enter text..."
+                    />
+                </div>
+              ) : (
+                 <div className="text-destructive text-xs">Asset Missing</div>
+              )}
+          </div>
+      )}
 
       <NodePort type="source" position={Position.Bottom} />
     </NodeShell>

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { NodeProps, Position, useHandleConnections } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
-import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
+import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useAsset } from '@/hooks/useAsset';
 import { useRunAgent } from '@/hooks/useRunAgent';
@@ -77,6 +77,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
   const isBound = !!agentId;
   const state = data.state || 'idle';
   const isRunning = state === 'running';
+  const isCollapsed = !!data.collapsed;
 
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -143,6 +144,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 >
                     {isRunning ? <CirclePause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </NodeHeaderAction>
+                <NodeCollapseAction nodeId={id} isCollapsed={isCollapsed} />
                 <NodeHeaderAction onClick={handleDelete} title="Delete">
                     <Trash2 className="h-4 w-4 hover:text-destructive" />
                 </NodeHeaderAction>
@@ -150,9 +152,11 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         }
       />
 
-      <div className="p-3 min-h-[40px] flex-1 flex flex-col">
-          {renderContent()}
-      </div>
+      {!isCollapsed && (
+          <div className="p-3 min-h-[40px] flex-1 flex flex-col">
+              {renderContent()}
+          </div>
+      )}
 
       <NodePort type="source" position={Position.Right} id="reference" />
       <NodePort type="source" position={Position.Bottom} isConnectable={false} />

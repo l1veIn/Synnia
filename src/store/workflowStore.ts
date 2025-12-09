@@ -30,6 +30,7 @@ export interface WorkflowState {
     id?: string;
     position?: { x: number; y: number };
   } | null;
+  inspectorPosition: { x: number; y: number } | null;
 }
 
 export interface WorkflowActions {
@@ -65,6 +66,7 @@ export interface WorkflowActions {
   pauseHistory: () => void;
   resumeHistory: () => void;
   setContextMenuTarget: (target: WorkflowState['contextMenuTarget']) => void;
+  setInspectorPosition: (pos: { x: number, y: number }) => void;
   duplicateNode: (node: SynniaNode, position?: XYPosition) => void;
   handleAltDragStart: (nodeId: string) => string;
   handleDragStopOpacity: (nodeId: string) => void;
@@ -86,6 +88,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         serverPort: null,
         highlightedGroupId: null,
         contextMenuTarget: null,
+        inspectorPosition: null,
 
         loadProject: (project: SynniaProject) => {
           let loadedNodes = project.graph.nodes as unknown as SynniaNode[];
@@ -115,6 +118,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         pauseHistory: () => { isHistoryPaused = true; },
         resumeHistory: () => { isHistoryPaused = false; },
         setContextMenuTarget: (target) => set({ contextMenuTarget: target }),
+        setInspectorPosition: (pos) => set({ inspectorPosition: pos }),
 
         createAsset: (type, content, metadata) => graphEngine.assets.create(type, content, metadata),
 

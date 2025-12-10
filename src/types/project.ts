@@ -13,7 +13,7 @@ export type NodeExecutionState = 'idle' | 'running' | 'paused' | 'error' | 'succ
  */
 export interface BaseNodeData extends Record<string, unknown> {
   // 基础 UI 属性
-  title: string;
+  title?: string;
   icon?: string; // Lucide icon name
   label?: string;
   
@@ -45,6 +45,7 @@ export interface BaseNodeData extends Record<string, unknown> {
   // --- Architecture V2: Container Strategy ---
   // Replaces hardcoded Group logic. Defines how this node manages its children.
   layoutMode?: 'free' | 'rack' | 'list' | 'grid';
+  other?: Record<string, unknown>;
 
   // --- Legacy / Transitional Fields ---
   // These will be migrated to the Asset Store eventually.
@@ -90,12 +91,6 @@ export enum NodeType {
   RECIPE = 'recipe-node',
   NOTE = 'note-node',
   COLLECTION = 'collection-node',
-}
-
-// --- Specific Node Data Interfaces (Optional but recommended for TS) ---
-
-export interface AssetNodeData extends BaseNodeData {
-  // Overriding/Refining BaseNodeData for Asset Nodes
 }
 
 export interface RecipeNodeData extends BaseNodeData {

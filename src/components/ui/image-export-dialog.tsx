@@ -16,11 +16,17 @@ interface ImageExportDialogProps {
 
 type ExportFormat = 'png' | 'jpeg' | 'webp' | 'ico';
 
+type SaveFilePickerFn = (options: {
+    suggestedName?: string;
+    types?: { description?: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }>;
+
 // Helper function to save file with File System Access API or fallback
 async function saveFileWithPicker(blob: Blob, defaultFilename: string, mimeType: string) {
-    if ('showSaveFilePicker' in window) {
+    const savePicker = (window as unknown as { showSaveFilePicker?: SaveFilePickerFn }).showSaveFilePicker;
+    if (savePicker) {
         try {
-            const handle = await window.showSaveFilePicker({
+            const handle = await savePicker({
                 suggestedName: defaultFilename,
                 types: [{
                     description: 'Image File',

@@ -10,7 +10,7 @@ export const StandardAssetBehavior: NodeBehavior = {
         
         // 1. Clone state to modify
         const newStyle = { ...node.style };
-        const newOther = { ...(node.data.other || {}) };
+        const newOther: { expandedHeight?: number; enableResize?: boolean } = { ...(node.data.other || {}) };
         
         // 2. Determine Target Height
         let newHeight: number | undefined;

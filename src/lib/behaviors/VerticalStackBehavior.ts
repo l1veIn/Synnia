@@ -113,7 +113,7 @@ export const VerticalStackBehavior: NodeBehavior = {
                     ...container.style,
                     // If collapsing, clear height to let CSS take over (or fix to header height)
                     // If expanding, let layout system recalculate it in the next frame
-                    height: isCollapsed ? undefined : container.style.height
+                    height: isCollapsed ? undefined : container.style?.height
                 }
             }
         });

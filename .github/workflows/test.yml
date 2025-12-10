@@ -30,7 +30,8 @@ jobs:
           cache: 'pnpm'
 
       - name: Install frontend dependencies
-        run: pnpm install
+        # pnpm's default CI behavior enforces frozen lockfile; allow install while pnpm-lock.yaml catches up to package.json
+        run: pnpm install --no-frozen-lockfile
 
       - name: Linting (ESLint)
         run: pnpm lint

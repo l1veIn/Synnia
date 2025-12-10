@@ -52,7 +52,7 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
         <div className="flex flex-col h-full">
             <div className="px-4 py-2 border-b bg-muted/30">
                 <Tabs value={editorMode} onValueChange={handleModeChange} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 h-8">
+                    <TabsList className="grid w-full grid-cols-3 h-9">
                         <TabsTrigger value="plain" className="text-xs h-7">
                             <FileText className="h-3 w-3 mr-2" /> Plain
                         </TabsTrigger>

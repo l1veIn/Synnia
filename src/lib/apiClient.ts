@@ -45,6 +45,7 @@ const MOCK_NODES: SynniaNode[] = [
             isReference: false,
             collapsed: false,
             layoutMode: 'free',
+            dockedTo: null,
             state: 'idle',
             other: {}
         }
@@ -60,6 +61,7 @@ const MOCK_NODES: SynniaNode[] = [
             isReference: false,
             collapsed: false,
             layoutMode: 'free',
+            dockedTo: null,
             state: 'processing',
             other: {}
         }
@@ -77,6 +79,7 @@ const MOCK_NODES: SynniaNode[] = [
             isReference: false,
             collapsed: false,
             layoutMode: 'free',
+            dockedTo: null,
             state: 'idle',
             other: {}
         }

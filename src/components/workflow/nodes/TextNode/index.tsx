@@ -28,6 +28,7 @@ export const behavior = StandardAssetBehavior;
 // --- Node Component ---
 export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const { id, data, selected } = props;
+  const nodeStyle = (props as any).style || {};
   const { asset, setContent } = useAsset(data.assetId);
   const removeNode = useWorkflowStore((state) => state.removeNode);
   const updateNode = useWorkflowStore((state) => state.updateNode);
@@ -35,7 +36,8 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const state = data.state || 'idle';
   const isReadOnly = !!data.isReference;
   const isCollapsed = !!data.collapsed;
-  const enableResize = data.other?.enableResize !== false;
+  const other = (data.other as { enableResize?: boolean } | undefined);
+  const enableResize = other?.enableResize !== false;
 
   // Trigger re-measure when collapsed state changes
   useEffect(() => {
@@ -81,7 +83,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
         onResizeEnd={(_e, params) => {
             updateNode(id, {
                 style: {
-                    ...props.style,
+                    ...nodeStyle,
                     width: params.width,
                     height: params.height,
                 },
@@ -94,8 +96,8 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
       <NodeHeader 
         className={cn(
             isCollapsed && "border-b-0",
-            !!data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
-            isCollapsed && (!!data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
+            data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
+            isCollapsed && (data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
         )}
         icon={<FileText className="h-4 w-4" />}
         title={data.title || 'Text'}

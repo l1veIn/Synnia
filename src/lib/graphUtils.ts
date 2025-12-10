@@ -80,7 +80,7 @@ export const sortNodesTopologically = (nodes: SynniaNode[]): SynniaNode[] => {
 
 // Helper: 递归获取所有子孙节点
 export const getDescendants = (nodes: SynniaNode[], parentId: string): SynniaNode[] => {
-    let descendants: SynniaNode[] = [];
+    const descendants: SynniaNode[] = [];
     const children = nodes.filter(n => n.parentId === parentId);
     descendants.push(...children);
     children.forEach(child => {

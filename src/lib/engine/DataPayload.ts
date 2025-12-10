@@ -50,9 +50,14 @@ export const getNodePayload = (nodeId: string): DataPayload | null => {
                 value: asset.content // String
             };
         
-        case 'image':
+        case 'image': {
             // Construct Standard Image Object
-            const meta = asset.metadata.image || {};
+            const meta = (asset.metadata?.image || {}) as {
+                width?: number;
+                height?: number;
+                size?: number;
+                mimeType?: string;
+            };
             let url = '';
             let path = '';
             
@@ -77,6 +82,7 @@ export const getNodePayload = (nodeId: string): DataPayload | null => {
                     mimeType: meta.mimeType
                 }
             };
+        }
 
         case 'json': // Recipe / Form / Generic JSON
             // For a Recipe used as input, we pass its current configured parameters

@@ -175,7 +175,7 @@ function CanvasFlow() {
             onNodeDoubleClick={onNodeDoubleClick}
           >
             <Background gap={20} color="#888" className="opacity-20" />
-            <Controls />
+            {/* <Controls /> */}
             <MiniMap className="border bg-card" />
             
             {/* 临时工具栏 */}

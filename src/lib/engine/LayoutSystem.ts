@@ -41,6 +41,14 @@ export class LayoutSystem {
     }
 
     /**
+     * Simple auto-layout trigger for a group; currently reuses the global layout pass.
+     */
+    public autoLayoutGroup(_groupId: string) {
+        const nodes = this.fixGlobalLayout(this.engine.state.nodes);
+        this.engine.setNodes(nodes);
+    }
+
+    /**
      * Toggles an individual node's collapse state (e.g. Asset Node), triggering a Rack reflow.
      * Now delegates to the node's Behavior (e.g. StandardAssetBehavior) for logic.
      */

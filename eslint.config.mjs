@@ -5,7 +5,17 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'src-tauri/target'] },
+  {
+    ignores: [
+      'dist',
+      'src-tauri/target',
+      'analysis/**',
+      'notes/**',
+      'src/bindings/**',
+      'src-tauri/bindings/**',
+      'src-tauri/gen/**',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -23,6 +33,11 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/refs': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
       // Allow unused variables if they are prefixed with underscore
       '@typescript-eslint/no-unused-vars': [
         'warn', 

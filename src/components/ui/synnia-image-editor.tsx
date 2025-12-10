@@ -206,6 +206,10 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
   };
 
 
+  const applyTool = () => {
+      setActiveTool(null);
+  };
+
   const cancelTool = () => {
       if (snapshotRef.current) {
           setCurrentSrc(snapshotRef.current.src);

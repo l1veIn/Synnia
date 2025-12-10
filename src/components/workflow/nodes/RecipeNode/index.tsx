@@ -139,6 +139,8 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         selected={selected} 
         state={state} 
         className={cn("min-w-[240px]", isCollapsed ? "h-auto min-h-0" : "h-full")}
+        dockedTop={!!data.dockedTo}
+        dockedBottom={!!data.hasDockedFollower}
     >
       <NodeResizer 
         isVisible={selected && !isCollapsed && enableResize} 
@@ -157,9 +159,14 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         }}
       />
 
-      <NodePort type="target" position={Position.Top} className="!bg-stone-400" />
+      <NodePort type="target" position={Position.Top} className="!bg-stone-400" isConnectable={!data.dockedTo} />
       
       <NodeHeader 
+        className={cn(
+            isCollapsed && "border-b-0",
+            !!data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
+            isCollapsed && (!!data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
+        )}
         icon={<ScrollText className="h-4 w-4" />}
         title={data.title || asset?.metadata?.name || 'Recipe'}
         actions={
@@ -189,7 +196,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
       <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
       
       {/* Bottom: Product (Execution Result) -> Purple */}
-      <NodePort type="source" position={Position.Bottom} id="product" className="!bg-purple-500" />
+      <NodePort type="source" position={Position.Bottom} id="product" className="!bg-purple-500" isConnectable={!data.hasDockedFollower} />
     </NodeShell>
   );
 });

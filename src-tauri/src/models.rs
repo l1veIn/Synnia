@@ -146,6 +146,10 @@ pub struct SynniaNodeData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_mode: Option<String>, // "free", "rack", "grid"
 
+    // New Feature: Docking
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub docked_to: Option<String>,
+
     // Generic State
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>, // "idle", "running", "error"

@@ -37,6 +37,10 @@ export interface BaseNodeData extends Record<string, unknown> {
   
   // If this is a shortcut, where does it point to in the Graph? (Optional, for jumping)
   originalNodeId?: string; 
+  
+  // --- New Feature: Docking ---
+  // The ID of the node this node is docked to (Master)
+  dockedTo?: string;
 
   // --- Architecture V2: Container Strategy ---
   // Replaces hardcoded Group logic. Defines how this node manages its children.

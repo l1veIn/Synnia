@@ -124,10 +124,8 @@ export class InteractionSystem {
         const updatedNodes = applyNodeChanges(changes, nodes) as SynniaNode[];
         
         // Detect dimension changes to nodes inside Racks/Collapsed Groups
-        const shouldRelayout = changes.some(c => {
+        const shouldGlobalLayout = changes.some(c => {
              if (c.type !== 'dimensions') return false;
-             // Only care if dimension update actually happened (sometimes it fires without change)
-             // We check the node in updatedNodes
              const node = updatedNodes.find(n => n.id === c.id);
              if (!node || !node.parentId) return false;
              
@@ -135,11 +133,17 @@ export class InteractionSystem {
              return parent && (parent.type === NodeType.RACK || (parent.type === NodeType.GROUP && parent.data.collapsed));
         });
         
-        if (shouldRelayout) {
-             this.engine.setNodes(this.engine.layout.fixGlobalLayout(updatedNodes));
+        let finalNodes = updatedNodes;
+
+        if (shouldGlobalLayout) {
+             // Rack layout fixes (which includes docking fix at the end)
+             finalNodes = this.engine.layout.fixGlobalLayout(updatedNodes);
         } else {
-             this.engine.setNodes(updatedNodes);
+             // Even if no global layout needed, we must fix Docking constraints (e.g. dragging a master node)
+             finalNodes = this.engine.layout.fixDockingLayout(updatedNodes);
         }
+        
+        this.engine.setNodes(finalNodes);
     };
 
     public onEdgesChange: OnEdgesChange<SynniaEdge> = (changes) => {

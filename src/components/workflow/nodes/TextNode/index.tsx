@@ -1,9 +1,9 @@
 import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position, useUpdateNodeInternals, NodeResizer } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
-import { NodeShell } from './primitives/NodeShell';
-import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from './primitives/NodeHeader';
-import { NodePort } from './primitives/NodePort';
+import { NodeShell } from '../primitives/NodeShell';
+import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from '../primitives/NodeHeader';
+import { NodePort } from '../primitives/NodePort';
 import { useAsset } from '@/hooks/useAsset';
 import { FileText, Trash2 } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { NodeConfig } from '@/types/node-config';
 import { cn } from '@/lib/utils';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { TextNodeInspector } from './Inspector';
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -23,29 +24,6 @@ export const config: NodeConfig = {
 };
 
 export const behavior = StandardAssetBehavior;
-
-// --- Inspector Component ---
-export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
-    const { asset, setContent } = useAsset(assetId);
-    if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset Not Found</div>;
-
-    return (
-        <div className="p-4 space-y-4 h-full flex flex-col">
-             <div className="space-y-2 flex-1 flex flex-col">
-                 <Label className="text-xs text-muted-foreground">Text Content</Label>
-                 <Textarea 
-                    className="flex-1 font-mono text-xs resize-none"
-                    value={asset.content as string}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Enter text here..."
-                 />
-             </div>
-             <div className="text-[10px] text-muted-foreground font-mono">
-                 ID: {asset.id}
-             </div>
-        </div>
-    );
-};
 
 // --- Node Component ---
 export const TextNode = memo((props: NodeProps<SynniaNode>) => {
@@ -68,17 +46,32 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const [localContent, setLocalContent] = useState('');
 
   useEffect(() => {
-    if (asset) setLocalContent(asset.content as string || '');
+    if (asset) {
+        // Handle both string and object content (from JSON editor)
+        const val = typeof asset.content === 'object' 
+            ? JSON.stringify(asset.content, null, 2) 
+            : String(asset.content || '');
+        setLocalContent(val);
+    }
   }, [asset?.content]);
 
   const handleBlur = () => {
     if (!isReadOnly && asset && localContent !== asset.content) {
+        // If content looks like JSON and was previously an object, should we try to parse it back?
+        // For simplicity in TextNode, we save as string. 
+        // The advanced JSON editor in Inspector handles object saving.
         setContent(localContent);
     }
   };
 
   return (
-    <NodeShell selected={selected} state={state} className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}>
+    <NodeShell 
+        selected={selected} 
+        state={state} 
+        className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}
+        dockedTop={!!data.dockedTo}
+        dockedBottom={!!data.hasDockedFollower}
+    >
       <NodeResizer 
         isVisible={selected && !isReadOnly && !isCollapsed && enableResize} 
         minWidth={200}
@@ -96,10 +89,14 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
         }}
       />
       
-      <NodePort type="target" position={Position.Top} className="!bg-stone-400" />
+      <NodePort type="target" position={Position.Top} className="!bg-stone-400" isConnectable={!data.dockedTo} />
       
       <NodeHeader 
-        className={cn(isCollapsed && "border-b-0 rounded-xl")}
+        className={cn(
+            isCollapsed && "border-b-0",
+            !!data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
+            isCollapsed && (!!data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
+        )}
         icon={<FileText className="h-4 w-4" />}
         title={data.title || 'Text'}
         actions={
@@ -134,7 +131,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
           </div>
       )}
 
-      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" />
+      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" isConnectable={!data.hasDockedFollower} />
     </NodeShell>
   );
 });

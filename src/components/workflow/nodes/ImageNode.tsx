@@ -101,7 +101,13 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
   const { width, height } = asset?.metadata?.image || {};
 
   return (
-    <NodeShell selected={selected} state={state} className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}>
+    <NodeShell 
+        selected={selected} 
+        state={state} 
+        className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}
+        dockedTop={!!data.dockedTo}
+        dockedBottom={!!data.hasDockedFollower}
+    >
       <NodeResizer 
         isVisible={selected && !isReadOnly && !isCollapsed && enableResize} 
         minWidth={200}
@@ -119,10 +125,14 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
         }}
       />
       
-      <NodePort type="target" position={Position.Top} className="!bg-stone-400" />
+      <NodePort type="target" position={Position.Top} className="!bg-stone-400" isConnectable={!data.dockedTo} />
       
       <NodeHeader 
-        className={cn(isCollapsed && "border-b-0 rounded-xl")}
+        className={cn(
+            isCollapsed && "border-b-0",
+            !!data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
+            isCollapsed && (!!data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
+        )}
         icon={<ImageIcon className="h-4 w-4" />}
         title={data.title || 'Image'}
         actions={
@@ -136,24 +146,18 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
       />
 
       {!isCollapsed && (
-          <div className="p-3 min-h-[40px] flex-1 flex flex-col h-full overflow-hidden">
+          <div className="p-3 min-h-[40px] flex-1 flex flex-col">
               {asset ? (
                 <div className="flex flex-col w-full h-full gap-1.5">
                     <Label className="text-xs text-muted-foreground select-none shrink-0">
-                        {asset.metadata.name || 'Image Asset'}
+                        {asset.metadata?.name || 'Image Content'}
                     </Label>
-                     {localContent && (
-                      <div className="relative w-full flex-1 min-h-[100px] rounded-md overflow-hidden border bg-muted">
-                        <img 
-                            src={localContent} 
-                            alt="Preview" 
-                            loading="eager"
-                            className="absolute inset-0 w-full h-full object-cover" 
-                        />
-                      </div>
-                    )}
-                    <div className="text-[10px] text-muted-foreground font-mono shrink-0">
-                        {width ? `${width}x${height}` : ''}
+                    <div className="flex-1 min-h-0 flex items-center justify-center rounded-md overflow-hidden border bg-muted">
+                        {imageUrl ? (
+                            <img src={imageUrl} alt={asset.metadata?.name} className="max-w-full max-h-full object-contain" />
+                        ) : (
+                            <span className="text-muted-foreground text-xs italic">No Image</span>
+                        )}
                     </div>
                 </div>
               ) : (
@@ -162,7 +166,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
           </div>
       )}
 
-      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" />
+      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" isConnectable={!data.hasDockedFollower} />
     </NodeShell>
   );
 });

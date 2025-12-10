@@ -126,6 +126,127 @@ export class LayoutSystem {
             }
         }
 
+        const laidOutNodes = Array.from(nodeMap.values());
+        return this.fixDockingLayout(laidOutNodes);
+    }
+
+    /**
+     * Applies sticky constraints (Docking) after container layouts are settled.
+     * Logic: Top-Down propagation from Master to Followers.
+     */
+    public fixDockingLayout(nodes: SynniaNode[]): SynniaNode[] {
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const followerMap = new Map<string, string[]>(); // Master -> Followers
+
+        // 1. Build Dependency Graph & Reset Master Flags
+        // We need to reset hasDockedFollower to false first, then set it to true if confirmed.
+        // But since we are iterating, we can't mutate 'nodes' directly if we want to be pure-ish.
+        // Actually, nodeMap contains the working copies. Let's clean them first?
+        // Or better: clean on the fly? No, we might have lost a follower, so we need to reset.
+        
+        for (const node of nodeMap.values()) {
+             if (node.data.hasDockedFollower) {
+                 nodeMap.set(node.id, {
+                     ...node,
+                     data: { ...node.data, hasDockedFollower: false }
+                 });
+             }
+        }
+
+        // Re-build map after reset (or just iterate nodes again)
+        // Optimization: Single pass? 
+        // We can just iterate nodes to build followerMap.
+        
+        nodes.forEach(node => {
+            const masterId = node.data.dockedTo;
+            if (masterId && nodeMap.has(masterId)) {
+                if (!followerMap.has(masterId)) {
+                    followerMap.set(masterId, []);
+                }
+                followerMap.get(masterId)!.push(node.id);
+            }
+        });
+
+        if (followerMap.size === 0) return Array.from(nodeMap.values()); // Return clean state
+
+        // 2. Recursive Update Function
+        const visited = new Set<string>(); 
+        
+        const updateFollowers = (masterId: string, recursionStack: Set<string>) => {
+            if (recursionStack.has(masterId)) return; 
+            recursionStack.add(masterId);
+
+            const followers = followerMap.get(masterId);
+            if (!followers) return;
+
+            let master = nodeMap.get(masterId)!;
+            
+            // Mark Master as having a follower (for styling)
+            // Only update if not already true to avoid object churn?
+            if (!master.data.hasDockedFollower) {
+                 master = {
+                     ...master,
+                     data: { ...master.data, hasDockedFollower: true }
+                 };
+                 nodeMap.set(masterId, master);
+            }
+
+            // Determine Master's visual dimensions
+            let masterH = (master.style?.height as number) ?? master.measured?.height ?? master.height ?? 100;
+            
+            // Fix: If master is collapsed, use fixed header height to avoid gap
+            // The NodeHeader is usually h-9 (36px) + border = approx 40px with Shell styling
+            if (master.data.collapsed) {
+                masterH = 40;
+            }
+
+            const masterW = (master.style?.width as number) ?? master.measured?.width ?? master.width ?? 200;
+            const masterX = master.position.x;
+            const masterY = master.position.y;
+
+            followers.forEach(followerId => {
+                const follower = nodeMap.get(followerId)!;
+                
+                // Constraint: Must be siblings
+                if (follower.parentId !== master.parentId) return;
+
+                const GAP = 0; // Tightly packed
+                
+                const newY = masterY + masterH + GAP;
+                const newX = masterX;
+                const newW = masterW;
+
+                // Update Follower
+                const updatedFollower = {
+                    ...follower,
+                    position: { ...follower.position, x: newX, y: newY },
+                    style: { ...follower.style, width: newW },
+                    width: newW,
+                    // If follower was collapsed, we might need to handle its height too? 
+                    // No, follower height is its own business (or determined by ITS children).
+                };
+                
+                nodeMap.set(followerId, updatedFollower as SynniaNode);
+
+                // Recursively update this follower's followers
+                updateFollowers(followerId, new Set(recursionStack));
+            });
+        };
+
+        // 3. Trigger from Top-Level Masters
+        // A Top-Level Master is one that is NOT docked to anyone (or docked to missing node)
+        const allMasters = Array.from(followerMap.keys());
+        const topLevelMasters = allMasters.filter(id => {
+            const node = nodeMap.get(id);
+            return !node?.data.dockedTo || !nodeMap.has(node.data.dockedTo!);
+        });
+        
+        // If there are cycles (A->B->A) without any root, topLevelMasters is empty.
+        // We should handle that edge case by iterating remaining unvisited masters?
+        // For now, assume user creates DAGs.
+        
+        topLevelMasters.forEach(id => updateFollowers(id, new Set()));
+
         return Array.from(nodeMap.values());
     }
 

@@ -71,7 +71,7 @@ export class GraphEngine {
      * Handles immutability.
      */
     public updateNode(id: string, patch: Partial<SynniaNode>) {
-        const nodes = this.state.nodes.map(n => {
+        let nodes = this.state.nodes.map(n => {
             if (n.id === id) {
                 return { 
                     ...n, 
@@ -82,6 +82,10 @@ export class GraphEngine {
             }
             return n;
         });
+
+        // Trigger Layout Fix (Constraint Solving)
+        nodes = this.layout.fixGlobalLayout(nodes);
+
         this.setNodes(nodes);
     }
 
@@ -105,7 +109,7 @@ export class GraphEngine {
             });
         }
         
-        const nodes = this.state.nodes.map(n => {
+        let nodes = this.state.nodes.map(n => {
             const patch = updateMap.get(n.id);
             if (patch) {
                 return {
@@ -119,6 +123,9 @@ export class GraphEngine {
             return n;
         });
         
+        // Trigger Layout Fix
+        nodes = this.layout.fixGlobalLayout(nodes);
+
         this.setNodes(nodes);
     }
 

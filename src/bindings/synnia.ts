@@ -22,7 +22,7 @@ export type AssetMetadata = { name: string, createdAt: number, updatedAt: number
 export type SynniaNode = { id: string, type: string, position: Position, width: number | null, height: number | null, parentId: string | null, extent: string | null, style: Record<string, any>, data: SynniaNodeData, };
 
 // SynniaNodeData
-export type SynniaNodeData = { title: string, assetId: string | null, isReference: boolean | null, collapsed: boolean | null, layoutMode: string | null, state: string | null, other: Record<string, any>, };
+export type SynniaNodeData = { title: string, assetId: string | null, isReference: boolean | null, collapsed: boolean | null, layoutMode: string | null, dockedTo: string | null, state: string | null, other: Record<string, any>, };
 
 // Position
 export type Position = { x: number, y: number, };

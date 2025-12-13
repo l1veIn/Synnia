@@ -32,7 +32,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
             return asset.content.values || {};
         }
         return nodeData?.inputs || {};
-    }, [asset?.content, nodeData?.inputs]);
+    }, [asset, nodeData]);
 
     // Draft state - local edits before save
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});

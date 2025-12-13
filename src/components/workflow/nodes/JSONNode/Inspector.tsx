@@ -29,7 +29,7 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
             return asset.content;
         }
         return { schema: [], values: {} };
-    }, [asset?.content]);
+    }, [asset]);
 
     // Draft state - local edits before save
     const [draftSchema, setDraftSchema] = useState<FieldDefinition[]>([]);

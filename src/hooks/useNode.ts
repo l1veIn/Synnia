@@ -123,6 +123,7 @@ export function useNode(nodeId: string): UseNodeReturn {
     }), [node, asset, derivedState]);
 
     // --- Actions ---
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     const actions: NodeActions = useMemo(() => ({
         collapse: () => {
             if (!node) return;
@@ -180,7 +181,7 @@ export function useNode(nodeId: string): UseNodeReturn {
         updateData: (data: Partial<BaseNodeData>) => {
             graphEngine.updateNode(nodeId, { data });
         },
-    }), [nodeId, node, assetId, state.isCollapsed]);
+    }), [nodeId, node, assetId, state]);
 
     return { state, actions };
 }

@@ -203,7 +203,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             return content.values || {};
         }
         return {};
-    }, [state.asset?.content]);
+    }, [state.asset]);
 
     // Get execution result values
     const executionResult = nodeData?.executionResult || {};

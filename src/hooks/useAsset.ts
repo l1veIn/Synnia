@@ -1,6 +1,6 @@
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useCallback } from 'react';
-import { Asset } from '@/types/assets';
+import { graphEngine } from '@/lib/engine/GraphEngine';
 
 /**
  * Hook to bind a component to a specific Asset.
@@ -12,27 +12,24 @@ export function useAsset(assetId?: string) {
         (state) => (assetId ? state.assets[assetId] : undefined),
         [assetId]
     ));
-    
-    const updateAssetContent = useWorkflowStore(state => state.updateAsset);
-    const updateAssetMeta = useWorkflowStore(state => state.updateAssetMetadata);
-    
+
     const setContent = useCallback((content: any) => {
         if (assetId) {
-            updateAssetContent(assetId, content);
+            graphEngine.assets.update(assetId, content);
         }
-    }, [assetId, updateAssetContent]);
+    }, [assetId]);
 
     const setMetadata = useCallback((meta: any) => {
         if (assetId) {
-            updateAssetMeta(assetId, meta);
+            graphEngine.assets.updateMetadata(assetId, meta);
         }
-    }, [assetId, updateAssetMeta]);
+    }, [assetId]);
 
     return {
         asset,
         setContent,
         setMetadata,
-        isLoading: false, // Placeholder for future async/lazy loading logic
+        isLoading: false,
         exists: !!asset
     };
 }

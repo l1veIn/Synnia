@@ -6,6 +6,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaNode } from '@/types/project';
 import { toast } from 'sonner';
 import { Save, RotateCcw, Copy } from 'lucide-react';
+import { graphEngine } from '@/lib/engine/GraphEngine';
 
 interface JsonEditorBlockProps {
     title: string;
@@ -19,7 +20,6 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps
     const [error, setError] = useState<string | null>(null);
     const [isDirty, setIsDirty] = useState(false);
 
-    // Sync from props only when not dirty or forced
     useEffect(() => {
         if (!isDirty && data) {
             setValue(JSON.stringify(data, null, 2));
@@ -64,19 +64,19 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps
                         <Copy className="h-3 w-3" />
                     </Button>
                     {!readOnly && isDirty && (
-                         <>
+                        <>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleReset} title="Reset Changes">
                                 <RotateCcw className="h-3 w-3" />
                             </Button>
                             <Button size="sm" className="h-6 text-xs px-2" onClick={handleSave}>
                                 <Save className="h-3 w-3 mr-1" /> Apply
                             </Button>
-                         </>
+                        </>
                     )}
                 </div>
             </div>
             <div className="flex-1 relative min-h-0">
-                <Textarea 
+                <Textarea
                     value={value}
                     onChange={handleChange}
                     className={`h-full font-mono text-[10px] resize-none border-0 rounded-none bg-muted/30 focus-visible:ring-0 p-2 leading-relaxed ${error ? 'border-2 border-destructive' : ''}`}
@@ -100,53 +100,43 @@ interface DebugInspectorProps {
 export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
     const node = useWorkflowStore(state => state.nodes.find(n => n.id === nodeId));
     const asset = useWorkflowStore(state => node?.data.assetId ? state.assets[node.data.assetId] : null);
-    
-    const updateNode = useWorkflowStore(state => state.updateNode);
-    const updateAsset = useWorkflowStore(state => state.updateAsset);
-    const updateAssetMetadata = useWorkflowStore(state => state.updateAssetMetadata);
 
     if (!node) return <div className="p-4 text-xs text-muted-foreground">No node selected</div>;
 
     const handleNodeSave = (newNode: SynniaNode) => {
-        // Prevent ID mutation safety check
         if (newNode.id !== node.id) {
             toast.error("Cannot change Node ID via Debugger");
             return;
         }
-        updateNode(node.id, newNode);
+        graphEngine.updateNode(node.id, newNode);
     };
 
     const handleAssetSave = (newAssetData: any) => {
         if (!asset) return;
-        
-        // Split content and metadata updates
+
         if (newAssetData.content !== undefined) {
-             updateAsset(asset.id, newAssetData.content);
+            graphEngine.assets.update(asset.id, newAssetData.content);
         }
-        
+
         if (newAssetData.metadata) {
-            updateAssetMetadata(asset.id, newAssetData.metadata);
+            graphEngine.assets.updateMetadata(asset.id, newAssetData.metadata);
         }
     };
 
-    // Construct a composite asset object for editing (read-write mapping is a bit tricky, but let's try)
-    // Actually, store.updateAsset only takes content. 
-    // Let's treat the Asset Editor as editing the WHOLE asset object structure for clarity, 
-    // and then we intelligently dispatch updates.
     const fullAssetData = asset;
 
     return (
         <div className="flex flex-col h-full">
-            <JsonEditorBlock 
-                title={`Node (${node.type})`} 
-                data={node} 
-                onSave={handleNodeSave} 
+            <JsonEditorBlock
+                title={`Node (${node.type})`}
+                data={node}
+                onSave={handleNodeSave}
             />
             {asset && (
-                <JsonEditorBlock 
-                    title={`Asset (${asset.type})`} 
-                    data={fullAssetData} 
-                    onSave={handleAssetSave} 
+                <JsonEditorBlock
+                    title={`Asset (${asset.type})`}
+                    data={fullAssetData}
+                    onSave={handleAssetSave}
                 />
             )}
         </div>

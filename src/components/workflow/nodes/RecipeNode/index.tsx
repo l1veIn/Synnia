@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState, useEffect, useRef } from 'react';
 import { NodeProps, Position, NodeResizer, useNodeConnections } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
@@ -6,7 +6,7 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
-import { Play, CirclePause, Trash2, ScrollText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, CirclePause, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FieldDefinition } from '@/types/assets';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -177,6 +177,25 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
 
     const isRunning = state.executionState === 'running';
 
+    // Execution timer
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const startTimeRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (isRunning) {
+            startTimeRef.current = Date.now();
+            setElapsedTime(0);
+            const interval = setInterval(() => {
+                if (startTimeRef.current) {
+                    setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 100) / 10);
+                }
+            }, 100);
+            return () => clearInterval(interval);
+        } else {
+            startTimeRef.current = null;
+        }
+    }, [isRunning]);
+
     // Get values from asset
     const assetValues = useMemo(() => {
         if (state.asset?.content && typeof state.asset.content === 'object') {
@@ -307,11 +326,21 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                     state.isCollapsed && hasHandleFields && 'border-b'
                 )}
                 icon={<IconComponent className="h-4 w-4" />}
-                title={state.title || recipe?.name || 'Recipe'}
+                title={
+                    <div className="flex items-center gap-2">
+                        <span>{state.title || recipe?.name || 'Recipe'}</span>
+                        {isRunning && (
+                            <span className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded-full font-mono">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                {elapsedTime.toFixed(1)}s
+                            </span>
+                        )}
+                    </div>
+                }
                 actions={
                     <>
-                        <NodeHeaderAction onClick={handleRun} title="Run">
-                            {isRunning ? <CirclePause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        <NodeHeaderAction onClick={handleRun} title={isRunning ? "Running..." : "Run"}>
+                            {isRunning ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <Play className="h-4 w-4" />}
                         </NodeHeaderAction>
                         <NodeHeaderAction onClick={actions.toggle} title={state.isCollapsed ? 'Expand' : 'Collapse'}>
                             {state.isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

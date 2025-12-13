@@ -172,18 +172,45 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
             );
         }
 
+        // Filter fields that have handles (for collapsed view)
+        const fieldsWithHandles = schema.filter((field: FieldDefinition) => {
+            const conn = field.connection;
+            return conn?.input === true ||
+                (typeof conn?.input === 'object' && conn.input.enabled) ||
+                conn?.output === true ||
+                (typeof conn?.output === 'object' && conn.output.enabled) ||
+                field.widget === 'node-input' ||
+                field.type === 'object';
+        });
+
+        // When collapsed, only show fields with handles
+        const fieldsToShow = state.isCollapsed ? fieldsWithHandles : schema;
+
+        if (fieldsToShow.length === 0) {
+            if (state.isCollapsed) {
+                return null; // No handle fields to show when collapsed
+            }
+            return (
+                <div className="flex flex-col w-full h-full text-xs items-center justify-center text-muted-foreground italic">
+                    <span className="mb-1">No Fields</span>
+                </div>
+            );
+        }
+
         return (
             <div className="flex flex-col w-full h-full text-xs font-mono">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 select-none flex items-center justify-between px-3">
-                    <span>{state.asset.metadata.name || 'JSON Data'}</span>
-                    <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[9px] font-bold">
-                        JSON
-                    </span>
-                </div>
+                {!state.isCollapsed && (
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 select-none flex items-center justify-between px-3">
+                        <span>{state.asset.metadata.name || 'JSON Data'}</span>
+                        <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                            JSON
+                        </span>
+                    </div>
+                )}
 
                 <div className="flex-1 w-full overflow-y-auto">
-                    <div className="space-y-1.5 pb-2 px-5">
-                        {schema.map(field => {
+                    <div className={cn("space-y-1.5 pb-2 px-5", state.isCollapsed && "py-1")}>
+                        {fieldsToShow.map((field: FieldDefinition) => {
                             const val = values?.[field.key];
                             return <JSONFieldRow key={field.id} field={field} value={val} />;
                         })}
@@ -192,6 +219,13 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
             </div>
         );
     };
+
+    // Check if there are fields with handles (for header border logic)
+    const content = state.asset?.content as FormAssetContent | undefined;
+    const hasHandleFields = content?.schema?.some((field: FieldDefinition) => {
+        const conn = field.connection;
+        return conn?.input || conn?.output || field.widget === 'node-input' || field.type === 'object';
+    }) ?? false;
 
     return (
         <NodeShell
@@ -219,7 +253,10 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
             />
 
             <NodeHeader
-                className={state.headerClassName}
+                className={cn(
+                    state.headerClassName,
+                    state.isCollapsed && hasHandleFields && "border-b"
+                )}
                 icon={<Braces className="h-4 w-4" />}
                 title={state.title || state.asset?.metadata?.name || 'JSON'}
                 actions={
@@ -234,8 +271,12 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                 }
             />
 
-            {!state.isCollapsed && (
-                <div className="p-3 min-h-[40px] flex-1 flex flex-col overflow-hidden">
+            {/* Show content when expanded OR when collapsed but has handle fields */}
+            {(!state.isCollapsed || hasHandleFields) && (
+                <div className={cn(
+                    "p-3 flex-1 flex flex-col overflow-hidden",
+                    state.isCollapsed ? "min-h-0" : "min-h-[40px]"
+                )}>
                     {renderContent()}
                 </div>
             )}

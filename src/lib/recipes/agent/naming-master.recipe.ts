@@ -185,6 +185,7 @@ Return as a JSON array.`;
                         type: NodeType.JSON,
                         data: {
                             title: `#${index + 1}: ${item.name || 'Unnamed'}`,
+                            collapsed: true, // Default collapsed
                             assetType: 'json' as const,
                             content: {
                                 schema: namingSchema,

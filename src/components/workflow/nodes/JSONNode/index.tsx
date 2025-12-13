@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { JSONNodeInspector } from './Inspector';
+import { useWorkflowStore } from '@/store/workflowStore';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
@@ -18,6 +19,36 @@ export const outputs: NodeOutputConfig = {
         if (!asset) return null;
         const content = asset.content as FormAssetContent;
         return { type: 'json', value: content?.values || {} };
+    },
+
+    // Array output: collects all nodes in the docked chain (this node to chain head)
+    'array': (node, asset) => {
+        const store = useWorkflowStore.getState();
+        const chain: any[] = [];
+
+        // Traverse upward through docked chain
+        let currentId: string | null = node.id;
+        while (currentId) {
+            const currentNode = store.nodes.find(n => n.id === currentId);
+            if (!currentNode) break;
+
+            // Get this node's data payload
+            const nodeAsset = currentNode.data.assetId
+                ? store.assets[currentNode.data.assetId]
+                : undefined;
+
+            if (nodeAsset) {
+                const content = nodeAsset.content as FormAssetContent;
+                if (content?.values) {
+                    chain.unshift(content.values); // Add to front (oldest first)
+                }
+            }
+
+            // Move to the node this one is docked to
+            currentId = currentNode.data.dockedTo as string | null;
+        }
+
+        return { type: 'array', value: chain };
     }
 };
 
@@ -216,6 +247,17 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                 id="data"
                 className="!bg-yellow-400"
             />
+
+            {/* Array Output: Only show at tail of docked chain (has dockedTo but no followers) */}
+            {state.isDockedTop && !state.isDockedBottom && (
+                <NodePort
+                    type="source"
+                    position={Position.Bottom}
+                    id="array"
+                    className="!bg-purple-500"
+                    title="Array: Collect all docked nodes above"
+                />
+            )}
         </NodeShell>
     );
 });

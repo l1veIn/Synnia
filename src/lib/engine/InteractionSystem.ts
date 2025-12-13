@@ -217,6 +217,35 @@ export class InteractionSystem {
         // Detect hover over Rack/Group for highlighting
         const { nodes, highlightedGroupId } = this.engine.state;
 
+        // === Undock on Drag Away ===
+        // If this node is docked to another, check if it's being dragged too far away
+        const dockedTo = (node.data as any)?.dockedTo;
+        if (dockedTo) {
+            const master = nodes.find(n => n.id === dockedTo);
+            if (master) {
+                const UNDOCK_THRESHOLD = 50; // pixels to trigger undock
+                const masterBottom = master.position.y + (master.measured?.height ?? master.height ?? 100);
+                const nodeTop = node.position.y;
+                const distance = Math.abs(nodeTop - masterBottom);
+
+                // Check horizontal alignment too
+                const masterX = master.position.x;
+                const nodeX = node.position.x;
+                const xDistance = Math.abs(nodeX - masterX);
+
+                if (distance > UNDOCK_THRESHOLD || xDistance > UNDOCK_THRESHOLD) {
+                    // Undock: clear dockedTo
+                    this.engine.updateNode(node.id, {
+                        data: { dockedTo: undefined }
+                    });
+
+                    // Trigger layout fix to update hasDockedFollower on master
+                    const updatedNodes = this.engine.layout.fixDockingLayout(this.engine.state.nodes);
+                    this.engine.setNodes(updatedNodes);
+                }
+            }
+        }
+
         // Only target top-level containers that are not the node itself
         const targets = nodes.filter(n =>
             (n.type === NodeType.RACK || n.type === NodeType.GROUP) &&
@@ -227,7 +256,7 @@ export class InteractionSystem {
         let foundId: string | null = null;
         // Find topmost intersecting container
         for (let i = targets.length - 1; i >= 0; i--) {
-            if (isNodeInsideGroup(node, targets[i])) {
+            if (isNodeInsideGroup(node as SynniaNode, targets[i])) {
                 foundId = targets[i].id;
                 break;
             }
@@ -243,21 +272,78 @@ export class InteractionSystem {
         // Clear highlight
         useWorkflowStore.setState({ highlightedGroupId: null });
 
-        // 1. Get Potential Targets (Racks or Groups)
-        // Only consider top-level containers for now to avoid complexity with nested coordinate systems during drag detection
-        const targets = this.engine.state.nodes.filter(n =>
+        const { nodes, assets } = this.engine.state;
+
+        // === JSON Auto-Docking ===
+        if (node.type === NodeType.JSON) {
+            const DOCK_THRESHOLD = 30; // pixels to trigger dock
+            const nodeBottom = node.position.y + (node.measured?.height ?? node.height ?? 100);
+            const nodeWidth = node.measured?.width ?? node.width ?? 200;
+
+            // Find nearby JSON nodes that could be docking targets
+            const potentialTargets = nodes.filter(n =>
+                n.type === NodeType.JSON &&
+                n.id !== node.id &&
+                !n.parentId && // Both must be root nodes
+                !(n.data as any).hasDockedFollower // Target must not already have a follower
+            );
+
+            let bestTarget: SynniaNode | null = null;
+            let bestDistance = Infinity;
+
+            for (const target of potentialTargets) {
+                const targetTop = target.position.y;
+                const targetWidth = target.measured?.width ?? target.width ?? 200;
+
+                // Check horizontal alignment (must overlap significantly)
+                const xOverlap = Math.min(node.position.x + nodeWidth, target.position.x + targetWidth) -
+                    Math.max(node.position.x, target.position.x);
+                if (xOverlap < nodeWidth * 0.5) continue;
+
+                // Check if node bottom is near target top
+                const distance = Math.abs(nodeBottom - targetTop);
+                if (distance < DOCK_THRESHOLD && distance < bestDistance) {
+                    // Validate schema match
+                    if (this.schemasMatch(node as SynniaNode, target, assets)) {
+                        bestTarget = target;
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            if (bestTarget) {
+                // Dock: set dockedTo and snap position
+                const targetHeight = bestTarget.measured?.height ?? bestTarget.height ?? 100;
+                const targetWidth = bestTarget.measured?.width ?? bestTarget.width ?? 200;
+
+                this.engine.updateNode(node.id, {
+                    position: {
+                        x: bestTarget.position.x,
+                        y: bestTarget.position.y + targetHeight
+                    },
+                    data: { dockedTo: bestTarget.id },
+                    style: { width: targetWidth },
+                    width: targetWidth
+                });
+
+                // Trigger docking layout fix
+                const updatedNodes = this.engine.layout.fixDockingLayout(this.engine.state.nodes);
+                this.engine.setNodes(updatedNodes);
+                return;
+            }
+        }
+
+        // === Container Reparenting (existing logic) ===
+        const targets = nodes.filter(n =>
             (n.type === NodeType.RACK || n.type === NodeType.GROUP) &&
             n.id !== node.id &&
-            !n.parentId // Target must be a root container
+            !n.parentId
         );
 
-        // If dragging a nested node, we might need world position calculation. 
-        // For "New Node -> Rack", the node is root (parentId is undefined), so direct comparison works.
         if (node.parentId) return;
 
         let droppedTarget: SynniaNode | null = null;
 
-        // 2. Find Intersection (Topmost first)
         for (let i = targets.length - 1; i >= 0; i--) {
             const target = targets[i];
             if (isNodeInsideGroup(node, target)) {
@@ -266,10 +352,34 @@ export class InteractionSystem {
             }
         }
 
-        // 3. Reparent
         if (droppedTarget) {
-            // This triggers VerticalStackBehavior.onChildAdd automatically
             this.engine.reparentNode(node.id, droppedTarget.id);
         }
     };
+
+    /**
+     * Check if two JSON nodes have matching schemas.
+     */
+    private schemasMatch(
+        nodeA: SynniaNode,
+        nodeB: SynniaNode,
+        assets: Record<string, any>
+    ): boolean {
+        const assetA = nodeA.data.assetId ? assets[nodeA.data.assetId] : null;
+        const assetB = nodeB.data.assetId ? assets[nodeB.data.assetId] : null;
+
+        if (!assetA || !assetB) return false;
+
+        const schemaA = assetA.content?.schema;
+        const schemaB = assetB.content?.schema;
+
+        if (!Array.isArray(schemaA) || !Array.isArray(schemaB)) return false;
+        if (schemaA.length !== schemaB.length) return false;
+
+        // Compare by key
+        const keysA = schemaA.map((f: any) => f.key).sort();
+        const keysB = schemaB.map((f: any) => f.key).sort();
+
+        return JSON.stringify(keysA) === JSON.stringify(keysB);
+    }
 }

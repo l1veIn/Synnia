@@ -109,7 +109,11 @@ export function useRunRecipe() {
                 const freshNode = useWorkflowStore.getState().nodes.find(n => n.id === nodeId);
                 if (!freshNode) return;
 
-                for (const nodeSpec of result.createNodes) {
+                let prevNodeId: string | null = null;
+                const NODE_HEIGHT = 120; // Estimated height for docked nodes
+
+                for (let i = 0; i < result.createNodes.length; i++) {
+                    const nodeSpec = result.createNodes[i];
                     let targetPos = { x: freshNode.position.x, y: freshNode.position.y };
 
                     if (nodeSpec.position === 'below') {
@@ -120,16 +124,57 @@ export function useRunRecipe() {
                         targetPos = nodeSpec.position;
                     }
 
-                    const newNodeId = graphEngine.mutator.addNode(nodeSpec.type, targetPos, nodeSpec.data);
+                    // Handle docking: adjust position for docked nodes
+                    let dockedToId: string | undefined;
+                    if (nodeSpec.dockedTo === '$prev' && prevNodeId) {
+                        dockedToId = prevNodeId;
+                        // Position below the previous node
+                        const prevNode = useWorkflowStore.getState().nodes.find(n => n.id === prevNodeId);
+                        if (prevNode) {
+                            targetPos = {
+                                x: prevNode.position.x,
+                                y: prevNode.position.y + (prevNode.measured?.height || NODE_HEIGHT)
+                            };
+                        }
+                    } else if (nodeSpec.dockedTo && nodeSpec.dockedTo !== '$prev') {
+                        dockedToId = nodeSpec.dockedTo;
+                    }
 
-                    // Auto-connect if it's a typical product -> input pattern
-                    graphEngine.connect({
-                        source: nodeId,
-                        sourceHandle: 'product',
-                        target: newNodeId,
-                        targetHandle: 'input'
+                    // Extract options that addNode expects from data
+                    const { content, assetType, assetName, ...restData } = nodeSpec.data as any;
+
+                    const newNodeId = graphEngine.mutator.addNode(nodeSpec.type, targetPos, {
+                        content,
+                        assetType,
+                        assetName,
+                        ...restData,
+                        ...(dockedToId ? { dockedTo: dockedToId } : {})
                     });
+
+                    // Handle connections
+                    if (nodeSpec.connectTo) {
+                        graphEngine.connect({
+                            source: nodeId,
+                            sourceHandle: nodeSpec.connectTo.sourceHandle,
+                            target: newNodeId,
+                            targetHandle: nodeSpec.connectTo.targetHandle
+                        });
+                    } else if (i === 0) {
+                        // Default: connect first node to recipe's 'product' output
+                        graphEngine.connect({
+                            source: nodeId,
+                            sourceHandle: 'product',
+                            target: newNodeId,
+                            targetHandle: 'input'
+                        });
+                    }
+
+                    prevNodeId = newNodeId;
                 }
+
+                // Fix docking layout after all nodes are created
+                const updatedNodes = graphEngine.layout.fixDockingLayout(useWorkflowStore.getState().nodes);
+                graphEngine.setNodes(updatedNodes);
             }
 
             toast.success(`${recipe.name} completed`);

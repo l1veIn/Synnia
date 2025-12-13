@@ -1,6 +1,7 @@
-import { defineRecipe } from '@/types/recipe';
+import { defineRecipe, ExecutionResult } from '@/types/recipe';
 import { Wand2 } from 'lucide-react';
 import { getRecipe } from '../index';
+import { NodeType } from '@/types/project';
 
 /**
  * Naming Master Agent Recipe
@@ -154,19 +155,55 @@ Return as a JSON array.`;
             }
         });
 
-        // Parse JSON response
+        // Parse JSON response and create docked nodes
         if (result.success && result.data?.response) {
             try {
                 const names = JSON.parse(result.data.response);
+
+                if (Array.isArray(names) && names.length > 0) {
+                    // Schema for each naming option
+                    const namingSchema = [
+                        { id: 'name', key: 'name', label: 'Name', type: 'string' as const, connection: { output: true } },
+                        { id: 'tagline', key: 'tagline', label: 'Tagline', type: 'string' as const, connection: { output: true } },
+                        { id: 'rationale', key: 'rationale', label: 'Rationale', type: 'string' as const },
+                        { id: 'style', key: 'style', label: 'Style', type: 'string' as const, connection: { output: true } }
+                    ];
+
+                    // Create docked JSON nodes for each naming option
+                    const createNodes = names.map((item: any, index: number) => ({
+                        type: NodeType.JSON,
+                        data: {
+                            title: `#${index + 1}: ${item.name || 'Unnamed'}`,
+                            assetType: 'json' as const,
+                            content: {
+                                schema: namingSchema,
+                                values: {
+                                    name: item.name || '',
+                                    tagline: item.tagline || '',
+                                    rationale: item.rationale || '',
+                                    style: item.style || ''
+                                }
+                            }
+                        },
+                        position: index === 0 ? 'below' as const : undefined,
+                        dockedTo: index > 0 ? '$prev' as const : undefined,
+                        connectTo: index === 0 ? { sourceHandle: 'response', targetHandle: 'input' } : undefined
+                    }));
+
+                    return {
+                        success: true,
+                        data: { names, response: result.data.response },
+                        createNodes
+                    } as unknown as ExecutionResult;
+                }
+
+                // Array empty or invalid - return raw
                 return {
                     success: true,
-                    data: {
-                        names,
-                        response: result.data.response  // Also keep raw response
-                    }
+                    data: { names, response: result.data.response }
                 };
             } catch {
-                // If JSON parse fails, return raw response
+                // JSON parse failed - return raw response
                 return result;
             }
         }

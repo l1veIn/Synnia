@@ -39,6 +39,16 @@ export interface ExecutionResult {
         type: NodeType;
         data: Partial<BaseNodeData>;
         position?: 'below' | 'right' | XYPosition;
+        /** 
+         * If specified, this node will be docked to the node with this ID.
+         * Use '$prev' to dock to the previously created node in this batch.
+         */
+        dockedTo?: string | '$prev';
+        /**
+         * If specified, connect the source node's output to this node's input.
+         * Format: { sourceHandle: 'response', targetHandle: 'input' }
+         */
+        connectTo?: { sourceHandle: string; targetHandle: string };
     }[];
     /** Error message if success is false */
     error?: string;

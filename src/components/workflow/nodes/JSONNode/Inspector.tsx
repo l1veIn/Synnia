@@ -13,7 +13,15 @@ import { useWorkflowStore } from '@/store/workflowStore';
 export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
     const { asset, setContent } = useAsset(assetId);
     const edges = useWorkflowStore(s => s.edges);
+    const nodes = useWorkflowStore(s => s.nodes);
     const [activeTab, setActiveTab] = useState('values');
+
+    // Check if this node is docked (part of a docked chain)
+    const isDocked = useMemo(() => {
+        if (!nodeId) return false;
+        const node = nodes.find(n => n.id === nodeId);
+        return !!node?.data?.dockedTo;
+    }, [nodeId, nodes]);
 
     // Saved content from asset
     const savedContent = useMemo(() => {
@@ -108,7 +116,9 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                 <div className="px-4 pt-3 shrink-0 flex items-center gap-2">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="values">Values</TabsTrigger>
-                        <TabsTrigger value="schema">Schema</TabsTrigger>
+                        <TabsTrigger value="schema" className={cn(isDocked && "opacity-60")}>
+                            Schema {isDocked && '🔒'}
+                        </TabsTrigger>
                     </TabsList>
                     {hasChanges && (
                         <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
@@ -128,10 +138,18 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                 </TabsContent>
 
                 <TabsContent value="schema" className="flex-1 p-4 min-h-0 overflow-y-auto">
-                    <SchemaBuilder
-                        schema={draftSchema}
-                        onChange={handleSchemaChange}
-                    />
+                    {isDocked ? (
+                        <div className="text-xs text-muted-foreground text-center py-8">
+                            <p className="font-medium mb-2">Schema Locked</p>
+                            <p>This node is part of a docked chain.</p>
+                            <p>Undock to edit schema.</p>
+                        </div>
+                    ) : (
+                        <SchemaBuilder
+                            schema={draftSchema}
+                            onChange={handleSchemaChange}
+                        />
+                    )}
                 </TabsContent>
             </Tabs>
 

@@ -2,14 +2,13 @@ import { memo, useState, useEffect } from 'react';
 import { NodeProps, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
-import { NodeHeader, NodeHeaderAction, NodeCollapseAction } from '../primitives/NodeHeader';
+import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
-import { useAsset } from '@/hooks/useAsset';
-import { Image as ImageIcon, Trash2 } from 'lucide-react';
+import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { NodeConfig } from '@/types/node-config';
-import { cn } from '@/lib/utils';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 
@@ -27,121 +26,114 @@ export const behavior = StandardAssetBehavior;
 
 // --- Node Component ---
 export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
-  const { id, data, selected } = props;
-  const { asset } = useAsset(data.assetId);
-  const removeNode = useWorkflowStore((state) => state.removeNode);
-  const updateNode = useWorkflowStore((state) => state.updateNode);
-  const serverPort = useWorkflowStore(s => s.serverPort);
-  const updateNodeInternals = useUpdateNodeInternals();
-  const state = data.state || 'idle';
-  const isReadOnly = !!data.isReference;
-  const isCollapsed = !!data.collapsed;
-  const other = (data.other as { enableResize?: boolean } | undefined);
-  const enableResize = other?.enableResize !== false;
-  const nodeStyle = (props as any).style || {};
+    const { id, selected } = props;
+    const { state, actions } = useNode(id);
+    const serverPort = useWorkflowStore(s => s.serverPort);
+    const updateNodeInternals = useUpdateNodeInternals();
 
-  // Trigger re-measure when collapsed state changes
-  useEffect(() => {
-      updateNodeInternals(id);
-  }, [isCollapsed, id, updateNodeInternals]);
+    // Trigger re-measure when collapsed state changes
+    useEffect(() => {
+        updateNodeInternals(id);
+    }, [state.isCollapsed, id, updateNodeInternals]);
 
-  // Inline Logic
-  const [localContent, setLocalContent] = useState('');
-  
-  useEffect(() => {
-    if (!asset) return;
-    let raw = asset.content;
+    // Image URL resolution
+    const [imageUrl, setImageUrl] = useState('');
 
-    if (typeof raw === 'object' && raw !== null && 'src' in raw) {
-        raw = (raw as any).src;
-    }
+    useEffect(() => {
+        if (!state.asset) return;
+        let raw = state.asset.content;
 
-    if (typeof raw !== 'string') {
-        setLocalContent('');
-        return;
-    }
-
-    if ((raw.startsWith('assets/') || raw.startsWith('assets\\\\')) && serverPort) {
-        const filename = raw.replace(/\\\\/g, '/').split('/').pop();
-        const url = `http://localhost:${serverPort}/assets/${filename}`;
-        setLocalContent(url);
-    } 
-    else if (raw.startsWith('http') || raw.startsWith('data:')) {
-        setLocalContent(raw);
-    }
-  }, [asset?.content, serverPort]);
-
-  const { width, height } = asset?.metadata?.image || {};
-
-  return (
-    <NodeShell 
-        selected={selected} 
-        state={state}
-        className={cn("min-w-[200px]", isCollapsed ? "h-auto min-h-0" : "h-full")}
-        dockedTop={!!data.dockedTo}
-        dockedBottom={!!data.hasDockedFollower}
-    >
-      <NodeResizer 
-        isVisible={selected && !isReadOnly && !isCollapsed && enableResize} 
-        minWidth={200}
-        minHeight={200}
-        color="#3b82f6"
-        handleStyle={{ width: 8, height: 8, borderRadius: 4 }}
-        onResizeEnd={(_e, params) => {
-            updateNode(id, {
-                style: {
-                    ...nodeStyle,
-                    width: params.width,
-                    height: params.height,
-                },
-            });
-        }}
-      />
-      
-      <NodePort type="target" position={Position.Top} className="!bg-stone-400" isConnectable={!data.dockedTo} />
-      
-      <NodeHeader 
-        className={cn(
-            isCollapsed && "border-b-0",
-            data.dockedTo ? "rounded-t-none" : "rounded-t-xl",
-            isCollapsed && (data.hasDockedFollower ? "rounded-b-none" : "rounded-b-xl")
-        )}
-        icon={<ImageIcon className="h-4 w-4" />}
-        title={data.title || 'Image'}
-        actions={
-            <>
-                <NodeCollapseAction nodeId={id} isCollapsed={isCollapsed} />
-                <NodeHeaderAction onClick={(e) => { e.stopPropagation(); removeNode(id); }} title="Delete">
-                    <Trash2 className="h-4 w-4 hover:text-destructive" />
-                </NodeHeaderAction>
-            </>
+        if (typeof raw === 'object' && raw !== null && 'src' in raw) {
+            raw = (raw as any).src;
         }
-      />
 
-      {!isCollapsed && (
-          <div className="p-3 min-h-[40px] flex-1 flex flex-col">
-              {asset ? (
-                <div className="flex flex-col w-full h-full gap-1.5">
-                    <Label className="text-xs text-muted-foreground select-none shrink-0">
-                        {asset.metadata?.name || 'Image Content'}
-                    </Label>
-                    <div className="flex-1 min-h-0 flex items-center justify-center rounded-md overflow-hidden border bg-muted">
-                        {localContent ? (
-                            <img src={localContent} alt={asset.metadata?.name} className="max-w-full max-h-full object-contain" />
-                        ) : (
-                            <span className="text-muted-foreground text-xs italic">No Image</span>
-                        )}
-                    </div>
+        if (typeof raw !== 'string') {
+            setImageUrl('');
+            return;
+        }
+
+        if ((raw.startsWith('assets/') || raw.startsWith('assets\\\\')) && serverPort) {
+            const filename = raw.replace(/\\\\/g, '/').split('/').pop();
+            const url = `http://localhost:${serverPort}/assets/${filename}`;
+            setImageUrl(url);
+        } else if (raw.startsWith('http') || raw.startsWith('data:')) {
+            setImageUrl(raw);
+        }
+    }, [state.asset?.content, serverPort]);
+
+    return (
+        <NodeShell
+            selected={selected}
+            state={state.executionState as any}
+            className={state.shellClassName}
+            dockedTop={state.isDockedTop}
+            dockedBottom={state.isDockedBottom}
+        >
+            <NodeResizer
+                isVisible={selected && state.isResizable}
+                minWidth={200}
+                minHeight={200}
+                color="#3b82f6"
+                handleStyle={{ width: 8, height: 8, borderRadius: 4 }}
+                onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
+            />
+
+            <NodePort
+                type="target"
+                position={Position.Top}
+                className="!bg-stone-400"
+                isConnectable={!state.isDockedTop}
+            />
+
+            <NodeHeader
+                className={state.headerClassName}
+                icon={<ImageIcon className="h-4 w-4" />}
+                title={state.title}
+                actions={
+                    <>
+                        <NodeHeaderAction onClick={actions.toggle} title={state.isCollapsed ? 'Expand' : 'Collapse'}>
+                            {state.isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </NodeHeaderAction>
+                        <NodeHeaderAction onClick={(e) => { e.stopPropagation(); actions.remove(); }} title="Delete">
+                            <Trash2 className="h-4 w-4 hover:text-destructive" />
+                        </NodeHeaderAction>
+                    </>
+                }
+            />
+
+            {!state.isCollapsed && (
+                <div className="p-3 min-h-[40px] flex-1 flex flex-col overflow-hidden">
+                    {state.asset ? (
+                        <div className="flex flex-col w-full h-full gap-1.5">
+                            <Label className="text-xs text-muted-foreground select-none shrink-0">
+                                {state.asset.metadata?.name || 'Image Content'}
+                            </Label>
+                            <div className="flex-1 min-h-0 flex items-center justify-center rounded-md overflow-hidden border bg-muted">
+                                {imageUrl ? (
+                                    <img
+                                        src={imageUrl}
+                                        alt={state.asset.metadata?.name}
+                                        className="max-w-full max-h-full object-contain"
+                                    />
+                                ) : (
+                                    <span className="text-muted-foreground text-xs italic">No Image</span>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-destructive text-xs">Asset Missing</div>
+                    )}
                 </div>
-              ) : (
-                 <div className="text-destructive text-xs">Asset Missing</div>
-              )}
-          </div>
-      )}
+            )}
 
-      <NodePort type="source" position={Position.Bottom} className="!bg-yellow-400" isConnectable={!data.hasDockedFollower} />
-    </NodeShell>
-  );
+            <NodePort
+                type="source"
+                position={Position.Bottom}
+                className="!bg-yellow-400"
+                isConnectable={!state.isDockedBottom}
+            />
+        </NodeShell>
+    );
 });
 ImageNode.displayName = 'ImageNode';
 

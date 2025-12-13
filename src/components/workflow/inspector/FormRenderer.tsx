@@ -33,7 +33,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
 
     return (
         <div className="space-y-5">
-            {schema.map((field) => {
+            {schema.filter(field => !field.hidden).map((field) => {
                 const isLinked = linkedFields?.has(field.key) ?? false;
                 const isDisabled = field.disabled || isLinked;
 

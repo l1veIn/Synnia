@@ -21,7 +21,7 @@ export const definition = defineRecipe({
             type: 'string',
             widget: 'textarea',
             rules: { required: true, placeholder: 'Enter your prompt...' },
-            connection: { input: true }  // Can receive prompt from connection
+            connection: { input: true, output: true }  // Both input and output for chain reuse
         },
         {
             id: 'systemPrompt',
@@ -30,7 +30,7 @@ export const definition = defineRecipe({
             type: 'string',
             widget: 'textarea',
             rules: { placeholder: 'Optional system instructions...' },
-            connection: { input: true }
+            connection: { input: true, output: true }  // Both input and output for chain reuse
         },
         {
             id: 'temperature',

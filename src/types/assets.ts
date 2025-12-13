@@ -84,6 +84,7 @@ export interface FieldDefinition {
     connection?: FieldConnection;
     defaultValue?: any;
     disabled?: boolean; // Whether the field is read-only
+    hidden?: boolean;   // Whether to hide in Inspector (for mixin overrides)
 }
 
 export interface FormAssetContent {

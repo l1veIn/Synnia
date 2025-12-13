@@ -51,6 +51,15 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
             JSON.stringify(draftValues) !== JSON.stringify(savedContent.values);
     }, [draftSchema, draftValues, savedContent, isInitialized]);
 
+    // Get linked field keys (fields with incoming connections)
+    const linkedFields = useMemo(() => {
+        if (!nodeId) return new Set<string>();
+        const connected = edges
+            .filter(e => e.target === nodeId && e.targetHandle)
+            .map(e => e.targetHandle!);
+        return new Set(connected);
+    }, [edges, nodeId]);
+
     // Init Logic: Ensure FormAssetContent structure exists
     useEffect(() => {
         if (asset && !isFormAsset(asset.content)) {
@@ -70,15 +79,6 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
     if (!isFormAsset(asset.content)) {
         return <div className="text-xs text-muted-foreground p-4">Initializing JSON Structure...</div>;
     }
-
-    // Get linked field keys (fields with incoming connections)
-    const linkedFields = useMemo(() => {
-        if (!nodeId) return new Set<string>();
-        const connected = edges
-            .filter(e => e.target === nodeId && e.targetHandle)
-            .map(e => e.targetHandle!);
-        return new Set(connected);
-    }, [edges, nodeId]);
 
     // Handle draft changes (local only)
     const handleSchemaChange = (newSchema: FieldDefinition[]) => {

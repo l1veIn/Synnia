@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import { getRecipe } from '@/lib/recipes';
+import { getResolvedRecipe } from '@/lib/recipes';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
@@ -168,7 +168,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
 
     const nodeData = state.node?.data as any;
     const recipeId = nodeData?.recipeId;
-    const recipe = useMemo(() => recipeId ? getRecipe(recipeId) : null, [recipeId]);
+    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     const isRunning = state.executionState === 'running';
 
@@ -211,8 +211,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             return <div className="text-destructive text-xs">Recipe not found: {recipeId}</div>;
         }
 
-        // Filter fields that have handles
+        // Filter fields that have handles (and are not hidden)
         const fieldsWithHandles = recipe.inputSchema.filter(field => {
+            if (field.hidden) return false; // Skip hidden fields
             const conn = field.connection;
             return conn?.input === true ||
                 (typeof conn?.input === 'object' && conn.input.enabled) ||
@@ -222,8 +223,11 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 field.type === 'object';
         });
 
+        // Filter out hidden fields from visible schema
+        const visibleSchema = recipe.inputSchema.filter(field => !field.hidden);
+
         // When collapsed, only show fields with handles
-        const fieldsToShow = state.isCollapsed ? fieldsWithHandles : recipe.inputSchema;
+        const fieldsToShow = state.isCollapsed ? fieldsWithHandles : visibleSchema;
 
         if (fieldsToShow.length === 0) {
             if (state.isCollapsed) {

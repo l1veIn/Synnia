@@ -68,7 +68,7 @@ export class GraphMutator {
 
             // Extract default values from recipe inputSchema
             const recipeId = (config.defaultData as any)?.recipeId;
-            let defaultValues: Record<string, any> = {};
+            const defaultValues: Record<string, any> = {};
 
             if (recipeId) {
                 const recipe = getRecipe(recipeId);

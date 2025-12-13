@@ -1,6 +1,6 @@
 import { FormAssetContent, isFormAsset } from '@/types/assets';
 import { useMemo, useEffect, useState, useCallback } from 'react';
-import { getRecipe } from '@/lib/recipes';
+import { getResolvedRecipe } from '@/lib/recipes';
 import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';
@@ -21,7 +21,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
 
     // Get recipe definition (schema comes from here)
     const recipeId = nodeData?.recipeId;
-    const recipe = useMemo(() => recipeId ? getRecipe(recipeId) : null, [recipeId]);
+    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // Get asset for values storage
     const { asset, setContent } = useAsset(assetId);
@@ -58,6 +58,15 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         return JSON.stringify(draftValues) !== JSON.stringify(savedValues);
     }, [draftValues, savedValues, isInitialized]);
 
+    // Get linked field keys (fields with incoming connections)
+    const linkedFields = useMemo(() => {
+        if (!nodeId) return new Set<string>();
+        const connected = edges
+            .filter(e => e.target === nodeId && e.targetHandle)
+            .map(e => e.targetHandle!);
+        return new Set(connected);
+    }, [edges, nodeId]);
+
     // Init asset content if needed
     useEffect(() => {
         if (asset && !isFormAsset(asset.content)) {
@@ -72,15 +81,6 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     if (!recipe) {
         return <div className="p-4 text-xs text-muted-foreground">Recipe not found: {recipeId}</div>;
     }
-
-    // Get linked field keys (fields with incoming connections)
-    const linkedFields = useMemo(() => {
-        if (!nodeId) return new Set<string>();
-        const connected = edges
-            .filter(e => e.target === nodeId && e.targetHandle)
-            .map(e => e.targetHandle!);
-        return new Set(connected);
-    }, [edges, nodeId]);
 
     // Handle draft changes (local only)
     const handleDraftChange = (newValues: Record<string, any>) => {

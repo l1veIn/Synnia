@@ -104,30 +104,25 @@ export const definition = defineRecipe({
         const lang = inputs.language || 'zh';
 
         const systemInstruction = lang === 'zh'
-            ? `你是一位世界顶级的虚拟IP架构师和角色命名专家。
-你的任务是给代表该品牌的"虚拟IP角色"起名。
+            ? `你是一位虚拟IP角色命名专家。你的任务是给品牌虚拟IP角色起名。
 
 【命名光谱策略】
-请按照以下顺序生成 9 个名字：
+生成 9 个名字：
+1. [1-3号] 紧密相关：直观体现产品核心功能
+2. [4-6号] 隐喻联想：通过意象、氛围来命名
+3. [7-9号] 抽象/脑洞：独特的符号化命名
 
-1. **[1-3号] 紧密相关**：名字直观体现产品核心功能，稳妥、易懂、亲切。
-2. **[4-6号] 隐喻联想**：通过意象、性格、氛围来命名，更有回味。
-3. **[7-9号] 抽象/脑洞**：纯粹好听、独特的符号化命名。
+【重要】只返回 JSON 数组，不要任何其他文字、标题或解释。
+格式：[{"name":"角色名","tagline":"口头禅","rationale":"理由","style":"Direct/Metaphor/Abstract"}, ...]`
+            : `You are a Virtual IP Character Naming Specialist.
 
-【输出格式】
-返回 JSON 数组，每个元素包含：
-- name: 角色名
-- tagline: 角色口头禅
-- rationale: 为什么适合这个产品
-- style: "Direct"/"Metaphor"/"Abstract"`
-            : `You are a World-Class Virtual IP Architect and Character Naming Specialist.
 Generate 9 names using the Relevance Spectrum strategy:
+1. [#1-3] Closely Related - Direct names
+2. [#4-6] Associative - Metaphorical names  
+3. [#7-9] Abstract - Unique coined names
 
-1. [#1-3] Closely Related - Direct, approachable names
-2. [#4-6] Associative - Metaphorical, feeling-based names
-3. [#7-9] Abstract - Unique, coined, high-distinctiveness names
-
-Return JSON array with: name, tagline, rationale, style ("Direct"/"Metaphor"/"Abstract")`;
+IMPORTANT: Return ONLY a JSON array, no other text, titles, or explanations.
+Format: [{"name":"...","tagline":"...","rationale":"...","style":"Direct/Metaphor/Abstract"}, ...]`;
 
         const prompt = `
 Product Type: ${inputs.productType}
@@ -158,7 +153,23 @@ Return as a JSON array.`;
         // Parse JSON response and create docked nodes
         if (result.success && result.data?.response) {
             try {
-                const names = JSON.parse(result.data.response);
+                // Extract JSON from markdown code blocks or raw text
+                const rawResponse = result.data.response;
+                let jsonText = rawResponse;
+
+                // Try to extract from ```json ... ``` block
+                const jsonBlockMatch = rawResponse.match(/```json\s*([\s\S]*?)\s*```/);
+                if (jsonBlockMatch) {
+                    jsonText = jsonBlockMatch[1];
+                } else {
+                    // Try to find JSON array directly
+                    const arrayMatch = rawResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+                    if (arrayMatch) {
+                        jsonText = arrayMatch[0];
+                    }
+                }
+
+                const names = JSON.parse(jsonText);
 
                 if (Array.isArray(names) && names.length > 0) {
                     // Schema for each naming option

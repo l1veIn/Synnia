@@ -23,6 +23,11 @@ export const outputs: NodeOutputConfig = {
         if (!result) return null;
         return { type: 'json', value: result };
     },
+    'response': (node) => {
+        const result = (node.data as any).executionResult;
+        if (!result?.response) return null;
+        return { type: 'text', value: result.response };
+    },
     'reference': (node, asset) => {
         // Get values from asset (FormAssetContent)
         if (asset?.content && typeof asset.content === 'object') {
@@ -329,6 +334,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             )}
 
             <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
+            <NodePort type="source" position={Position.Right} id="response" className="!bg-green-500" style={{ top: '60%' }} />
             <NodePort
                 type="source"
                 position={Position.Bottom}

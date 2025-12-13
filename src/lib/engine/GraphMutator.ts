@@ -91,12 +91,14 @@ export class GraphMutator {
         // Extract recipeId from defaultData to set it at top level
         const defaultData = config.defaultData || {};
         const recipeId = (defaultData as any).recipeId;
+        const dockedTo = (options as any).dockedTo;
 
         const nodeData: any = {
             title: nodeTitle,
             state: 'idle',
             assetId,
             recipeId, // Top-level for persistence
+            ...(dockedTo ? { dockedTo } : {}), // Include docking if specified
             ...defaultData
         };
 

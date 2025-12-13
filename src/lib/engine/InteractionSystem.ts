@@ -320,8 +320,8 @@ export class InteractionSystem {
 
         // === JSON Auto-Docking ===
         if (node.type === NodeType.JSON) {
-            const DOCK_THRESHOLD = 30; // pixels to trigger dock
-            const nodeBottom = node.position.y + (node.measured?.height ?? node.height ?? 100);
+            const DOCK_THRESHOLD = 50; // pixels to trigger dock (matching preview)
+            const nodeTop = node.position.y;
             const nodeWidth = node.measured?.width ?? node.width ?? 200;
 
             // Find nearby JSON nodes that could be docking targets
@@ -336,16 +336,16 @@ export class InteractionSystem {
             let bestDistance = Infinity;
 
             for (const target of potentialTargets) {
-                const targetTop = target.position.y;
+                const targetBottom = target.position.y + (target.measured?.height ?? target.height ?? 100);
                 const targetWidth = target.measured?.width ?? target.width ?? 200;
 
                 // Check horizontal alignment (must overlap significantly)
                 const xOverlap = Math.min(node.position.x + nodeWidth, target.position.x + targetWidth) -
                     Math.max(node.position.x, target.position.x);
-                if (xOverlap < nodeWidth * 0.5) continue;
+                if (xOverlap < nodeWidth * 0.3) continue;
 
-                // Check if node bottom is near target top
-                const distance = Math.abs(nodeBottom - targetTop);
+                // Check if node TOP is near target BOTTOM (node will dock below target)
+                const distance = Math.abs(nodeTop - targetBottom);
                 if (distance < DOCK_THRESHOLD && distance < bestDistance) {
                     // Validate schema match
                     if (this.schemasMatch(node as SynniaNode, target, assets)) {

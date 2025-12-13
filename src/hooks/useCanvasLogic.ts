@@ -28,6 +28,8 @@ export function useCanvasLogic() {
 
   const handleNodeDragStop = useCallback((event: any, _node: any, nodes: any[]) => {
     graphEngine.interaction.handleDragStopOpacity(_node.id);
+    // Call the full onNodeDragStop handler (includes docking logic)
+    graphEngine.interaction.onNodeDragStop(event, _node, nodes);
     resume();
   }, [resume]);
 

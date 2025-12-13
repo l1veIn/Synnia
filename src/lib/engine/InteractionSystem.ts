@@ -266,11 +266,55 @@ export class InteractionSystem {
         if (highlightedGroupId !== foundId) {
             useWorkflowStore.setState({ highlightedGroupId: foundId });
         }
+
+        // === Dock Preview Detection ===
+        // Check if this JSON node is near another JSON node for docking preview
+        if (node.type === NodeType.JSON && !dockedTo) {
+            const DOCK_PREVIEW_THRESHOLD = 50;
+            const nodeTop = node.position.y;
+            const nodeWidth = node.measured?.width ?? node.width ?? 200;
+
+            // Find nearby JSON nodes that could be docking targets
+            const potentialTargets = nodes.filter(n =>
+                n.type === NodeType.JSON &&
+                n.id !== node.id &&
+                !n.parentId &&
+                !(n.data as any).hasDockedFollower
+            );
+
+            let previewTarget: string | null = null;
+
+            for (const target of potentialTargets) {
+                const targetBottom = target.position.y + (target.measured?.height ?? target.height ?? 100);
+                const targetWidth = target.measured?.width ?? target.width ?? 200;
+
+                // Check horizontal alignment
+                const xOverlap = Math.min(node.position.x + nodeWidth, target.position.x + targetWidth) -
+                    Math.max(node.position.x, target.position.x);
+                if (xOverlap < nodeWidth * 0.3) continue;
+
+                // Check if node top is near target bottom
+                const distance = Math.abs(nodeTop - targetBottom);
+                if (distance < DOCK_PREVIEW_THRESHOLD) {
+                    // Validate schema match
+                    if (this.schemasMatch(node as SynniaNode, target, this.engine.state.assets)) {
+                        previewTarget = target.id;
+                        break;
+                    }
+                }
+            }
+
+            // Update preview only if changed
+            const currentPreview = useWorkflowStore.getState().dockPreviewId;
+            if (currentPreview !== previewTarget) {
+                useWorkflowStore.setState({ dockPreviewId: previewTarget });
+            }
+        }
     };
 
     public onNodeDragStop: OnNodeDrag = (_event, node) => {
-        // Clear highlight
-        useWorkflowStore.setState({ highlightedGroupId: null });
+        // Clear highlight and dock preview
+        useWorkflowStore.setState({ highlightedGroupId: null, dockPreviewId: null });
 
         const { nodes, assets } = this.engine.state;
 

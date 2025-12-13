@@ -227,11 +227,19 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
         return conn?.input || conn?.output || field.widget === 'node-input' || field.type === 'object';
     }) ?? false;
 
+    // Check if this node is being previewed as dock target
+    const dockPreviewId = useWorkflowStore(s => s.dockPreviewId);
+    const isDockPreview = dockPreviewId === id;
+
     return (
         <NodeShell
             selected={selected}
             state={state.executionState as any}
-            className={cn(state.shellClassName, 'min-w-[200px]')}
+            className={cn(
+                state.shellClassName,
+                'min-w-[200px]',
+                isDockPreview && "ring-2 ring-purple-500 ring-offset-2 ring-offset-background shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all duration-150"
+            )}
             dockedTop={state.isDockedTop}
             dockedBottom={state.isDockedBottom}
         >

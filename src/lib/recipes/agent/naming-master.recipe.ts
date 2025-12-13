@@ -199,7 +199,7 @@ Return as a JSON array.`;
                         },
                         position: index === 0 ? 'below' as const : undefined,
                         dockedTo: index > 0 ? '$prev' as const : undefined,
-                        connectTo: index === 0 ? { sourceHandle: 'response', targetHandle: 'input' } : undefined
+                        connectTo: index === 0 ? { sourceHandle: 'product', targetHandle: 'input' } : undefined
                     }));
 
                     return {

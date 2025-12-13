@@ -28,6 +28,7 @@ export interface WorkflowState {
 
   // UI State
   highlightedGroupId: string | null;
+  dockPreviewId: string | null; // ID of node being previewed for docking
   contextMenuTarget: {
     type: 'node' | 'group' | 'canvas' | 'selection';
     id?: string;
@@ -76,6 +77,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         edges: [],
         assets: {},
         highlightedGroupId: null,
+        dockPreviewId: null,
         contextMenuTarget: null,
         inspectorPosition: null,
 

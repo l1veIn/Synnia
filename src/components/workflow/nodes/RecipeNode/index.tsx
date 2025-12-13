@@ -1,34 +1,37 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { NodeProps, Position, NodeResizer, useNodeConnections } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
-import { useRunAgent } from '@/hooks/useRunAgent';
+import { useRunRecipe } from '@/hooks/useRunRecipe';
 import { Play, CirclePause, Trash2, ScrollText, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
-import { FormAssetContent, FieldDefinition } from '@/types/assets';
+import { FieldDefinition } from '@/types/assets';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import { FormAssetContent as FormContent } from '@/types/assets';
+import { getRecipe } from '@/lib/recipes';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
     'product': (node) => {
-        // Execution result - populated after running
         const result = (node.data as any).executionResult;
         if (!result) return null;
         return { type: 'json', value: result };
     },
     'reference': (node, asset) => {
-        // Current form values as JSON
-        if (!asset) return null;
-        const content = asset.content as FormContent;
-        return { type: 'json', value: content?.values || {} };
+        // Get values from asset (FormAssetContent)
+        if (asset?.content && typeof asset.content === 'object') {
+            const content = asset.content as any;
+            if (content.values) {
+                return { type: 'json', value: content.values };
+            }
+        }
+        return { type: 'json', value: {} };
     }
 };
 
@@ -39,6 +42,7 @@ export const config: NodeConfig = {
     category: 'Process',
     icon: Play,
     description: 'Processing unit',
+    hidden: true, // Hide generic recipe, recipes show individually
 };
 
 // --- Behavior ---
@@ -46,8 +50,7 @@ export const behavior = StandardAssetBehavior;
 
 export { RecipeNode as Node, RecipeNodeInspector as Inspector };
 
-// --- Inner Components ---
-
+// --- Field Row ---
 const RecipeFieldRow = ({
     field,
     value,
@@ -60,108 +63,208 @@ const RecipeFieldRow = ({
         handleId: field.key,
     });
     const isConnected = connections.length > 0;
-    const isMissing =
-        field.rules?.required && (value === undefined || value === '' || value === null);
+    const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
+    const isDisabled = field.disabled === true;
+
+    // Determine if handles should be shown
+    const conn = field.connection;
+    const hasInputHandle = conn?.input === true ||
+        (typeof conn?.input === 'object' && conn.input.enabled) ||
+        field.widget === 'node-input' ||
+        field.type === 'object' ||
+        conn?.enabled;
+    const hasOutputHandle = conn?.output === true ||
+        (typeof conn?.output === 'object' && conn.output.enabled);
+
+    // Format display value
+    const formatValue = (val: any) => {
+        if (val === undefined || val === '' || val === null) return null;
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+        if (typeof val === 'object') return JSON.stringify(val).slice(0, 20) + '...';
+        const str = String(val);
+        return str.length > 25 ? str.slice(0, 25) + '...' : str;
+    };
+
+    const displayValue = formatValue(value);
 
     return (
-        <div className="relative flex items-center justify-between gap-2 overflow-visible group min-h-[20px]">
-            {field.widget === 'node-input' && (
+        <div className={cn(
+            "relative flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors",
+            "bg-background/50 hover:bg-background/80 border border-transparent",
+            isConnected && "border-blue-500/30 bg-blue-500/5",
+            isDisabled && "bg-muted/30 opacity-70",
+            isMissing && !isConnected && "border-destructive/40 bg-destructive/5"
+        )}>
+            {/* Input Handle (Left) */}
+            {hasInputHandle && (
                 <NodePort
                     type="target"
                     position={Position.Left}
                     id={field.key}
                     className={cn(
-                        'left-[-12px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 border-2 border-background !bg-blue-500 !border-blue-500'
+                        "!w-3 !h-3 !rounded-full !border-2 !border-background",
+                        isConnected ? "!bg-blue-500" : "!bg-muted-foreground/40"
                     )}
                 />
             )}
 
-            <span
-                className={cn(
-                    'shrink-0 max-w-[80px] truncate',
-                    isMissing && !isConnected ? 'text-destructive font-bold' : 'text-muted-foreground'
-                )}
-                title={field.label || field.key}
-            >
-                {field.label || field.key}:
-            </span>
+            {/* Field Info */}
+            <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                {/* Label */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    {/* {hasInputHandle && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60" />
+                    )} */}
+                    <span className={cn(
+                        "text-[11px] font-medium truncate max-w-[70px]",
+                        isMissing && !isConnected ? "text-destructive" : "text-muted-foreground"
+                    )}>
+                        {field.label || field.key}
+                    </span>
+                </div>
 
-            {isConnected ? (
-                <span className="text-blue-500 text-[10px] italic font-medium truncate max-w-[120px] flex items-center gap-1 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                    Linked
-                </span>
-            ) : (
-                <span
-                    className="text-foreground truncate font-medium bg-muted/50 px-1.5 py-0.5 rounded max-w-[120px]"
-                    title={String(value)}
-                >
-                    {value === undefined || value === '' ? (
-                        <span className="text-muted-foreground/50">-</span>
+                {/* Value */}
+                <div className="flex items-center gap-1.5">
+                    {isConnected ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-500 font-medium bg-blue-500/10 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                            linked
+                        </span>
+                    ) : displayValue ? (
+                        <span className={cn(
+                            "text-[11px] font-mono px-2 py-0.5 rounded",
+                            isDisabled ? "bg-muted/50 text-muted-foreground" : "bg-muted/80 text-foreground"
+                        )}>
+                            {displayValue}
+                        </span>
                     ) : (
-                        String(value)
+                        <span className="text-[10px] text-muted-foreground/50 italic">empty</span>
                     )}
-                </span>
+
+                    {/* {hasOutputHandle && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
+                    )} */}
+                </div>
+            </div>
+
+            {/* Output Handle (Right) */}
+            {hasOutputHandle && (
+                <NodePort
+                    type="source"
+                    position={Position.Right}
+                    id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`}
+                    className="!w-3 !h-3 !rounded-full !border-2 !border-background !bg-green-500"
+                />
             )}
         </div>
     );
 };
 
 // --- Main Node ---
-
 export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
     const { state, actions } = useNode(id);
-    const { runAgent } = useRunAgent();
+    const { runRecipe } = useRunRecipe();
 
-    const agentId = state.asset?.metadata?.extra?.agentId;
-    const isBound = !!agentId;
+    const nodeData = state.node?.data as any;
+    const recipeId = nodeData?.recipeId;
+    const recipe = useMemo(() => recipeId ? getRecipe(recipeId) : null, [recipeId]);
+
     const isRunning = state.executionState === 'running';
+
+    // Get values from asset
+    const assetValues = useMemo(() => {
+        if (state.asset?.content && typeof state.asset.content === 'object') {
+            const content = state.asset.content as any;
+            return content.values || {};
+        }
+        return {};
+    }, [state.asset?.content]);
+
+    // Get execution result values
+    const executionResult = nodeData?.executionResult || {};
+
+    // Merge values: for disabled fields, prefer executionResult
+    const values = useMemo(() => {
+        if (!recipe) return assetValues;
+
+        const merged = { ...assetValues };
+        for (const field of recipe.inputSchema) {
+            if (field.disabled && executionResult[field.key] !== undefined) {
+                merged[field.key] = executionResult[field.key];
+            }
+        }
+        return merged;
+    }, [assetValues, executionResult, recipe]);
 
     const handleRun = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!isBound) {
-            toast.warning('Recipe not bound', { description: 'Bind a logic agent in Inspector.' });
+        if (!recipeId || !recipe) {
+            toast.warning('No recipe bound');
             return;
         }
-        runAgent(id, state.node?.data.assetId!);
+        runRecipe(id, recipeId);
     };
 
-    // Helper render
     const renderContent = () => {
-        if (!state.asset) return <div className="text-destructive text-xs">Asset Missing</div>;
+        if (!recipe) {
+            return <div className="text-destructive text-xs">Recipe not found: {recipeId}</div>;
+        }
 
-        const content = state.asset.content as FormAssetContent;
-        const { schema, values } = content;
+        // Filter fields that have handles
+        const fieldsWithHandles = recipe.inputSchema.filter(field => {
+            const conn = field.connection;
+            return conn?.input === true ||
+                (typeof conn?.input === 'object' && conn.input.enabled) ||
+                conn?.output === true ||
+                (typeof conn?.output === 'object' && conn.output.enabled) ||
+                field.widget === 'node-input' ||
+                field.type === 'object';
+        });
 
-        if (!schema || schema.length === 0) {
+        // When collapsed, only show fields with handles
+        const fieldsToShow = state.isCollapsed ? fieldsWithHandles : recipe.inputSchema;
+
+        if (fieldsToShow.length === 0) {
+            if (state.isCollapsed) {
+                return null; // No handle fields to show when collapsed
+            }
             return (
                 <div className="flex flex-col w-full h-full text-xs items-center justify-center text-muted-foreground italic">
-                    <span className="mb-1">Empty Form</span>
-                    <span className="text-[9px] opacity-70">Use Inspector to add fields</span>
+                    <span className="mb-1">No Parameters</span>
+                    <span className="text-[9px] opacity-70">This recipe has no inputs</span>
                 </div>
             );
         }
 
         return (
             <div className="flex flex-col w-full h-full text-xs font-mono">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 select-none flex items-center justify-between">
-                    <span>{state.asset.metadata.name || 'Parameters'}</span>
-                    <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[9px] font-bold">
-                        FORM
-                    </span>
-                </div>
-
-                <ScrollArea className="flex-1 w-full -mr-2 pr-2">
-                    <div className="space-y-1.5 pb-2 pl-5">
-                        {schema.map(field => {
-                            const val = values[field.key];
-                            return <RecipeFieldRow key={field.id} field={field} value={val} />;
-                        })}
+                {!state.isCollapsed && (
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 select-none flex items-center justify-between px-3">
+                        <span>{recipe.name}</span>
+                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[9px] font-bold">
+                            {recipe.category || 'RECIPE'}
+                        </span>
                     </div>
-                </ScrollArea>
+                )}
+                <div className="flex-1 w-full overflow-y-auto">
+                    <div className={cn("space-y-1.5 pb-2 px-5", state.isCollapsed && "py-1")}>
+                        {fieldsToShow.map(field => (
+                            <RecipeFieldRow key={field.id} field={field} value={values[field.key]} />
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     };
+
+    const IconComponent = recipe?.icon || ScrollText;
+
+    // Check if there are fields with handles (to know if we need content area even when collapsed)
+    const hasHandleFields = recipe?.inputSchema.some(field => {
+        const conn = field.connection;
+        return conn?.input || conn?.output || field.widget === 'node-input' || field.type === 'object';
+    }) ?? false;
 
     return (
         <NodeShell
@@ -189,16 +292,16 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             />
 
             <NodeHeader
-                className={state.headerClassName}
-                icon={<ScrollText className="h-4 w-4" />}
-                title={state.title || state.asset?.metadata?.name || 'Recipe'}
+                className={cn(
+                    state.headerClassName,
+                    // Keep border when collapsed but still showing handle fields
+                    state.isCollapsed && hasHandleFields && 'border-b'
+                )}
+                icon={<IconComponent className="h-4 w-4" />}
+                title={state.title || recipe?.name || 'Recipe'}
                 actions={
                     <>
-                        <NodeHeaderAction
-                            onClick={handleRun}
-                            title={!isBound ? 'Bind recipe to run' : 'Run'}
-                            className={!isBound ? 'opacity-50' : ''}
-                        >
+                        <NodeHeaderAction onClick={handleRun} title="Run">
                             {isRunning ? <CirclePause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </NodeHeaderAction>
                         <NodeHeaderAction onClick={actions.toggle} title={state.isCollapsed ? 'Expand' : 'Collapse'}>
@@ -211,16 +314,17 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 }
             />
 
-            {!state.isCollapsed && (
-                <div className="p-3 min-h-[40px] flex-1 flex flex-col overflow-hidden">
+            {/* Show content when expanded OR when collapsed but has handle fields */}
+            {(!state.isCollapsed || hasHandleFields) && (
+                <div className={cn(
+                    "p-3 flex-1 flex flex-col overflow-hidden",
+                    state.isCollapsed ? "min-h-0" : "min-h-[40px]"
+                )}>
                     {renderContent()}
                 </div>
             )}
 
-            {/* Right: Reference (Data Context) -> Yellow */}
             <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
-
-            {/* Bottom: Product (Execution Result) -> Purple */}
             <NodePort
                 type="source"
                 position={Position.Bottom}

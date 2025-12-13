@@ -41,11 +41,37 @@ export interface FieldRule {
     requiredKeys?: string[]; // For object (validation)
     required?: boolean;
     placeholder?: string;
+    // --- V2: Enhanced Validation Rules ---
+    pattern?: string;              // Regex pattern
+    patternMessage?: string;       // Custom error message for pattern validation
+    minLength?: number;            // Minimum string length
+    maxLength?: number;            // Maximum string length
+    enum?: (string | number)[];    // Allowed values list
+    format?: 'email' | 'url' | 'date' | 'datetime' | 'uuid'; // Built-in format presets
+    customValidator?: string;      // Function name for custom validation (advanced)
 }
 
 export interface FieldConnection {
-    enabled: boolean;
-    supportedTypes?: string[]; // e.g. ['image', 'json']
+    /** 
+     * Input handle (left side) - allows data to flow INTO this field
+     * true = simple enable, object = advanced config
+     */
+    input?: boolean | {
+        enabled: boolean;
+        acceptTypes?: ('text' | 'image' | 'json' | 'any')[];
+    };
+    /** 
+     * Output handle (right side) - exposes this field's value as an output
+     * true = simple enable, object = advanced config
+     */
+    output?: boolean | {
+        enabled: boolean;
+        handleId?: string; // Custom handle ID, defaults to field.key
+    };
+
+    // Legacy fields (deprecated, use input/output instead)
+    enabled?: boolean;
+    supportedTypes?: string[];
 }
 
 export interface FieldDefinition {
@@ -57,6 +83,7 @@ export interface FieldDefinition {
     rules?: FieldRule;
     connection?: FieldConnection;
     defaultValue?: any;
+    disabled?: boolean; // Whether the field is read-only
 }
 
 export interface FormAssetContent {
@@ -73,7 +100,7 @@ export const isFormAsset = (content: any): content is FormAssetContent => {
  */
 export interface Asset<T = any> extends Omit<RustAsset, 'content' | 'type' | 'metadata'> {
     type: AssetType;
-    content: T; 
+    content: T;
     metadata: ExtendedMetadata;
 }
 

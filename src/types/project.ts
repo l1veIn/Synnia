@@ -16,11 +16,11 @@ export interface BaseNodeData extends Record<string, unknown> {
   title?: string;
   icon?: string; // Lucide icon name
   label?: string;
-  
+
   // 状态属性
   state?: NodeExecutionState;
   errorMessage?: string;
-  
+
   // UI State
   collapsed?: boolean;
   expandedWidth?: number;
@@ -30,14 +30,14 @@ export interface BaseNodeData extends Record<string, unknown> {
 
   // --- Architecture V2: Data Linkage ---
   // The 'assetId' connects this View Node to the Data Store.
-  assetId?: string; 
-  
+  assetId?: string;
+
   // Is this a read-only shortcut?
-  isReference?: boolean; 
-  
+  isReference?: boolean;
+
   // If this is a shortcut, where does it point to in the Graph? (Optional, for jumping)
-  originalNodeId?: string; 
-  
+  originalNodeId?: string;
+
   // --- New Feature: Docking ---
   // The ID of the node this node is docked to (Master)
   dockedTo?: string;
@@ -45,16 +45,19 @@ export interface BaseNodeData extends Record<string, unknown> {
   // --- Architecture V2: Container Strategy ---
   // Replaces hardcoded Group logic. Defines how this node manages its children.
   layoutMode?: 'free' | 'rack' | 'list' | 'grid';
-  other?: Record<string, unknown>;
+
+  // --- Recipe Node ---
+  // The Recipe Definition ID for Recipe nodes
+  recipeId?: string;
 
   // --- Legacy / Transitional Fields ---
   // These will be migrated to the Asset Store eventually.
   /** @deprecated Use assetId and Assets Store */
-  assetType?: 'image' | 'text' | 'json'; 
+  assetType?: 'image' | 'text' | 'json';
   /** @deprecated Use assetId and Assets Store */
-  content?: string; 
+  content?: string;
   /** @deprecated Use assetId and Assets Store */
-  preview?: string; 
+  preview?: string;
 }
 
 /**

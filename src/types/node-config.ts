@@ -1,8 +1,8 @@
 import { LucideIcon } from 'lucide-react';
-import { NodeType, SynniaNode } from './project';
+import { NodeType, SynniaNode, BaseNodeData } from './project';
 import { Asset } from './assets';
 
-export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container';
+export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container' | 'Math' | 'Text' | 'HTTP' | 'Recipe';
 
 /**
  * Data payload structure for node data flow
@@ -29,7 +29,7 @@ export type NodeOutputConfig = Record<string, OutputResolver>;
  * Node configuration interface
  */
 export interface NodeConfig {
-  type: NodeType;
+  type: NodeType | string;  // Allow string for virtual recipe types
   title: string;
   category: NodeCategory;
   icon: LucideIcon;
@@ -37,4 +37,6 @@ export interface NodeConfig {
   defaultWidth?: number;
   defaultHeight?: number;
   hidden?: boolean;
+  /** Default data to set when creating this node */
+  defaultData?: Partial<BaseNodeData>;
 }

@@ -44,12 +44,9 @@ export const VerticalStackBehavior: NodeBehavior = {
                         x: child.position.x - container.position.x, // Relative
                         y: child.position.y - container.position.y
                     },
-                    other: {
-                        ...(child.data.other || {}),
-                        enableResize: false, // Disable manual resize inside Rack
-                        originalWidth: child.style?.width // Backup original width
-                    }
-                }
+                    enableResize: false, // Disable manual resize inside Rack
+                    originalWidth: child.style?.width // Backup original width
+                } as any
             }
         }];
     },
@@ -58,9 +55,9 @@ export const VerticalStackBehavior: NodeBehavior = {
      * When a child is removed, unlock it.
      */
     onChildRemove: (container, child, context) => {
-        const originalPos = child.data.originalPosition as {x: number, y: number} | undefined;
-        const originalWidth = child.data.other?.originalWidth as number | undefined;
-        
+        const originalPos = child.data.originalPosition as { x: number, y: number } | undefined;
+        const originalWidth = (child.data as any).originalWidth as number | undefined;
+
         return [{
             id: child.id,
             patch: {
@@ -78,11 +75,8 @@ export const VerticalStackBehavior: NodeBehavior = {
                     ...child.data,
                     collapsed: false, // Auto-expand on detach
                     handlePosition: 'top-bottom', // Restore standard handles
-                    other: {
-                        ...(child.data.other || {}),
-                        enableResize: true // Re-enable manual resize
-                    }
-                }
+                    enableResize: true // Re-enable manual resize
+                } as any
             }
         }];
     },
@@ -94,7 +88,7 @@ export const VerticalStackBehavior: NodeBehavior = {
      */
     onCollapse: (container, isCollapsed, context) => {
         const patches: NodePatch[] = [];
-        
+
         // 1. Toggle Children Visibility
         const children = context.getNodes().filter(n => n.parentId === container.id);
         children.forEach(child => {
@@ -128,16 +122,16 @@ export const VerticalStackBehavior: NodeBehavior = {
     onLayout: (container, children, context) => {
         // 0. If Container is collapsed, enforce minimal height and ignore children
         if (container.data.collapsed) {
-             return [{
-                 id: container.id,
-                 patch: {
-                     // Clear height to allow auto-shrink to Header
-                     style: {
-                         ...container.style,
-                         height: undefined
-                     }
-                 }
-             }];
+            return [{
+                id: container.id,
+                patch: {
+                    // Clear height to allow auto-shrink to Header
+                    style: {
+                        ...container.style,
+                        height: undefined
+                    }
+                }
+            }];
         }
 
         if (children.length === 0) return [];
@@ -150,7 +144,7 @@ export const VerticalStackBehavior: NodeBehavior = {
         const sortedChildren = [...children].sort((a, b) => a.position.y - b.position.y);
 
         let currentY = RACK_CONFIG.PADDING_TOP;
-        
+
         // 2. Calculate Layout
         sortedChildren.forEach(child => {
             const h = getNodeHeight(child);
@@ -169,7 +163,7 @@ export const VerticalStackBehavior: NodeBehavior = {
                     },
                     // Ensure it's visible and locked
                     hidden: false,
-                    draggable: false 
+                    draggable: false
                 }
             });
 

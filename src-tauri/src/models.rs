@@ -154,9 +154,9 @@ pub struct SynniaNodeData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>, // "idle", "running", "error"
 
-    #[serde(default)]
-    #[ts(type = "Record<string, any>")]
-    pub other: HashMap<String, serde_json::Value>,
+    // Recipe Node: Recipe Definition ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recipe_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

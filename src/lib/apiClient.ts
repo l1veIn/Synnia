@@ -11,24 +11,24 @@ const MOCK_ASSETS: Record<string, Asset> = {
         id: 'asset-img-1',
         type: 'image',
         content: 'https://picsum.photos/200/300',
-        metadata: { 
-            name: 'Source Image', 
-            createdAt: now, 
-            updatedAt: now, 
-            source: 'user', 
-            extra: {} 
+        metadata: {
+            name: 'Source Image',
+            createdAt: now,
+            updatedAt: now,
+            source: 'user',
+            extra: {}
         }
     },
     'asset-txt-1': {
         id: 'asset-txt-1',
         type: 'text',
         content: 'Processed Result Text',
-        metadata: { 
-            name: 'Result', 
-            createdAt: now, 
-            updatedAt: now, 
-            source: 'user', 
-            extra: {} 
+        metadata: {
+            name: 'Result',
+            createdAt: now,
+            updatedAt: now,
+            source: 'user',
+            extra: {}
         }
     }
 };
@@ -47,7 +47,7 @@ const MOCK_NODES: SynniaNode[] = [
             layoutMode: 'free',
             dockedTo: null,
             state: 'idle',
-            other: {}
+            recipeId: null
         }
     },
     {
@@ -63,7 +63,7 @@ const MOCK_NODES: SynniaNode[] = [
             layoutMode: 'free',
             dockedTo: null,
             state: 'processing',
-            other: {}
+            recipeId: null
         }
     },
     {
@@ -81,7 +81,7 @@ const MOCK_NODES: SynniaNode[] = [
             layoutMode: 'free',
             dockedTo: null,
             state: 'idle',
-            other: {}
+            recipeId: null
         }
     }
 ];
@@ -122,7 +122,7 @@ const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 // --- API Client ---
 
 export const apiClient = {
-    
+
     // Universal Invoke Wrapper
     invoke: async <T>(cmd: string, args?: any): Promise<T> => {
         if (isTauri) {
@@ -138,21 +138,21 @@ export const apiClient = {
         console.groupCollapsed(`[MockAPI] Invoke: ${cmd}`);
         console.log("Args:", args);
         console.groupEnd();
-        
+
         // Simulate Network Latency
         await new Promise(resolve => setTimeout(resolve, 300));
 
         switch (cmd) {
             case 'get_system_agents': return [] as T;
-            
-            case 'get_recent_projects': 
+
+            case 'get_recent_projects':
                 // Return empty list or mocks depending on dev needs. 
                 // Defaulting to mocks to show UI.
                 return MOCK_RECENTS as T;
-                
-            case 'init_project': 
+
+            case 'init_project':
                 return { message: "Project Initialized (Mock)" } as T;
-                
+
             case 'load_project':
                 return MOCK_PROJECT as T;
 
@@ -160,18 +160,18 @@ export const apiClient = {
                 return "mock-project-path" as T;
 
             case 'delete_project':
-                return null as T; 
-            
+                return null as T;
+
             case 'rename_project':
                 return "new-mock-path" as T;
-            
+
             case 'get_default_projects_path':
                 return "/Mock/Documents/SynniaProjects" as T;
 
             case 'open_in_browser':
                 console.log('Open Browser:', args.url);
                 return null as T;
-                
+
             case 'save_project':
                 console.log("Project Saved (Mock)");
                 return null as T;

@@ -12,15 +12,22 @@ import { Bug, Settings2, GripHorizontal } from "lucide-react";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { graphEngine } from "@/lib/engine/GraphEngine";
 
-// Helper Component for Asset Editing
+// Helper Component for Asset/Recipe Editing
 const NodeInspector = ({ node }: { node: SynniaNode }) => {
-    const assetId = node.data.assetId;
-    if (!assetId) return <div className="p-4 text-xs text-muted-foreground">Asset not found</div>;
+    const assetId = node.data.assetId as string | undefined;
+    const recipeId = (node.data as any).recipeId as string | undefined;
 
+    // Get the Inspector component for this node type
     const Inspector = inspectorTypes[node.type];
 
     if (Inspector) {
-        return <Inspector assetId={assetId} />;
+        // Pass both assetId and nodeId - Inspector can use what it needs
+        return <Inspector assetId={assetId} nodeId={node.id} />;
+    }
+
+    // Fallback for nodes without custom inspector
+    if (!assetId && !recipeId) {
+        return <div className="p-4 text-xs text-muted-foreground">No inspector available for this node</div>;
     }
 
     return (
@@ -28,9 +35,16 @@ const NodeInspector = ({ node }: { node: SynniaNode }) => {
             <div className="text-xs text-muted-foreground">
                 Properties for <span className="font-bold uppercase">{node.type}</span>
             </div>
-            <div className="text-[10px] text-muted-foreground font-mono">
-                Asset ID: {assetId}
-            </div>
+            {assetId && (
+                <div className="text-[10px] text-muted-foreground font-mono">
+                    Asset ID: {assetId}
+                </div>
+            )}
+            {recipeId && (
+                <div className="text-[10px] text-muted-foreground font-mono">
+                    Recipe ID: {recipeId}
+                </div>
+            )}
         </div>
     );
 };
@@ -80,8 +94,10 @@ export const InspectorPanel = () => {
     const inDegree = edges.filter(e => e.target === selectedNode.id).length;
     const outDegree = edges.filter(e => e.source === selectedNode.id).length;
 
-    // Check if it's an Asset Node (or has assetId)
+    // Check if it's an Asset Node or Recipe Node (needs NodeInspector)
     const assetId = selectedNode.data.assetId;
+    const recipeId = (selectedNode.data as any).recipeId;
+    const hasInspector = assetId || recipeId || inspectorTypes[selectedNode.type];
 
     return (
         <motion.div
@@ -121,7 +137,7 @@ export const InspectorPanel = () => {
                 {/* Tab: Properties (Original Inspector Logic) */}
 
                 <TabsContent value="properties" className="flex-1 min-h-0 flex flex-col m-0 data-[state=inactive]:hidden">
-                    {assetId ? (
+                    {hasInspector ? (
                         <div className="flex-1 flex flex-col min-h-0">
                             {/* Common Header for Asset Nodes */}
                             <div className="px-4 py-3 space-y-3 border-b shrink-0 bg-card z-10">
@@ -137,7 +153,7 @@ export const InspectorPanel = () => {
                             </div>
 
                             {/* Asset Specific Editor */}
-                            <div className="flex-1 min-h-0 relative overflow-y-scroll">
+                            <div className="flex-1 min-h-0 relative">
                                 <NodeInspector node={selectedNode} />
                             </div>
                         </div>

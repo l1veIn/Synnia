@@ -34,24 +34,24 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
         connection: { enabled: true }
     });
 
-        const handleAddField = () => {
-            if (!newFieldData.key) return; // Key is required
-            
-            const newField: FieldDefinition = {
-                id: generateId(),
-                key: newFieldData.key,
-                label: newFieldData.label || newFieldData.key,
-                type: newFieldData.type as FieldType || 'string',
-                widget: newFieldData.widget as WidgetType || 'text',
-                connection: newFieldData.connection,
-                rules: newFieldData.rules || {}
-            };
-            onChange([...(schema || []), newField]);
-            
-            // Reset and close
-            setIsDialogOpen(false);
-            setNewFieldData({ key: '', label: '', type: 'string', widget: 'text', connection: { enabled: true } });
+    const handleAddField = () => {
+        if (!newFieldData.key) return; // Key is required
+
+        const newField: FieldDefinition = {
+            id: generateId(),
+            key: newFieldData.key,
+            label: newFieldData.label || newFieldData.key,
+            type: newFieldData.type as FieldType || 'string',
+            widget: newFieldData.widget as WidgetType || 'text',
+            connection: newFieldData.connection,
+            rules: newFieldData.rules || {}
         };
+        onChange([...(schema || []), newField]);
+
+        // Reset and close
+        setIsDialogOpen(false);
+        setNewFieldData({ key: '', label: '', type: 'string', widget: 'text', connection: { enabled: true } });
+    };
     const updateField = (index: number, updates: Partial<FieldDefinition>) => {
         const newSchema = [...schema];
         newSchema[index] = { ...newSchema[index], ...updates };
@@ -329,6 +329,59 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                     <div className="space-y-1">
                                         <Label className="text-[10px]">Step</Label>
                                         <Input type="number" className="h-6 text-xs p-1" value={field.rules?.step ?? ''} onChange={e => updateRules(index, { step: Number(e.target.value) })} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* String Rules Panel (V2) */}
+                            {field.type === 'string' && field.widget !== 'node-input' && (
+                                <div className="space-y-2 bg-muted/30 p-2 rounded">
+                                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">String Validation</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px]">Min Length</Label>
+                                            <Input
+                                                type="number"
+                                                className="h-6 text-xs p-1"
+                                                value={field.rules?.minLength ?? ''}
+                                                onChange={e => updateRules(index, { minLength: e.target.value ? Number(e.target.value) : undefined })}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-[10px]">Max Length</Label>
+                                            <Input
+                                                type="number"
+                                                className="h-6 text-xs p-1"
+                                                value={field.rules?.maxLength ?? ''}
+                                                onChange={e => updateRules(index, { maxLength: e.target.value ? Number(e.target.value) : undefined })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px]">Pattern (Regex)</Label>
+                                        <Input
+                                            className="h-6 text-xs font-mono p-1"
+                                            placeholder="^[a-zA-Z0-9]+$"
+                                            value={field.rules?.pattern ?? ''}
+                                            onChange={e => updateRules(index, { pattern: e.target.value || undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[10px]">Format Preset</Label>
+                                        <Select
+                                            value={field.rules?.format || 'none'}
+                                            onValueChange={(v) => updateRules(index, { format: v === 'none' ? undefined : v })}
+                                        >
+                                            <SelectTrigger className="h-6 text-xs"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="email">Email</SelectItem>
+                                                <SelectItem value="url">URL</SelectItem>
+                                                <SelectItem value="date">Date</SelectItem>
+                                                <SelectItem value="datetime">DateTime</SelectItem>
+                                                <SelectItem value="uuid">UUID</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                             )}

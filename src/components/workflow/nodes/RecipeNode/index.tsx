@@ -12,8 +12,25 @@ import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
-import { NodeConfig } from '@/types/node-config';
+import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { FormAssetContent as FormContent } from '@/types/assets';
+
+// --- Output Resolvers ---
+export const outputs: NodeOutputConfig = {
+    'product': (node) => {
+        // Execution result - populated after running
+        const result = (node.data as any).executionResult;
+        if (!result) return null;
+        return { type: 'json', value: result };
+    },
+    'reference': (node, asset) => {
+        // Current form values as JSON
+        if (!asset) return null;
+        const content = asset.content as FormContent;
+        return { type: 'json', value: content?.values || {} };
+    }
+};
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -166,6 +183,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             <NodePort
                 type="target"
                 position={Position.Top}
+                id="trigger"
                 className="!bg-stone-400"
                 isConnectable={!state.isDockedTop}
             />

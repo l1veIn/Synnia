@@ -8,9 +8,27 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { NodeConfig } from '@/types/node-config';
+import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
+
+// --- Output Resolvers ---
+export const outputs: NodeOutputConfig = {
+    'image': (node, asset) => {
+        if (!asset) return null;
+        const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
+        let url = '';
+        if (typeof asset.content === 'string') {
+            url = asset.content;
+        } else if (typeof asset.content === 'object' && asset.content !== null) {
+            url = (asset.content as any).src || (asset.content as any).url || '';
+        }
+        return {
+            type: 'image',
+            value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType }
+        };
+    }
+};
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -81,6 +99,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
             <NodePort
                 type="target"
                 position={Position.Top}
+                id="input"
                 className="!bg-stone-400"
                 isConnectable={!state.isDockedTop}
             />
@@ -129,6 +148,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
             <NodePort
                 type="source"
                 position={Position.Bottom}
+                id="image"
                 className="!bg-yellow-400"
                 isConnectable={!state.isDockedBottom}
             />

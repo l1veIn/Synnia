@@ -8,9 +8,17 @@ import { useNode } from '@/hooks/useNode';
 import { FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { NodeConfig } from '@/types/node-config';
+import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { TextNodeInspector } from './Inspector';
+
+// --- Output Resolvers ---
+export const outputs: NodeOutputConfig = {
+  'content': (node, asset) => ({
+    type: 'text',
+    value: asset?.content || ''
+  })
+};
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -73,6 +81,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
       <NodePort
         type="target"
         position={Position.Top}
+        id="input"
         className="!bg-stone-400"
         isConnectable={!state.isDockedTop}
       />
@@ -118,6 +127,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
       <NodePort
         type="source"
         position={Position.Bottom}
+        id="content"
         className="!bg-yellow-400"
         isConnectable={!state.isDockedBottom}
       />

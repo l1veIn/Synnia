@@ -1,8 +1,33 @@
 import { LucideIcon } from 'lucide-react';
-import { NodeType } from './project';
+import { NodeType, SynniaNode } from './project';
+import { Asset } from './assets';
 
 export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container';
 
+/**
+ * Data payload structure for node data flow
+ */
+export interface DataPayload {
+  type: 'text' | 'image' | 'json' | 'array' | 'unknown';
+  value: any;
+  metadata?: any;
+}
+
+/**
+ * Output resolver function type
+ * Takes the node and its asset, returns a DataPayload
+ */
+export type OutputResolver = (node: SynniaNode, asset: Asset | undefined) => DataPayload | null;
+
+/**
+ * Output configuration for a node
+ * Maps handleId to resolver function
+ */
+export type NodeOutputConfig = Record<string, OutputResolver>;
+
+/**
+ * Node configuration interface
+ */
 export interface NodeConfig {
   type: NodeType;
   title: string;

@@ -85,7 +85,7 @@ export class GraphMutator {
             assetId = this.engine.assets.create('json', content, { name: recipeName });
         }
 
-        const nodeTitle = options.assetName || config.title;
+        const nodeTitle = (options as any).title || options.assetName || config.title;
 
         // Build node data - merge defaultData from config if present
         // Extract recipeId from defaultData to set it at top level

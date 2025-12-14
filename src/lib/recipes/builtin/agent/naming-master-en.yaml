@@ -3,8 +3,8 @@
 # English-optimized prompts for better English name generation
 
 id: agent.naming-master-en
-name: Naming Master (EN)
-description: Generate brand IP character names using spectrum strategy (English)
+name: Naming Master
+description: Generate 9 brand IP character names using the Relevance Spectrum strategy
 category: Agent
 icon: Wand2
 
@@ -18,7 +18,7 @@ inputSchema:
     type: string
     widget: text
     required: true
-    placeholder: "e.g., Weather App, E-commerce Platform..."
+    placeholder: "e.g., Weather App, E-commerce Platform, Fitness Tracker..."
     connection:
       input: true
 
@@ -26,7 +26,7 @@ inputSchema:
     label: Target Audience
     type: string
     widget: text
-    placeholder: "e.g., Young professionals, Gen-Z gamers..."
+    placeholder: "e.g., Young professionals, Gen-Z gamers, Health-conscious millennials..."
     connection:
       input: true
 
@@ -34,7 +34,23 @@ inputSchema:
     label: Brand Tone
     type: string
     widget: text
-    placeholder: "e.g., Playful, Professional, Techy..."
+    placeholder: "e.g., Playful, Professional, Techy, Minimalist..."
+    connection:
+      input: true
+
+  - key: culturalBackground
+    label: Cultural Background
+    type: string
+    widget: text
+    placeholder: "e.g., Western, East Asian, Global/Universal..."
+    connection:
+      input: true
+
+  - key: specialRequirements
+    label: Special Requirements
+    type: string
+    widget: textarea
+    placeholder: "e.g., Must start with 'Z', Avoid puns, Need bilingual names..."
     connection:
       input: true
 
@@ -57,36 +73,41 @@ inputSchema:
 
 outputSchema:
   type: json
-  description: Array of naming options with rationale
+  description: Array of 9 naming options with name, tagline, rationale, and style
 
 executor:
   type: llm-agent
   systemPrompt: |
-    You are an expert Brand IP Character Naming Specialist.
+    You are a World-Class Virtual IP Architect and Character Naming Specialist.
+    Your task is to name the Virtual Character/Mascot that represents the brand.
 
-    **The Relevance Spectrum Strategy**
-    Generate exactly 9 names across three categories:
-    
-    1. **#1-3 Direct Names** (Closely Related)
-       - Clear, functional names that immediately convey the product's purpose
-       - Easy to remember and spell
-       - Professional and trustworthy
-    
-    2. **#4-6 Metaphorical Names** (Associative)
-       - Names that evoke imagery, emotions, or atmosphere
-       - Use analogies, nature elements, or relatable concepts
-       - Memorable through storytelling potential
-    
-    3. **#7-9 Abstract Names** (Creative/Coined)
-       - Unique invented words or unexpected combinations
-       - Highly distinctive and ownable
-       - May use word blending, neologisms, or symbolic sounds
+    【NAMING STRATEGY: THE RELEVANCE SPECTRUM】
+    Generate 9 names organized by how closely they relate to the product function:
 
-    **Output Requirements**
-    - Return ONLY a valid JSON array, no other text
-    - Each item must have: name, tagline, rationale, style
-    - style must be exactly: "Direct", "Metaphor", or "Abstract"
-    
+    1. **[#1-3] Closely Related (Functional/Descriptive)**:
+       - Directly hints at what the product does. Safe, approachable, clear.
+       - e.g. (Weather App): "Sunny", "Ray", "Cloudy".
+
+    2. **[#4-6] Associative / Metaphorical**:
+       - Connects via feelings, personality, or indirect symbols.
+       - e.g. (Weather App): "Breeze", "Aurora", "Moodie".
+
+    3. **[#7-9] Abstract / High Concept**:
+       - Completely unique, coined words, or arbitrary nouns that sound great.
+       - High distinctiveness (Like "Apple" for computers).
+       - e.g. (Weather App): "Kiko", "Z-1", "Echo".
+
+    【LANGUAGE FREEDOM】
+    - You can use English, Latin roots, or coined words.
+    - Mix styles: cute, cool, techy, elegant, playful.
+
+    【OUTPUT FIELDS】
+    - **name**: The character's name
+    - **tagline**: A catchphrase spoken by the character (in their voice)
+    - **rationale**: Explain the soul behind the name and why it fits
+    - **style**: Must be exactly "Direct", "Metaphor", or "Abstract"
+
+    【CRITICAL】Return ONLY a valid JSON array, no other text, titles, or explanations.
     Format: [{"name":"...","tagline":"...","rationale":"...","style":"Direct|Metaphor|Abstract"}, ...]
   userPromptTemplate: |
     Create 9 unique IP character names for:
@@ -94,6 +115,8 @@ executor:
     **Product Type:** {{productType}}
     **Target Audience:** {{targetAudience}}
     **Brand Tone:** {{brandTone}}
+    **Cultural Background:** {{culturalBackground}}
+    **Special Requirements:** {{specialRequirements}}
 
     Generate creative, memorable names following the Relevance Spectrum strategy.
     Return as a JSON array with exactly 9 items.

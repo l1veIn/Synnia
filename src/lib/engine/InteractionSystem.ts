@@ -125,13 +125,24 @@ export class InteractionSystem {
         const updatedNodes = applyNodeChanges(changes, nodes) as SynniaNode[];
 
         // Detect dimension changes to nodes inside Racks/Collapsed Groups
+        // OR dimension changes to nodes in a docked chain
         const shouldGlobalLayout = changes.some(c => {
             if (c.type !== 'dimensions') return false;
             const node = updatedNodes.find(n => n.id === c.id);
-            if (!node || !node.parentId) return false;
+            if (!node) return false;
 
-            const parent = updatedNodes.find(p => p.id === node.parentId);
-            return parent && (parent.type === NodeType.RACK || (parent.type === NodeType.GROUP && parent.data.collapsed));
+            // Check if inside Rack/Collapsed Group
+            if (node.parentId) {
+                const parent = updatedNodes.find(p => p.id === node.parentId);
+                if (parent && (parent.type === NodeType.RACK || (parent.type === NodeType.GROUP && parent.data.collapsed))) {
+                    return true;
+                }
+            }
+
+            // Check if part of a docked chain (master or follower)
+            const isDockedMaster = updatedNodes.some(n => n.data.dockedTo === node.id);
+            const isDockedFollower = !!node.data.dockedTo;
+            return isDockedMaster || isDockedFollower;
         });
 
         let finalNodes = updatedNodes;

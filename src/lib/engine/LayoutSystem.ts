@@ -200,12 +200,14 @@ export class LayoutSystem {
             }
 
             // Determine Master's visual dimensions
-            let masterH = (master.style?.height as number) ?? master.measured?.height ?? master.height ?? 100;
-            
-            // Fix: If master is collapsed, use fixed header height to avoid gap
-            // The NodeHeader is usually h-9 (36px) + border = approx 40px with Shell styling
+            // For collapsed nodes: prefer measured.height (actual rendered height)
+            // Fallback to 40px (header height) if not yet measured
+            let masterH: number;
             if (master.data.collapsed) {
-                masterH = 40;
+                // Use measured height if available (includes handle fields when collapsed)
+                masterH = master.measured?.height ?? 40;
+            } else {
+                masterH = (master.style?.height as number) ?? master.measured?.height ?? master.height ?? 100;
             }
 
             const masterW = (master.style?.width as number) ?? master.measured?.width ?? master.width ?? 200;

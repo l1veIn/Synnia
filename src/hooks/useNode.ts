@@ -130,8 +130,9 @@ export function useNode(nodeId: string): UseNodeReturn {
             const currentHeight = (node.style?.height as number) || node.measured?.height || 200;
             graphEngine.updateNode(nodeId, {
                 data: { collapsed: true, other: { ...(node.data.other || {}), expandedHeight: currentHeight } },
-                style: { height: 50 },
-                height: 50,
+                // Use 'auto' to let React Flow measure actual collapsed content height
+                style: { height: 'auto' },
+                height: undefined,
             });
         },
 

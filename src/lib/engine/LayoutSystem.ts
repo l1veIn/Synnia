@@ -17,9 +17,9 @@ export class LayoutSystem {
         const { nodes } = this.engine.state;
         const group = nodes.find(n => n.id === groupId);
         if (!group) return;
-        
+
         const isCollapsed = !group.data.collapsed;
-        
+
         // 1. Get Behavior
         const behavior = behaviorRegistry.getByType(group.type as NodeType);
         let currentNodes = [...nodes];
@@ -33,10 +33,10 @@ export class LayoutSystem {
             // Default behavior: just toggle the data flag
             currentNodes = currentNodes.map(n => n.id === groupId ? { ...n, data: { ...n.data, collapsed: isCollapsed } } : n);
         }
-        
+
         // 3. Fix Global Layout (Handle nested resizing)
         currentNodes = this.fixGlobalLayout(currentNodes);
-        
+
         this.engine.setNodes(currentNodes);
     }
 
@@ -58,10 +58,10 @@ export class LayoutSystem {
         if (!node) return;
 
         const isCollapsed = !node.data.collapsed;
-        
+
         // 1. Get Behavior
         const behavior = behaviorRegistry.getByType(node.type as NodeType);
-        
+
         let updatedNodes = [...nodes];
 
         // 2. Delegate to Behavior
@@ -71,12 +71,12 @@ export class LayoutSystem {
             updatedNodes = this.applyPatches(updatedNodes, patches);
         } else {
             // Default Fallback: Just toggle the flag
-            updatedNodes = updatedNodes.map(n => n.id === nodeId ? { 
-                ...n, 
-                data: { ...n.data, collapsed: isCollapsed } 
+            updatedNodes = updatedNodes.map(n => n.id === nodeId ? {
+                ...n,
+                data: { ...n.data, collapsed: isCollapsed }
             } : n);
         }
-        
+
         // 3. Trigger reflow of parents
         updatedNodes = this.fixGlobalLayout(updatedNodes);
 
@@ -90,7 +90,7 @@ export class LayoutSystem {
     public fixGlobalLayout(nodes: SynniaNode[]): SynniaNode[] {
         // 1. Build a Map for fast access/updates (Simulation State)
         const nodeMap = new Map(nodes.map(n => [n.id, n]));
-        
+
         // 2. Helper to get depth (cacheable if needed, but tree is small enough usually)
         const getDepth = (node: SynniaNode): number => {
             let depth = 0;
@@ -109,12 +109,12 @@ export class LayoutSystem {
         // 4. Bubble Up
         for (const container of sortedNodes) {
             const behavior = behaviorRegistry.getByType(container.type as NodeType);
-            
+
             // If this node has a layout behavior
             if (behavior.onLayout) {
                 // Get *current* children from the simulation state (they might have been updated by their own layout step)
                 const currentChildren = Array.from(nodeMap.values()).filter(n => n.parentId === container.id);
-                
+
                 // Create context based on current simulation
                 const context: EngineContext = {
                     getNodes: () => Array.from(nodeMap.values()),
@@ -151,20 +151,20 @@ export class LayoutSystem {
         // But since we are iterating, we can't mutate 'nodes' directly if we want to be pure-ish.
         // Actually, nodeMap contains the working copies. Let's clean them first?
         // Or better: clean on the fly? No, we might have lost a follower, so we need to reset.
-        
+
         for (const node of nodeMap.values()) {
-             if (node.data.hasDockedFollower) {
-                 nodeMap.set(node.id, {
-                     ...node,
-                     data: { ...node.data, hasDockedFollower: false }
-                 });
-             }
+            if (node.data.hasDockedFollower) {
+                nodeMap.set(node.id, {
+                    ...node,
+                    data: { ...node.data, hasDockedFollower: false }
+                });
+            }
         }
 
         // Re-build map after reset (or just iterate nodes again)
         // Optimization: Single pass? 
         // We can just iterate nodes to build followerMap.
-        
+
         nodes.forEach(node => {
             const masterId = node.data.dockedTo;
             if (masterId && nodeMap.has(masterId)) {
@@ -178,25 +178,25 @@ export class LayoutSystem {
         if (followerMap.size === 0) return Array.from(nodeMap.values()); // Return clean state
 
         // 2. Recursive Update Function
-        const visited = new Set<string>(); 
-        
+        const visited = new Set<string>();
+
         const updateFollowers = (masterId: string, recursionStack: Set<string>) => {
-            if (recursionStack.has(masterId)) return; 
+            if (recursionStack.has(masterId)) return;
             recursionStack.add(masterId);
 
             const followers = followerMap.get(masterId);
             if (!followers) return;
 
             let master = nodeMap.get(masterId)!;
-            
+
             // Mark Master as having a follower (for styling)
             // Only update if not already true to avoid object churn?
             if (!master.data.hasDockedFollower) {
-                 master = {
-                     ...master,
-                     data: { ...master.data, hasDockedFollower: true }
-                 };
-                 nodeMap.set(masterId, master);
+                master = {
+                    ...master,
+                    data: { ...master.data, hasDockedFollower: true }
+                };
+                nodeMap.set(masterId, master);
             }
 
             // Determine Master's visual dimensions
@@ -216,12 +216,12 @@ export class LayoutSystem {
 
             followers.forEach(followerId => {
                 const follower = nodeMap.get(followerId)!;
-                
+
                 // Constraint: Must be siblings
                 if (follower.parentId !== master.parentId) return;
 
                 const GAP = 0; // Tightly packed
-                
+
                 const newY = masterY + masterH + GAP;
                 const newX = masterX;
                 const newW = masterW;
@@ -235,7 +235,7 @@ export class LayoutSystem {
                     // If follower was collapsed, we might need to handle its height too? 
                     // No, follower height is its own business (or determined by ITS children).
                 };
-                
+
                 nodeMap.set(followerId, updatedFollower as SynniaNode);
 
                 // Recursively update this follower's followers
@@ -250,11 +250,11 @@ export class LayoutSystem {
             const node = nodeMap.get(id);
             return !node?.data.dockedTo || !nodeMap.has(node.data.dockedTo!);
         });
-        
+
         // If there are cycles (A->B->A) without any root, topLevelMasters is empty.
         // We should handle that edge case by iterating remaining unvisited masters?
         // For now, assume user creates DAGs.
-        
+
         topLevelMasters.forEach(id => updateFollowers(id, new Set()));
 
         return Array.from(nodeMap.values());

@@ -16,7 +16,7 @@ export type Graph = { nodes: Array<SynniaNode>, edges: Array<SynniaEdge>, };
 export type Asset = { id: string, type: string, content: any, metadata: AssetMetadata, };
 
 // AssetMetadata
-export type AssetMetadata = { name: string, createdAt: number, updatedAt: number, source: string | null, extra: Record<string, any>, };
+export type AssetMetadata = { name: string, createdAt: number, updatedAt: number, source: string | null, image: ImageAssetMetadata | null, text: TextAssetMetadata | null, extra: Record<string, any>, };
 
 // SynniaNode
 export type SynniaNode = { id: string, type: string, position: Position, width: number | null, height: number | null, parentId: string | null, extent: string | null, style: Record<string, any>, data: SynniaNodeData, };

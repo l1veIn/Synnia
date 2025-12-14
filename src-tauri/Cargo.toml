@@ -32,3 +32,17 @@ tauri-plugin-dialog = "2.2.0"
 actix-web = "4.4"
 actix-files = "0.6.5"
 actix-cors = "0.6.5"
+
+# SQLite + CAS + Metadata extraction
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha2 = "0.10"
+kamadak-exif = "0.5"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3"
+
+# ts-rs global config: export all types to frontend bindings
+[package.metadata.ts-rs]
+export_to = "../src/bindings/"

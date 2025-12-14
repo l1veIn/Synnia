@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { apiClient } from '@/lib/apiClient';
-import { SynniaProject } from '@/bindings/synnia';
+import { SynniaProject } from '@/bindings';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 const AUTOSAVE_INTERVAL = 1000; // 1 second debounce

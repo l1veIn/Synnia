@@ -2,29 +2,24 @@
 // Synnia Architecture V2: Asset Types
 // ==========================================
 
-import { Asset as RustAsset, AssetMetadata as RustMetadata } from '@/bindings/synnia';
+// Re-export types from Rust bindings (single source of truth)
+export type {
+    Asset as RustAsset,
+    AssetMetadata,
+    ImageAssetMetadata,
+    TextAssetMetadata
+} from '@/bindings';
+
+import type { Asset as RustAsset, AssetMetadata, ImageAssetMetadata, TextAssetMetadata } from '@/bindings';
 
 export type AssetType = 'text' | 'image' | 'json' | 'script' | 'file' | string;
 
-export interface ImageMetadata {
-    width: number;
-    height: number;
-    size: number;
-    mimeType: string;
-    thumbnail?: string; // Base64 data URI
-    hash?: string;
-}
+// Alias for backward compatibility
+export type ImageMetadata = ImageAssetMetadata;
+export type TextMetadata = TextAssetMetadata;
 
-export interface TextMetadata {
-    length: number;
-    encoding?: string;
-}
-
-// Frontend Metadata Extension (maps to 'extra' or extended fields)
-export interface ExtendedMetadata extends RustMetadata {
-    image?: ImageMetadata;
-    text?: TextMetadata;
-}
+// Extended metadata is now just AssetMetadata from Rust
+export type ExtendedMetadata = AssetMetadata;
 
 // ==========================================
 // Form / Recipe Schema Definitions
@@ -111,5 +106,7 @@ export const createDefaultMetadata = (name: string): ExtendedMetadata => ({
     createdAt: Date.now(),
     updatedAt: Date.now(),
     source: 'user',
+    image: null,
+    text: null,
     extra: {}
 });

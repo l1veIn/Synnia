@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@/bindings": path.resolve(__dirname, "./src-tauri/bindings"),
     },
   },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

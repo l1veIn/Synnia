@@ -8,7 +8,8 @@ import { SynniaNode, NodeType } from "@/types/project";
 import { inspectorTypes } from '@/components/workflow/nodes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DebugInspector } from "./inspector/DebugInspector";
-import { Bug, Settings2, GripHorizontal } from "lucide-react";
+import { AssetHistoryPanel } from "./inspector/AssetHistoryPanel";
+import { Bug, Settings2, GripHorizontal, History } from "lucide-react";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { graphEngine } from "@/lib/engine/GraphEngine";
 
@@ -124,12 +125,15 @@ export const InspectorPanel = () => {
 
             <Tabs defaultValue="properties" className="flex flex-col flex-1 min-h-0 w-full">
                 <div className="px-3 py-3 shrink-0 border-b bg-card">
-                    <TabsList className="grid w-full grid-cols-2 h-9">
+                    <TabsList className="grid w-full grid-cols-3 h-9">
                         <TabsTrigger value="properties" className="text-xs h-full">
-                            <Settings2 className="h-3 w-3 mr-2" /> Properties
+                            <Settings2 className="h-3 w-3 mr-1" /> Props
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="text-xs h-full">
+                            <History className="h-3 w-3 mr-1" /> History
                         </TabsTrigger>
                         <TabsTrigger value="debug" className="text-xs h-full">
-                            <Bug className="h-3 w-3 mr-2" /> Debug
+                            <Bug className="h-3 w-3 mr-1" /> Debug
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -153,7 +157,7 @@ export const InspectorPanel = () => {
                             </div>
 
                             {/* Asset Specific Editor */}
-                            <div className="flex-1 min-h-0 relative">
+                            <div className="flex-1 min-h-0 relative overflow-y-auto">
                                 <NodeInspector node={selectedNode} />
                             </div>
                         </div>
@@ -215,7 +219,12 @@ export const InspectorPanel = () => {
                     )}
                 </TabsContent>
 
-                {/* Tab: Debug (New Inspector) */}
+                {/* Tab: History */}
+                <TabsContent value="history" className="flex-1 min-h-0 m-0 data-[state=inactive]:hidden">
+                    <AssetHistoryPanel assetId={assetId as string | undefined} nodeId={selectedNode.id} />
+                </TabsContent>
+
+                {/* Tab: Debug */}
                 <TabsContent value="debug" className="flex-1 min-h-0 m-0 data-[state=inactive]:hidden">
                     <DebugInspector nodeId={selectedNode.id} />
                 </TabsContent>

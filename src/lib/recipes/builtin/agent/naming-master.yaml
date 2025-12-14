@@ -1,0 +1,96 @@
+# 命名大师 Agent 配方 (中文)
+# 使用关联度光谱策略生成品牌IP角色命名
+# 中文优化提示词，更适合生成中文名称
+
+id: agent.naming-master-zh
+name: 命名大师 (中文)
+description: 使用光谱策略生成品牌IP角色名称（中文版）
+category: Agent
+icon: Wand2
+
+mixin:
+  - llm.call
+
+inputSchema:
+  # Agent-specific fields
+  - key: productType
+    label: Product Type
+    type: string
+    widget: text
+    required: true
+    placeholder: "e.g., Weather App, E-commerce Platform..."
+    connection:
+      input: true
+
+  - key: targetAudience
+    label: Target Audience
+    type: string
+    widget: text
+    placeholder: "e.g., Young professionals, Gen-Z gamers..."
+    connection:
+      input: true
+
+  - key: brandTone
+    label: Brand Tone
+    type: string
+    widget: text
+    placeholder: "e.g., Playful, Professional, Techy..."
+    connection:
+      input: true
+
+  - key: language
+    label: Language
+    type: select
+    widget: select
+    default: zh
+    options:
+      - zh
+      - en
+
+  # Override mixin fields (hide prompt/systemPrompt, we generate internally)
+  - key: prompt
+    hidden: true
+    default: ""
+
+  - key: systemPrompt
+    hidden: true
+    default: ""
+
+  - key: temperature
+    label: Creativity
+    default: 0.9
+
+  - key: maxTokens
+    hidden: true
+    default: 4096
+
+outputSchema:
+  type: json
+  description: Array of naming options with rationale
+
+executor:
+  type: llm-agent
+  systemPrompt: |
+    你是一位虚拟IP角色命名专家。你的任务是给品牌虚拟IP角色起名。
+
+    【命名光谱策略】
+    生成 9 个名字：
+    1. [1-3号] 紧密相关：直观体现产品核心功能
+    2. [4-6号] 隐喻联想：通过意象、氛围来命名
+    3. [7-9号] 抽象/脑洞：独特的符号化命名
+
+    【重要】只返回 JSON 数组，不要任何其他文字、标题或解释。
+    格式：[{"name":"角色名","tagline":"口头禅","rationale":"理由","style":"Direct/Metaphor/Abstract"}, ...]
+  userPromptTemplate: |
+    Product Type: {{productType}}
+    Target Audience: {{targetAudience}}
+    Brand Tone: {{brandTone}}
+
+    Generate 9 unique IP CHARACTER names following the Spectrum Strategy.
+    Return as a JSON array.
+  parseAs: json
+  createNodes: true
+  nodeConfig:
+    type: json
+    titleTemplate: "#{{index}}: {{name}}"
+    collapsed: true

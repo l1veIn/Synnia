@@ -89,7 +89,8 @@ export function useRunRecipe() {
                 inputs: effectiveValues,
                 nodeId,
                 node,
-                engine: graphEngine
+                engine: graphEngine,
+                manifest: recipe.manifest
             };
 
             // --- Execute ---

@@ -1,5 +1,5 @@
 import { GraphEngine } from './GraphEngine';
-import { Asset } from '@/bindings/Asset';
+import { Asset, ExtendedMetadata } from '@/types/assets';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,15 +25,16 @@ export class AssetSystem {
     public create(type: string, content: any, metadata: Partial<Asset['metadata']> = {}): string {
         const id = uuidv4();
         const now = Date.now();
-        
+
         // Ensure metadata conforms to Rust binding structure
-        const safeMetadata = {
+        const safeMetadata: Asset['metadata'] = {
             name: metadata.name || 'New Asset',
             createdAt: metadata.createdAt || now,
             updatedAt: metadata.updatedAt || now,
-            source: metadata.source || 'user',
+            source: metadata.source ?? 'user',
+            image: metadata.image ?? null,
+            text: metadata.text ?? null,
             extra: metadata.extra || {},
-            ...metadata
         };
 
         const newAsset: Asset = {
@@ -45,7 +46,10 @@ export class AssetSystem {
 
         const { assets } = this.store;
         this.setAssets({ ...assets, [id]: newAsset });
-        
+
+        // Save initial version to backend (creates first history entry)
+        this.saveAssetToBackend(newAsset);
+
         return id;
     }
 
@@ -57,17 +61,38 @@ export class AssetSystem {
             return;
         }
 
+        const updatedAsset = {
+            ...asset,
+            content,
+            metadata: {
+                ...asset.metadata,
+                updatedAt: Date.now()
+            }
+        };
+
         this.setAssets({
             ...assets,
-            [id]: {
-                ...asset,
-                content,
-                metadata: {
-                    ...asset.metadata,
-                    updatedAt: Date.now()
-                }
-            }
+            [id]: updatedAsset
         });
+
+        // Save to backend for history tracking (async, fire-and-forget)
+        this.saveAssetToBackend(updatedAsset).catch(err => {
+            console.warn('Failed to save asset history:', err);
+        });
+    }
+
+    /**
+     * Save asset to backend for history tracking.
+     * This creates a history snapshot if content has changed.
+     */
+    private async saveAssetToBackend(asset: Asset) {
+        try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('save_asset_with_history', { asset });
+        } catch (e) {
+            // May fail in browser mode or if Tauri is not available
+            console.debug('[AssetSystem] Backend save skipped:', e);
+        }
     }
 
     public updateMetadata(id: string, metaUpdates: Partial<Asset['metadata']>) {

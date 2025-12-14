@@ -1,4 +1,4 @@
-import { AgentDefinition } from '@/bindings/synnia';
+import { AgentDefinition } from '@/bindings';
 
 export interface SystemAgent extends Omit<AgentDefinition, 'inputSchema' | 'systemPrompt' | 'outputConfig' | 'isSystem'> {
     // We override/add these to match the binding shape at runtime

@@ -3,7 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { Asset } from '@/types/assets';
-import { SynniaProject, ProjectMeta, Viewport } from '@/bindings/synnia';
+import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 
 let isHistoryPaused = false;

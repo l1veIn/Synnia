@@ -105,6 +105,14 @@ pub fn run() {
             // Asset Commands
             commands::asset::import_file,
             commands::asset::save_processed_image,
+            commands::asset::get_media_assets,
+
+            // History Commands
+            commands::history::save_asset_with_history,
+            commands::history::get_asset_history,
+            commands::history::get_history_content,
+            commands::history::restore_asset_version,
+            commands::history::count_asset_history,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

@@ -55,7 +55,7 @@ export interface BaseNodeData extends Record<string, unknown> {
   /** @deprecated Use assetId and Assets Store */
   assetType?: 'image' | 'text' | 'json';
   /** @deprecated Use assetId and Assets Store */
-  content?: string;
+  content?: any; // string or FormAssetContent
   /** @deprecated Use assetId and Assets Store */
   preview?: string;
 }

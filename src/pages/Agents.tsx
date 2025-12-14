@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AgentEditorDialog } from '@/components/agent/AgentEditorDialog';
-import { AgentDefinition } from '@/bindings/synnia';
+import { AgentDefinition } from '@/bindings';
 import { toast } from 'sonner';
 import { SYSTEM_AGENTS, SystemAgent } from '@/lib/systemAgents';
 import { AgentRunDialog } from '@/components/agent/AgentRunDialog';

@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect } from 'react';
 
@@ -6,7 +6,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { nodeTypes } from '@/components/workflow/nodes';
 import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, Box, Home, Image as ImageIcon, FileText } from 'lucide-react';
+import { Plus, Save, Box, Home, Image as ImageIcon, FileText, FolderOpen } from 'lucide-react';
 import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -15,17 +15,20 @@ import { InspectorPanel } from '@/components/workflow/InspectorPanel';
 import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { saveProjectToFile } from '@/lib/projectUtils';
-import { SynniaProject } from '@/bindings/synnia';
+import { SynniaProject } from '@/bindings';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { dirname } from '@tauri-apps/api/path';
 import { graphEngine } from '@/lib/engine/GraphEngine';
+import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
+import { useState } from 'react';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {
   const navigate = useNavigate();
+  const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
   const nodes = useWorkflowStore(s => s.nodes);
   const edges = useWorkflowStore(s => s.edges);
   const loadProject = useWorkflowStore(s => s.loadProject);
@@ -209,11 +212,43 @@ function CanvasFlow() {
                 <Button size="sm" variant="outline" title="Save (JSON)" onClick={handleSave}>
                   <Save className="w-4 h-4" />
                 </Button>
+
+                <div className="w-px h-4 bg-border mx-1" />
+
+                <Button size="sm" variant="ghost" onClick={() => setAssetLibraryOpen(true)} title="Asset Library">
+                  <FolderOpen className="w-4 h-4" />
+                </Button>
               </div>
             </Panel>
           </ReactFlow>
         </EditorContextMenu>
         <InspectorPanel />
+        <AssetLibraryDialog
+          open={assetLibraryOpen}
+          onOpenChange={setAssetLibraryOpen}
+          onLocateNode={(nodeId) => {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+              // Select the node using onNodesChange
+              graphEngine.interaction.onNodesChange([
+                // First deselect all
+                ...nodes.filter(n => n.selected).map(n => ({
+                  type: 'select' as const,
+                  id: n.id,
+                  selected: false
+                })),
+                // Then select target
+                {
+                  type: 'select' as const,
+                  id: nodeId,
+                  selected: true
+                }
+              ]);
+
+              console.log('Located and selected node:', nodeId);
+            }
+          }}
+        />
       </div>
     </div>
   );

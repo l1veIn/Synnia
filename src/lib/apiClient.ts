@@ -1,130 +1,69 @@
-import { SynniaProject, SynniaNode, SynniaEdge } from '@/bindings/synnia';
-import { Asset } from '@/types/assets';
+/**
+ * Synnia API Client
+ * 
+ * Provides a typed wrapper around Tauri invoke commands.
+ * Includes mock implementations for browser-only development.
+ */
+
+import { SynniaProject } from '@/bindings';
 import { invoke } from '@tauri-apps/api/core';
 
-// --- Initial Mock Data (V2 Architecture) ---
+// ============================================
+// Types
+// ============================================
 
-const now = Date.now();
+/** Asset history entry from backend */
+export interface AssetHistoryEntry {
+    id: number;
+    assetId: string;
+    contentHash: string;
+    contentPreview: string;
+    createdAt: number;
+}
 
-const MOCK_ASSETS: Record<string, Asset> = {
-    'asset-img-1': {
-        id: 'asset-img-1',
-        type: 'image',
-        content: 'https://picsum.photos/200/300',
-        metadata: {
-            name: 'Source Image',
-            createdAt: now,
-            updatedAt: now,
-            source: 'user',
-            extra: {}
-        }
-    },
-    'asset-txt-1': {
-        id: 'asset-txt-1',
-        type: 'text',
-        content: 'Processed Result Text',
-        metadata: {
-            name: 'Result',
-            createdAt: now,
-            updatedAt: now,
-            source: 'user',
-            extra: {}
-        }
-    }
-};
+/** Recent project entry */
+export interface RecentProject {
+    name: string;
+    path: string;
+    last_opened: string;
+}
 
-const MOCK_NODES: SynniaNode[] = [
-    {
-        id: 'node-1',
-        type: 'asset-node',
-        position: { x: 100, y: 100 },
-        width: null, height: null, parentId: null, extent: null, style: {},
-        data: {
-            title: 'Source Image',
-            assetId: 'asset-img-1',
-            isReference: false,
-            collapsed: false,
-            layoutMode: 'free',
-            dockedTo: null,
-            state: 'idle',
-            recipeId: null
-        }
-    },
-    {
-        id: 'node-2',
-        type: 'asset-node',
-        position: { x: 400, y: 100 },
-        width: null, height: null, parentId: null, extent: null, style: {},
-        data: {
-            title: 'Processed Result',
-            assetId: 'asset-txt-1',
-            isReference: false,
-            collapsed: false,
-            layoutMode: 'free',
-            dockedTo: null,
-            state: 'processing',
-            recipeId: null
-        }
-    },
-    {
-        id: 'group-1',
-        type: 'group-node',
-        position: { x: 100, y: 400 },
-        width: 400,
-        height: 300,
-        parentId: null, extent: null, style: {},
-        data: {
-            title: 'My Workspace',
-            assetId: null,
-            isReference: false,
-            collapsed: false,
-            layoutMode: 'free',
-            dockedTo: null,
-            state: 'idle',
-            recipeId: null
-        }
-    }
-];
+/** Result from saving an image file */
+export interface SaveImageResult {
+    relativePath: string;
+    thumbnailPath: string | null;
+    width: number;
+    height: number;
+}
 
-const MOCK_EDGES: SynniaEdge[] = [
-    { id: 'e1-2', source: 'node-1', target: 'node-2', sourceHandle: null, targetHandle: null, type: null, label: null, animated: true }
-];
+/** Media asset info for asset library */
+export interface MediaAssetInfo {
+    id: string;
+    assetType: string;
+    name: string;
+    content: string;
+    thumbnailPath: string | null;
+    width: number | null;
+    height: number | null;
+    createdAt: number;
+    updatedAt: number;
+}
 
-const MOCK_PROJECT: SynniaProject = {
-    version: '2.0.0-mock',
-    meta: {
-        id: 'mock-project-001',
-        name: 'Frontend Dev Sandbox',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        thumbnail: null,
-        description: null,
-        author: 'Dev'
-    },
-    viewport: { x: 0, y: 0, zoom: 1 },
-    graph: {
-        nodes: MOCK_NODES,
-        edges: MOCK_EDGES
-    },
-    assets: MOCK_ASSETS,
-    settings: {}
-};
+// ============================================
+// Environment Detection
+// ============================================
 
-// Mock Recent Projects for Dashboard
-const MOCK_RECENTS = [
-    { name: 'Demo Project', path: '/local/demo', last_opened: new Date().toISOString() },
-    { name: 'Test Sandbox', path: '/local/test', last_opened: new Date(Date.now() - 86400000).toISOString() }
-];
-
-// Check Tauri environment (Robust check)
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-// --- API Client ---
+// ============================================
+// API Client
+// ============================================
 
 export const apiClient = {
-
-    // Universal Invoke Wrapper
-    invoke: async <T>(cmd: string, args?: any): Promise<T> => {
+    /**
+     * Universal Tauri invoke wrapper with error handling.
+     */
+    invoke: async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
         if (isTauri) {
             try {
                 return await invoke<T>(cmd, args);
@@ -134,65 +73,135 @@ export const apiClient = {
             }
         }
 
-        // --- Mock Implementation (Browser Mode) ---
-        console.groupCollapsed(`[MockAPI] Invoke: ${cmd}`);
-        console.log("Args:", args);
-        console.groupEnd();
-
-        // Simulate Network Latency
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        switch (cmd) {
-            case 'get_system_agents': return [] as T;
-
-            case 'get_recent_projects':
-                // Return empty list or mocks depending on dev needs. 
-                // Defaulting to mocks to show UI.
-                return MOCK_RECENTS as T;
-
-            case 'init_project':
-                return { message: "Project Initialized (Mock)" } as T;
-
-            case 'load_project':
-                return MOCK_PROJECT as T;
-
-            case 'create_project':
-                return "mock-project-path" as T;
-
-            case 'delete_project':
-                return null as T;
-
-            case 'rename_project':
-                return "new-mock-path" as T;
-
-            case 'get_default_projects_path':
-                return "/Mock/Documents/SynniaProjects" as T;
-
-            case 'open_in_browser':
-                console.log('Open Browser:', args.url);
-                return null as T;
-
-            case 'save_project':
-                console.log("Project Saved (Mock)");
-                return null as T;
-
-            case 'save_project_autosave':
-                return null as T;
-
-            default:
-                console.warn(`[MockAPI] Unknown command: ${cmd}`);
-                return null as T;
-        }
+        // Mock fallback for browser development
+        console.warn(`[MockAPI] ${cmd}`, args);
+        await delay(100);
+        return getMockResponse<T>(cmd, args);
     },
 
-    // Helpers
-    loadProject: async (path: string): Promise<SynniaProject> => {
-        return apiClient.invoke('load_project', { path });
-    },
+    // ========================================
+    // Project Commands
+    // ========================================
 
-    saveGraph: async () => {
-        // This needs the full project object. 
-        // Usually the store calls save_project directly via invoke.
-        console.log('[MockAPI] Use invoke("save_project") instead.');
-    }
+    loadProject: (path: string): Promise<SynniaProject> =>
+        apiClient.invoke('load_project', { path }),
+
+    saveProject: (project: SynniaProject): Promise<void> =>
+        apiClient.invoke('save_project', { project }),
+
+    saveProjectAutosave: (project: SynniaProject): Promise<void> =>
+        apiClient.invoke('save_project_autosave', { project }),
+
+    createProject: (name: string, parentPath: string): Promise<string> =>
+        apiClient.invoke('create_project', { name, parentPath }),
+
+    deleteProject: (path: string): Promise<void> =>
+        apiClient.invoke('delete_project', { path }),
+
+    renameProject: (oldPath: string, newName: string): Promise<string> =>
+        apiClient.invoke('rename_project', { oldPath, newName }),
+
+    getRecentProjects: (): Promise<RecentProject[]> =>
+        apiClient.invoke('get_recent_projects'),
+
+    getDefaultProjectsPath: (): Promise<string> =>
+        apiClient.invoke('get_default_projects_path'),
+
+    getCurrentProjectPath: (): Promise<string> =>
+        apiClient.invoke('get_current_project_path'),
+
+    // ========================================
+    // Asset History Commands
+    // ========================================
+
+    /**
+     * Get version history for an asset.
+     * @param assetId - The asset ID
+     * @param limit - Max entries to return (default 50)
+     */
+    getAssetHistory: (assetId: string, limit?: number): Promise<AssetHistoryEntry[]> =>
+        apiClient.invoke('get_asset_history', { assetId, limit }),
+
+    /**
+     * Get full content JSON of a specific history version.
+     */
+    getHistoryContent: (historyId: number): Promise<string> =>
+        apiClient.invoke('get_history_content', { historyId }),
+
+    /**
+     * Restore an asset to a previous version.
+     * @returns The restored content as JSON value
+     */
+    restoreAssetVersion: (assetId: string, historyId: number): Promise<unknown> =>
+        apiClient.invoke('restore_asset_version', { assetId, historyId }),
+
+    /**
+     * Count total history entries for an asset.
+     */
+    countAssetHistory: (assetId: string): Promise<number> =>
+        apiClient.invoke('count_asset_history', { assetId }),
+
+    // ========================================
+    // Asset Commands
+    // ========================================
+
+    /** Result from saving an image file */
+    importFile: (filePath: string): Promise<SaveImageResult> =>
+        apiClient.invoke('import_file', { filePath }),
+
+    /**
+     * Save a processed image from base64 data.
+     * After image editing (crop, rotate, bg removal), call this to persist.
+     */
+    saveProcessedImage: (base64Data: string, filename?: string): Promise<SaveImageResult> =>
+        apiClient.invoke('save_processed_image', { base64Data, filename }),
+
+    /**
+     * Get all media assets (images, videos, audio) for the asset library.
+     */
+    getMediaAssets: (): Promise<MediaAssetInfo[]> =>
+        apiClient.invoke('get_media_assets', {}),
+
+    // ========================================
+    // Utility Commands
+    // ========================================
+
+    getServerPort: (): Promise<number> =>
+        apiClient.invoke('get_server_port'),
+
+    openInBrowser: (url: string): Promise<void> =>
+        apiClient.invoke('open_in_browser', { url }),
 };
+
+// ============================================
+// Helpers
+// ============================================
+
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Mock responses for browser development.
+ */
+function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
+    switch (cmd) {
+        case 'get_recent_projects':
+            return [] as T;
+        case 'get_default_projects_path':
+            return '/Mock/Documents/SynniaProjects' as T;
+        case 'get_asset_history':
+            return [
+                { id: 1, assetId: 'mock', contentHash: 'abc123', contentPreview: '{"mock": true}', createdAt: Date.now() - 60000 },
+                { id: 2, assetId: 'mock', contentHash: 'def456', contentPreview: '{"mock": false}', createdAt: Date.now() }
+            ] as T;
+        case 'get_history_content':
+            return '{"mock": "content"}' as T;
+        case 'count_asset_history':
+            return 2 as T;
+        case 'get_server_port':
+            return 3001 as T;
+        default:
+            return null as T;
+    }
+}

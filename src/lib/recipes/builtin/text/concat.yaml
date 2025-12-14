@@ -1,0 +1,49 @@
+# Text Concatenation Recipe
+# Joins two text inputs with a separator
+
+id: text.concat
+name: Concatenate
+description: Joins two text inputs together
+category: Text
+icon: TextCursor
+
+inputSchema:
+  - key: text1
+    label: Text 1
+    type: string
+    widget: textarea
+    required: true
+    connection:
+      input: true
+
+  - key: text2
+    label: Text 2
+    type: string
+    widget: textarea
+    required: true
+    connection:
+      input: true
+
+  - key: separator
+    label: Separator
+    type: string
+    widget: text
+    default: "\n\n"
+    placeholder: "Default: newline"
+
+  - key: result
+    label: Result
+    type: string
+    widget: none
+    disabled: true
+    connection:
+      output: true
+
+outputSchema:
+  type: text
+  description: Concatenated text result
+
+executor:
+  type: template
+  template: "{{text1}}{{separator}}{{text2}}"
+  outputKey: result

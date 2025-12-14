@@ -91,54 +91,22 @@ export function useCanvasLogic() {
 
         const toastId = toast.loading("Processing image...");
 
-        const assetUrl = convertFileSrc(filePath);
-        const response = await fetch(assetUrl);
-        const blob = await response.blob();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-        const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = assetUrl;
-
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = () => reject(new Error("Failed to load image structure"));
-        });
-
-        let thumbnail = undefined;
-        const MAX_THUMB_SIZE = 400;
-        if (img.width > MAX_THUMB_SIZE || img.height > MAX_THUMB_SIZE) {
-          const canvas = document.createElement('canvas');
-          const scale = Math.min(MAX_THUMB_SIZE / img.width, MAX_THUMB_SIZE / img.height);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            thumbnail = canvas.toDataURL('image/jpeg', 0.7);
-          }
-        }
-
-        const relativePath = await apiClient.invoke<string>('import_file', { filePath });
+        // Import file via backend (saves file and generates thumbnail)
+        const result = await apiClient.importFile(filePath);
 
         const STD_WIDTH = 240;
         const STD_HEIGHT = 240;
-
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
         graphEngine.mutator.addNode(NodeType.ASSET, targetPos, {
           assetType: 'image',
-          content: relativePath,
+          content: result.relativePath,
           assetName: filePath.split(/[/\\]/).pop(),
           metadata: {
             image: {
-              width: img.width,
-              height: img.height,
-              mimeType: blob.type || 'image/png',
-              size: blob.size,
-              hash: hash,
-              thumbnail
+              width: result.width,
+              height: result.height,
+              thumbnail: result.thumbnailPath || undefined
             }
           },
           style: { width: STD_WIDTH, height: STD_HEIGHT }

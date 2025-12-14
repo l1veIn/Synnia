@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea"; // Re-added
-import { AgentDefinition } from '@/bindings/synnia';
+import { AgentDefinition } from '@/bindings';
 import { Switch } from "@/components/ui/switch";
 
 import { JsonSchemaEditor } from './JsonSchemaEditor';

@@ -5,12 +5,153 @@ import { GraphEngine } from '@/lib/engine/GraphEngine';
 import { XYPosition } from '@xyflow/react';
 
 // ============================================================================
-// Recipe Definition System V2
+// Recipe System V2: YAML-based Configuration + Executor Pattern
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Manifest Schema (maps to YAML structure)
+// ----------------------------------------------------------------------------
+
+/**
+ * Field definition in YAML format (simplified from FieldDefinition)
+ */
+export interface ManifestField {
+    key: string;
+    label?: string;
+    type: 'string' | 'number' | 'boolean' | 'select' | 'object';
+    widget?: 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'node-input' | 'none';
+    default?: any;
+    required?: boolean;
+    disabled?: boolean;
+    hidden?: boolean;
+    placeholder?: string;
+    // Number constraints
+    min?: number;
+    max?: number;
+    step?: number;
+    // Select options
+    options?: string[];
+    // Connection configuration
+    connection?: {
+        input?: boolean;
+        output?: boolean;
+    };
+}
+
+/**
+ * Output schema definition
+ */
+export interface OutputSchema {
+    type: 'json' | 'text' | 'image' | 'void';
+    jsonSchema?: object;
+    description?: string;
+}
+
+/**
+ * Executor types available
+ */
+export type ExecutorType = 'template' | 'http' | 'llm-agent' | 'custom' | 'expression';
+
+/**
+ * Base executor configuration
+ */
+export interface BaseExecutorConfig {
+    type: ExecutorType;
+}
+
+/**
+ * Template executor: simple string interpolation
+ */
+export interface TemplateExecutorConfig extends BaseExecutorConfig {
+    type: 'template';
+    template: string;
+    outputKey?: string; // Default: 'result'
+}
+
+/**
+ * Expression executor: JavaScript expression evaluation
+ */
+export interface ExpressionExecutorConfig extends BaseExecutorConfig {
+    type: 'expression';
+    expression: string;
+    outputKey?: string;
+}
+
+/**
+ * HTTP executor: make HTTP requests
+ */
+export interface HttpExecutorConfig extends BaseExecutorConfig {
+    type: 'http';
+    url: string;
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    headers?: Record<string, string>;
+    body?: string; // Template string
+    responseType?: 'json' | 'text';
+    outputKey?: string;
+}
+
+/**
+ * LLM Agent executor: call LLM with prompts
+ */
+export interface LlmAgentExecutorConfig extends BaseExecutorConfig {
+    type: 'llm-agent';
+    systemPrompt?: string;
+    userPromptTemplate: string;
+    parseAs?: 'json' | 'text';
+    temperature?: number;
+    maxTokens?: number;
+    // Node creation config
+    createNodes?: boolean;
+    nodeConfig?: {
+        type: NodeType;
+        titleTemplate?: string;
+        collapsed?: boolean;
+    };
+}
+
+/**
+ * Custom executor: load from TypeScript file
+ */
+export interface CustomExecutorConfig extends BaseExecutorConfig {
+    type: 'custom';
+    executorPath: string; // Relative path like './executor.ts'
+}
+
+export type ExecutorConfig =
+    | TemplateExecutorConfig
+    | ExpressionExecutorConfig
+    | HttpExecutorConfig
+    | LlmAgentExecutorConfig
+    | CustomExecutorConfig;
+
+/**
+ * Recipe Manifest - the YAML configuration structure
+ */
+export interface RecipeManifest {
+    // Basic info
+    id: string;
+    name: string;
+    description?: string;
+    category?: string;
+    icon?: string; // Lucide icon name or './icon.svg'
+
+    // Inheritance
+    mixin?: string[];
+
+    // Schema
+    inputSchema: ManifestField[];
+    outputSchema?: OutputSchema;
+
+    // Executor
+    executor: ExecutorConfig;
+}
+
+// ----------------------------------------------------------------------------
+// Runtime Types (used by the engine)
+// ----------------------------------------------------------------------------
 
 /**
  * Execution context passed to recipe execute() method.
- * Provides resolved inputs and graph manipulation capabilities.
  */
 export interface ExecutionContext {
     /** Resolved input values (connections already dereferenced) */
@@ -21,6 +162,8 @@ export interface ExecutionContext {
     engine: GraphEngine;
     /** Current node instance */
     node: SynniaNode;
+    /** Recipe manifest (for accessing config) */
+    manifest: RecipeManifest;
 }
 
 /**
@@ -29,25 +172,14 @@ export interface ExecutionContext {
 export interface ExecutionResult {
     /** Whether execution succeeded */
     success: boolean;
-    /** Output data (arbitrary structure, validated by outputSchema if present) */
+    /** Output data */
     data?: any;
-    /** 
-     * Optional: Request to create product nodes.
-     * The recipe decides whether its output generates nodes.
-     */
+    /** Request to create product nodes */
     createNodes?: {
         type: NodeType;
         data: Partial<BaseNodeData>;
         position?: 'below' | 'right' | XYPosition;
-        /** 
-         * If specified, this node will be docked to the node with this ID.
-         * Use '$prev' to dock to the previously created node in this batch.
-         */
         dockedTo?: string | '$prev';
-        /**
-         * If specified, connect the source node's output to this node's input.
-         * Format: { sourceHandle: 'response', targetHandle: 'input' }
-         */
         connectTo?: { sourceHandle: string; targetHandle: string };
     }[];
     /** Error message if success is false */
@@ -55,56 +187,65 @@ export interface ExecutionResult {
 }
 
 /**
- * Output schema for validation (not for determining output form).
+ * Executor function signature
  */
-export interface OutputSchema {
-    /** Expected output type */
-    type: 'json' | 'text' | 'image' | 'void';
-    /** JSON Schema for structured validation (optional) */
-    jsonSchema?: object;
-    /** Human-readable description */
-    description?: string;
-}
+export type RecipeExecutor = (ctx: ExecutionContext) => Promise<ExecutionResult>;
 
 /**
- * Core Recipe Definition.
- * Each recipe = one virtual node type in the system.
+ * Recipe Definition - runtime representation
+ * Created from RecipeManifest by the loader
  */
 export interface RecipeDefinition {
-    /** Unique recipe ID (e.g., "math.divide", "http.request") */
+    /** Unique recipe ID */
     id: string;
     /** Display name */
     name: string;
-    /** Description for tooltips/help */
+    /** Description */
     description?: string;
-    /** Lucide icon for menu/header */
+    /** Lucide icon */
     icon?: LucideIcon;
-    /** Category for grouping in Add Node menu */
+    /** Category for grouping */
     category?: string;
-
-    /** Input fields schema (reuses existing FieldDefinition) */
+    /** Input fields schema (resolved from manifest + mixins) */
     inputSchema: FieldDefinition[];
-    /** Output validation schema (optional) */
+    /** Output validation schema */
     outputSchema?: OutputSchema;
-
-    /** 
-     * Core execution logic.
-     * Receives context with resolved inputs, returns result.
-     * Recipe decides whether to create product nodes via createNodes.
-     */
-    execute: (ctx: ExecutionContext) => Promise<ExecutionResult>;
-
-    /** Mixin IDs to inherit from (future) */
+    /** The manifest this was created from */
+    manifest: RecipeManifest;
+    /** Core execution logic */
+    execute: RecipeExecutor;
+    /** Mixin IDs */
     mixin?: string[];
-    /** Custom node render component (optional, for complex UIs) */
-    customComponent?: React.FC<any>;
 }
 
-// ============================================================================
+// ----------------------------------------------------------------------------
 // Utility Types
-// ============================================================================
+// ----------------------------------------------------------------------------
 
 /**
- * Type-safe helper for defining recipes.
+ * Type-safe helper for defining recipes (legacy, for custom executors)
  */
-export const defineRecipe = (def: RecipeDefinition): RecipeDefinition => def;
+export const defineRecipe = (def: Omit<RecipeDefinition, 'manifest'>): Omit<RecipeDefinition, 'manifest'> => def;
+
+/**
+ * Convert ManifestField to FieldDefinition
+ */
+export const manifestFieldToDefinition = (field: ManifestField): FieldDefinition => ({
+    id: field.key,
+    key: field.key,
+    label: field.label,
+    type: field.type,
+    widget: field.widget,
+    defaultValue: field.default,
+    disabled: field.disabled,
+    hidden: field.hidden,
+    rules: {
+        required: field.required,
+        placeholder: field.placeholder,
+        min: field.min,
+        max: field.max,
+        step: field.step,
+        options: field.options,
+    },
+    connection: field.connection,
+});

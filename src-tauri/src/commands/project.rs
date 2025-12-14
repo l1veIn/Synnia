@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::error::AppError;
 use crate::config::{GlobalConfig, RecentProject};
 use crate::models::SynniaProject;
-use crate::services::io;
+use crate::services::io_sqlite;
 use crate::AppState; 
 
 #[tauri::command]
@@ -62,12 +62,13 @@ pub fn init_project(path: String, state: State<AppState>, app: AppHandle) -> Res
         std::fs::create_dir_all(&assets_path)?;
     }
 
-    // Initialize synnia.json
+    // Get project name from path
     let name = project_path.file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Project");
     
-    io::init_project(&project_path, name)?;
+    // Initialize project with SQLite
+    io_sqlite::init_project_sqlite(&project_path, name)?;
     
     // Update AppState
     let mut path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
@@ -93,7 +94,8 @@ pub fn load_project(path: String, state: State<AppState>, app: AppHandle) -> Res
         return Err(AppError::NotFound(format!("Project path not found: {}", path)));
     }
 
-    let project = io::load_project(&project_path)?;
+    // Load SQLite project
+    let project = io_sqlite::load_project_sqlite(&project_path)?;
 
     // Update AppState
     let mut path_guard = state.current_project_path.lock().map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
@@ -117,7 +119,7 @@ pub fn save_project_autosave(project: SynniaProject, state: State<AppState>) -> 
     };
     
     let project_path = PathBuf::from(project_path_str);
-    io::save_project_autosave(&project_path, &project)?;
+    io_sqlite::save_project_sqlite(&project_path, &project)?;
     Ok(())
 }
 
@@ -129,7 +131,7 @@ pub fn save_project(project: SynniaProject, state: State<AppState>) -> Result<()
     };
     
     let project_path = PathBuf::from(project_path_str);
-    io::save_project(&project_path, &project)?;
+    io_sqlite::save_project_sqlite(&project_path, &project)?;
     Ok(())
 }
 
@@ -147,11 +149,12 @@ pub fn delete_project(path: String, state: State<AppState>, app: AppHandle) -> R
         return Err(AppError::NotFound(format!("Path not found: {}", path)));
     }
 
-    // SAFETY CHECK: Ensure this is actually a Synnia project
+    // SAFETY CHECK: Ensure this is actually a Synnia project (SQLite or JSON)
+    let db_path = path_buf.join("synnia.db");
     let json_path = path_buf.join("synnia.json");
-    if !json_path.exists() {
+    if !db_path.exists() && !json_path.exists() {
         return Err(AppError::Unknown(format!(
-            "Safety Guard: The directory '{}' does not appear to be a valid Synnia project (missing synnia.json). Deletion aborted.", 
+            "Safety Guard: The directory '{}' does not appear to be a valid Synnia project (missing synnia.db or synnia.json). Deletion aborted.", 
             path
         )));
     }
@@ -236,13 +239,12 @@ pub fn reset_project(state: State<AppState>, _app: AppHandle) -> Result<SynniaPr
     
     let project_path = PathBuf::from(&project_path_str);
     
-    // Re-init
+    // Re-init with SQLite
     let name = project_path.file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Project");
     
-    io::init_project(&project_path, name)?;
-    let project = io::load_project(&project_path)?;
+    let project = io_sqlite::init_project_sqlite(&project_path, name)?;
     
     Ok(project)
 }

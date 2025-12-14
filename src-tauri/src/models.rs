@@ -70,10 +70,44 @@ pub struct AssetMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>, // "user", "generated", "imported"
     
-    // Flatten removed for cleaner TS generation and stricter schema
+    // Type-specific metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<ImageAssetMetadata>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<TextAssetMetadata>,
+    
+    // Flexible extra data
     #[serde(default)]
     #[ts(type = "Record<string, any>")]
     pub extra: HashMap<String, serde_json::Value>,
+}
+
+/// Metadata specific to image assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageAssetMetadata {
+    pub width: u32,
+    pub height: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumbnail: Option<String>, // Relative path to thumbnail
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hash: Option<String>,
+}
+
+/// Metadata specific to text assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct TextAssetMetadata {
+    pub length: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<String>,
 }
 
 // ========================================== 

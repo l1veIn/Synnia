@@ -43,6 +43,6 @@ base64 = "0.22"
 [dev-dependencies]
 tempfile = "3"
 
-# ts-rs global config: export all types to frontend bindings
+# ts-rs global config: export all types to bindings/ directory
 [package.metadata.ts-rs]
-export_to = "../src/bindings/"
+export_to = "bindings/"

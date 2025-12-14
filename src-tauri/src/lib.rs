@@ -14,7 +14,7 @@ mod state;
 use state::AppState; 
 
 #[derive(Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../src/bindings/greet_response.ts")]
+#[ts(export)]
 struct GreetResponse {
     greeting: String,
     name: String,

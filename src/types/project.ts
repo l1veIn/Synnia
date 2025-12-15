@@ -50,6 +50,10 @@ export interface BaseNodeData extends Record<string, unknown> {
   // The Recipe Definition ID for Recipe nodes
   recipeId?: string;
 
+  // --- Output Edge: Product Relationship ---
+  // True if this node is a product of a recipe (has incoming Output Edge)
+  hasProductHandle?: boolean;
+
   // --- Legacy / Transitional Fields ---
   // These will be migrated to the Asset Store eventually.
   /** @deprecated Use assetId and Assets Store */
@@ -70,9 +74,14 @@ export type SynniaNode<T extends BaseNodeData = BaseNodeData> = Node<T, string> 
 };
 
 /**
+ * Edge Type for Output Edge (虚线产出连线)
+ */
+export type EdgeType = 'data' | 'output';
+
+/**
  * Synnia 连线类型定义
  */
-export type SynniaEdge = Edge;
+export type SynniaEdge = Edge<{ edgeType?: EdgeType }>;
 
 export type NodeStatus = NodeExecutionState;
 
@@ -94,6 +103,10 @@ export enum NodeType {
   RECIPE = 'recipe-node',
   NOTE = 'note-node',
   COLLECTION = 'collection-node',
+  SELECTOR = 'selector-node',
+  GALLERY = 'gallery-node',
+  TABLE = 'table-node',
+  QUEUE = 'queue-node',
 }
 
 export interface RecipeNodeData extends BaseNodeData {

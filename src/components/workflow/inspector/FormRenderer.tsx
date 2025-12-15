@@ -150,6 +150,26 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                     />
                 );
             }
+            if (field.widget === 'color') {
+                return (
+                    <div className="flex items-center gap-2 h-8">
+                        <input
+                            type="color"
+                            className="h-7 w-10 rounded border cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                            value={safeVal || '#000000'}
+                            onChange={e => onChange(e.target.value)}
+                            disabled={isDisabled}
+                        />
+                        <Input
+                            className="h-8 text-xs font-mono flex-1"
+                            value={safeVal}
+                            onChange={e => onChange(e.target.value)}
+                            placeholder="#000000"
+                            disabled={isDisabled}
+                        />
+                    </div>
+                );
+            }
             return (
                 <Input
                     className="h-8 text-xs"

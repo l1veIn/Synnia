@@ -6,7 +6,7 @@
 
 ## 配方结构
 
-每个配方是一个 `manifest.yaml` 文件，包含以下部分：
+每个配方是一个 YAML 文件，存放在 `src/lib/recipes/builtin/` 目录下：
 
 ```yaml
 # 基本信息（必填）
@@ -24,8 +24,8 @@ mixin:
 inputSchema:
   - key: fieldName             # 字段标识符
     label: Field Label         # 显示名称
-    type: string|number|boolean|select
-    widget: text|textarea|number|slider|switch|select|none
+    type: string|number|boolean|select|object
+    widget: text|textarea|number|slider|switch|select|node-input|none
     required: true|false
     default: defaultValue
     placeholder: "提示文字"
@@ -78,7 +78,7 @@ executor:
   outputKey: response
 ```
 
-### 4. llm-agent - LLM 调用
+### 4. llm-agent - LLM 调用（最常用）
 ```yaml
 executor:
   type: llm-agent
@@ -91,13 +91,94 @@ executor:
   parseAs: json|text
   temperature: 0.7
   maxTokens: 2048
-  # 自动创建输出节点
+  
+  # 自动创建产物节点
   createNodes: true
   nodeConfig:
-    type: json
-    titleTemplate: "#{{index}}: {{name}}"
-    collapsed: true
+    type: selector|table|json|auto
+    titleTemplate: "命名方案 ({{count}}项)"
+    collapsed: false
+    selectorMode: single|multi      # type=selector 时生效
+    schema:                         # 显式定义 schema（可选）
+      - key: name
+        label: 名称
+        type: string
 ```
+
+---
+
+## 节点创建配置 (nodeConfig)
+
+`llm-agent` 执行器支持自动创建产物节点。根据 `type` 不同，创建方式也不同：
+
+### type: selector - 创建一个选择器节点
+所有 LLM 返回的数组项变成选择器选项：
+
+```yaml
+nodeConfig:
+  type: selector
+  selectorMode: single       # 单选
+  titleTemplate: "命名方案 ({{count}}项)"
+  collapsed: false
+  schema:
+    - key: name
+      label: 名称
+      type: string
+    - key: description
+      label: 描述
+      type: string
+```
+
+### type: table - 创建一个表格节点
+所有数组项变成表格行：
+
+```yaml
+nodeConfig:
+  type: table
+  titleTemplate: "结果表格 ({{count}}行)"
+  collapsed: false
+  schema:
+    - key: item
+      label: 项目
+      type: string
+    - key: value
+      label: 数值
+      type: number
+```
+
+### type: json - 创建多个 JSON 节点（默认）
+每个数组项创建一个独立的 JSON 节点，自动 Docking：
+
+```yaml
+nodeConfig:
+  type: json
+  titleTemplate: "#{{index}}: {{name}}"
+  collapsed: true
+```
+
+### type: auto - 自动推断
+等同于 `json`，从数据结构自动推断 schema。
+
+---
+
+## Schema 配置
+
+显式定义 schema 可以获得更好的字段标签和类型控制：
+
+```yaml
+schema:
+  - key: name           # 字段 key（必须与数据匹配）
+    label: 名称          # 显示标签
+    type: string        # 类型：string, number, boolean, select
+  - key: score
+    label: 评分
+    type: number
+  - key: selected
+    label: 已选中
+    type: boolean
+```
+
+如果省略 `schema` 或设为 `auto`，系统会从 LLM 返回的数据自动推断。
 
 ---
 
@@ -108,6 +189,10 @@ executor:
 ```yaml
 template: "Hello, {{userName}}! You have {{count}} messages."
 ```
+
+**特殊变量：**
+- `{{index}}` - 当前项索引（从1开始）
+- `{{count}}` - 数组总数
 
 ---
 
@@ -130,74 +215,106 @@ inputSchema:
 
 ---
 
-## 最佳实践
+## Output Edge (产物边)
 
-1. **ID 命名**：使用 `分类.功能` 格式，如 `text.concat`, `agent.naming-master`
-2. **字段设计**：
-   - 必填字段设置 `required: true`
-   - 提供合理的 `default` 和 `placeholder`
-   - 需要连接的字段设置 `connection`
-3. **LLM 提示词**：
-   - 明确指定输出格式（JSON、文本等）
-   - 使用分点说明任务要求
-   - 如需 JSON 输出，强调"只返回 JSON，不要其他文字"
-4. **测试**：修改后重启应用验证配方是否正常加载
+配方执行完成后，会自动：
+1. 创建产物节点（根据 `nodeConfig` 配置）
+2. 在配方节点和产物节点之间创建 **Output Edge**（紫色虚线）
+3. 产物节点顶部显示紫色 **input** 端口
+
+删除 Output Edge 时会提示是否同时删除产物节点。
 
 ---
 
-## 示例：创建新配方
+## 最佳实践
 
-### 文本摘要配方
+1. **ID 命名**：使用 `分类.功能` 格式，如 `text.concat`, `agent.naming-master`
+2. **选择节点类型**：
+   - 需要用户选择 → `selector`
+   - 需要展示表格数据 → `table`
+   - 需要逐个展开查看 → `json`
+3. **显式 Schema**：
+   - 有明确数据结构时使用显式 schema
+   - 可以提供更友好的字段标签
+4. **LLM 提示词**：
+   - 明确指定输出格式（JSON、文本等）
+   - 使用分点说明任务要求
+   - 如需 JSON 输出，强调"只返回 JSON 数组，不要其他文字"
+5. **测试**：修改后热重载验证配方是否正常加载
+
+---
+
+## 完整示例：命名大师
+
 ```yaml
-id: text.summarize
-name: 文本摘要
-description: 使用 AI 生成文本摘要
-category: Text
-icon: FileText
+id: agent.naming-master-zh
+name: 命名大师
+description: 使用"相关度光谱"策略，为品牌生成9个虚拟IP角色名称
+category: Agent
+icon: Wand2
 
 mixin:
   - llm.call
 
 inputSchema:
-  - key: text
-    label: 原文
+  - key: productType
+    label: 产品类型
     type: string
-    widget: textarea
+    widget: text
     required: true
+    placeholder: "例如：天气App、电商平台、健身应用..."
     connection:
       input: true
 
-  - key: length
-    label: 摘要长度
-    type: select
-    widget: select
-    default: medium
-    options:
-      - short
-      - medium
-      - long
+  - key: targetAudience
+    label: 目标用户
+    type: string
+    widget: text
+    placeholder: "例如：年轻白领、Z世代游戏玩家..."
+    connection:
+      input: true
 
   - key: prompt
     hidden: true
 
-  - key: result
-    label: 摘要
-    type: string
-    widget: none
-    connection:
-      output: true
+  - key: temperature
+    label: 创意程度
+    default: 0.9
 
 executor:
   type: llm-agent
   systemPrompt: |
-    你是一个专业的文本摘要助手。
-    根据用户指定的长度生成摘要：
-    - short: 1-2句话
-    - medium: 3-5句话
-    - long: 一段完整的摘要
+    你是一位世界顶级的虚拟IP架构师...
+    
+    【输出规范】
+    - name：角色名字
+    - tagline：口头禅
+    - rationale：理由
+    - style：风格
+    
+    只返回 JSON 数组。
   userPromptTemplate: |
-    请为以下文本生成{{length}}长度的摘要：
-
-    {{text}}
-  parseAs: text
+    请为以下产品生成9个虚拟IP角色名称：
+    产品类型：{{productType}}
+    目标用户：{{targetAudience}}
+  parseAs: json
+  createNodes: true
+  nodeConfig:
+    type: selector
+    selectorMode: single
+    titleTemplate: "命名方案 ({{count}}项)"
+    collapsed: false
+    schema:
+      - key: name
+        label: 名称
+        type: string
+      - key: tagline
+        label: 口号
+        type: string
+      - key: rationale
+        label: 理由
+        type: string
+      - key: style
+        label: 风格
+        type: string
 ```

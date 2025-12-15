@@ -161,8 +161,14 @@ export function useRunRecipe() {
                             targetHandle: nodeSpec.connectTo.targetHandle
                         });
                     } else if (i === 0) {
-                        // Default: connect first node to recipe's 'product' output
-                        graphEngine.connect({
+                        // Default: connect first node to recipe's 'product' output with Output Edge
+                        // 1. Set hasProductHandle on target node
+                        graphEngine.updateNode(newNodeId, {
+                            data: { hasProductHandle: true }
+                        });
+
+                        // 2. Create Output Edge (type: 'output')
+                        graphEngine.connectOutputEdge({
                             source: nodeId,
                             sourceHandle: 'product',
                             target: newNodeId,

@@ -29,6 +29,9 @@ export interface NodeState {
     isReference: boolean;
     executionState: string;
 
+    // Output Edge
+    hasProductHandle: boolean;
+
     // Pre-computed Styles
     shellClassName: string;
     headerClassName: string;
@@ -64,6 +67,7 @@ function deriveViewState(node: SynniaNode | undefined): Omit<NodeState, 'node' |
             isDockedBottom: false,
             isReference: false,
             executionState: 'idle',
+            hasProductHandle: false,
         };
     }
 
@@ -78,6 +82,7 @@ function deriveViewState(node: SynniaNode | undefined): Omit<NodeState, 'node' |
         isDockedBottom: !!(data as any).hasDockedFollower,
         isReference: !!data.isReference,
         executionState: data.state || 'idle',
+        hasProductHandle: !!data.hasProductHandle,
     };
 }
 

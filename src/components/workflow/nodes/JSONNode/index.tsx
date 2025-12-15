@@ -9,13 +9,14 @@ import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { JSONNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    'data': (node, asset) => {
+    [HANDLE_IDS.JSON_OUT]: (node, asset) => {
         if (!asset) return null;
         const content = asset.content as FormAssetContent;
         return { type: 'json', value: content?.values || {} };
@@ -252,13 +253,16 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            <NodePort
-                type="target"
-                position={Position.Top}
-                id="input"
-                className="!bg-stone-400"
-                isConnectable={!state.isDockedTop}
-            />
+            {/* Input Handle - only shown when this is a recipe product */}
+            {state.hasProductHandle && (
+                <NodePort
+                    type="target"
+                    position={Position.Top}
+                    id={HANDLE_IDS.INPUT}
+                    className="!bg-violet-500"
+                    isConnectable={true}
+                />
+            )}
 
             <NodeHeader
                 className={cn(
@@ -293,7 +297,7 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
             <NodePort
                 type="source"
                 position={Position.Right}
-                id="data"
+                id={HANDLE_IDS.JSON_OUT}
                 className="!bg-yellow-400"
             />
 

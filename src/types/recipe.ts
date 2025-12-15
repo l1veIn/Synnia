@@ -91,6 +91,28 @@ export interface HttpExecutorConfig extends BaseExecutorConfig {
 }
 
 /**
+ * Node creation configuration for executors
+ * Allows declarative specification of what type of node to create
+ */
+export interface NodeCreationConfig {
+    // Node type: 'auto' means infer from data (default: json)
+    type: NodeType | 'json' | 'selector' | 'table' | 'auto';
+    titleTemplate?: string;
+    collapsed?: boolean;
+
+    // Schema configuration
+    // 'auto' = infer from data keys (default)
+    // ManifestField[] = explicit schema definition
+    schema?: 'auto' | ManifestField[];
+
+    // Selector node specific
+    selectorMode?: 'single' | 'multi';
+
+    // Table node specific (future)
+    // ...
+}
+
+/**
  * LLM Agent executor: call LLM with prompts
  */
 export interface LlmAgentExecutorConfig extends BaseExecutorConfig {
@@ -102,11 +124,7 @@ export interface LlmAgentExecutorConfig extends BaseExecutorConfig {
     maxTokens?: number;
     // Node creation config
     createNodes?: boolean;
-    nodeConfig?: {
-        type: NodeType;
-        titleTemplate?: string;
-        collapsed?: boolean;
-    };
+    nodeConfig?: NodeCreationConfig;
 }
 
 /**
@@ -176,7 +194,7 @@ export interface ExecutionResult {
     data?: any;
     /** Request to create product nodes */
     createNodes?: {
-        type: NodeType;
+        type: NodeType | string;  // Allow string for flexibility (e.g., 'selector', 'json')
         data: Partial<BaseNodeData>;
         position?: 'below' | 'right' | XYPosition;
         dockedTo?: string | '$prev';

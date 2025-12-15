@@ -191,6 +191,10 @@ pub struct SynniaNodeData {
     // Recipe Node: Recipe Definition ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recipe_id: Option<String>,
+
+    // Product Node: Has Output Edge connection point
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_product_handle: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

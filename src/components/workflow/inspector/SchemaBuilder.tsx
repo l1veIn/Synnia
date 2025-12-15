@@ -155,6 +155,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                                     <SelectItem value="text">Input</SelectItem>
                                                     <SelectItem value="textarea">Text Area</SelectItem>
                                                     <SelectItem value="select">Select Menu</SelectItem>
+                                                    <SelectItem value="color">Color Picker</SelectItem>
                                                     <SelectItem value="node-input" className="text-blue-500 font-medium">Node Connection</SelectItem>
                                                 </>
                                             )}
@@ -282,6 +283,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                                         <SelectItem value="text">Input</SelectItem>
                                                         <SelectItem value="textarea">Text Area</SelectItem>
                                                         <SelectItem value="select">Select Menu</SelectItem>
+                                                        <SelectItem value="color">Color Picker</SelectItem>
                                                         <SelectItem value="node-input" className="text-blue-500 font-medium">Node Connection</SelectItem>
                                                     </>
                                                 )}

@@ -41,22 +41,67 @@ export class GraphMutator {
 
         // Asset creation logic - for asset-based nodes AND recipe nodes
         let assetId = options.assetId;
-        const isAssetNode = [NodeType.TEXT, NodeType.IMAGE, NodeType.JSON].includes(finalType as NodeType);
+        const isAssetNode = [
+            NodeType.TEXT,
+            NodeType.IMAGE,
+            NodeType.JSON,
+            NodeType.SELECTOR,
+            NodeType.GALLERY,
+            NodeType.TABLE,
+            NodeType.QUEUE,
+        ].includes(finalType as NodeType);
 
         // Create asset for regular asset nodes
         if (isAssetNode && !assetId) {
-            let assetType = options.assetType;
+            let assetType: AssetType = options.assetType || 'json'; // Default to json for collection nodes
             let content = options.content;
             const name = options.assetName || config.title;
             const extraMeta = options.metadata || {};
 
-            if (!assetType) {
+            // Determine asset type and default content based on node type
+            if (!options.assetType) {
                 if (finalType === NodeType.TEXT) assetType = 'text';
                 else if (finalType === NodeType.IMAGE) assetType = 'image';
-                else if (finalType === NodeType.JSON) assetType = 'json';
-                else assetType = 'text';
+                else assetType = 'json'; // All collection nodes use json
             }
-            content = content || (finalType === NodeType.JSON ? { schema: [], values: {} } : '');
+
+            // Default content by node type
+            if (!content) {
+                switch (finalType) {
+                    case NodeType.TEXT:
+                        content = '';
+                        break;
+                    case NodeType.IMAGE:
+                        content = '';
+                        break;
+                    case NodeType.JSON:
+                        content = { schema: [], values: {} };
+                        break;
+                    case NodeType.SELECTOR:
+                        content = {
+                            mode: 'multi',
+                            showSearch: true,
+                            optionSchema: [
+                                { id: 'label', key: 'label', label: 'Label', type: 'string', widget: 'text' },
+                                { id: 'description', key: 'description', label: 'Description', type: 'string', widget: 'text' },
+                            ],
+                            options: [],
+                            selected: []
+                        };
+                        break;
+                    case NodeType.GALLERY:
+                        content = { viewMode: 'grid', columnsPerRow: 4, allowStar: true, allowDelete: true, images: [] };
+                        break;
+                    case NodeType.TABLE:
+                        content = { columns: [], rows: [], showRowNumbers: true, allowAddRow: true, allowDeleteRow: true };
+                        break;
+                    case NodeType.QUEUE:
+                        content = { concurrency: 1, autoStart: false, retryOnError: true, retryCount: 3, continueOnError: false, tasks: [], isRunning: false };
+                        break;
+                    default:
+                        content = '';
+                }
+            }
 
             // Use AssetSystem
             assetId = this.engine.assets.create(assetType, content, { name, ...extraMeta });
@@ -112,6 +157,10 @@ export class GraphMutator {
                 ...(finalType === NodeType.RACK ? { width: 300, height: 400 } : {}),
                 ...(finalType === NodeType.IMAGE ? { width: 300, height: 300 } : {}),
                 ...(finalType === NodeType.TEXT ? { width: 250, height: 200 } : {}),
+                ...(finalType === NodeType.SELECTOR ? { width: 280, height: 300 } : {}),
+                ...(finalType === NodeType.GALLERY ? { width: 320, height: 280 } : {}),
+                ...(finalType === NodeType.TABLE ? { width: 360, height: 250 } : {}),
+                ...(finalType === NodeType.QUEUE ? { width: 300, height: 280 } : {}),
                 ...(isVirtualRecipe ? { width: 280 } : {}), // No fixed height for recipe nodes
                 ...(options.style || {}),
             },

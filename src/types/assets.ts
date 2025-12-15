@@ -26,7 +26,7 @@ export type ExtendedMetadata = AssetMetadata;
 // ==========================================
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object';
-export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'node-input' | 'none';
+export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'color' | 'node-input' | 'none';
 
 export interface FieldRule {
     min?: number;

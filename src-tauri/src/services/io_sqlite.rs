@@ -329,6 +329,7 @@ fn load_nodes(conn: &Connection) -> Result<Vec<SynniaNode>, AppError> {
                 docked_to: None,
                 state: None,
                 recipe_id: None,
+                has_product_handle: None,
             });
         
         Ok(SynniaNode {
@@ -599,6 +600,7 @@ mod tests {
                 docked_to: None,
                 state: None,
                 recipe_id: None,
+                has_product_handle: None,
             },
         });
         

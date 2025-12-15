@@ -37,7 +37,7 @@ export class GraphEngine {
     public setNodes(nodes: any[]) {
         useWorkflowStore.setState({ nodes });
     }
-    
+
     public setEdges(edges: any[]) {
         useWorkflowStore.setState({ edges });
     }
@@ -45,10 +45,10 @@ export class GraphEngine {
     // =========================================================================
     // INSTRUCTION SET (PRIMITIVES) - MEMO
     // =========================================================================
-    
+
     // --- 1. Hierarchy & Transform ---
     // [DONE] reparentNode: Smart move preserving absolute position.
-    
+
     // --- 2. Selection & Focus ---
     // [DONE] selectNodes: Batch selection control.
     // [DONE] deselectAll: Global cleanup.
@@ -57,7 +57,7 @@ export class GraphEngine {
     // [DONE] connect: Safe edge creation using xyflow helper.
     // [DONE] disconnect: Remove specific edge.
     // [DONE] cleanNodeEdges: Cascade delete edges for a node.
-    
+
     // --- 4. State & Locks ---
     // [DONE] lockNode: Toggle interactive capability.
     // [DONE] setNodeVisibility: Toggle hidden state.
@@ -73,8 +73,8 @@ export class GraphEngine {
     public updateNode(id: string, patch: Partial<SynniaNode>) {
         let nodes = this.state.nodes.map(n => {
             if (n.id === id) {
-                return { 
-                    ...n, 
+                return {
+                    ...n,
                     ...patch,
                     style: patch.style ? { ...n.style, ...patch.style } : n.style,
                     data: patch.data ? { ...n.data, ...patch.data } : n.data
@@ -95,10 +95,10 @@ export class GraphEngine {
      */
     public updateNodes(updates: { id: string, patch: Partial<SynniaNode> }[]) {
         const updateMap = new Map<string, Partial<SynniaNode>>();
-        
+
         for (const u of updates) {
             const existing = updateMap.get(u.id) || {};
-            
+
             // Merge logic: Accumulate changes
             updateMap.set(u.id, {
                 ...existing,
@@ -108,7 +108,7 @@ export class GraphEngine {
                 data: { ...(existing.data || {}), ...(u.patch.data || {}) }
             });
         }
-        
+
         let nodes = this.state.nodes.map(n => {
             const patch = updateMap.get(n.id);
             if (patch) {
@@ -122,7 +122,7 @@ export class GraphEngine {
             }
             return n;
         });
-        
+
         // Trigger Layout Fix
         nodes = this.layout.fixGlobalLayout(nodes);
 
@@ -183,7 +183,7 @@ export class GraphEngine {
         // 1. Calculate New Parent's Absolute Position (once)
         let newParentAbsPos = { x: 0, y: 0 };
         let newParentNode: SynniaNode | undefined;
-        
+
         if (newParentId) {
             newParentNode = nodes.find(n => n.id === newParentId);
             const parentAbs = this.getNodeAbsolutePosition(newParentId, nodes);
@@ -215,7 +215,7 @@ export class GraphEngine {
             // --- B. Coordinate Transform ---
             // Calculate Node's current Absolute (World) Position
             const nodeAbsPos = this.getNodeAbsolutePosition(node.id, nodes);
-            
+
             // If nodeAbsPos is null, node is invalid, skip transform but keep processing
             let newLocalPos = node.position;
             if (nodeAbsPos) {
@@ -230,7 +230,7 @@ export class GraphEngine {
             // Logic below handles merging if multiple patches target same ID, or we just push separate updates
             // (updateNodes handles last-write-wins for same ID in map, so we should merge manually here or ensure order)
             // Ideally we merge all changes for 'node.id' into one patch object.
-            
+
             // For simplicity in this loop, we push specific primitive updates.
             pendingPatches.push({
                 id: node.id,
@@ -259,16 +259,16 @@ export class GraphEngine {
             // e.g. Transform sets 'position', onChildAdd also sets 'position' (e.g. Rack) -> onChildAdd should win (it's last in the loop)
             this.updateNodes(pendingPatches);
         }
-        
+
         // 4. Fix Layout
         // We need to fetch FRESH nodes because updateNodes updated the store
         const freshNodes = this.state.nodes;
         const fixedNodes = this.layout.fixGlobalLayout(freshNodes) as SynniaNode[];
-        
+
         // Ensure topological order (Parent before Child)
         this.setNodes(sortNodesTopologically(fixedNodes));
     }
-    
+
     /**
      * Deletes multiple nodes and their connected edges.
      * Also triggers a layout fix for correctness.
@@ -294,14 +294,14 @@ export class GraphEngine {
         // 1. Clean up edges first (find edges connected to ANY of the deleted nodes)
         // Note: We can filter edges directly, it's faster than getConnectedEdges loop for batch
         const remainingEdges = edges.filter(e => !idsToDelete.has(e.source) && !idsToDelete.has(e.target));
-        
+
         // 2. Remove nodes
         const remainingNodes = nodes.filter(n => !idsToDelete.has(n.id));
-        
+
         // 3. Trigger Global Layout Fix (in case we deleted children or parent containers)
         // This is important for Racks to resize if content is removed.
         const fixedNodes = this.layout.fixGlobalLayout(remainingNodes) as SynniaNode[];
-        
+
         this.setNodes(fixedNodes);
         this.setEdges(remainingEdges);
     }
@@ -312,7 +312,7 @@ export class GraphEngine {
 
     public selectNodes(ids: string[], mode: 'replace' | 'append' | 'toggle' = 'replace') {
         const idSet = new Set(ids);
-        
+
         const nodes = this.state.nodes.map(n => {
             const isTarget = idSet.has(n.id);
             let selected = n.selected;
@@ -360,6 +360,24 @@ export class GraphEngine {
     }
 
     /**
+     * Create an Output Edge (recipe product relationship).
+     * This edge type uses 'output' visual style and represents a product relationship.
+     */
+    public connectOutputEdge(params: Connection) {
+        const { edges } = this.state;
+        const outputEdge: SynniaEdge = {
+            id: `${params.source}-${params.sourceHandle || 'product'}-${params.target}-${params.targetHandle || 'input'}`,
+            source: params.source,
+            sourceHandle: params.sourceHandle || 'product',
+            target: params.target,
+            targetHandle: params.targetHandle || 'input',
+            type: 'output',  // Use OutputEdge component
+            data: { edgeType: 'output' as const }
+        };
+        this.setEdges([...edges, outputEdge]);
+    }
+
+    /**
      * Disconnects a specific edge.
      */
     public disconnect(edgeId: string) {
@@ -386,15 +404,15 @@ export class GraphEngine {
             this.setEdges(remainingEdges);
         }
     }
-    
+
     /**
      * Helper to get edges connected to a node (without deleting them).
      */
     public getConnectedEdges(nodeId: string): Edge[] {
-         const { nodes, edges } = this.state;
-         const node = nodes.find(n => n.id === nodeId);
-         if (!node) return [];
-         return getConnectedEdges([node], edges);
+        const { nodes, edges } = this.state;
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return [];
+        return getConnectedEdges([node], edges);
     }
 
     // =========================================================================
@@ -407,7 +425,7 @@ export class GraphEngine {
             selectable: !locked,
             // connectable? React Flow handles `connectable` on Handle component usually,
             // but Node prop can also control it.
-            connectable: !locked, 
+            connectable: !locked,
             data: { ...this.state.nodes.find(n => n.id === id)?.data, locked }
         });
     }
@@ -434,7 +452,7 @@ export class GraphEngine {
         while (currentParentId) {
             const parent = nodes.find(n => n.id === currentParentId);
             if (!parent) break;
-            
+
             x += parent.position.x;
             y += parent.position.y;
             currentParentId = parent.parentId;

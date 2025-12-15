@@ -13,6 +13,7 @@ import { useAutoSave } from '@/hooks/useAutoSave';
 import { EditorContextMenu } from '@/components/workflow/EditorContextMenu';
 import { InspectorPanel } from '@/components/workflow/InspectorPanel';
 import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
+import OutputEdge from '@/components/workflow/edges/OutputEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { saveProjectToFile } from '@/lib/projectUtils';
 import { SynniaProject } from '@/bindings';
@@ -102,6 +103,7 @@ function CanvasFlow() {
 
   const edgeTypes = useMemo(() => ({
     deletable: DeletableEdge,
+    output: OutputEdge,
   }), []);
 
   // 启用 Hooks

@@ -50,7 +50,7 @@ inputSchema:
     label: 特殊要求
     type: string
     widget: textarea
-    placeholder: "例如：名字需要包含"小"字、避免谐音梗、需要中英双语名..."
+    placeholder: "例如：名字需要包含『小』字、避免谐音梗、需要中英双语名..."
     connection:
       input: true
 
@@ -127,6 +127,20 @@ executor:
   parseAs: json
   createNodes: true
   nodeConfig:
-    type: json
-    titleTemplate: "#{{index}}: {{name}}"
-    collapsed: true
+    type: selector
+    selectorMode: single
+    titleTemplate: "命名方案 ({{count}}项)"
+    collapsed: false
+    schema:
+      - key: name
+        label: 名称
+        type: string
+      - key: tagline
+        label: 口号
+        type: string
+      - key: rationale
+        label: 理由
+        type: string
+      - key: style
+        label: 风格
+        type: string

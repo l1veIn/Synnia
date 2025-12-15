@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
 
@@ -23,11 +24,7 @@ export const outputs: NodeOutputConfig = {
         if (!result) return null;
         return { type: 'json', value: result };
     },
-    'response': (node) => {
-        const result = (node.data as any).executionResult;
-        if (!result?.response) return null;
-        return { type: 'text', value: result.response };
-    },
+
     'reference': (node, asset) => {
         // Get values from asset (FormAssetContent)
         if (asset?.content && typeof asset.content === 'object') {
@@ -311,13 +308,16 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            <NodePort
-                type="target"
-                position={Position.Top}
-                id="trigger"
-                className="!bg-stone-400"
-                isConnectable={!state.isDockedTop}
-            />
+            {/* Input Handle - only shown when this is a recipe product */}
+            {state.hasProductHandle && (
+                <NodePort
+                    type="target"
+                    position={Position.Top}
+                    id={HANDLE_IDS.INPUT}
+                    className="!bg-violet-500"
+                    isConnectable={true}
+                />
+            )}
 
             <NodeHeader
                 className={cn(
@@ -363,7 +363,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             )}
 
             <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
-            <NodePort type="source" position={Position.Right} id="response" className="!bg-green-500" style={{ top: '60%' }} />
+
             <NodePort
                 type="source"
                 position={Position.Bottom}

@@ -244,33 +244,117 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
             const result: ExecutionResult = { success: true, data: parsedData };
 
             if (config.createNodes && Array.isArray(parsedData)) {
-                const nodeType = config.nodeConfig?.type || NodeType.JSON;
+                const nodeConfigType = config.nodeConfig?.type || 'json';
 
-                result.createNodes = parsedData.map((item: any, index: number) => {
+                // Determine node type to create
+                const resolveNodeType = (t: string): NodeType => {
+                    switch (t) {
+                        case 'selector': return NodeType.SELECTOR;
+                        case 'table': return NodeType.TABLE;
+                        case 'gallery': return NodeType.GALLERY;
+                        case 'json':
+                        case 'auto':
+                        default:
+                            return NodeType.JSON;
+                    }
+                };
+
+                // Build schema from config or auto-infer
+                const buildSchema = (item: any) => {
+                    if (config.nodeConfig?.schema && config.nodeConfig.schema !== 'auto') {
+                        // Use explicit schema
+                        return config.nodeConfig.schema.map((f: any) => ({
+                            id: f.key,
+                            key: f.key,
+                            label: f.label || f.key,
+                            type: f.type || 'string'
+                        }));
+                    }
+                    // Auto-infer from data
+                    return Object.keys(item).map(key => ({
+                        id: key,
+                        key,
+                        label: key.charAt(0).toUpperCase() + key.slice(1),
+                        type: 'string' as const
+                    }));
+                };
+
+                // Handle Selector: create ONE node with all items as options
+                if (nodeConfigType === 'selector') {
+                    const schema = buildSchema(parsedData[0] || {});
+                    const options = parsedData.map((item: any, idx: number) => ({
+                        id: `opt-${idx}`,
+                        ...item
+                    }));
+
                     const title = config.nodeConfig?.titleTemplate
-                        ? interpolate(config.nodeConfig.titleTemplate, { ...item, index: index + 1 })
-                        : `#${index + 1}`;
+                        ? interpolate(config.nodeConfig.titleTemplate, { count: parsedData.length })
+                        : `选择器 (${parsedData.length}项)`;
 
-                    return {
-                        type: nodeType,
+                    result.createNodes = [{
+                        type: NodeType.SELECTOR,
                         data: {
                             title,
-                            collapsed: config.nodeConfig?.collapsed ?? true,
+                            collapsed: config.nodeConfig?.collapsed ?? false,
                             assetType: 'json' as const,
                             content: {
-                                schema: Object.keys(item).map(key => ({
-                                    id: key,
-                                    key,
-                                    label: key.charAt(0).toUpperCase() + key.slice(1),
-                                    type: 'string' as const
-                                })),
-                                values: item
+                                mode: config.nodeConfig?.selectorMode || 'single',
+                                showSearch: true,
+                                optionSchema: schema,
+                                options,
+                                selected: []
                             }
                         },
-                        position: index === 0 ? 'below' as const : undefined,
-                        dockedTo: index > 0 ? '$prev' as const : undefined,
-                    };
-                });
+                        position: 'below' as const,
+                    }];
+                }
+                // Handle Table: create ONE node with all items as rows
+                else if (nodeConfigType === 'table') {
+                    const schema = buildSchema(parsedData[0] || {});
+                    const title = config.nodeConfig?.titleTemplate
+                        ? interpolate(config.nodeConfig.titleTemplate, { count: parsedData.length })
+                        : `表格 (${parsedData.length}行)`;
+
+                    result.createNodes = [{
+                        type: NodeType.TABLE,
+                        data: {
+                            title,
+                            collapsed: config.nodeConfig?.collapsed ?? false,
+                            assetType: 'json' as const,
+                            content: {
+                                columns: schema,
+                                rows: parsedData,
+                                showRowNumbers: true,
+                                allowAddRow: true,
+                                allowDeleteRow: true,
+                            }
+                        },
+                        position: 'below' as const,
+                    }];
+                }
+                // Handle JSON/auto: create MULTIPLE nodes (one per item)
+                else {
+                    result.createNodes = parsedData.map((item: any, index: number) => {
+                        const title = config.nodeConfig?.titleTemplate
+                            ? interpolate(config.nodeConfig.titleTemplate, { ...item, index: index + 1 })
+                            : `#${index + 1}`;
+
+                        return {
+                            type: resolveNodeType(nodeConfigType),
+                            data: {
+                                title,
+                                collapsed: config.nodeConfig?.collapsed ?? true,
+                                assetType: 'json' as const,
+                                content: {
+                                    schema: buildSchema(item),
+                                    values: item
+                                }
+                            },
+                            position: index === 0 ? 'below' as const : undefined,
+                            dockedTo: index > 0 ? '$prev' as const : undefined,
+                        };
+                    });
+                }
             }
 
             return result;

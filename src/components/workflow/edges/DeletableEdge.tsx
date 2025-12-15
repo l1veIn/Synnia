@@ -22,7 +22,7 @@ export default function DeletableEdge({
 }: EdgeProps) {
   const { deleteElements } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -39,15 +39,15 @@ export default function DeletableEdge({
 
   return (
     <>
-      <BaseEdge 
-          path={edgePath} 
-          markerEnd={markerEnd} 
-          style={{
-              ...style,
-              stroke: selected || isHovered ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-              strokeWidth: selected || isHovered ? 2 : 1.5,
-              transition: 'stroke 0.2s, stroke-width 0.2s',
-          }} 
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...style,
+          stroke: selected || isHovered ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+          strokeWidth: selected || isHovered ? 2 : 1.5,
+          transition: 'stroke 0.2s, stroke-width 0.2s',
+        }}
       />
 
       {/* Invisible wider path for easier interaction - Rendered AFTER BaseEdge to be on TOP */}
@@ -61,7 +61,7 @@ export default function DeletableEdge({
         onMouseLeave={() => setIsHovered(false)}
         style={{ cursor: 'pointer' }}
       />
-      
+
       <EdgeLabelRenderer>
         <div
           style={{

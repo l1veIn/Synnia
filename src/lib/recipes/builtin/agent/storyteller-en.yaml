@@ -1,0 +1,154 @@
+# Chief Storyteller Agent Recipe (English)
+# Generates the "Soul Profile" (Visual DNA + Personality) based on the Identity Anchor
+# Part of the Soulmate Protocol v1.0 - Phase 2: Persona
+
+id: agent.storyteller-en
+name: Chief Storyteller
+description: Develop a complete character Soul Profile (Visual DNA & Personality) from a name
+category: Agent
+icon: BookOpen
+
+mixin:
+  - llm.call
+
+inputSchema:
+  # --- Core Inputs (Likely connected from Naming Master) ---
+  - key: selectedName
+    label: Selected Name
+    type: string
+    widget: text
+    required: true
+    placeholder: "e.g., Kiko"
+    connection:
+      input: true
+
+  - key: tagline
+    label: Tagline (Optional)
+    type: string
+    widget: text
+    placeholder: "The catchphrase associated with the name"
+    connection:
+      input: true
+
+  - key: rationale
+    label: Name Rationale (Optional)
+    type: string
+    widget: textarea
+    placeholder: "Why this name was chosen"
+    connection:
+      input: true
+
+  # --- Brand Seed Inputs (Can be manual or re-connected) ---
+  - key: productType
+    label: Product Type
+    type: string
+    widget: text
+    required: true
+    connection:
+      input: true
+
+  - key: brandTone
+    label: Brand Tone
+    type: string
+    widget: text
+    required: true
+    connection:
+      input: true
+
+  # Override mixin fields
+  - key: prompt
+    hidden: true
+    default: ""
+  
+  - key: systemPrompt
+    hidden: true
+    default: ""
+
+  - key: temperature
+    label: Creativity
+    default: 0.8  # Slightly reduced for coherent storytelling
+
+  - key: maxTokens
+    hidden: true
+    default: 4096
+
+outputSchema:
+  type: json
+  description: A Soul Profile object containing Visual DNA, Personality, and Backstory
+
+executor:
+  type: llm-agent
+  systemPrompt: |
+    You are the Chief Storyteller (Agent B) of the Soulmate Protocol.
+    Your goal is to breathe life into a name, transforming it into a fully realized Virtual IP Character "Soul Profile".
+
+    【INPUT DATA】
+    - Name & Identity: The seed of the character.
+    - Product & Tone: Defines the character's purpose and vibe.
+
+    【YOUR TASK】
+    Develop a "Soul Profile" with the following components:
+
+    1. **Visual DNA (The "Look")**:
+       - Detailed description of physical appearance.
+       - Fashion/Clothing style (specific to the brand tone).
+       - Key accessories (that relate to the product function).
+       - Color palette suggestions (text description).
+
+    2. **Personality Matrix**:
+       - **Archetype**: The core psychological model (e.g., The Sage, The Jester, The Caregiver).
+       - **Voice**: How they speak (e.g., "Short & punchy", "Empathetic & soft", "Tech-savvy slang").
+       - **Traits**: 3 key personality adjectives.
+    
+    3. **Origin Story (Flash Fiction)**:
+       - A 2-3 sentence backstory explaining who they are and why they exist to help the user.
+
+    4. **Brand Synergy**:
+       - Explicit explanation of how this character embodies the specific `Product Type`.
+
+    【OUTPUT FORMAT】
+    Return a SINGLE JSON object inside an array (for Synnia node compatibility).
+    Format:
+    [
+      {
+        "name": "...",
+        "title": "...",
+        "visualDNA": {
+           "appearance": "...",
+           "fashion": "...",
+           "accessories": "...",
+           "colors": "..."
+        },
+        "personality": {
+           "archetype": "...",
+           "voice": "...",
+           "traits": ["...", "...", "..."]
+        },
+        "story": "...",
+        "synergy": "..."
+      }
+    ]
+
+    【CRITICAL】
+    - Ensure the character FEELS like the Brand Tone (e.g., if tone is "Professional", don't make a clown).
+    - VISUAL DNA must be descriptive enough to guide an artist later.
+    - Return ONLY valid JSON.
+  userPromptTemplate: |
+    Create a Soul Profile for:
+    
+    **Name:** {{selectedName}}
+    **Tagline:** {{tagline}}
+    **Rationale:** {{rationale}}
+    
+    **Brand Context:**
+    - Product: {{productType}}
+    - Tone: {{brandTone}}
+
+    Bring this character to life.
+  parseAs: json
+  createNodes: true
+  nodeConfig:
+    type: json
+    titleTemplate: "Soul Profile: {{name}}"
+    collapsed: false
+    schema: auto

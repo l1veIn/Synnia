@@ -327,9 +327,9 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 
             <NodePort
                 type="source"
-                position={Position.Bottom}
+                position={Position.Right}
                 id={HANDLE_IDS.SELECTED}
-                className="!bg-violet-400"
+                className="!bg-green-500"
                 isConnectable={!state.isDockedBottom}
             />
         </NodeShell>

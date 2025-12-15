@@ -1,0 +1,146 @@
+# Product Manager Agent Recipe (English)
+# Selects assets from the Taxonomy and writes Micro-copy
+# Part of the Soulmate Protocol v1.0 - Phase 3: Blueprint
+
+id: agent.product-manager-en
+name: Product Manager
+description: Plan the production manifest and write micro-copy for the character
+category: Agent
+icon: Briefcase
+
+mixin:
+  - llm.call
+
+inputSchema:
+  # --- Input from Storyteller ---
+  - key: soulProfile
+    label: Soul Profile
+    type: object
+    widget: node-input
+    required: true
+    connection:
+      input: true
+    placeholder: "Connect the 'Soul Profile' JSON output here"
+
+  # --- Context Inputs ---
+  - key: productType
+    label: Product Type
+    type: string
+    widget: text
+    required: true
+    connection:
+      input: true
+
+  - key: visualStyle
+    label: Visual Style
+    type: string
+    widget: text
+    placeholder: "e.g. 3D Blind Box, Flat Vector, Cyberpunk..."
+    required: true
+    connection:
+      input: true
+
+  # Override mixin fields
+  - key: prompt
+    hidden: true
+  
+  - key: systemPrompt
+    hidden: true
+
+  - key: temperature
+    label: Strategic Thinking
+    default: 0.5   # Lower temperature for logical planning
+
+  - key: maxTokens
+    hidden: true
+    default: 4096
+
+outputSchema:
+  type: json
+  description: A Production Manifest table
+
+executor:
+  type: llm-agent
+  systemPrompt: |
+    You are the Product Manager (Agent C) of the Soulmate Protocol.
+    Your goal is to bridge the "Soul" (Persona) and the "Body" (Visual Assets).
+
+    【ASSET TAXONOMY (The Catalog)】
+    You must select assets ONLY from this list:
+
+    1. **ui-kit-core** (Grid): Essential UI states (Loading, Error, Success, etc.). *Mandatory for Apps.*
+    2. **icon-set-variant** (Grid): App icon variations.
+    3. **sticker-pack** (Grid): 9 emotive stickers for chat/social.
+    4. **tool-icons** (Grid): Functional menu icons.
+    5. **character-main** (Marketing): The definitive Key Visual. *Mandatory for All.*
+    6. **marketing-poster** (Marketing): High-production vertical poster.
+    7. **splash-screen** (Marketing): App opening screen.
+    8. **social-cover** (Marketing): Banner for profiles.
+    9. **merch-tshirt** (Merch): T-shirt mockup.
+    10. **merch-tote** (Merch): Tote bag mockup.
+    11. **merch-mug** (Merch): Mug mockup.
+    12. **character-turnaround** (Game): Front/Side/Back views. *Mandatory for 3D/Game.*
+    13. **expression-sheet** (Game): 9 varied facial expressions.
+    14. **game-item-sheet** (Game): Props/Inventory icons.
+    15. **isometric-building** (Game): Environment asset.
+    16. **animation-loading** (Anim): Looping loading sequence.
+    17. **animation-run-cycle** (Anim): Running animation.
+    18. **app-texture-pack** (Texture): Background patterns.
+    19. **hero-background** (Texture): Website header.
+
+    【YOUR TASK】
+    1. **Analyze Strategy**: Look at the `Product Type` and `Soul Profile`.
+    2. **Select Assets**: Choose 5-8 assets that are MOST relevant.
+       - e.g., A "Weather App" needs `ui-kit-core` and `icon-set-variant`.
+       - e.g., A "RPG Game" needs `character-turnaround` and `game-item-sheet`.
+    3. **Write Micro-Copy**:
+       - For each chosen asset, write a short "Context Note" or "Micro-Copy" in the character's voice.
+       - e.g., For a Loading State: "Hold tight! Charging up the sun..." (if they are a sun character).
+    4. **Justify**: Briefly explain why this asset is needed.
+
+    【OUTPUT FORMAT】
+    Return a JSON Array representing the "Production Manifest".
+    Format:
+    [
+      {
+        "assetId": "ui-kit-core",  <-- MUST be exact ID from Taxonomy
+        "assetName": "Core UI Kit",
+        "priority": "High",
+        "reason": "Essential for app user experience",
+        "microCopy": "Thinking... processing... done!"
+      },
+      ...
+    ]
+
+    【CRITICAL】
+    - Return ONLY valid JSON.
+    - `assetId` MUST match the list above EXACTLY.
+  userPromptTemplate: |
+    Create a Production Manifest for:
+    
+    **Product Type:** {{productType}}
+    **Visual Style:** {{visualStyle}}
+    
+    **Soul Profile:**
+    {{soulProfile}}
+    
+    Select the best assets for this product and write creative micro-copy.
+  parseAs: json
+  createNodes: true
+  nodeConfig:
+    type: table
+    titleTemplate: "Production Manifest ({{count}} items)"
+    collapsed: false
+    schema:
+      - key: assetName
+        label: Asset
+        type: string
+      - key: priority
+        label: Priority
+        type: string
+      - key: microCopy
+        label: Copy / Context
+        type: string
+      - key: reason
+        label: Rationale
+        type: string

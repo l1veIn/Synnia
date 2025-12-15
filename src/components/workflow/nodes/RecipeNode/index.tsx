@@ -362,7 +362,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            <NodePort type="source" position={Position.Right} id="reference" className="!bg-yellow-400" />
+            <NodePort type="source" position={Position.Right} id="reference" className="!bg-green-500" />
 
             <NodePort
                 type="source"

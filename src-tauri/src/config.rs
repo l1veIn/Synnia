@@ -11,10 +11,16 @@ pub struct GlobalConfig {
     pub theme: Option<String>,
     pub language: Option<String>,
     
-    // AI Configuration
+    // Legacy AI Configuration (kept for migration)
     pub gemini_api_key: Option<String>,
     pub gemini_base_url: Option<String>,
     pub gemini_model_name: Option<String>,
+    
+    // New multi-provider AI config (JSON string)
+    pub ai_config: Option<String>,
+    
+    // Media generation config (JSON string)
+    pub media_config: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

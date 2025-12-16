@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
-import { NodeProps, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
+import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
@@ -8,7 +8,6 @@ import { useNode } from '@/hooks/useNode';
 import { ListTodo, Trash2, ChevronDown, ChevronUp, Play, Pause, RotateCcw, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
-import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
@@ -37,15 +36,7 @@ export interface QueueAssetContent {
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    [HANDLE_IDS.TASKS]: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as QueueAssetContent;
-        return {
-            type: 'array',
-            value: content.tasks
-        };
-    },
-    [HANDLE_IDS.RESULTS]: (node, asset) => {
+    output: (node, asset) => {
         if (!asset?.content) return null;
         const content = asset.content as QueueAssetContent;
         return {
@@ -146,16 +137,8 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Input Handle - only shown when this is a recipe product */}
-            {state.hasProductHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Top}
-                    id={HANDLE_IDS.INPUT}
-                    className="!bg-violet-500"
-                    isConnectable={true}
-                />
-            )}
+            {/* Origin Handle - shown when this is a recipe product */}
+            <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
                 className={state.headerClassName}
@@ -241,13 +224,7 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            <NodePort
-                type="source"
-                position={Position.Bottom}
-                id={HANDLE_IDS.RESULTS}
-                className="!bg-violet-400"
-                isConnectable={!state.isDockedBottom}
-            />
+            <NodePort.Output disabled={state.isDockedBottom} />
         </NodeShell>
     );
 });

@@ -44,14 +44,6 @@ inputSchema:
     min: 1
     max: 8192
 
-  - key: response
-    label: Response
-    type: string
-    widget: none
-    disabled: true
-    connection:
-      output: true
-
 outputSchema:
   type: text
   description: LLM response text

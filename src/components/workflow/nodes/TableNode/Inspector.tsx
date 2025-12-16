@@ -10,6 +10,7 @@ import { TableEditor } from './TableEditor';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 
 interface InspectorProps {
     assetId: string;
@@ -103,14 +104,53 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Edit Data Button */}
-                <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setIsEditorOpen(true)}
-                >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Table Data ({savedContent.rows.length} rows)
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setIsEditorOpen(true)}
+                    >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit ({savedContent.rows.length} rows)
+                    </Button>
+                    {draftColumns.length > 0 ? (
+                        <AutoGenerateButton
+                            mode="table-rows"
+                            schema={draftColumns.map(c => ({ key: c.key, label: c.label, type: c.type }))}
+                            count={5}
+                            onGenerate={(rows) => {
+                                // Append generated rows to existing rows
+                                const newRows = [...savedContent.rows, ...rows];
+                                setContent({ ...savedContent, rows: newRows });
+                                toast.success(`Added ${rows.length} rows`);
+                            }}
+                            placeholder="Describe the data to generate..."
+                            buttonLabel="+ Rows"
+                            buttonVariant="outline"
+                            buttonSize="default"
+                        />
+                    ) : (
+                        <AutoGenerateButton
+                            mode="table-full"
+                            count={5}
+                            onGenerate={(result) => {
+                                // Set both columns and rows
+                                const { columns, rows } = result;
+                                setDraftColumns(columns);
+                                setContent({
+                                    ...savedContent,
+                                    columns,
+                                    rows,
+                                });
+                                toast.success(`Created table with ${columns.length} columns and ${rows.length} rows`);
+                            }}
+                            placeholder="Describe the table structure and data (e.g., 'user profiles with name, email, role')..."
+                            buttonLabel="Generate Table"
+                            buttonVariant="outline"
+                            buttonSize="default"
+                        />
+                    )}
+                </div>
 
                 <div className="border-t" />
 

@@ -13,6 +13,7 @@ import { sortNodesTopologically } from '@/lib/graphUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@/lib/graphUtils';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { getNodePayload, resolveInputValue } from '@/lib/engine/DataPayload';
 
 export class InteractionSystem {
     private engine: GraphEngine;
@@ -188,8 +189,86 @@ export class InteractionSystem {
             return;
         }
 
+        // Data validation: check if source can provide usable data for target field
+        const validationResult = this.validateConnectionData(connection);
+        if (!validationResult.valid) {
+            import('sonner').then(({ toast }) => {
+                toast.error(validationResult.message || 'Cannot connect: incompatible data');
+            });
+            return;
+        }
+
         this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
     };
+
+    /**
+     * Validate that source handle can provide usable data for target handle.
+     */
+    private validateConnectionData(
+        connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }
+    ): { valid: boolean; message?: string } {
+        const targetHandle = connection.targetHandle;
+
+        // Only validate field-level DATA_IN handles (not standard semantic handles)
+        // Field handles are typically field keys like 'prompt', 'brandTone', 'url', etc.
+        // Skip if no targetHandle or if it's a standard semantic handle (origin, product, output, etc.)
+        const isFieldLevelInput = targetHandle &&
+            !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle) &&
+            !targetHandle.startsWith('field:');  // field:xxx are output handles, not input
+
+        if (!isFieldLevelInput) {
+            return { valid: true };
+        }
+
+        // Check for multi-source: prevent connecting if target handle already has an edge
+        const { edges } = this.engine.state;
+        const existingEdge = edges.find(e =>
+            e.target === connection.target &&
+            e.targetHandle === targetHandle
+        );
+        if (existingEdge) {
+            return { valid: false, message: `Field '${targetHandle}' already has a connection` };
+        }
+
+        const payload = getNodePayload(connection.source, connection.sourceHandle || undefined);
+        if (!payload) {
+            return { valid: false, message: `Source node has no output data` };
+        }
+
+        // If source is a structured object (JSON), check if it has the target key with non-empty value
+        if (payload.value && typeof payload.value === 'object' && !Array.isArray(payload.value)) {
+            const availableKeys = Object.keys(payload.value);
+
+            // Check if target key exists in the object
+            if (!availableKeys.includes(targetHandle)) {
+                return {
+                    valid: false,
+                    message: `Source has no '${targetHandle}' field. Available: ${availableKeys.join(', ') || 'none'}`
+                };
+            }
+
+            // Check if the key's value is non-empty
+            const keyValue = payload.value[targetHandle];
+            if (keyValue === undefined || keyValue === null || keyValue === '') {
+                return {
+                    valid: false,
+                    message: `Field '${targetHandle}' in source is empty`
+                };
+            }
+
+            return { valid: true };
+        }
+
+        // For non-object payloads (text, image, etc.), use resolveInputValue
+        const resolvedValue = resolveInputValue(payload, targetHandle);
+
+        // Check if we got a usable value (must be non-empty)
+        if (resolvedValue === undefined || resolvedValue === null || resolvedValue === '') {
+            return { valid: false, message: `Source has no data for field '${targetHandle}'` };
+        }
+
+        return { valid: true };
+    }
 
     /**
      * Check if adding a new edge would create a cycle in the graph.

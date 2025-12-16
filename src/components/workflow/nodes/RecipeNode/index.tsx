@@ -6,10 +6,9 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
-import { Play, CirclePause, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FieldDefinition } from '@/types/assets';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
@@ -19,13 +18,13 @@ import { getResolvedRecipe } from '@/lib/recipes';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    'product': (node) => {
+    [HANDLE_IDS.PRODUCT]: (node) => {
         const result = (node.data as any).executionResult;
         if (!result) return null;
         return { type: 'json', value: result };
     },
 
-    'reference': (node, asset) => {
+    reference: (node, asset) => {
         // Get values from asset (FormAssetContent)
         if (asset?.content && typeof asset.content === 'object') {
             const content = asset.content as any;
@@ -99,15 +98,7 @@ const RecipeFieldRow = ({
         )}>
             {/* Input Handle (Left) */}
             {hasInputHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Left}
-                    id={field.key}
-                    className={cn(
-                        "!w-3 !h-3 !rounded-full !border-2 !border-background",
-                        isConnected ? "!bg-blue-500" : "!bg-muted-foreground/40"
-                    )}
-                />
+                <NodePort.Input id={field.key} connected={isConnected} />
             )}
 
             {/* Field Info */}
@@ -151,12 +142,7 @@ const RecipeFieldRow = ({
 
             {/* Output Handle (Right) */}
             {hasOutputHandle && (
-                <NodePort
-                    type="source"
-                    position={Position.Right}
-                    id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`}
-                    className="!w-3 !h-3 !rounded-full !border-2 !border-background !bg-green-500"
-                />
+                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`} />
             )}
         </div>
     );
@@ -308,16 +294,8 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Input Handle - only shown when this is a recipe product */}
-            {state.hasProductHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Top}
-                    id={HANDLE_IDS.INPUT}
-                    className="!bg-violet-500"
-                    isConnectable={true}
-                />
-            )}
+            {/* Origin Handle - shown when this is a recipe product */}
+            <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
                 className={cn(
@@ -362,15 +340,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            <NodePort type="source" position={Position.Right} id="reference" className="!bg-green-500" />
+            <NodePort.Output id="reference" />
 
-            <NodePort
-                type="source"
-                position={Position.Bottom}
-                id="product"
-                className="!bg-purple-500"
-                isConnectable={!state.isDockedBottom}
-            />
+            <NodePort.Product />
         </NodeShell>
     );
 });

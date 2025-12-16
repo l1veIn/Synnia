@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 
 interface InspectorProps {
     assetId: string;
@@ -169,15 +170,46 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {/* Options Tab */}
                 <TabsContent value="options" className="flex-1 flex flex-col min-h-0 m-0">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {/* Add button */}
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={handleAddOption}
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Option
-                        </Button>
+                        {/* Add buttons */}
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                className="flex-1"
+                                onClick={handleAddOption}
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Option
+                            </Button>
+                            <AutoGenerateButton
+                                mode="table-full"
+                                count={5}
+                                onGenerate={(result) => {
+                                    // Map table-full result to selector format
+                                    const { columns, rows } = result;
+                                    const newSchema = columns.map((c: any) => ({
+                                        id: c.key,
+                                        key: c.key,
+                                        label: c.label,
+                                        type: c.type || 'string',
+                                    }));
+                                    const newOptions = rows.map((r: any, idx: number) => ({
+                                        id: uuidv4(),
+                                        ...r,
+                                    }));
+                                    setDraftSchema(newSchema);
+                                    setContent({
+                                        ...savedContent,
+                                        optionSchema: newSchema,
+                                        options: [...savedContent.options, ...newOptions],
+                                    });
+                                    toast.success(`Added ${newOptions.length} options`);
+                                }}
+                                placeholder="Describe the selector options (e.g., 'color options with name and hex code')..."
+                                buttonLabel="+ Generate"
+                                buttonVariant="outline"
+                                buttonSize="default"
+                            />
+                        </div>
 
                         {/* Options list */}
                         <div className="space-y-1">

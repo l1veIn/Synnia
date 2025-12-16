@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { NodeProps, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
+import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
@@ -9,13 +9,12 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
-import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    [HANDLE_IDS.IMAGE_OUT]: (node, asset) => {
+    output: (node, asset) => {
         if (!asset) return null;
         const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
         let url = '';
@@ -97,16 +96,8 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Input Handle - only shown when this is a recipe product */}
-            {state.hasProductHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Top}
-                    id={HANDLE_IDS.INPUT}
-                    className="!bg-violet-500"
-                    isConnectable={true}
-                />
-            )}
+            {/* Origin Handle - shown when this is a recipe product */}
+            <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
                 className={state.headerClassName}
@@ -149,13 +140,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            <NodePort
-                type="source"
-                position={Position.Bottom}
-                id={HANDLE_IDS.IMAGE_OUT}
-                className="!bg-yellow-400"
-                isConnectable={!state.isDockedBottom}
-            />
+            <NodePort.Output disabled={state.isDockedBottom} />
         </NodeShell>
     );
 });

@@ -1,0 +1,69 @@
+# Text to Image Recipe
+# Generate images from text prompts using configured image provider
+
+id: media.text-to-image
+name: Text to Image
+description: Generate images from text prompts
+category: Media
+icon: Image
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the image you want to generate..."
+    connection:
+      input: true
+
+  - key: negativePrompt
+    label: Negative Prompt
+    type: string
+    widget: textarea
+    placeholder: "What to avoid in the image..."
+
+  - key: model
+    label: Model
+    type: select
+    widget: select
+    placeholder: "Select a model..."
+    options:
+      - dall-e-3
+      - dall-e-2
+      - flux-schnell
+      - nano-banana
+      - seedream-4.0
+      - z-image-turbo
+
+  - key: aspectRatio
+    label: Aspect Ratio
+    type: select
+    widget: select
+    default: "1:1"
+    options:
+      - "1:1"
+      - "16:9"
+      - "9:16"
+      - "4:3"
+      - "3:4"
+
+  - key: numImages
+    label: Number of Images
+    type: number
+    widget: slider
+    default: 1
+    min: 1
+    max: 4
+    step: 1
+
+outputSchema:
+  type: json
+  description: Generated images array
+
+executor:
+  type: media
+  mode: text-to-image
+  outputNode:
+    type: gallery
+    titleTemplate: "Generated: {{prompt}}"

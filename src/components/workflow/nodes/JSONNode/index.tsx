@@ -9,14 +9,13 @@ import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
-import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { JSONNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    [HANDLE_IDS.JSON_OUT]: (node, asset) => {
+    output: (node, asset) => {
         if (!asset) return null;
         const content = asset.content as FormAssetContent;
         return { type: 'json', value: content?.values || {} };
@@ -99,14 +98,9 @@ const JSONFieldRow = ({
 
     return (
         <div className="relative flex items-center justify-between gap-2 min-h-[20px]">
-            {/* Input Handle (Left - Blue) */}
+            {/* Input Handle (Left) */}
             {hasInputHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Left}
-                    id={field.key}
-                    className="!bg-blue-500"
-                />
+                <NodePort.Input id={field.key} connected={isConnected} />
             )}
 
             <span
@@ -129,14 +123,9 @@ const JSONFieldRow = ({
                 </span>
             )}
 
-            {/* Output Handle (Right - Green) */}
+            {/* Output Handle (Right) */}
             {hasOutputHandle && (
-                <NodePort
-                    type="source"
-                    position={Position.Right}
-                    id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`}
-                    className="!bg-green-500"
-                />
+                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key} `} />
             )}
         </div>
     );
@@ -253,16 +242,8 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Input Handle - only shown when this is a recipe product */}
-            {state.hasProductHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Top}
-                    id={HANDLE_IDS.INPUT}
-                    className="!bg-violet-500"
-                    isConnectable={true}
-                />
-            )}
+            {/* Origin Handle - shown when this is a recipe product */}
+            <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
                 className={cn(
@@ -293,21 +274,16 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            {/* Output: Data (Right, Yellow) */}
-            <NodePort
-                type="source"
-                position={Position.Right}
-                id={HANDLE_IDS.JSON_OUT}
-                className="!bg-yellow-400"
-            />
+            {/* Output: Data (Right) */}
+            <NodePort.Output />
 
-            {/* Array Output: Only show at tail of docked chain (has dockedTo but no followers) */}
+            {/* Array Output: Only show at tail of docked chain */}
             {state.isDockedTop && !state.isDockedBottom && (
                 <NodePort
                     type="source"
                     position={Position.Bottom}
                     id="array"
-                    className="!bg-purple-500"
+                    className="bg-green-500"
                     title="Array: Collect all docked nodes above"
                 />
             )}

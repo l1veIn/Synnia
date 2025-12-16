@@ -133,3 +133,31 @@ pub fn get_model_name(app: AppHandle) -> Result<String, AppError> {
     let config = GlobalConfig::load(&app);
     Ok(config.gemini_model_name.unwrap_or("gemini-1.5-flash".to_string()))
 }
+
+#[tauri::command]
+pub fn get_ai_config(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.ai_config.unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn save_ai_config(config: String, app: AppHandle) -> Result<(), AppError> {
+    let mut global_config = GlobalConfig::load(&app);
+    global_config.ai_config = Some(config);
+    global_config.save(&app).map_err(|e| AppError::Unknown(e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_media_config(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.media_config.unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn save_media_config(config: String, app: AppHandle) -> Result<(), AppError> {
+    let mut global_config = GlobalConfig::load(&app);
+    global_config.media_config = Some(config);
+    global_config.save(&app).map_err(|e| AppError::Unknown(e))?;
+    Ok(())
+}

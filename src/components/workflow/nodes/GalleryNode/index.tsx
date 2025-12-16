@@ -1,14 +1,13 @@
 import { memo, useEffect, useState, useMemo } from 'react';
-import { NodeProps, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
+import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star, Grid, List, Maximize } from 'lucide-react';
+import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
-import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
@@ -32,20 +31,12 @@ export interface GalleryAssetContent {
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    [HANDLE_IDS.IMAGES]: (node, asset) => {
+    output: (node, asset) => {
         if (!asset?.content) return null;
         const content = asset.content as GalleryAssetContent;
         return {
             type: 'array',
             value: content.images
-        };
-    },
-    [HANDLE_IDS.STARRED]: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as GalleryAssetContent;
-        return {
-            type: 'array',
-            value: content.images.filter(img => img.starred)
         };
     }
 };
@@ -135,16 +126,8 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Input Handle - only shown when this is a recipe product */}
-            {state.hasProductHandle && (
-                <NodePort
-                    type="target"
-                    position={Position.Top}
-                    id={HANDLE_IDS.INPUT}
-                    className="!bg-violet-500"
-                    isConnectable={true}
-                />
-            )}
+            {/* Origin Handle - shown when this is a recipe product */}
+            <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
                 className={state.headerClassName}
@@ -254,13 +237,7 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
-            <NodePort
-                type="source"
-                position={Position.Bottom}
-                id={HANDLE_IDS.IMAGES}
-                className="!bg-violet-400"
-                isConnectable={!state.isDockedBottom}
-            />
+            <NodePort.Output disabled={state.isDockedBottom} />
         </NodeShell>
     );
 });

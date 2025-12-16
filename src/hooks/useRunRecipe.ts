@@ -3,7 +3,7 @@ import { FormAssetContent } from '@/types/assets';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
 import { NodeType } from '@/types/project';
-import { getNodePayload } from '@/lib/engine/DataPayload';
+import { getNodePayload, resolveInputValue } from '@/lib/engine/DataPayload';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 import { ExecutionContext } from '@/types/recipe';
@@ -55,9 +55,12 @@ export function useRunRecipe() {
                 // Skip trigger handle
                 if (fieldKey === 'trigger') continue;
 
-                const payload = getNodePayload(edge.source);
-                if (payload) {
-                    dynamicValues[fieldKey] = payload.value;
+                // Get payload from source node using sourceHandle for field-level outputs
+                const payload = getNodePayload(edge.source, edge.sourceHandle || undefined);
+                // Resolve to usable value (handles arrays, extracts fields)
+                const value = resolveInputValue(payload, fieldKey);
+                if (value !== undefined) {
+                    dynamicValues[fieldKey] = value;
                 }
             }
 
@@ -172,7 +175,7 @@ export function useRunRecipe() {
                             source: nodeId,
                             sourceHandle: 'product',
                             target: newNodeId,
-                            targetHandle: 'input'
+                            targetHandle: 'origin'
                         });
                     }
 

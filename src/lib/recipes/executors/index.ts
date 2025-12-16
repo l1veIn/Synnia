@@ -7,9 +7,11 @@ import {
     ExpressionExecutorConfig,
     HttpExecutorConfig,
     LlmAgentExecutorConfig,
+    MediaExecutorConfig,
 } from '@/types/recipe';
 import { invoke } from '@tauri-apps/api/core';
 import { NodeType } from '@/types/project';
+import { generateImages, getDefaultImageProvider } from '@/lib/services/media';
 
 // ============================================================================
 // Utility Functions
@@ -44,6 +46,44 @@ const interpolate = (template: string, values: Record<string, any>): string => {
         const val = values[key];
         return val !== undefined ? extractText(val) : '';
     });
+};
+
+/**
+ * Attempt to repair a truncated JSON array
+ * Tries to close open objects and arrays to salvage partial data
+ */
+const repairTruncatedJsonArray = (jsonText: string): string | null => {
+    let text = jsonText.trim();
+
+    // Must start with [
+    if (!text.startsWith('[')) return null;
+
+    // If already valid, return as-is
+    try {
+        JSON.parse(text);
+        return text;
+    } catch { }
+
+    // Try to find the last complete object
+    const lastCompleteObject = text.lastIndexOf('}');
+    if (lastCompleteObject === -1) return null;
+
+    // Truncate after the last complete object and close the array
+    text = text.substring(0, lastCompleteObject + 1);
+
+    // Remove trailing comma if present
+    text = text.replace(/,\s*$/, '');
+
+    // Close the array
+    text = text + ']';
+
+    // Validate the repaired JSON
+    try {
+        JSON.parse(text);
+        return text;
+    } catch {
+        return null;
+    }
 };
 
 // ============================================================================
@@ -170,15 +210,6 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
         const { inputs, manifest } = ctx;
 
         try {
-            // Get API settings
-            const apiKey = await invoke<string>('get_api_key');
-            const baseUrl = await invoke<string>('get_base_url').catch(() => 'https://generativelanguage.googleapis.com');
-            const modelName = await invoke<string>('get_model_name').catch(() => 'gemini-1.5-flash');
-
-            if (!apiKey) {
-                return { success: false, error: 'API key not configured' };
-            }
-
             // Build prompts from template
             const systemPrompt = config.systemPrompt
                 ? interpolate(config.systemPrompt, inputs)
@@ -189,60 +220,38 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
                 return { success: false, error: 'User prompt is empty' };
             }
 
-            // Build Gemini API request
-            const url = `${baseUrl}/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-            const contents: any[] = [];
-            if (systemPrompt.trim()) {
-                contents.push({ role: 'user', parts: [{ text: `System: ${systemPrompt}` }] });
-                contents.push({ role: 'model', parts: [{ text: 'Understood.' }] });
-            }
-            contents.push({ role: 'user', parts: [{ text: userPrompt }] });
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents,
-                    generationConfig: {
-                        temperature: config.temperature ?? inputs.temperature ?? 0.7,
-                        maxOutputTokens: config.maxTokens ?? inputs.maxTokens ?? 2048
-                    }
-                })
+            // Use new AI service for LLM call
+            const { callLLM } = await import('@/lib/services/ai');
+            const response = await callLLM({
+                systemPrompt: systemPrompt || undefined,
+                userPrompt,
+                temperature: config.temperature ?? inputs.temperature ?? 0.7,
+                maxTokens: config.maxTokens ?? inputs.maxTokens ?? 2048,
+                parseAs: config.parseAs === 'json' ? 'json' : 'text',
+                // Support per-node provider override
+                providerId: inputs._aiProviderId || undefined,
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                return { success: false, error: errorData?.error?.message || `API error: ${response.status}` };
+            if (!response.success) {
+                return { success: false, error: response.error || 'LLM call failed' };
             }
 
-            const data = await response.json();
-            const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const responseText = response.text || '';
+            const wasTruncated = response.wasTruncated || false;
 
-            // Parse response if needed
-            let parsedData: any = { response: responseText };
-
-            if (config.parseAs === 'json') {
-                try {
-                    // Try to extract JSON from markdown code blocks
-                    let jsonText = responseText;
-                    const jsonBlockMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
-                    if (jsonBlockMatch) {
-                        jsonText = jsonBlockMatch[1];
-                    } else {
-                        const arrayMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-                        if (arrayMatch) jsonText = arrayMatch[0];
-                    }
-                    parsedData = JSON.parse(jsonText);
-                } catch {
-                    // Keep raw response if JSON parse fails
-                    parsedData = { response: responseText };
-                }
+            if (wasTruncated) {
+                console.warn('[LLM-Agent] Response was truncated due to token limit. Consider increasing maxTokens.');
             }
+
+            // Use parsed data from AI service if JSON mode, otherwise use text
+            let parsedData: any = config.parseAs === 'json' && response.data
+                ? response.data
+                : responseText;
 
             // Create nodes if configured
             const result: ExecutionResult = { success: true, data: parsedData };
 
+            console.log('[LLM-Agent] createNodes:', config.createNodes, 'isArray:', Array.isArray(parsedData));
             if (config.createNodes && Array.isArray(parsedData)) {
                 const nodeConfigType = config.nodeConfig?.type || 'json';
 
@@ -365,6 +374,107 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
 };
 
 // ============================================================================
+// Media Executor
+// ============================================================================
+
+const createMediaExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
+    return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
+        const { inputs, engine, node } = ctx;
+        const { mode, outputNode } = config;
+
+        try {
+            let result: ExecutionResult = { success: false, error: 'Unknown media mode' };
+
+            switch (mode) {
+                case 'text-to-image':
+                case 'image-to-image': {
+                    const prompt = extractText(inputs.prompt);
+                    const model = extractValue(inputs.model);
+                    const aspectRatio = extractValue(inputs.aspectRatio) || '1:1';
+                    const numImages = extractNumber(inputs.numImages) || 1;
+                    const negativePrompt = inputs.negativePrompt ? extractText(inputs.negativePrompt) : undefined;
+                    const sourceImage = mode === 'image-to-image' ? extractValue(inputs.image) : undefined;
+
+                    const imageResult = await generateImages({
+                        prompt,
+                        model,
+                        size: aspectRatio,
+                        n: numImages,
+                        negativePrompt,
+                        images: sourceImage ? [sourceImage] : undefined,
+                    });
+
+                    if (!imageResult.success) {
+                        return { success: false, error: imageResult.error };
+                    }
+
+                    // Convert GeneratedImage[] to GalleryImage[] format
+                    const galleryImages = (imageResult.images || []).map((img, idx) => ({
+                        id: `gen-${Date.now()}-${idx}`,
+                        src: img.url,
+                        starred: false,
+                        caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
+                    }));
+
+                    // Create gallery node with generated images
+                    const title = outputNode?.titleTemplate
+                        ? interpolate(outputNode.titleTemplate, inputs)
+                        : `Generated: ${prompt.slice(0, 30)}...`;
+
+                    result = {
+                        success: true,
+                        data: imageResult.images,
+                        createNodes: [{
+                            type: NodeType.GALLERY,
+                            data: {
+                                label: title,
+                                assetType: 'json' as const,
+                                assetName: title,
+                                content: {
+                                    viewMode: 'grid',
+                                    columnsPerRow: galleryImages.length > 2 ? 3 : galleryImages.length,
+                                    allowStar: true,
+                                    allowDelete: true,
+                                    images: galleryImages,
+                                },
+                            },
+                            position: 'below',
+                            dockedTo: node.id,
+                        }],
+                    };
+                    break;
+                }
+
+                case 'text-to-video':
+                case 'image-to-video':
+                case 'start-end-frame':
+                case 'reference-to-video': {
+                    // Video generation - placeholder for now
+                    // TODO: Implement video generation when video service is ready
+                    const prompt = extractText(inputs.prompt);
+                    const title = outputNode?.titleTemplate
+                        ? interpolate(outputNode.titleTemplate, inputs)
+                        : `Video: ${prompt.slice(0, 30)}...`;
+
+                    result = {
+                        success: false,
+                        error: `Video generation (${mode}) is not yet implemented. Coming soon!`,
+                    };
+                    break;
+                }
+
+                default:
+                    result = { success: false, error: `Unknown media mode: ${mode}` };
+            }
+
+            return result;
+        } catch (error: any) {
+            return { success: false, error: error.message || 'Media generation failed' };
+        }
+    };
+};
+
+// ============================================================================
 // Executor Factory
 // ============================================================================
 
@@ -381,6 +491,8 @@ export const createExecutor = (config: ExecutorConfig): RecipeExecutor => {
             return createHttpExecutor(config);
         case 'llm-agent':
             return createLlmAgentExecutor(config);
+        case 'media':
+            return createMediaExecutor(config);
         case 'custom':
             // Custom executors are loaded separately
             throw new Error('Custom executors should be loaded via dynamic import');

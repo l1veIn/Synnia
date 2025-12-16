@@ -1,0 +1,61 @@
+# Text to Video Recipe
+# Generate videos directly from text prompts
+
+id: media.text-to-video
+name: Text to Video
+description: Generate videos from text descriptions
+category: Media
+icon: Film
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the video scene..."
+    connection:
+      input: true
+
+  - key: model
+    label: Model
+    type: select
+    widget: select
+    placeholder: "Select a model..."
+    options:
+      - kling-v2.6
+      - seedance-v1
+      - hailuo-2.3
+      - vidu-q2
+      - sora-2
+
+  - key: duration
+    label: Duration (seconds)
+    type: number
+    widget: slider
+    default: 5
+    min: 2
+    max: 10
+    step: 1
+
+  - key: aspectRatio
+    label: Aspect Ratio
+    type: select
+    widget: select
+    default: "16:9"
+    options:
+      - "16:9"
+      - "9:16"
+      - "1:1"
+      - "21:9"
+
+outputSchema:
+  type: json
+  description: Generated video
+
+executor:
+  type: media
+  mode: text-to-video
+  outputNode:
+    type: video
+    titleTemplate: "Video: {{prompt}}"

@@ -166,7 +166,7 @@ function CanvasFlow() {
             onNodeDrag={graphEngine.interaction.onNodeDrag}
             nodeTypes={memoizedNodeTypes}
             edgeTypes={edgeTypes}
-            defaultEdgeOptions={{ type: 'deletable', animated: true }}
+            defaultEdgeOptions={{ type: 'deletable' }}
             deleteKeyCode={null} // 禁用默认删除，交给 useGlobalShortcuts 处理级联删除
             fitView
             className="bg-dot-pattern"

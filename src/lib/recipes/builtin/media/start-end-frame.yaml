@@ -1,0 +1,65 @@
+# Start-End Frame Recipe
+# Generate video with specified start and end frames
+
+id: media.start-end-frame
+name: Start-End Frame Video
+description: Generate video transitions between two images
+category: Media
+icon: SplitSquareVertical
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the transition motion..."
+    connection:
+      input: true
+
+  - key: startImage
+    label: Start Frame
+    type: string
+    widget: node-input
+    required: true
+    placeholder: "Connect start image..."
+    connection:
+      input: true
+
+  - key: endImage
+    label: End Frame
+    type: string
+    widget: node-input
+    required: true
+    placeholder: "Connect end image..."
+    connection:
+      input: true
+
+  - key: model
+    label: Model
+    type: select
+    widget: select
+    placeholder: "Select a model..."
+    options:
+      - seedance-v1
+      - vidu-q2
+
+  - key: duration
+    label: Duration (seconds)
+    type: number
+    widget: slider
+    default: 5
+    min: 2
+    max: 10
+    step: 1
+
+outputSchema:
+  type: json
+  description: Generated video
+
+executor:
+  type: media
+  mode: start-end-frame
+  outputNode:
+    type: video
+    titleTemplate: "Transition Video"

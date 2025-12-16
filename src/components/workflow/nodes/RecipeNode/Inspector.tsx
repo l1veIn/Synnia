@@ -5,9 +5,13 @@ import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';
 import { Button } from '@/components/ui/button';
-import { Save, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Save, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getLLMProviders, AIProvider, autoGenerate } from '@/lib/services/ai';
+import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 
 interface RecipeNodeInspectorProps {
     assetId?: string;
@@ -66,6 +70,30 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
             .map(e => e.targetHandle!);
         return new Set(connected);
     }, [edges, nodeId]);
+
+    // Check if this is an LLM recipe (has llm-agent executor)
+    const isLLMRecipe = useMemo(() => {
+        if (!recipe) return false;
+        const executor = recipe.manifest?.executor;
+        return executor?.type === 'llm-agent';
+    }, [recipe]);
+
+    // AI Provider selection (persisted in values as _aiProviderId)
+    const [providers, setProviders] = useState<AIProvider[]>([]);
+    const selectedProviderId = draftValues._aiProviderId || 'default';
+
+    useEffect(() => {
+        if (isLLMRecipe) {
+            getLLMProviders().then(setProviders);
+        }
+    }, [isLLMRecipe]);
+
+    const handleProviderChange = (value: string) => {
+        setDraftValues(prev => ({
+            ...prev,
+            _aiProviderId: value === 'default' ? undefined : value
+        }));
+    };
 
     // Init asset content if needed
     useEffect(() => {
@@ -129,14 +157,58 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
             </div>
 
             {/* Input Form - Edit draft values */}
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                {/* AI Provider selector for LLM recipes */}
+                {isLLMRecipe && providers.length > 0 && (
+                    <div className="space-y-1.5 pb-3 border-b">
+                        <Label className="text-xs flex items-center gap-1.5">
+                            <Sparkles className="h-3 w-3" />AI Provider
+                        </Label>
+                        <Select value={selectedProviderId} onValueChange={handleProviderChange}>
+                            <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Default" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="default">Default</SelectItem>
+                                {providers.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
                 {recipe.inputSchema.length > 0 ? (
-                    <FormRenderer
-                        schema={recipe.inputSchema}
-                        values={draftValues}
-                        onChange={handleDraftChange}
-                        linkedFields={linkedFields}
-                    />
+                    <>
+                        {/* Autofill button */}
+                        <AutoGenerateButton
+                            mode="form-autofill"
+                            formSchema={recipe.inputSchema.map(f => ({
+                                key: f.key,
+                                label: f.label,
+                                type: f.type,
+                                placeholder: f.rules?.placeholder,
+                                widget: f.widget,
+                                options: f.rules?.options,
+                            }))}
+                            onGenerate={(values) => {
+                                // Merge generated values with existing
+                                setDraftValues(prev => ({ ...prev, ...values }));
+                                toast.success('Form auto-filled');
+                            }}
+                            placeholder="Describe what this recipe should do (e.g., 'generate creative product names for a coffee brand')..."
+                            buttonLabel="✨ Autofill"
+                            buttonVariant="outline"
+                            buttonSize="sm"
+                            className="w-full"
+                        />
+                        <FormRenderer
+                            schema={recipe.inputSchema}
+                            values={draftValues}
+                            onChange={handleDraftChange}
+                            linkedFields={linkedFields}
+                        />
+                    </>
                 ) : (
                     <div className="text-xs text-muted-foreground italic text-center py-8">
                         This recipe has no input parameters

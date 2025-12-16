@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
+import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 
 export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
     const { asset, setContent, setMetadata } = useAsset(assetId);
@@ -15,8 +16,8 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
     useEffect(() => {
         if (asset) {
             // Always treat content as string for local editing
-            const content = typeof asset.content === 'object' 
-                ? JSON.stringify(asset.content, null, 2) 
+            const content = typeof asset.content === 'object'
+                ? JSON.stringify(asset.content, null, 2)
                 : String(asset.content || '');
             setLocalContent(content);
         }
@@ -70,13 +71,24 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
                 <div className="space-y-2 flex-1 flex flex-col min-h-0 relative">
                     <div className="flex items-center justify-between">
                         <Label className="text-xs text-muted-foreground">Content</Label>
-                        {editorMode === 'json' && (
-                            <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={handleFormatJson} title="Format JSON">
-                                <Braces className="h-3 w-3 mr-1" /> Format
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                            <AutoGenerateButton
+                                mode={editorMode === 'json' ? 'json-complete' : 'text'}
+                                existingContent={localContent}
+                                onGenerate={(content) => {
+                                    const newContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+                                    setLocalContent(newContent);
+                                }}
+                                placeholder={editorMode === 'json' ? 'Describe the JSON structure...' : 'Describe what to write...'}
+                            />
+                            {editorMode === 'json' && (
+                                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={handleFormatJson} title="Format JSON">
+                                    <Braces className="h-3 w-3 mr-1" /> Format
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                    
+
                     <SynniaEditor
                         value={localContent}
                         onChange={handleEditorChange}
@@ -89,7 +101,7 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
                         }}
                     />
                 </div>
-                
+
                 <div className="text-[10px] text-muted-foreground font-mono shrink-0">
                     ID: {asset.id}
                 </div>

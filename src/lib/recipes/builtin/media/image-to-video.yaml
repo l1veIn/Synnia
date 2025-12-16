@@ -1,0 +1,69 @@
+# Image to Video Recipe
+# Generate videos from an image and text prompt
+
+id: media.image-to-video
+name: Image to Video
+description: Animate an image into a video
+category: Media
+icon: Video
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the motion or animation..."
+    connection:
+      input: true
+
+  - key: image
+    label: Source Image
+    type: string
+    widget: node-input
+    required: true
+    placeholder: "Connect an image node..."
+    connection:
+      input: true
+
+  - key: model
+    label: Model
+    type: select
+    widget: select
+    placeholder: "Select a model..."
+    options:
+      - kling-v2.6
+      - seedance-v1
+      - hailuo-2.3
+      - vidu-q2
+      - sora-2
+
+  - key: duration
+    label: Duration (seconds)
+    type: number
+    widget: slider
+    default: 5
+    min: 2
+    max: 10
+    step: 1
+
+  - key: aspectRatio
+    label: Aspect Ratio
+    type: select
+    widget: select
+    default: "16:9"
+    options:
+      - "16:9"
+      - "9:16"
+      - "1:1"
+
+outputSchema:
+  type: json
+  description: Generated video
+
+executor:
+  type: media
+  mode: image-to-video
+  outputNode:
+    type: video
+    titleTemplate: "Video: {{prompt}}"

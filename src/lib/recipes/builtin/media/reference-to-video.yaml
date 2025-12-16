@@ -1,0 +1,65 @@
+# Reference to Video Recipe
+# Generate video using multiple reference images
+
+id: media.reference-to-video
+name: Reference to Video
+description: Generate video using multiple reference images for style/content
+category: Media
+icon: Images
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the video scene..."
+    connection:
+      input: true
+
+  - key: referenceImages
+    label: Reference Images
+    type: string
+    widget: node-input
+    required: true
+    placeholder: "Connect reference images..."
+    connection:
+      input: true
+
+  - key: model
+    label: Model
+    type: select
+    widget: select
+    default: vidu-q2
+    options:
+      - vidu-q2
+
+  - key: duration
+    label: Duration (seconds)
+    type: number
+    widget: slider
+    default: 4
+    min: 2
+    max: 8
+    step: 1
+
+  - key: aspectRatio
+    label: Aspect Ratio
+    type: select
+    widget: select
+    default: "16:9"
+    options:
+      - "16:9"
+      - "9:16"
+      - "1:1"
+
+outputSchema:
+  type: json
+  description: Generated video
+
+executor:
+  type: media
+  mode: reference-to-video
+  outputNode:
+    type: video
+    titleTemplate: "Reference Video: {{prompt}}"

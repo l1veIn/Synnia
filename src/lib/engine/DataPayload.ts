@@ -118,3 +118,41 @@ const isFormContent = (content: any): content is FormAssetContent => {
 
 // Keep old export for backward compatibility
 export const getNodePayload = getNodeOutput;
+
+/**
+ * Resolve a DataPayload to a usable input value.
+ * 
+ * Handles:
+ * - Arrays: returns first element
+ * - Objects with 'value' key: unwraps the value
+ * - Primitives: returns as-is
+ * 
+ * @param payload - The DataPayload from getNodeOutput
+ * @param targetKey - Optional target field key for extracting same-named field from objects
+ * @returns The resolved value
+ */
+export const resolveInputValue = (payload: DataPayload | null, targetKey?: string): any => {
+    if (!payload) return undefined;
+
+    let value = payload.value;
+
+    // Handle arrays: take first element
+    if (Array.isArray(value)) {
+        if (value.length === 0) return undefined;
+        value = value[0];
+    }
+
+    // If result is an object and targetKey provided, try to extract same-named field
+    if (value && typeof value === 'object' && !Array.isArray(value) && targetKey) {
+        // Check if object has the target key
+        if (targetKey in value) {
+            return value[targetKey];
+        }
+        // For image type, extract url if targetKey suggests it
+        if (payload.type === 'image' && (targetKey.toLowerCase().includes('url') || targetKey.toLowerCase().includes('image'))) {
+            return value.url || value.src || value;
+        }
+    }
+
+    return value;
+};

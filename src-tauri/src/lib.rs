@@ -101,6 +101,10 @@ pub fn run() {
             commands::agent::get_agents,
             commands::agent::save_agent,
             commands::agent::delete_agent,
+            commands::agent::get_ai_config,
+            commands::agent::save_ai_config,
+            commands::agent::get_media_config,
+            commands::agent::save_media_config,
 
             // Asset Commands
             commands::asset::import_file,
@@ -113,6 +117,9 @@ pub fn run() {
             commands::history::get_history_content,
             commands::history::restore_asset_version,
             commands::history::count_asset_history,
+
+            // HTTP Proxy
+            commands::http_proxy::proxy_request,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

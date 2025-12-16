@@ -50,7 +50,7 @@ export interface OutputSchema {
 /**
  * Executor types available
  */
-export type ExecutorType = 'template' | 'http' | 'llm-agent' | 'custom' | 'expression';
+export type ExecutorType = 'template' | 'http' | 'llm-agent' | 'custom' | 'expression' | 'media';
 
 /**
  * Base executor configuration
@@ -135,11 +135,24 @@ export interface CustomExecutorConfig extends BaseExecutorConfig {
     executorPath: string; // Relative path like './executor.ts'
 }
 
+/**
+ * Media executor: generate images/videos/audio
+ */
+export interface MediaExecutorConfig extends BaseExecutorConfig {
+    type: 'media';
+    mode: 'text-to-image' | 'image-to-image' | 'text-to-video' | 'image-to-video' | 'start-end-frame' | 'reference-to-video';
+    outputNode?: {
+        type: 'gallery' | 'video' | 'audio';
+        titleTemplate?: string;
+    };
+}
+
 export type ExecutorConfig =
     | TemplateExecutorConfig
     | ExpressionExecutorConfig
     | HttpExecutorConfig
     | LlmAgentExecutorConfig
+    | MediaExecutorConfig
     | CustomExecutorConfig;
 
 /**

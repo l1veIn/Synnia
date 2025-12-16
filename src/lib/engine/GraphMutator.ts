@@ -111,13 +111,17 @@ export class GraphMutator {
         if (isVirtualRecipe && !assetId) {
             const recipeName = config.title || 'Recipe';
 
-            // Extract default values from recipe inputSchema
+            // Extract default values and schema from recipe inputSchema
             const recipeId = (config.defaultData as any)?.recipeId;
             const defaultValues: Record<string, any> = {};
+            let schema: any[] = [];
 
             if (recipeId) {
                 const recipe = getRecipe(recipeId);
                 if (recipe?.inputSchema) {
+                    // Copy schema from recipe
+                    schema = recipe.inputSchema.map(field => ({ ...field }));
+                    // Extract default values
                     for (const field of recipe.inputSchema) {
                         if (field.defaultValue !== undefined) {
                             defaultValues[field.key] = field.defaultValue;
@@ -126,7 +130,7 @@ export class GraphMutator {
                 }
             }
 
-            const content = { schema: [], values: defaultValues };
+            const content = { schema, values: defaultValues };
             assetId = this.engine.assets.create('json', content, { name: recipeName });
         }
 

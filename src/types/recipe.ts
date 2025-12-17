@@ -3,6 +3,7 @@ import { FieldDefinition } from './assets';
 import { NodeType, BaseNodeData, SynniaNode } from './project';
 import { GraphEngine } from '@/lib/engine/GraphEngine';
 import { XYPosition } from '@xyflow/react';
+import { WidgetType } from './widgets';
 
 // ============================================================================
 // Recipe System V2: YAML-based Configuration + Executor Pattern
@@ -19,7 +20,7 @@ export interface ManifestField {
     key: string;
     label?: string;
     type: 'string' | 'number' | 'boolean' | 'select' | 'object';
-    widget?: 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'node-input' | 'none';
+    widget?: WidgetType;
     default?: any;
     required?: boolean;
     disabled?: boolean;
@@ -36,6 +37,8 @@ export interface ManifestField {
         input?: boolean;
         output?: boolean;
     };
+    // Widget specific configuration
+    filterRecipeType?: string;
 }
 
 /**
@@ -277,6 +280,7 @@ export const manifestFieldToDefinition = (field: ManifestField): FieldDefinition
         max: field.max,
         step: field.step,
         options: field.options,
+        filterRecipeType: field.filterRecipeType,
     },
     connection: field.connection,
 });

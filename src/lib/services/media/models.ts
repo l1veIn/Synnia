@@ -17,7 +17,8 @@ export interface ModelDefinition {
     defaultParams?: Record<string, any>;
     // Model-specific options
     aspectRatios?: string[];
-    durations?: number[];
+    resolutions?: string[];   // e.g., ['1k', '2k', '4k']
+    durations?: number[];     // for video models
     maxImages?: number;
 }
 
@@ -54,6 +55,15 @@ export const MODEL_REGISTRY: ModelDefinition[] = [
         provider: 'fal',
         recipes: ['text-to-image', 'image-to-image'],
         aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '3:2', '2:3'],
+        maxImages: 4,
+    },
+    {
+        id: 'nano-banana-pro',
+        name: 'Nano Banana Pro',
+        provider: 'fal',
+        recipes: ['text-to-image', 'image-to-image'],
+        aspectRatios: ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '3:2', '2:3'],
+        resolutions: ['1k', '2k', '4k'],  // Supports resolution selection
         maxImages: 4,
     },
     {

@@ -11,7 +11,7 @@ inputSchema:
   - key: prompt
     label: Prompt
     type: string
-    widget: textarea
+    widget: prompt-enhancer
     required: true
     placeholder: "Describe the transition motion..."
     connection:
@@ -35,23 +35,12 @@ inputSchema:
     connection:
       input: true
 
-  - key: model
-    label: Model
-    type: select
-    widget: select
-    placeholder: "Select a model..."
-    options:
-      - seedance-v1
-      - vidu-q2
-
-  - key: duration
-    label: Duration (seconds)
-    type: number
-    widget: slider
-    default: 5
-    min: 2
-    max: 10
-    step: 1
+  - key: modelConfig
+    label: Model & Settings
+    type: object
+    widget: model-configurator
+    filterRecipeType: start-end-frame
+    required: true
 
 outputSchema:
   type: json

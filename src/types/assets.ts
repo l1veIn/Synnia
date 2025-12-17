@@ -11,6 +11,7 @@ export type {
 } from '@/bindings';
 
 import type { Asset as RustAsset, AssetMetadata, ImageAssetMetadata, TextAssetMetadata } from '@/bindings';
+import { WidgetType } from './widgets';
 
 export type AssetType = 'text' | 'image' | 'json' | 'script' | 'file' | string;
 
@@ -26,7 +27,8 @@ export type ExtendedMetadata = AssetMetadata;
 // ==========================================
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object';
-export type WidgetType = 'text' | 'textarea' | 'password' | 'number' | 'slider' | 'switch' | 'select' | 'color' | 'node-input' | 'none';
+// WidgetType is now imported from ./widgets
+
 
 export interface FieldRule {
     min?: number;
@@ -44,6 +46,7 @@ export interface FieldRule {
     enum?: (string | number)[];    // Allowed values list
     format?: 'email' | 'url' | 'date' | 'datetime' | 'uuid'; // Built-in format presets
     customValidator?: string;      // Function name for custom validation (advanced)
+    filterRecipeType?: string;     // Generic filter for widgets (e.g. used by Media Model Selector)
 }
 
 export interface FieldConnection {

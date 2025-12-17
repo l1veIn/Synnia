@@ -11,7 +11,7 @@ inputSchema:
   - key: prompt
     label: Prompt
     type: string
-    widget: textarea
+    widget: prompt-enhancer
     required: true
     placeholder: "Describe the image you want to generate..."
     connection:
@@ -23,39 +23,12 @@ inputSchema:
     widget: textarea
     placeholder: "What to avoid in the image..."
 
-  - key: model
-    label: Model
-    type: select
-    widget: select
-    placeholder: "Select a model..."
-    options:
-      - dall-e-3
-      - dall-e-2
-      - flux-schnell
-      - nano-banana
-      - seedream-4.0
-      - z-image-turbo
-
-  - key: aspectRatio
-    label: Aspect Ratio
-    type: select
-    widget: select
-    default: "1:1"
-    options:
-      - "1:1"
-      - "16:9"
-      - "9:16"
-      - "4:3"
-      - "3:4"
-
-  - key: numImages
-    label: Number of Images
-    type: number
-    widget: slider
-    default: 1
-    min: 1
-    max: 4
-    step: 1
+  - key: modelConfig
+    label: Model & Settings
+    type: object
+    widget: model-configurator
+    filterRecipeType: text-to-image
+    required: true
 
 outputSchema:
   type: json

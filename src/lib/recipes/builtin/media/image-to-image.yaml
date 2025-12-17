@@ -11,7 +11,7 @@ inputSchema:
   - key: prompt
     label: Prompt
     type: string
-    widget: textarea
+    widget: prompt-enhancer
     required: true
     placeholder: "Describe the transformation..."
     connection:
@@ -26,15 +26,12 @@ inputSchema:
     connection:
       input: true
 
-  - key: model
-    label: Model
-    type: select
-    widget: select
-    placeholder: "Select a model..."
-    options:
-      - dall-e-2
-      - nano-banana
-      - seedream-4.0
+  - key: modelConfig
+    label: Model & Settings
+    type: object
+    widget: model-configurator
+    filterRecipeType: image-to-image
+    required: true
 
   - key: strength
     label: Transformation Strength
@@ -44,15 +41,6 @@ inputSchema:
     min: 0.1
     max: 1.0
     step: 0.1
-
-  - key: numImages
-    label: Number of Images
-    type: number
-    widget: slider
-    default: 1
-    min: 1
-    max: 4
-    step: 1
 
 outputSchema:
   type: json

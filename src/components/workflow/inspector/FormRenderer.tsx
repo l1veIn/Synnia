@@ -6,6 +6,9 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link } from 'lucide-react';
+import { AspectRatioSelector } from './widgets/AspectRatioSelector';
+import { PromptEnhancer } from './widgets/PromptEnhancer';
+import { ModelConfigurator } from './widgets/ModelConfigurator';
 
 interface RendererProps {
     schema: FieldDefinition[];
@@ -139,6 +142,35 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
             );
         case 'string':
         default:
+            if (field.widget === 'model-configurator') {
+                return (
+                    <ModelConfigurator
+                        value={safeVal}
+                        onChange={onChange}
+                        disabled={isDisabled}
+                        filterRecipeType={rules.filterRecipeType}
+                    />
+                );
+            }
+            if (field.widget === 'aspect-ratio-selector') {
+                return (
+                    <AspectRatioSelector
+                        value={safeVal}
+                        onChange={onChange}
+                        disabled={isDisabled}
+                    />
+                );
+            }
+            if (field.widget === 'prompt-enhancer') {
+                return (
+                    <PromptEnhancer
+                        value={safeVal}
+                        onChange={onChange}
+                        disabled={isDisabled}
+                        placeholder={rules.placeholder}
+                    />
+                );
+            }
             if (field.widget === 'textarea') {
                 return (
                     <Textarea

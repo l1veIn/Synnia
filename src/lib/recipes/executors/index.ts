@@ -389,11 +389,15 @@ const createMediaExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
                 case 'text-to-image':
                 case 'image-to-image': {
                     const prompt = extractText(inputs.prompt);
-                    const model = extractValue(inputs.model);
-                    const aspectRatio = extractValue(inputs.aspectRatio) || '1:1';
-                    const numImages = extractNumber(inputs.numImages) || 1;
                     const negativePrompt = inputs.negativePrompt ? extractText(inputs.negativePrompt) : undefined;
                     const sourceImage = mode === 'image-to-image' ? extractValue(inputs.image) : undefined;
+
+                    // Support both new modelConfig object and legacy individual fields
+                    const modelConfig = extractValue(inputs.modelConfig);
+                    const model = modelConfig?.modelId || extractValue(inputs.model);
+                    const aspectRatio = modelConfig?.aspectRatio || extractValue(inputs.aspectRatio) || '1:1';
+                    const numImages = modelConfig?.numImages || extractNumber(inputs.numImages) || 1;
+                    const resolution = modelConfig?.resolution; // New: resolution support
 
                     const imageResult = await generateImages({
                         prompt,
@@ -402,6 +406,8 @@ const createMediaExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
                         n: numImages,
                         negativePrompt,
                         images: sourceImage ? [sourceImage] : undefined,
+                        // Pass resolution if supported
+                        ...(resolution && { resolution }),
                     });
 
                     if (!imageResult.success) {

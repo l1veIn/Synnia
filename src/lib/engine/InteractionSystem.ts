@@ -13,7 +13,7 @@ import { sortNodesTopologically } from '@/lib/graphUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@/lib/graphUtils';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { getNodePayload, resolveInputValue } from '@/lib/engine/DataPayload';
+import { validateConnection, wouldCreateCycle } from '@/lib/engine/ports';
 
 export class InteractionSystem {
     private engine: GraphEngine;
@@ -132,10 +132,10 @@ export class InteractionSystem {
             const node = updatedNodes.find(n => n.id === c.id);
             if (!node) return false;
 
-            // Check if inside Rack/Collapsed Group
+            // Check if inside collapsed parent (deprecated: RACK/GROUP container types removed)
             if (node.parentId) {
                 const parent = updatedNodes.find(p => p.id === node.parentId);
-                if (parent && (parent.type === NodeType.RACK || (parent.type === NodeType.GROUP && parent.data.collapsed))) {
+                if (parent && parent.data.collapsed) {
                     return true;
                 }
             }
@@ -181,7 +181,7 @@ export class InteractionSystem {
         const { nodes, edges } = this.engine.state;
 
         // Cycle detection: check if adding this edge would create a cycle
-        if (this.wouldCreateCycle(nodes, edges, connection)) {
+        if (wouldCreateCycle(nodes, edges, connection)) {
             // Import toast dynamically to avoid circular deps
             import('sonner').then(({ toast }) => {
                 toast.error('Cannot create connection: would create a cycle');
@@ -189,8 +189,8 @@ export class InteractionSystem {
             return;
         }
 
-        // Data validation: check if source can provide usable data for target field
-        const validationResult = this.validateConnectionData(connection);
+        // Data validation: delegate to EdgeValidator
+        const validationResult = validateConnection(connection);
         if (!validationResult.valid) {
             import('sonner').then(({ toast }) => {
                 toast.error(validationResult.message || 'Cannot connect: incompatible data');
@@ -199,116 +199,7 @@ export class InteractionSystem {
         }
 
         this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
-    };
-
-    /**
-     * Validate that source handle can provide usable data for target handle.
-     */
-    private validateConnectionData(
-        connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }
-    ): { valid: boolean; message?: string } {
-        const targetHandle = connection.targetHandle;
-
-        // Only validate field-level DATA_IN handles (not standard semantic handles)
-        // Field handles are typically field keys like 'prompt', 'brandTone', 'url', etc.
-        // Skip if no targetHandle or if it's a standard semantic handle (origin, product, output, etc.)
-        const isFieldLevelInput = targetHandle &&
-            !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle) &&
-            !targetHandle.startsWith('field:');  // field:xxx are output handles, not input
-
-        if (!isFieldLevelInput) {
-            return { valid: true };
-        }
-
-        // Check for multi-source: prevent connecting if target handle already has an edge
-        const { edges } = this.engine.state;
-        const existingEdge = edges.find(e =>
-            e.target === connection.target &&
-            e.targetHandle === targetHandle
-        );
-        if (existingEdge) {
-            return { valid: false, message: `Field '${targetHandle}' already has a connection` };
-        }
-
-        const payload = getNodePayload(connection.source, connection.sourceHandle || undefined);
-        if (!payload) {
-            return { valid: false, message: `Source node has no output data` };
-        }
-
-        // If source is a structured object (JSON), check if it has the target key with non-empty value
-        if (payload.value && typeof payload.value === 'object' && !Array.isArray(payload.value)) {
-            const availableKeys = Object.keys(payload.value);
-
-            // If target key exists in the object, use that specific field
-            if (availableKeys.includes(targetHandle)) {
-                const keyValue = payload.value[targetHandle];
-                if (keyValue === undefined || keyValue === null || keyValue === '') {
-                    return {
-                        valid: false,
-                        message: `Field '${targetHandle}' in source is empty`
-                    };
-                }
-                return { valid: true };
-            }
-
-            // If target key doesn't exist but source is a non-empty object,
-            // allow the connection - the entire object will be passed through.
-            // This handles cases like connecting a "Soul Profile" JSON to a "soulProfile" input
-            // where the source has fields like {name, visualDNA, ...} but no "soulProfile" field.
-            if (availableKeys.length > 0) {
-                return { valid: true };  // Allow passing entire object
-            }
-
-            return {
-                valid: false,
-                message: `Source object is empty`
-            };
-        }
-
-        // For non-object payloads (text, image, etc.), use resolveInputValue
-        const resolvedValue = resolveInputValue(payload, targetHandle);
-
-        // Check if we got a usable value (must be non-empty)
-        if (resolvedValue === undefined || resolvedValue === null || resolvedValue === '') {
-            return { valid: false, message: `Source has no data for field '${targetHandle}'` };
-        }
-
-        return { valid: true };
     }
-
-    /**
-     * Check if adding a new edge would create a cycle in the graph.
-     * Uses DFS from target to see if we can reach source.
-     */
-    private wouldCreateCycle(
-        nodes: SynniaNode[],
-        edges: SynniaEdge[],
-        newConnection: { source: string; target: string }
-    ): boolean {
-        const { source, target } = newConnection;
-
-        // Self-loop detection (same node or same handle on same node)
-        if (source === target) return true;
-
-        // DFS from target to see if we can reach source
-        const visited = new Set<string>();
-        const stack = [target];
-
-        while (stack.length > 0) {
-            const nodeId = stack.pop()!;
-            if (nodeId === source) return true; // Would create cycle
-            if (visited.has(nodeId)) continue;
-            visited.add(nodeId);
-
-            // Find all edges where this node is the source
-            edges
-                .filter(e => e.source === nodeId)
-                .forEach(e => stack.push(e.target));
-        }
-
-        return false;
-    }
-
     public onNodeDrag: OnNodeDrag = (_event, node) => {
         // Detect hover over Rack/Group for highlighting
         const { nodes, highlightedGroupId } = this.engine.state;
@@ -342,12 +233,8 @@ export class InteractionSystem {
             }
         }
 
-        // Only target top-level containers that are not the node itself
-        const targets = nodes.filter(n =>
-            (n.type === NodeType.RACK || n.type === NodeType.GROUP) &&
-            n.id !== node.id &&
-            !n.parentId
-        );
+        // Container reparenting disabled - RACK/GROUP node types removed
+        const targets: any[] = [];
 
         let foundId: string | null = null;
         // Find topmost intersecting container
@@ -473,12 +360,8 @@ export class InteractionSystem {
             }
         }
 
-        // === Container Reparenting (existing logic) ===
-        const targets = nodes.filter(n =>
-            (n.type === NodeType.RACK || n.type === NodeType.GROUP) &&
-            n.id !== node.id &&
-            !n.parentId
-        );
+        // Container reparenting disabled - RACK/GROUP node types removed
+        const targets: any[] = [];
 
         if (node.parentId) return;
 

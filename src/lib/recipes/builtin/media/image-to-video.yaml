@@ -11,7 +11,7 @@ inputSchema:
   - key: prompt
     label: Prompt
     type: string
-    widget: prompt-enhancer
+    widget: textarea
     required: true
     placeholder: "Describe the motion or animation..."
     connection:

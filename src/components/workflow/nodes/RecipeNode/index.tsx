@@ -11,30 +11,36 @@ import { toast } from 'sonner';
 import { FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
+import { portRegistry } from '@/lib/engine/ports';
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    // [HANDLE_IDS.PRODUCT]: (node) => {
-    //     const result = (node.data as any).executionResult;
-    //     if (!result) return null;
-    //     return { type: 'json', value: result };
-    // },
-
-    reference: (node, asset) => {
-        // Get values from asset (FormAssetContent)
-        if (asset?.content && typeof asset.content === 'object') {
-            const content = asset.content as any;
-            if (content.values) {
-                return { type: 'json', value: content.values };
+// --- Register Ports ---
+portRegistry.register(NodeType.RECIPE, {
+    static: [
+        {
+            id: 'reference',
+            direction: 'output',
+            dataType: 'json',
+            label: 'Reference Output',
+            resolver: (node, asset) => {
+                if (asset?.content && typeof asset.content === 'object') {
+                    const content = asset.content as any;
+                    if (content.values) {
+                        return {
+                            type: 'json',
+                            value: content.values,
+                            meta: { nodeId: node.id, portId: 'reference' }
+                        };
+                    }
+                }
+                return { type: 'json', value: {}, meta: { nodeId: node.id, portId: 'reference' } };
             }
         }
-        return { type: 'json', value: {} };
-    }
-};
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {
@@ -71,7 +77,7 @@ const RecipeFieldRow = ({
     const conn = field.connection;
     const hasInputHandle = conn?.input === true ||
         (typeof conn?.input === 'object' && conn.input.enabled) ||
-        field.widget === 'node-input' ||
+        field.widget === 'json-input' ||
         field.type === 'object' ||
         conn?.enabled;
     const hasOutputHandle = conn?.output === true ||
@@ -226,7 +232,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 (typeof conn?.input === 'object' && conn.input.enabled) ||
                 conn?.output === true ||
                 (typeof conn?.output === 'object' && conn.output.enabled) ||
-                field.widget === 'node-input' ||
+                field.widget === 'json-input' ||
                 field.type === 'object';
         });
 
@@ -274,7 +280,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     // Check if there are fields with handles (to know if we need content area even when collapsed)
     const hasHandleFields = recipe?.inputSchema.some(field => {
         const conn = field.connection;
-        return conn?.input || conn?.output || field.widget === 'node-input' || field.type === 'object';
+        return conn?.input || conn?.output || field.widget === 'json-input' || field.type === 'object';
     }) ?? false;
 
     return (

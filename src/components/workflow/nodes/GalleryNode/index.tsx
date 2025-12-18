@@ -7,10 +7,11 @@ import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
+import { portRegistry } from '@/lib/engine/ports';
 
 // --- Asset Content Type ---
 export interface GalleryImage {
@@ -29,17 +30,26 @@ export interface GalleryAssetContent {
     images: GalleryImage[];
 }
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    output: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as GalleryAssetContent;
-        return {
-            type: 'array',
-            value: content.images
-        };
-    }
-};
+// --- Register Ports ---
+portRegistry.register(NodeType.GALLERY, {
+    static: [
+        {
+            id: 'output',
+            direction: 'output',
+            dataType: 'array',
+            label: 'Gallery Images',
+            resolver: (node, asset) => {
+                if (!asset?.content) return null;
+                const content = asset.content as GalleryAssetContent;
+                return {
+                    type: 'array',
+                    value: content.images,
+                    meta: { nodeId: node.id, portId: 'output' }
+                };
+            }
+        }
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

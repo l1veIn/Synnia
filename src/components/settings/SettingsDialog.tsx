@@ -1,7 +1,7 @@
 // Simplified Settings Dialog
 // API Key + Base URL management for cloud and local providers
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,11 +20,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useSettings,
   PROVIDER_INFO,
-  DEFAULT_LLM_OPTIONS,
   ProviderKey,
   ProviderInfo,
   isProviderConfigured,
 } from "@/lib/settings";
+import { getAllLLMModels } from "@/lib/models/llm";
 
 // Provider Input Component
 function ProviderInput({
@@ -137,9 +137,10 @@ export function SettingsDialog() {
   };
 
   // Filter available default LLM options based on configured providers
-  const availableLLMOptions = DEFAULT_LLM_OPTIONS.filter(opt =>
-    isProviderConfigured(settings, opt.provider)
-  );
+  const availableLLMOptions = useMemo(() => {
+    const allModels = getAllLLMModels();
+    return allModels.filter(m => isProviderConfigured(settings, m.provider));
+  }, [settings]);
 
   const cloudProviders = PROVIDER_INFO.filter(p => p.type === 'cloud');
   const localProviders = PROVIDER_INFO.filter(p => p.type === 'local');
@@ -228,9 +229,9 @@ export function SettingsDialog() {
             </SelectTrigger>
             <SelectContent>
               {availableLLMOptions.length > 0 ? (
-                availableLLMOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                availableLLMOptions.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} ({m.provider})
                   </SelectItem>
                 ))
               ) : (

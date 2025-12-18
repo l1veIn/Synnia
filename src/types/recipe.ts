@@ -39,6 +39,12 @@ export interface ManifestField {
     };
     // Widget specific configuration
     filterRecipeType?: string;
+    // Nested rules object (from YAML)
+    rules?: {
+        requiredKeys?: string[];
+        filterCapability?: string;
+        [key: string]: any;
+    };
 }
 
 /**
@@ -281,6 +287,8 @@ export const manifestFieldToDefinition = (field: ManifestField): FieldDefinition
         step: field.step,
         options: field.options,
         filterRecipeType: field.filterRecipeType,
+        // Merge nested rules from YAML
+        ...field.rules,
     },
     connection: field.connection,
 });

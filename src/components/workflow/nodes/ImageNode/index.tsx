@@ -8,27 +8,37 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
+import { portRegistry } from '@/lib/engine/ports';
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    output: (node, asset) => {
-        if (!asset) return null;
-        const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
-        let url = '';
-        if (typeof asset.content === 'string') {
-            url = asset.content;
-        } else if (typeof asset.content === 'object' && asset.content !== null) {
-            url = (asset.content as any).src || (asset.content as any).url || '';
+// --- Register Ports ---
+portRegistry.register(NodeType.IMAGE, {
+    static: [
+        {
+            id: 'output',
+            direction: 'output',
+            dataType: 'image',
+            label: 'Image Output',
+            resolver: (node, asset) => {
+                if (!asset) return null;
+                const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
+                let url = '';
+                if (typeof asset.content === 'string') {
+                    url = asset.content;
+                } else if (typeof asset.content === 'object' && asset.content !== null) {
+                    url = (asset.content as any).src || (asset.content as any).url || '';
+                }
+                return {
+                    type: 'image',
+                    value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType },
+                    meta: { nodeId: node.id, portId: 'output' }
+                };
+            }
         }
-        return {
-            type: 'image',
-            value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType }
-        };
-    }
-};
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

@@ -1,7 +1,4 @@
-// LLMConfigurator Widget
-// Selects LLM model and configures parameters (temperature, max tokens, etc.)
-
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Brain, Thermometer, Hash, FileJson } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -72,6 +69,33 @@ export function LLMConfigurator({
     const availableModels = useMemo(() => {
         return allModels.filter(m => configuredProviders.includes(m.provider));
     }, [allModels, configuredProviders]);
+
+    // Auto-select default LLM from settings when no value is provided
+    useEffect(() => {
+        if (!value?.modelId && settings?.defaultLLM && availableModels.length > 0) {
+            // Try to find the default model in available models
+            const defaultModel = availableModels.find(m => m.id === settings.defaultLLM);
+            if (defaultModel) {
+                onChange({
+                    modelId: defaultModel.id,
+                    provider: defaultModel.provider,
+                    temperature: defaultModel.defaultTemperature ?? 0.7,
+                    maxTokens: Math.min(2048, defaultModel.maxOutputTokens),
+                    jsonMode: false,
+                });
+            } else if (availableModels.length > 0) {
+                // Fall back to first available model
+                const firstModel = availableModels[0];
+                onChange({
+                    modelId: firstModel.id,
+                    provider: firstModel.provider,
+                    temperature: firstModel.defaultTemperature ?? 0.7,
+                    maxTokens: Math.min(2048, firstModel.maxOutputTokens),
+                    jsonMode: false,
+                });
+            }
+        }
+    }, [value?.modelId, settings?.defaultLLM, availableModels, onChange]);
 
     // Currently selected model
     const selectedModel = useMemo(() => {

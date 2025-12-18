@@ -54,7 +54,7 @@ async function generateTableRows(options: AutoGenerateOptions): Promise<AutoGene
         return { success: false, error: 'Table schema is required for row generation' };
     }
 
-    const count = options.count || 5;
+    const count = options.count || 20;
     const schemaDescription = options.schema
         .map(col => `- ${col.key} (${col.type}): ${col.label}`)
         .join('\n');
@@ -75,7 +75,7 @@ Output format: [{"key1": "value1", ...}, ...]`;
         userPrompt,
         parseAs: 'json',
         providerId: options.providerId,
-        maxTokens: Math.max(20480, count * 200), // Estimate tokens needed
+        maxTokens: Math.max(65536, count * 500), // Modern models support longer context
     });
 
     if (response.success && response.data) {
@@ -91,7 +91,7 @@ Output format: [{"key1": "value1", ...}, ...]`;
  * Generate complete table with columns and rows
  */
 async function generateTableFull(options: AutoGenerateOptions): Promise<AutoGenerateResult> {
-    const count = options.count || 5;
+    const count = options.count || 20;
 
     const systemPrompt = `You are a data structure designer. Generate a complete table structure with columns (schema) and sample rows.
 Output a JSON object with two fields:
@@ -113,7 +113,7 @@ Output format:
         userPrompt,
         parseAs: 'json',
         providerId: options.providerId,
-        maxTokens: Math.max(20480, count * 300),
+        maxTokens: Math.max(65536, count * 500),
     });
 
     if (response.success && response.data) {

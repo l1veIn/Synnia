@@ -9,7 +9,7 @@ import { useNode } from '@/hooks/useNode';
 import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { portRegistry } from '@/lib/engine/ports';
 
 // --- Asset Content Type ---
 /**
@@ -45,18 +46,27 @@ export interface SelectorAssetContent {
     selected: string[]; // array of option IDs
 }
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    output: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as SelectorAssetContent;
-        const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
-        return {
-            type: 'array',
-            value: selectedOptions
-        };
-    }
-};
+// --- Register Ports ---
+portRegistry.register(NodeType.SELECTOR, {
+    static: [
+        {
+            id: 'output',
+            direction: 'output',
+            dataType: 'array',
+            label: 'Selected Items',
+            resolver: (node, asset) => {
+                if (!asset?.content) return null;
+                const content = asset.content as SelectorAssetContent;
+                const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
+                return {
+                    type: 'array',
+                    value: selectedOptions,
+                    meta: { nodeId: node.id, portId: 'output' }
+                };
+            }
+        }
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

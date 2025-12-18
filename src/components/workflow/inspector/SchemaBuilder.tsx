@@ -115,7 +115,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                     onValueChange={(v) => setNewFieldData({
                                         ...newFieldData,
                                         type: v as FieldType,
-                                        widget: v === 'object' ? 'node-input' : undefined
+                                        widget: v === 'object' ? 'json-input' : undefined
                                     })}
                                 >
                                     <SelectTrigger className="col-span-3 h-8 text-xs">
@@ -156,7 +156,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                                     <SelectItem value="textarea">Text Area</SelectItem>
                                                     <SelectItem value="select">Select Menu</SelectItem>
                                                     <SelectItem value="color">Color Picker</SelectItem>
-                                                    <SelectItem value="node-input" className="text-blue-500 font-medium">Node Connection</SelectItem>
+                                                    <SelectItem value="json-input" className="text-blue-500 font-medium">JSON Connection</SelectItem>
                                                 </>
                                             )}
                                             {newFieldData.type === 'number' && (
@@ -177,21 +177,51 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                             )}
 
                             {/* Type Specific Config */}
-                            {newFieldData.widget === 'node-input' && (
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="reqKeys" className="text-right text-xs">Req. Keys</Label>
-                                    <Input
-                                        id="reqKeys"
-                                        className="col-span-3 h-8 text-xs font-mono"
-                                        placeholder="key1, key2 (comma separated)"
-                                        onChange={(e) => {
-                                            const keys = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                                            setNewFieldData({
-                                                ...newFieldData,
-                                                rules: { ...newFieldData.rules, requiredKeys: keys }
-                                            });
-                                        }}
-                                    />
+                            {newFieldData.widget === 'json-input' && (
+                                <div className="grid grid-cols-4 items-start gap-4">
+                                    <Label className="text-right text-xs pt-2">Expected Keys</Label>
+                                    <div className="col-span-3 space-y-2">
+                                        <div className="flex flex-wrap gap-1">
+                                            {(newFieldData.rules?.requiredKeys || []).map((key: string, idx: number) => (
+                                                <span
+                                                    key={idx}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/10 text-blue-600 rounded text-xs font-mono"
+                                                >
+                                                    {key}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const keys = [...(newFieldData.rules?.requiredKeys || [])];
+                                                            keys.splice(idx, 1);
+                                                            setNewFieldData({
+                                                                ...newFieldData,
+                                                                rules: { ...newFieldData.rules, requiredKeys: keys }
+                                                            });
+                                                        }}
+                                                        className="hover:text-red-500 transition-colors"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <Input
+                                            className="h-8 text-xs font-mono"
+                                            placeholder="Type key and press Enter"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                                    e.preventDefault();
+                                                    const newKey = e.currentTarget.value.trim();
+                                                    const keys = [...(newFieldData.rules?.requiredKeys || []), newKey];
+                                                    setNewFieldData({
+                                                        ...newFieldData,
+                                                        rules: { ...newFieldData.rules, requiredKeys: keys }
+                                                    });
+                                                    e.currentTarget.value = '';
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             )}
 
@@ -259,7 +289,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
                                     <Label className="text-[10px] text-muted-foreground">Type</Label>
-                                    <Select value={field.type} onValueChange={(v: FieldType) => updateField(index, { type: v, widget: v === 'object' ? 'node-input' : undefined })}>
+                                    <Select value={field.type} onValueChange={(v: FieldType) => updateField(index, { type: v, widget: v === 'object' ? 'json-input' : undefined })}>
                                         <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="string">String</SelectItem>
@@ -284,7 +314,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                                                         <SelectItem value="textarea">Text Area</SelectItem>
                                                         <SelectItem value="select">Select Menu</SelectItem>
                                                         <SelectItem value="color">Color Picker</SelectItem>
-                                                        <SelectItem value="node-input" className="text-blue-500 font-medium">Node Connection</SelectItem>
+                                                        <SelectItem value="json-input" className="text-blue-500 font-medium">JSON Connection</SelectItem>
                                                     </>
                                                 )}
                                                 {field.type === 'number' && (
@@ -306,14 +336,42 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                             </div>
 
                             {/* Type Specific Config */}
-                            {field.widget === 'node-input' && (
-                                <div className="space-y-1">
-                                    <Label className="text-[10px]">Required Keys (comma separated)</Label>
+                            {field.widget === 'json-input' && (
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] text-muted-foreground">Expected Keys</Label>
+                                    <div className="flex flex-wrap gap-1 min-h-[24px]">
+                                        {(field.rules?.requiredKeys || []).map((key: string, idx: number) => (
+                                            <span
+                                                key={idx}
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-600 rounded text-[10px] font-mono"
+                                            >
+                                                {key}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const keys = [...(field.rules?.requiredKeys || [])];
+                                                        keys.splice(idx, 1);
+                                                        updateRules(index, { requiredKeys: keys });
+                                                    }}
+                                                    className="hover:text-red-500 transition-colors"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
                                     <Input
-                                        className="h-7 text-xs font-mono"
-                                        placeholder="key1, key2"
-                                        value={field.rules?.requiredKeys?.join(',') || ''}
-                                        onChange={e => updateRules(index, { requiredKeys: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                                        className="h-6 text-xs font-mono"
+                                        placeholder="Type key + Enter"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                                e.preventDefault();
+                                                const newKey = e.currentTarget.value.trim();
+                                                const keys = [...(field.rules?.requiredKeys || []), newKey];
+                                                updateRules(index, { requiredKeys: keys });
+                                                e.currentTarget.value = '';
+                                            }
+                                        }}
                                     />
                                 </div>
                             )}
@@ -336,7 +394,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
                             )}
 
                             {/* String Rules Panel (V2) */}
-                            {field.type === 'string' && field.widget !== 'node-input' && (
+                            {field.type === 'string' && field.widget !== 'json-input' && (
                                 <div className="space-y-2 bg-muted/30 p-2 rounded">
                                     <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">String Validation</Label>
                                     <div className="grid grid-cols-2 gap-2">

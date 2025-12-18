@@ -16,19 +16,27 @@ inputSchema:
   - key: productionManifest
     label: Production Manifest
     type: object
-    widget: node-input
+    widget: json-input
     required: true
     connection:
       input: true
+    rules:
+      requiredKeys:
+        - assetId
+        - assetName
     placeholder: "Connect the 'Production Manifest' table here"
 
   - key: soulProfile
     label: Soul Profile
     type: object
-    widget: node-input
+    widget: json-input
     required: true
     connection:
       input: true
+    rules:
+      requiredKeys:
+        - name
+        - visualDNA
     placeholder: "Connect the 'Soul Profile' JSON here"
 
   - key: visualStyle

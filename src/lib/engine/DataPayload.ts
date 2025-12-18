@@ -1,12 +1,17 @@
+// DataPayload.ts
+// Legacy shim - delegates to new Port System
+// TODO: Gradually migrate callers to use PortResolver directly
+
 import { SynniaNode, NodeType } from '@/types/project';
 import { Asset, FormAssetContent } from '@/types/assets';
 import { DataPayload } from '@/types/node-config';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { nodeOutputs } from '@/components/workflow/nodes';
+import { resolvePort } from './ports/PortResolver';
 
 /**
  * Get the output payload from a node for a specific handle.
  * 
+ * @deprecated Use resolvePort from PortResolver instead
  * @param nodeId - The node ID
  * @param handleId - Optional handle ID. If not provided, tries 'output' or first available.
  * @returns DataPayload or null if not found
@@ -16,48 +21,19 @@ export const getNodeOutput = (nodeId: string, handleId?: string): DataPayload | 
     const node = store.nodes.find(n => n.id === nodeId);
     if (!node) return null;
 
-    // 1. Check if node type has registered output resolvers
-    const outputConfig = nodeOutputs[node.type as string];
+    const asset = node.data.assetId ? store.assets[node.data.assetId] : null;
+    const portId = handleId || 'output';
 
-    if (outputConfig) {
-        // Get the asset for this node
-        const asset = node.data.assetId ? store.assets[node.data.assetId] : undefined;
-
-        // If handleId provided, use that resolver
-        if (handleId && outputConfig[handleId]) {
-            return outputConfig[handleId](node, asset);
-        }
-
-        // If no handleId, try 'output' as default, or first available
-        if (outputConfig['output']) {
-            return outputConfig['output'](node, asset);
-        }
-
-        // Return first available output
-        const firstKey = Object.keys(outputConfig)[0];
-        if (firstKey) {
-            return outputConfig[firstKey](node, asset);
-        }
-    }
-
-    // 2. Fallback: Legacy behavior for containers
-    if (node.type === NodeType.RACK || node.type === NodeType.GROUP) {
-        const children = store.nodes
-            .filter(n => n.parentId === nodeId)
-            .sort((a, b) => a.position.y - b.position.y);
-
-        const list = children
-            .map(child => getNodeOutput(child.id))
-            .filter(p => p !== null)
-            .map(p => p!.value);
-
+    // Use new port system
+    const portValue = resolvePort(node, asset, portId);
+    if (portValue) {
         return {
-            type: 'array',
-            value: list
+            type: portValue.type as any,
+            value: portValue.value
         };
     }
 
-    // 3. Fallback: Legacy asset resolution
+    // Fallback: Legacy asset resolution
     return getLegacyAssetPayload(node, store.assets);
 };
 
@@ -122,14 +98,7 @@ export const getNodePayload = getNodeOutput;
 /**
  * Resolve a DataPayload to a usable input value.
  * 
- * Handles:
- * - Arrays: returns first element
- * - Objects with 'value' key: unwraps the value
- * - Primitives: returns as-is
- * 
- * @param payload - The DataPayload from getNodeOutput
- * @param targetKey - Optional target field key for extracting same-named field from objects
- * @returns The resolved value
+ * @deprecated Use resolveInputValue from PortResolver instead
  */
 export const resolveInputValue = (payload: DataPayload | null, targetKey?: string): any => {
     if (!payload) return undefined;
@@ -144,11 +113,9 @@ export const resolveInputValue = (payload: DataPayload | null, targetKey?: strin
 
     // If result is an object and targetKey provided, try to extract same-named field
     if (value && typeof value === 'object' && !Array.isArray(value) && targetKey) {
-        // Check if object has the target key
         if (targetKey in value) {
             return value[targetKey];
         }
-        // For image type, extract url if targetKey suggests it
         if (payload.type === 'image' && (targetKey.toLowerCase().includes('url') || targetKey.toLowerCase().includes('image'))) {
             return value.url || value.src || value;
         }

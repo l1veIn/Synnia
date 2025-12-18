@@ -16,10 +16,15 @@ inputSchema:
   - key: soulProfile
     label: Soul Profile
     type: object
-    widget: node-input
+    widget: json-input
     required: true
     connection:
       input: true
+    rules:
+      requiredKeys:
+        - name
+        - visualDNA
+        - personality
     placeholder: "Connect the 'Soul Profile' JSON output here"
 
   # --- Context Inputs ---

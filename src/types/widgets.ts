@@ -11,7 +11,7 @@
 export type WidgetType =
     // Basic Text
     | 'text'              // Single line input
-    | 'textarea'          // Multi-line input
+    | 'textarea'          // Multi-line text with AI enhancement + editor
     | 'password'          // Masked input
 
     // Numeric
@@ -32,12 +32,11 @@ export type WidgetType =
     // Advanced (Proposed/Future)
     | 'code-editor'       // Monaco/CodeMirror editor
     | 'file-upload'       // Drag-and-drop file upload
-    | 'prompt-enhancer'   // Textarea with AI enhancement button
     | 'lora-selector'     // LoRA model selector
     | 'llm-configurator'  // LLM model selector + params
 
     // System
-    | 'node-input'        // Graph node connection point
+    | 'json-input'        // JSON object connection input (expects structured data)
     | 'none';             // Headless/Hidden
 
 /**

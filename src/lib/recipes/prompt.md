@@ -25,7 +25,7 @@ inputSchema:
   - key: fieldName             # 字段标识符
     label: Field Label         # 显示名称
     type: string|number|boolean|select|object
-    widget: text|textarea|number|slider|switch|select|node-input|none
+    widget: text|textarea|number|slider|switch|select|json-input|none
     required: true|false
     default: defaultValue
     placeholder: "提示文字"

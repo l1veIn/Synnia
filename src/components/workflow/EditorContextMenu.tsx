@@ -33,7 +33,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
   const hasParent = !!targetNode?.parentId;
   const parentNode = hasParent ? nodes.find(n => n.id === targetNode?.parentId) : null;
-  const parentLabel = parentNode?.type === NodeType.RACK ? 'Rack' : 'Group';
+  const parentLabel = parentNode ? 'Container' : '';
 
   const isShortcuttable = targetNode && [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
 
@@ -84,9 +84,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     input.click();
   };
 
-  const handleCreateRack = () => {
-    graphEngine.mutator.createRackFromSelection();
-  };
+
 
   const getClipboardNodes = (): SynniaNode[] => {
     try {
@@ -207,8 +205,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
           <>
             <ContextMenuLabel>Selection Actions</ContextMenuLabel>
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={handleCreateRack}>Create Rack</ContextMenuItem>
-            <ContextMenuItem disabled>Group (Legacy)</ContextMenuItem>
+            <ContextMenuItem disabled>Create Group (Deprecated)</ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
             <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>

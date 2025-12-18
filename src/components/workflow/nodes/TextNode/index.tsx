@@ -8,17 +8,27 @@ import { useNode } from '@/hooks/useNode';
 import { FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { TextNodeInspector } from './Inspector';
+import { portRegistry } from '@/lib/engine/ports';
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-  output: (node, asset) => ({
-    type: 'text',
-    value: asset?.content || ''
-  })
-};
+// --- Register Ports ---
+portRegistry.register(NodeType.TEXT, {
+  static: [
+    {
+      id: 'output',
+      direction: 'output',
+      dataType: 'text',
+      label: 'Text Output',
+      resolver: (node, asset) => ({
+        type: 'text',
+        value: asset?.content || '',
+        meta: { nodeId: node.id, portId: 'output' }
+      })
+    }
+  ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

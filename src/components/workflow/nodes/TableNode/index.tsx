@@ -6,11 +6,12 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Table as TableIcon, Trash2, ChevronDown, ChevronUp, Edit } from 'lucide-react';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { TableEditor } from './TableEditor';
 import { cn } from '@/lib/utils';
+import { portRegistry } from '@/lib/engine/ports';
 
 // --- Asset Content Type ---
 export interface TableColumn {
@@ -28,17 +29,26 @@ export interface TableAssetContent {
     allowDeleteRow: boolean;
 }
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    output: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as TableAssetContent;
-        return {
-            type: 'array',
-            value: content.rows
-        };
-    }
-};
+// --- Register Ports ---
+portRegistry.register(NodeType.TABLE, {
+    static: [
+        {
+            id: 'output',
+            direction: 'output',
+            dataType: 'array',
+            label: 'Table Rows',
+            resolver: (node, asset) => {
+                if (!asset?.content) return null;
+                const content = asset.content as TableAssetContent;
+                return {
+                    type: 'array',
+                    value: content.rows,
+                    meta: { nodeId: node.id, portId: 'output' }
+                };
+            }
+        }
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

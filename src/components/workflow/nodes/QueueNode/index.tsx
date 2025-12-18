@@ -7,10 +7,11 @@ import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { ListTodo, Trash2, ChevronDown, ChevronUp, Play, Pause, RotateCcw, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NodeConfig, NodeOutputConfig } from '@/types/node-config';
+import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
+import { portRegistry } from '@/lib/engine/ports';
 
 // --- Asset Content Type ---
 export type TaskStatus = 'pending' | 'running' | 'success' | 'error';
@@ -34,19 +35,28 @@ export interface QueueAssetContent {
     isRunning: boolean;
 }
 
-// --- Output Resolvers ---
-export const outputs: NodeOutputConfig = {
-    output: (node, asset) => {
-        if (!asset?.content) return null;
-        const content = asset.content as QueueAssetContent;
-        return {
-            type: 'array',
-            value: content.tasks
-                .filter(t => t.status === 'success')
-                .map(t => t.result)
-        };
-    }
-};
+// --- Register Ports ---
+portRegistry.register(NodeType.QUEUE, {
+    static: [
+        {
+            id: 'output',
+            direction: 'output',
+            dataType: 'array',
+            label: 'Completed Results',
+            resolver: (node, asset) => {
+                if (!asset?.content) return null;
+                const content = asset.content as QueueAssetContent;
+                return {
+                    type: 'array',
+                    value: content.tasks
+                        .filter(t => t.status === 'success')
+                        .map(t => t.result),
+                    meta: { nodeId: node.id, portId: 'output' }
+                };
+            }
+        }
+    ]
+});
 
 // --- Configuration ---
 export const config: NodeConfig = {

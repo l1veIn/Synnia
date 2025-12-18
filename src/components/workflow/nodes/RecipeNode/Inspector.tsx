@@ -64,8 +64,20 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Get linked field keys (fields with incoming connections)
     const linkedFields = useMemo(() => {
         if (!nodeId) return new Set<string>();
-        const connected = edges
+
+        // Find all incoming edges to this node
+        const linkedKeys = edges
             .filter(e => e.target === nodeId && e.targetHandle)
+            .map(e => {
+                // targetHandle format: "field:fieldKey" → extract fieldKey
+                const handle = e.targetHandle!;
+                if (handle.startsWith('field:')) {
+                    return handle.slice(6); // Remove 'field:' prefix
+                }
+                return handle;
+            });
+
+        return new Set(linkedKeys);
     }, [edges, nodeId]);
 
     // Init asset content if needed

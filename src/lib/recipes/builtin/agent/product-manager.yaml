@@ -16,10 +16,15 @@ inputSchema:
   - key: soulProfile
     label: 灵魂档案
     type: object
-    widget: node-input
+    widget: json-input
     required: true
     connection:
       input: true
+    rules:
+      requiredKeys:
+        - name
+        - visualDNA
+        - personality
     placeholder: "在此连接'灵魂档案'JSON输出"
 
   # --- 上下文输入 ---

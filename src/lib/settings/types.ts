@@ -132,15 +132,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
     },
 ];
 
-// Default LLM options
-export const DEFAULT_LLM_OPTIONS = [
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (OpenAI)', provider: 'openai' as ProviderKey },
-    { value: 'gpt-4o', label: 'GPT-4o (OpenAI)', provider: 'openai' as ProviderKey },
-    { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (Anthropic)', provider: 'anthropic' as ProviderKey },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Google)', provider: 'google' as ProviderKey },
-    { value: 'deepseek-chat', label: 'DeepSeek V3', provider: 'deepseek' as ProviderKey },
-    { value: 'llama3.2', label: 'Llama 3.2 (Ollama)', provider: 'ollama' as ProviderKey },
-];
+
 
 // Default settings
 export function createDefaultSettings(): AppSettings {

@@ -3,7 +3,7 @@ import { FormAssetContent } from '@/types/assets';
 import { toast } from 'sonner';
 import { useCallback } from 'react';
 import { NodeType } from '@/types/project';
-import { getNodePayload, resolveInputValue } from '@/lib/engine/DataPayload';
+import { collectInputValues } from '@/lib/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 import { ExecutionContext } from '@/types/recipe';
@@ -46,23 +46,8 @@ export function useRunRecipe() {
                 }
             }
 
-            // Resolve dynamic values from connections
-            const dynamicValues: Record<string, any> = {};
-            const incomingEdges = store.edges.filter(e => e.target === nodeId && e.targetHandle);
-
-            for (const edge of incomingEdges) {
-                const fieldKey = edge.targetHandle!;
-                // Skip trigger handle
-                if (fieldKey === 'trigger') continue;
-
-                // Get payload from source node using sourceHandle for field-level outputs
-                const payload = getNodePayload(edge.source, edge.sourceHandle || undefined);
-                // Resolve to usable value (handles arrays, extracts fields)
-                const value = resolveInputValue(payload, fieldKey);
-                if (value !== undefined) {
-                    dynamicValues[fieldKey] = value;
-                }
-            }
+            // Resolve dynamic values from connections using PortResolver
+            const dynamicValues = collectInputValues(nodeId);
 
             const effectiveValues = { ...staticValues, ...dynamicValues };
 

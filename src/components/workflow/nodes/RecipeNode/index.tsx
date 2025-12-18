@@ -18,11 +18,11 @@ import { getResolvedRecipe } from '@/lib/recipes';
 
 // --- Output Resolvers ---
 export const outputs: NodeOutputConfig = {
-    [HANDLE_IDS.PRODUCT]: (node) => {
-        const result = (node.data as any).executionResult;
-        if (!result) return null;
-        return { type: 'json', value: result };
-    },
+    // [HANDLE_IDS.PRODUCT]: (node) => {
+    //     const result = (node.data as any).executionResult;
+    //     if (!result) return null;
+    //     return { type: 'json', value: result };
+    // },
 
     reference: (node, asset) => {
         // Get values from asset (FormAssetContent)

@@ -3,7 +3,7 @@
 
 id: media.reference-to-video
 name: Reference to Video
-description: Generate video using multiple reference images for style/content
+description: Generate video using reference images for style/content
 category: Media
 icon: Images
 
@@ -20,9 +20,8 @@ inputSchema:
   - key: referenceImages
     label: Reference Images
     type: string
-    widget: node-input
+    widget: image-picker
     required: true
-    placeholder: "Connect reference images..."
     connection:
       input: true
 

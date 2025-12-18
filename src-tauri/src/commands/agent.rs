@@ -161,3 +161,17 @@ pub fn save_media_config(config: String, app: AppHandle) -> Result<(), AppError>
     global_config.save(&app).map_err(|e| AppError::Unknown(e))?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn get_app_settings(app: AppHandle) -> Result<String, AppError> {
+    let config = GlobalConfig::load(&app);
+    Ok(config.app_settings.unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn save_app_settings(settings: String, app: AppHandle) -> Result<(), AppError> {
+    let mut global_config = GlobalConfig::load(&app);
+    global_config.app_settings = Some(settings);
+    global_config.save(&app).map_err(|e| AppError::Unknown(e))?;
+    Ok(())
+}

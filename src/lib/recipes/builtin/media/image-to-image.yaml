@@ -20,9 +20,8 @@ inputSchema:
   - key: image
     label: Source Image
     type: string
-    widget: node-input
+    widget: image-picker
     required: true
-    placeholder: "Connect an image node..."
     connection:
       input: true
 

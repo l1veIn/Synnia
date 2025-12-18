@@ -1,5 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Check, ChevronsUpDown, Settings2 } from 'lucide-react';
+// Simplified ModelConfigurator
+// Just selects a model and delegates rendering to the model plugin
+
+import { useState, useMemo } from 'react';
+import { Check, ChevronsUpDown, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,67 +19,84 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { getAvailableModels, getModelById, ModelDefinition, RecipeType } from '@/lib/services/media/models';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getModel, getModelsForCategory, ModelCategory, ProviderType } from '@/lib/models';
+import { useSettings, ProviderKey, isProviderConfigured } from '@/lib/settings';
 
 // Return type of the configurator
-export interface ModelConfig {
+export interface ModelConfigValue {
     modelId: string;
-    aspectRatio?: string;
-    resolution?: string;
-    duration?: number;
-    numImages?: number;
+    provider?: ProviderType;
+    config: any;  // Model-specific config
 }
 
 interface ModelConfiguratorProps {
-    value?: ModelConfig;
-    onChange: (value: ModelConfig) => void;
+    value?: ModelConfigValue;
+    onChange: (value: ModelConfigValue) => void;
     disabled?: boolean;
-    filterRecipeType?: string;
+    filterCategory?: string;  // Filter by category (from recipe YAML)
 }
 
-export function ModelConfigurator({ value, onChange, disabled, filterRecipeType }: ModelConfiguratorProps) {
+export function ModelConfigurator({ value, onChange, disabled, filterCategory }: ModelConfiguratorProps) {
     const [open, setOpen] = useState(false);
+    const { settings } = useSettings();
 
-    // Get available models based on filter
+    // Get available models for this category
     const models = useMemo(() => {
-        const allProviders = ['openai', 'fal', 'replicate', 'ppio', 'modelscope', 'kie'];
-        if (filterRecipeType) {
-            return getAvailableModels(filterRecipeType as RecipeType, allProviders);
+        if (filterCategory) {
+            return getModelsForCategory(filterCategory as ModelCategory);
         }
-        return getAvailableModels('text-to-image', allProviders);
-    }, [filterRecipeType]);
+        return getModelsForCategory('text-to-image');
+    }, [filterCategory]);
 
-    // Current model definition
+    // Current selected model
     const selectedModel = useMemo(() => {
         if (!value?.modelId) return null;
-        return getModelById(value.modelId);
+        return getModel(value.modelId);
     }, [value?.modelId]);
 
+    // Get providers user has configured
+    const configuredProviders = useMemo(() => {
+        const providers: ProviderType[] = [];
+        if (settings) {
+            // Check each provider type
+            const allProviderKeys: ProviderKey[] = ['openai', 'anthropic', 'google', 'fal', 'replicate', 'deepseek', 'ollama', 'comfyui'];
+            allProviderKeys.forEach(key => {
+                if (isProviderConfigured(settings, key)) {
+                    providers.push(key as ProviderType);
+                }
+            });
+        }
+        return providers;
+    }, [settings]);
+
+    // Available providers for current model (intersection of supported and configured)
+    const availableProviders = useMemo(() => {
+        if (!selectedModel) return [];
+        return selectedModel.supportedProviders.filter(p => configuredProviders.includes(p));
+    }, [selectedModel, configuredProviders]);
+
     // Handle model selection
-    const handleModelSelect = useCallback((modelId: string) => {
-        const model = getModelById(modelId);
+    const handleModelSelect = (modelId: string) => {
+        const model = getModel(modelId);
         if (!model) return;
 
-        // Initialize with defaults from new model
-        const newConfig: ModelConfig = {
-            modelId,
-            aspectRatio: model.aspectRatios?.[0],
-            resolution: model.resolutions?.[0],
-            duration: model.durations?.[0],
-            numImages: 1,
-        };
-        onChange(newConfig);
-        setOpen(false);
-    }, [onChange]);
+        // Find first available provider
+        const availableProvider = model.supportedProviders.find(p => configuredProviders.includes(p));
 
-    // Handle param changes
-    const handleParamChange = useCallback((key: keyof ModelConfig, val: any) => {
+        onChange({
+            modelId,
+            provider: availableProvider,
+            config: {},
+        });
+        setOpen(false);
+    };
+
+    // Handle config change (from model's renderConfig)
+    const handleConfigChange = (config: any) => {
         if (!value) return;
-        onChange({ ...value, [key]: val });
-    }, [value, onChange]);
+        onChange({ ...value, config });
+    };
 
     return (
         <div className="space-y-3">
@@ -92,8 +112,11 @@ export function ModelConfigurator({ value, onChange, disabled, filterRecipeType 
                     >
                         {selectedModel ? (
                             <div className="flex items-center gap-2 truncate">
-                                <Badge variant="secondary" className="px-1 py-0 h-5 text-[10px] uppercase font-normal text-muted-foreground">
-                                    {selectedModel.provider}
+                                <Badge
+                                    variant="secondary"
+                                    className="px-1 py-0 h-5 text-[10px] uppercase font-normal text-muted-foreground"
+                                >
+                                    {value?.provider || selectedModel.supportedProviders[0]}
                                 </Badge>
                                 <span className="truncate">{selectedModel.name}</span>
                             </div>
@@ -107,129 +130,71 @@ export function ModelConfigurator({ value, onChange, disabled, filterRecipeType 
                     <Command>
                         <CommandInput placeholder="Search models..." className="h-8 text-xs" />
                         <CommandList>
-                            <CommandEmpty>No model found.</CommandEmpty>
+                            <CommandEmpty>No models found.</CommandEmpty>
                             <CommandGroup heading="Available Models">
-                                {models.map((model) => (
-                                    <CommandItem
-                                        key={model.id}
-                                        value={model.name}
-                                        onSelect={() => handleModelSelect(model.id)}
-                                        className="text-xs"
-                                    >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-3 w-3",
-                                                value?.modelId === model.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        <div className="flex flex-col gap-0.5">
-                                            <span>{model.name}</span>
-                                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                                <span className="uppercase">{model.provider}</span>
-                                                {model.resolutions && (
-                                                    <span className="bg-muted px-1 rounded">HD</span>
+                                {models.map((model) => {
+                                    const hasProvider = model.supportedProviders.some(p =>
+                                        configuredProviders.includes(p)
+                                    );
+                                    return (
+                                        <CommandItem
+                                            key={model.id}
+                                            value={model.name}
+                                            onSelect={() => handleModelSelect(model.id)}
+                                            className={cn("text-xs", !hasProvider && "opacity-50")}
+                                            disabled={!hasProvider}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-3 w-3",
+                                                    value?.modelId === model.id ? "opacity-100" : "opacity-0"
                                                 )}
+                                            />
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{model.name}</span>
+                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                    {model.supportedProviders.map(p => (
+                                                        <span
+                                                            key={p}
+                                                            className={cn(
+                                                                "uppercase",
+                                                                configuredProviders.includes(p)
+                                                                    ? "text-green-500"
+                                                                    : "text-muted-foreground/50"
+                                                            )}
+                                                        >
+                                                            {p}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </CommandItem>
-                                ))}
+                                        </CommandItem>
+                                    );
+                                })}
                             </CommandGroup>
                         </CommandList>
                     </Command>
                 </PopoverContent>
             </Popover>
 
-            {/* Dynamic Model-Specific Parameters */}
-            {selectedModel && (
-                <div className="p-3 rounded-lg border border-border/50 bg-muted/20 space-y-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide">
-                        <Settings2 className="h-3 w-3" />
-                        Model Options
-                    </div>
+            {/* No provider configured warning */}
+            {selectedModel && availableProviders.length === 0 && (
+                <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-3 w-3" />
+                    <AlertDescription className="text-xs">
+                        需要配置 {selectedModel.supportedProviders.join(' 或 ')} 的 API Key
+                    </AlertDescription>
+                </Alert>
+            )}
 
-                    {/* Aspect Ratio */}
-                    {selectedModel.aspectRatios && selectedModel.aspectRatios.length > 0 && (
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {selectedModel.aspectRatios.map((ar) => (
-                                    <Button
-                                        key={ar}
-                                        variant={value?.aspectRatio === ar ? "default" : "outline"}
-                                        size="sm"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={() => handleParamChange('aspectRatio', ar)}
-                                        disabled={disabled}
-                                    >
-                                        {ar}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Resolution (if supported) */}
-                    {selectedModel.resolutions && selectedModel.resolutions.length > 0 && (
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Resolution</Label>
-                            <Select
-                                value={value?.resolution || selectedModel.resolutions[0]}
-                                onValueChange={(v) => handleParamChange('resolution', v)}
-                                disabled={disabled}
-                            >
-                                <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {selectedModel.resolutions.map((res) => (
-                                        <SelectItem key={res} value={res} className="text-xs">
-                                            {res.toUpperCase()}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    {/* Duration (for video models) */}
-                    {selectedModel.durations && selectedModel.durations.length > 0 && (
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">Duration (seconds)</Label>
-                            <div className="flex flex-wrap gap-1.5">
-                                {selectedModel.durations.map((dur) => (
-                                    <Button
-                                        key={dur}
-                                        variant={value?.duration === dur ? "default" : "outline"}
-                                        size="sm"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={() => handleParamChange('duration', dur)}
-                                        disabled={disabled}
-                                    >
-                                        {dur}s
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Number of Images */}
-                    {selectedModel.maxImages && selectedModel.maxImages > 1 && (
-                        <div className="space-y-1.5">
-                            <Label className="text-xs text-muted-foreground">
-                                Number of Images: {value?.numImages || 1}
-                            </Label>
-                            <Slider
-                                value={[value?.numImages || 1]}
-                                min={1}
-                                max={selectedModel.maxImages}
-                                step={1}
-                                onValueChange={(vals) => handleParamChange('numImages', vals[0])}
-                                disabled={disabled}
-                                className="py-1"
-                            />
-                        </div>
-                    )}
-                </div>
+            {/* Model's own config UI */}
+            {selectedModel && availableProviders.length > 0 && (
+                selectedModel.renderConfig({
+                    value: value?.config,
+                    onChange: handleConfigChange,
+                    disabled,
+                    availableProviders,
+                })
             )}
         </div>
     );

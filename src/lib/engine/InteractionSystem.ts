@@ -239,24 +239,30 @@ export class InteractionSystem {
         if (payload.value && typeof payload.value === 'object' && !Array.isArray(payload.value)) {
             const availableKeys = Object.keys(payload.value);
 
-            // Check if target key exists in the object
-            if (!availableKeys.includes(targetHandle)) {
-                return {
-                    valid: false,
-                    message: `Source has no '${targetHandle}' field. Available: ${availableKeys.join(', ') || 'none'}`
-                };
+            // If target key exists in the object, use that specific field
+            if (availableKeys.includes(targetHandle)) {
+                const keyValue = payload.value[targetHandle];
+                if (keyValue === undefined || keyValue === null || keyValue === '') {
+                    return {
+                        valid: false,
+                        message: `Field '${targetHandle}' in source is empty`
+                    };
+                }
+                return { valid: true };
             }
 
-            // Check if the key's value is non-empty
-            const keyValue = payload.value[targetHandle];
-            if (keyValue === undefined || keyValue === null || keyValue === '') {
-                return {
-                    valid: false,
-                    message: `Field '${targetHandle}' in source is empty`
-                };
+            // If target key doesn't exist but source is a non-empty object,
+            // allow the connection - the entire object will be passed through.
+            // This handles cases like connecting a "Soul Profile" JSON to a "soulProfile" input
+            // where the source has fields like {name, visualDNA, ...} but no "soulProfile" field.
+            if (availableKeys.length > 0) {
+                return { valid: true };  // Allow passing entire object
             }
 
-            return { valid: true };
+            return {
+                valid: false,
+                message: `Source object is empty`
+            };
         }
 
         // For non-object payloads (text, image, etc.), use resolveInputValue

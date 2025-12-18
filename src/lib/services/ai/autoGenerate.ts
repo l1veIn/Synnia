@@ -75,7 +75,7 @@ Output format: [{"key1": "value1", ...}, ...]`;
         userPrompt,
         parseAs: 'json',
         providerId: options.providerId,
-        maxTokens: Math.max(2048, count * 200), // Estimate tokens needed
+        maxTokens: Math.max(20480, count * 200), // Estimate tokens needed
     });
 
     if (response.success && response.data) {
@@ -113,7 +113,7 @@ Output format:
         userPrompt,
         parseAs: 'json',
         providerId: options.providerId,
-        maxTokens: Math.max(2048, count * 300),
+        maxTokens: Math.max(20480, count * 300),
     });
 
     if (response.success && response.data) {

@@ -374,106 +374,107 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
 };
 
 // ============================================================================
-// Media Executor
+// Media Executor (Simplified - uses Model Plugin System)
 // ============================================================================
 
 const createMediaExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
     return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
-        const { inputs, engine, node } = ctx;
-        const { mode, outputNode } = config;
+        const { inputs, node } = ctx;
+        const { outputNode } = config;
 
         try {
-            let result: ExecutionResult = { success: false, error: 'Unknown media mode' };
-
-            switch (mode) {
-                case 'text-to-image':
-                case 'image-to-image': {
-                    const prompt = extractText(inputs.prompt);
-                    const negativePrompt = inputs.negativePrompt ? extractText(inputs.negativePrompt) : undefined;
-                    const sourceImage = mode === 'image-to-image' ? extractValue(inputs.image) : undefined;
-
-                    // Support both new modelConfig object and legacy individual fields
-                    const modelConfig = extractValue(inputs.modelConfig);
-                    const model = modelConfig?.modelId || extractValue(inputs.model);
-                    const aspectRatio = modelConfig?.aspectRatio || extractValue(inputs.aspectRatio) || '1:1';
-                    const numImages = modelConfig?.numImages || extractNumber(inputs.numImages) || 1;
-                    const resolution = modelConfig?.resolution; // New: resolution support
-
-                    const imageResult = await generateImages({
-                        prompt,
-                        model,
-                        size: aspectRatio,
-                        n: numImages,
-                        negativePrompt,
-                        images: sourceImage ? [sourceImage] : undefined,
-                        // Pass resolution if supported
-                        ...(resolution && { resolution }),
-                    });
-
-                    if (!imageResult.success) {
-                        return { success: false, error: imageResult.error };
-                    }
-
-                    // Convert GeneratedImage[] to GalleryImage[] format
-                    const galleryImages = (imageResult.images || []).map((img, idx) => ({
-                        id: `gen-${Date.now()}-${idx}`,
-                        src: img.url,
-                        starred: false,
-                        caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
-                    }));
-
-                    // Create gallery node with generated images
-                    const title = outputNode?.titleTemplate
-                        ? interpolate(outputNode.titleTemplate, inputs)
-                        : `Generated: ${prompt.slice(0, 30)}...`;
-
-                    result = {
-                        success: true,
-                        data: imageResult.images,
-                        createNodes: [{
-                            type: NodeType.GALLERY,
-                            data: {
-                                label: title,
-                                assetType: 'json' as const,
-                                assetName: title,
-                                content: {
-                                    viewMode: 'grid',
-                                    columnsPerRow: galleryImages.length > 2 ? 3 : galleryImages.length,
-                                    allowStar: true,
-                                    allowDelete: true,
-                                    images: galleryImages,
-                                },
-                            },
-                            position: 'below',
-                            dockedTo: node.id,
-                        }],
-                    };
-                    break;
-                }
-
-                case 'text-to-video':
-                case 'image-to-video':
-                case 'start-end-frame':
-                case 'reference-to-video': {
-                    // Video generation - placeholder for now
-                    // TODO: Implement video generation when video service is ready
-                    const prompt = extractText(inputs.prompt);
-                    const title = outputNode?.titleTemplate
-                        ? interpolate(outputNode.titleTemplate, inputs)
-                        : `Video: ${prompt.slice(0, 30)}...`;
-
-                    result = {
-                        success: false,
-                        error: `Video generation (${mode}) is not yet implemented. Coming soon!`,
-                    };
-                    break;
-                }
-
-                default:
-                    result = { success: false, error: `Unknown media mode: ${mode}` };
+            // Extract modelConfig from inputs
+            const modelConfigValue = extractValue(inputs.modelConfig);
+            if (!modelConfigValue?.modelId) {
+                return { success: false, error: 'No model selected' };
             }
 
-            return result;
+            // Get the model plugin
+            const { getModel } = await import('@/lib/models');
+            const modelPlugin = getModel(modelConfigValue.modelId);
+            if (!modelPlugin) {
+                return { success: false, error: `Model not found: ${modelConfigValue.modelId}` };
+            }
+
+            // Get credentials from settings
+            const { getSettings, getProviderCredentials } = await import('@/lib/settings');
+            const settings = getSettings();
+            const provider = (modelConfigValue.provider || modelPlugin.supportedProviders[0]) as import('@/lib/settings/types').ProviderKey;
+            const credentials = getProviderCredentials(settings, provider);
+
+            if (!credentials?.apiKey && !credentials?.baseUrl) {
+                return { success: false, error: `No credentials configured for ${provider}` };
+            }
+
+            // Execute via model plugin
+            const prompt = extractText(inputs.prompt);
+            const negativePrompt = inputs.negativePrompt ? extractText(inputs.negativePrompt) : undefined;
+            const images = inputs.image ? [extractValue(inputs.image)] : undefined;
+
+            const modelResult = await modelPlugin.execute({
+                config: modelConfigValue.config,
+                prompt,
+                negativePrompt,
+                images,
+                credentials: {
+                    apiKey: credentials.apiKey || '',
+                    baseUrl: credentials.baseUrl,
+                },
+            });
+
+            if (!modelResult.success) {
+                return { success: false, error: modelResult.error };
+            }
+
+            // Handle output based on result type
+            if (modelResult.data?.type === 'images' && modelResult.data.images) {
+                const galleryImages = modelResult.data.images.map((img, idx) => ({
+                    id: `gen-${Date.now()}-${idx}`,
+                    src: img.url,
+                    starred: false,
+                    caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
+                }));
+
+                const title = outputNode?.titleTemplate
+                    ? interpolate(outputNode.titleTemplate, inputs)
+                    : `Generated: ${prompt.slice(0, 30)}...`;
+
+                return {
+                    success: true,
+                    data: modelResult.data.images,
+                    createNodes: [{
+                        type: NodeType.GALLERY,
+                        data: {
+                            label: title,
+                            assetType: 'json' as const,
+                            assetName: title,
+                            content: {
+                                viewMode: 'grid',
+                                columnsPerRow: galleryImages.length > 2 ? 3 : galleryImages.length,
+                                allowStar: true,
+                                allowDelete: true,
+                                images: galleryImages,
+                            },
+                        },
+                        position: 'below',
+                        dockedTo: node.id,
+                    }],
+                };
+            }
+
+            if (modelResult.data?.type === 'video' && modelResult.data.videoUrl) {
+                const title = outputNode?.titleTemplate
+                    ? interpolate(outputNode.titleTemplate, inputs)
+                    : `Video: ${prompt.slice(0, 30)}...`;
+
+                // TODO: Create video node when video node type is ready
+                return {
+                    success: true,
+                    data: { videoUrl: modelResult.data.videoUrl },
+                };
+            }
+
+            return { success: true, data: modelResult.data };
         } catch (error: any) {
             return { success: false, error: error.message || 'Media generation failed' };
         }

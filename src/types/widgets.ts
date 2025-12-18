@@ -27,12 +27,14 @@ export type WidgetType =
     | 'media-model-selector'  // Media model dropdown with filtering (simple)
     | 'model-configurator'    // Model selector + dynamic model-specific params (compound)
     | 'aspect-ratio-selector' // Visual aspect ratio picker
+    | 'image-picker'          // Image upload/URL/asset selection
 
     // Advanced (Proposed/Future)
     | 'code-editor'       // Monaco/CodeMirror editor
     | 'file-upload'       // Drag-and-drop file upload
     | 'prompt-enhancer'   // Textarea with AI enhancement button
     | 'lora-selector'     // LoRA model selector
+    | 'llm-configurator'  // LLM model selector + params
 
     // System
     | 'node-input'        // Graph node connection point

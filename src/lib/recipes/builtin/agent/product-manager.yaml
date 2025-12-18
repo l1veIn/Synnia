@@ -1,0 +1,146 @@
+# 产品经理 Agent 配方 (中文版)
+# 从分类目录选择资产并撰写文案
+# Soulmate Protocol v1.0 - 第三阶段：蓝图
+
+id: agent.product-manager
+name: 产品经理
+description: 规划生产清单并为角色撰写微文案
+category: Agent
+icon: Briefcase
+
+mixin:
+  - llm.call
+
+inputSchema:
+  # --- 来自叙事官的输入 ---
+  - key: soulProfile
+    label: 灵魂档案
+    type: object
+    widget: node-input
+    required: true
+    connection:
+      input: true
+    placeholder: "在此连接'灵魂档案'JSON输出"
+
+  # --- 上下文输入 ---
+  - key: productType
+    label: 产品类型
+    type: string
+    widget: text
+    required: true
+    connection:
+      input: true
+
+  - key: visualStyle
+    label: 视觉风格
+    type: string
+    widget: text
+    placeholder: "例如：3D盲盒、扁平矢量、赛博朋克..."
+    required: true
+    connection:
+      input: true
+
+  # 隐藏 mixin 字段
+  - key: prompt
+    hidden: true
+  
+  - key: systemPrompt
+    hidden: true
+
+  - key: temperature
+    label: 战略思考
+    default: 0.5
+
+  - key: maxTokens
+    hidden: true
+    default: 4096
+
+outputSchema:
+  type: json
+  description: 生产清单表
+
+executor:
+  type: llm-agent
+  systemPrompt: |
+    你是 Soulmate Protocol 的产品经理（Agent C）。
+    你的目标是连接"灵魂"（人格）和"躯体"（视觉资产）。
+
+    【资产分类目录（目录）】
+    你必须只从以下列表中选择资产：
+
+    1. **ui-kit-core**（网格）：必要的UI状态（加载、错误、成功等）。*App必选。*
+    2. **icon-set-variant**（网格）：App图标变体。
+    3. **sticker-pack**（网格）：9个用于聊天/社交的表情贴纸。
+    4. **tool-icons**（网格）：功能菜单图标。
+    5. **character-main**（营销）：标志性主视觉。*所有项目必选。*
+    6. **marketing-poster**（营销）：高品质竖版海报。
+    7. **splash-screen**（营销）：App启动画面。
+    8. **social-cover**（营销）：个人资料横幅。
+    9. **merch-tshirt**（周边）：T恤模型。
+    10. **merch-tote**（周边）：手提包模型。
+    11. **merch-mug**（周边）：马克杯模型。
+    12. **character-turnaround**（游戏）：正面/侧面/背面视图。*3D/游戏必选。*
+    13. **expression-sheet**（游戏）：9个不同的面部表情。
+    14. **game-item-sheet**（游戏）：道具/物品图标。
+    15. **isometric-building**（游戏）：环境资产。
+    16. **animation-loading**（动画）：循环加载动画序列。
+    17. **animation-run-cycle**（动画）：跑步动画。
+    18. **app-texture-pack**（纹理）：背景图案。
+    19. **hero-background**（纹理）：网站头部背景。
+
+    【你的任务】
+    1. **分析策略**：查看`产品类型`和`灵魂档案`。
+    2. **选择资产**：选择5-8个最相关的资产。
+       - 例如，"天气App"需要`ui-kit-core`和`icon-set-variant`。
+       - 例如，"RPG游戏"需要`character-turnaround`和`game-item-sheet`。
+    3. **撰写微文案**：
+       - 对于每个选定的资产，用角色的声音写一段简短的"上下文说明"或"微文案"。
+       - 例如，对于加载状态："稍等！正在充能中..."（如果他们是太阳角色）
+    4. **说明理由**：简要解释为什么需要这个资产。
+
+    【输出格式】
+    返回一个代表"生产清单"的JSON数组。
+    格式：
+    [
+      {
+        "assetId": "ui-kit-core",  <-- 必须是分类目录中的精确ID
+        "assetName": "核心UI套件",
+        "priority": "高",
+        "reason": "对App用户体验至关重要",
+        "microCopy": "思考中...处理中...完成！"
+      },
+      ...
+    ]
+
+    【关键要求】
+    - 只返回有效的JSON。
+    - `assetId`必须与上面的列表完全匹配。
+  userPromptTemplate: |
+    为以下内容创建生产清单：
+    
+    **产品类型：** {{productType}}
+    **视觉风格：** {{visualStyle}}
+    
+    **灵魂档案：**
+    {{soulProfile}}
+    
+    选择最适合该产品的资产并撰写创意微文案。
+  parseAs: json
+  createNodes: true
+  nodeConfig:
+    type: table
+    titleTemplate: "生产清单 ({{count}} 项)"
+    collapsed: false
+    schema:
+      - key: assetName
+        label: 资产
+        type: string
+      - key: priority
+        label: 优先级
+        type: string
+      - key: microCopy
+        label: 文案/上下文
+        type: string
+      - key: reason
+        label: 理由
+        type: string

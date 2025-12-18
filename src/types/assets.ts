@@ -12,6 +12,7 @@ export type {
 
 import type { Asset as RustAsset, AssetMetadata, ImageAssetMetadata, TextAssetMetadata } from '@/bindings';
 import { WidgetType } from './widgets';
+export { type WidgetType };
 
 export type AssetType = 'text' | 'image' | 'json' | 'script' | 'file' | string;
 
@@ -47,6 +48,7 @@ export interface FieldRule {
     format?: 'email' | 'url' | 'date' | 'datetime' | 'uuid'; // Built-in format presets
     customValidator?: string;      // Function name for custom validation (advanced)
     filterRecipeType?: string;     // Generic filter for widgets (e.g. used by Media Model Selector)
+    filterCapability?: string;     // Filter LLM models by capability (e.g. 'vision', 'function-calling')
 }
 
 export interface FieldConnection {

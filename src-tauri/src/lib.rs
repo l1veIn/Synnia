@@ -105,6 +105,8 @@ pub fn run() {
             commands::agent::save_ai_config,
             commands::agent::get_media_config,
             commands::agent::save_media_config,
+            commands::agent::get_app_settings,
+            commands::agent::save_app_settings,
 
             // Asset Commands
             commands::asset::import_file,

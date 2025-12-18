@@ -21,6 +21,9 @@ pub struct GlobalConfig {
     
     // Media generation config (JSON string)
     pub media_config: Option<String>,
+    
+    // Unified app settings (JSON string) - new simplified format
+    pub app_settings: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

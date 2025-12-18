@@ -20,18 +20,16 @@ inputSchema:
   - key: startImage
     label: Start Frame
     type: string
-    widget: node-input
+    widget: image-picker
     required: true
-    placeholder: "Connect start image..."
     connection:
       input: true
 
   - key: endImage
     label: End Frame
     type: string
-    widget: node-input
+    widget: image-picker
     required: true
-    placeholder: "Connect end image..."
     connection:
       input: true
 

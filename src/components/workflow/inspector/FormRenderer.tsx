@@ -9,6 +9,8 @@ import { Link } from 'lucide-react';
 import { AspectRatioSelector } from './widgets/AspectRatioSelector';
 import { PromptEnhancer } from './widgets/PromptEnhancer';
 import { ModelConfigurator } from './widgets/ModelConfigurator';
+import { ImagePicker } from './widgets/ImagePicker';
+import { LLMConfigurator } from './widgets/LLMConfigurator';
 
 interface RendererProps {
     schema: FieldDefinition[];
@@ -58,7 +60,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
                             </Label>
                         </div>
 
-                        {renderWidget(field, values[field.key], (v) => handleChange(field.key, v), isDisabled)}
+                        {renderWidget(field, values[field.key], (v) => handleChange(field.key, v), isDisabled, isLinked)}
                     </div>
                 );
             })}
@@ -66,7 +68,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
     );
 }
 
-function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void, disabled?: boolean) {
+function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void, disabled?: boolean, isConnected?: boolean) {
     const rules = field.rules || {};
     const isDisabled = disabled || false;
 
@@ -148,7 +150,7 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                         value={safeVal}
                         onChange={onChange}
                         disabled={isDisabled}
-                        filterRecipeType={rules.filterRecipeType}
+                        filterCategory={rules.filterRecipeType}
                     />
                 );
             }
@@ -158,6 +160,27 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                         value={safeVal}
                         onChange={onChange}
                         disabled={isDisabled}
+                    />
+                );
+            }
+            if (field.widget === 'image-picker') {
+                return (
+                    <ImagePicker
+                        value={safeVal}
+                        onChange={onChange}
+                        disabled={isDisabled}
+                        isConnected={isConnected}
+                        connectedLabel="Connected to image node"
+                    />
+                );
+            }
+            if (field.widget === 'llm-configurator') {
+                return (
+                    <LLMConfigurator
+                        value={safeVal}
+                        onChange={onChange}
+                        disabled={isDisabled}
+                        filterCapability={rules.filterCapability as any}
                     />
                 );
             }

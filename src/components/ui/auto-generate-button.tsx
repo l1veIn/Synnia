@@ -34,7 +34,7 @@ export function AutoGenerateButton({
     existingContent,
     schema,
     formSchema,
-    count = 5,
+    count,
     placeholder = 'Describe what you want to generate...',
     className,
     buttonLabel,

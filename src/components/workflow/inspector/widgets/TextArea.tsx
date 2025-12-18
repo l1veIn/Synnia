@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2, Link, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { callLLM } from '@/lib/services/ai/llm';
+import { callLLM } from '@/lib/models/llm';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {

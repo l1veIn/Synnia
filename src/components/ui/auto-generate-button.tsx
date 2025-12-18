@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,7 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { autoGenerate, AutoGenerateOptions, getLLMProviders, AIProvider } from '@/lib/services/ai';
+import { autoGenerate, AutoGenerateOptions } from '@/lib/services/ai';
+import { getAllLLMPlugins, LLMPlugin } from '@/lib/models/llm';
+import { useSettings, isProviderConfigured, ProviderKey } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 
 export interface AutoGenerateButtonProps {
@@ -22,10 +24,10 @@ export interface AutoGenerateButtonProps {
     buttonLabel?: string;
     buttonVariant?: 'default' | 'ghost' | 'outline' | 'secondary';
     buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
-    /** Pre-selected provider ID (from node metadata) */
-    providerId?: string;
-    /** Callback when provider changes (to persist to node) */
-    onProviderChange?: (providerId: string) => void;
+    /** Pre-selected model ID */
+    modelId?: string;
+    /** Callback when model changes */
+    onModelChange?: (modelId: string) => void;
 }
 
 export function AutoGenerateButton({
@@ -40,30 +42,29 @@ export function AutoGenerateButton({
     buttonLabel,
     buttonVariant = 'ghost',
     buttonSize = 'sm',
-    providerId,
-    onProviderChange,
+    modelId,
+    onModelChange,
 }: AutoGenerateButtonProps) {
     const [open, setOpen] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
-    const [providers, setProviders] = useState<AIProvider[]>([]);
-    const [selectedProvider, setSelectedProvider] = useState<string>(providerId || 'default');
+    const [selectedModel, setSelectedModel] = useState<string>(modelId || 'default');
+    const { settings } = useSettings();
 
-    // Load available providers when popover opens
+    // Get available LLM models (filtered by configured providers)
+    const availableModels = useMemo(() => {
+        const allModels = getAllLLMPlugins();
+        return allModels.filter(m => isProviderConfigured(settings, m.provider as ProviderKey));
+    }, [settings]);
+
+    // Sync external modelId
     useEffect(() => {
-        if (open) {
-            getLLMProviders().then(setProviders);
-        }
-    }, [open]);
+        if (modelId) setSelectedModel(modelId);
+    }, [modelId]);
 
-    // Sync external providerId
-    useEffect(() => {
-        if (providerId) setSelectedProvider(providerId);
-    }, [providerId]);
-
-    const handleProviderChange = (value: string) => {
-        setSelectedProvider(value);
-        onProviderChange?.(value);
+    const handleModelChange = (value: string) => {
+        setSelectedModel(value);
+        onModelChange?.(value);
     };
 
     const handleGenerate = async () => {
@@ -81,7 +82,7 @@ export function AutoGenerateButton({
                 schema,
                 formSchema,
                 count,
-                providerId: selectedProvider === 'default' ? undefined : selectedProvider,
+                providerId: selectedModel === 'default' ? undefined : selectedModel,
             });
 
             if (result.success && result.content !== undefined) {
@@ -136,18 +137,18 @@ export function AutoGenerateButton({
                         </p>
                     </div>
 
-                    {/* Provider selector */}
-                    {providers.length > 0 && (
+                    {/* Model selector */}
+                    {availableModels.length > 0 && (
                         <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Provider</Label>
-                            <Select value={selectedProvider} onValueChange={handleProviderChange}>
+                            <Label className="text-xs text-muted-foreground">Model</Label>
+                            <Select value={selectedModel} onValueChange={handleModelChange}>
                                 <SelectTrigger className="h-8 text-xs">
                                     <SelectValue placeholder="Default" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="default">Default</SelectItem>
-                                    {providers.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                    {availableModels.map((m: LLMPlugin) => (
+                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

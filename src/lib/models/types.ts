@@ -8,22 +8,36 @@ import { ReactNode } from 'react';
 // ============================================================================
 
 export type ModelCategory =
+    // Media categories
     | 'text-to-image'
     | 'image-to-image'
     | 'text-to-video'
     | 'image-to-video'
     | 'start-end-frame'
-    | 'reference-to-video';
+    | 'reference-to-video'
+    // LLM categories
+    | 'llm-chat'
+    | 'llm-vision'
+    | 'llm-code';
 
 // ============================================================================
 // Provider Types
 // ============================================================================
 
-export type ProviderType = 'fal' | 'openai' | 'anthropic' | 'google' | 'replicate' | 'ppio';
+export type ProviderType =
+    | 'fal'
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'deepseek'
+    | 'replicate'
+    | 'ppio'
+    | 'ollama'
+    | 'lmstudio';
 
 export interface ProviderCredentials {
-    apiKey: string;
-    baseUrl?: string;  // For custom endpoints
+    apiKey?: string;
+    baseUrl?: string;  // For custom endpoints or local providers
 }
 
 // ============================================================================
@@ -37,6 +51,7 @@ export interface ModelConfigProps {
     availableProviders: ProviderType[];  // Providers user has configured
 }
 
+// Media Execution Types
 export interface ModelExecutionInput {
     config: any;              // Model-specific config from renderConfig
     prompt?: string;
@@ -54,6 +69,26 @@ export interface ModelExecutionResult {
         text?: string;
     };
     error?: string;
+}
+
+// LLM Execution Types
+export interface LLMExecutionInput {
+    systemPrompt?: string;
+    userPrompt: string;
+    temperature?: number;
+    maxTokens?: number;
+    jsonMode?: boolean;
+    credentials: ProviderCredentials;
+    // Multimodal support
+    images?: string[];  // URLs or base64 encoded images
+}
+
+export interface LLMExecutionResult {
+    success: boolean;
+    text?: string;
+    data?: any;  // Parsed JSON if jsonMode
+    error?: string;
+    wasTruncated?: boolean;
 }
 
 export interface ModelPlugin {
@@ -87,3 +122,37 @@ export interface ModelRegistry {
     getByCategory: (category: ModelCategory) => ModelPlugin[];
     getAll: () => ModelPlugin[];
 }
+
+// ============================================================================
+// LLM Plugin Interface
+// ============================================================================
+
+export interface LLMPlugin {
+    // Metadata
+    id: string;
+    name: string;
+    description?: string;
+    category: 'llm-chat' | 'llm-vision' | 'llm-code';
+
+    // Provider support
+    supportedProviders: ProviderType[];
+    provider: ProviderType;  // Primary provider (first in supportedProviders)
+    isLocal?: boolean;       // True for Ollama/LM Studio
+
+    // Model capabilities
+    capabilities: LLMCapability[];
+    contextWindow: number;
+    maxOutputTokens: number;
+    defaultTemperature?: number;
+
+    // Execution: LLM handles its own API calls
+    execute: (input: LLMExecutionInput) => Promise<LLMExecutionResult>;
+}
+
+export type LLMCapability =
+    | 'chat'
+    | 'vision'
+    | 'function-calling'
+    | 'json-mode'
+    | 'streaming';
+

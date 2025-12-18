@@ -220,8 +220,8 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
                 return { success: false, error: 'User prompt is empty' };
             }
 
-            // Use new AI service for LLM call
-            const { callLLM } = await import('@/lib/services/ai');
+            // Use new LLM Plugin system for LLM call
+            const { callLLM } = await import('@/lib/models/llm');
             const response = await callLLM({
                 systemPrompt: systemPrompt || undefined,
                 userPrompt,

@@ -11,7 +11,6 @@ import {
 } from '@/types/recipe';
 import { invoke } from '@tauri-apps/api/core';
 import { NodeType } from '@/types/project';
-import { generateImages, getDefaultImageProvider } from '@/lib/services/media';
 
 // ============================================================================
 // Utility Functions

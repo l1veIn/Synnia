@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { autoGenerate, AutoGenerateOptions } from '@/lib/services/ai';
-import { getAllLLMPlugins, LLMPlugin } from '@/lib/models/llm';
+import { autoGenerate, AutoGenerateOptions, getAllLLMPlugins, LLMPlugin } from '@/lib/models/llm';
 import { useSettings, isProviderConfigured, ProviderKey } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 

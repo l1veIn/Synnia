@@ -25,6 +25,9 @@ export type { LLMPlugin, LLMExecutionInput, LLMExecutionResult, LLMCapability } 
 // Re-export utility functions
 export { extractJson, repairTruncatedJsonArray } from './utils';
 
+// Re-export autoGenerate
+export { autoGenerate, type AutoGenerateOptions, type AutoGenerateResult } from './autoGenerate';
+
 // ============================================================================
 // Import and Register All LLM Plugins
 // ============================================================================

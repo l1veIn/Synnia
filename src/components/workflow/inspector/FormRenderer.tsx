@@ -3,14 +3,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Link } from 'lucide-react';
-import { AspectRatioSelector } from './widgets/AspectRatioSelector';
-import { ModelConfigurator } from './widgets/ModelConfigurator';
-import { ImagePicker } from './widgets/ImagePicker';
-import { LLMConfigurator } from './widgets/LLMConfigurator';
-import { JSONInput } from './widgets/JSONInput';
-import { TextInput } from './widgets/TextInput';
-import { TextArea } from './widgets/TextArea';
+import { getWidget } from '@/components/workflow/widgets';
 
 interface RendererProps {
     schema: FieldDefinition[];
@@ -73,97 +69,21 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
     const isDisabled = disabled || false;
     const safeVal = value ?? field.defaultValue ?? '';
 
-    // Widget-first approach: check widget type first
+    // Try to get widget from registry first
+    if (field.widget) {
+        const widgetDef = getWidget(field.widget);
+        if (widgetDef) {
+            return widgetDef.render({
+                value: safeVal,
+                onChange,
+                disabled: isDisabled,
+                field,
+            });
+        }
+    }
+
+    // Fallback to built-in widgets not in registry
     switch (field.widget) {
-        // === Custom Widgets ===
-        case 'json-input':
-            return (
-                <JSONInput
-                    value={value}
-                    requiredKeys={rules.requiredKeys}
-                    isConnected={isConnected}
-                    connectedLabel="Connected"
-                />
-            );
-
-        case 'model-configurator':
-            return (
-                <ModelConfigurator
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    filterCategory={rules.filterRecipeType}
-                />
-            );
-
-        case 'aspect-ratio-selector':
-            return (
-                <AspectRatioSelector
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                />
-            );
-
-        case 'image-picker':
-            return (
-                <ImagePicker
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    isConnected={isConnected}
-                    connectedLabel="Connected to image node"
-                />
-            );
-
-        case 'llm-configurator':
-            return (
-                <LLMConfigurator
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    filterCapability={rules.filterCapability as any}
-                />
-            );
-
-        // === Standard Widgets ===
-        case 'textarea':
-            return (
-                <TextArea
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    placeholder={rules.placeholder}
-                    isConnected={isConnected}
-                    showEnhance={true}
-                />
-            );
-
-        case 'text':
-            return (
-                <TextInput
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    placeholder={rules.placeholder}
-                    isConnected={isConnected}
-                />
-            );
-
-        case 'number':
-            return (
-                <TextInput
-                    type="number"
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    min={rules.min}
-                    max={rules.max}
-                    step={rules.step}
-                    isConnected={isConnected}
-                />
-            );
-
         case 'slider':
             const min = rules.min ?? 0;
             const max = rules.max ?? 100;
@@ -196,7 +116,7 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                         <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {(rules.options || []).map(opt => (
+                        {(rules.options || []).map((opt: string) => (
                             <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
                         ))}
                     </SelectContent>
@@ -213,67 +133,65 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                         onChange={e => onChange(e.target.value)}
                         disabled={isDisabled}
                     />
-                    <TextInput
+                    <Input
                         value={safeVal}
-                        onChange={onChange}
+                        onChange={(e) => onChange(e.target.value)}
                         placeholder="#000000"
                         disabled={isDisabled}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                     />
                 </div>
             );
-
-        // === Fallback: infer from field.type ===
-        default:
-            // Type-based inference as fallback
-            if (field.type === 'boolean') {
-                return (
-                    <div className="flex items-center h-8">
-                        <Switch checked={!!value} onCheckedChange={onChange} disabled={isDisabled} />
-                        <span className="ml-2 text-xs text-muted-foreground">{value ? 'True' : 'False'}</span>
-                    </div>
-                );
-            }
-
-            if (field.type === 'select') {
-                return (
-                    <Select value={String(safeVal)} onValueChange={onChange} disabled={isDisabled}>
-                        <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {(rules.options || []).map(opt => (
-                                <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                );
-            }
-
-            if (field.type === 'number') {
-                return (
-                    <TextInput
-                        type="number"
-                        value={safeVal}
-                        onChange={onChange}
-                        disabled={isDisabled}
-                        min={rules.min}
-                        max={rules.max}
-                        step={rules.step}
-                        isConnected={isConnected}
-                    />
-                );
-            }
-
-            // Default: text input
-            return (
-                <TextInput
-                    value={safeVal}
-                    onChange={onChange}
-                    disabled={isDisabled}
-                    placeholder={rules.placeholder}
-                    isConnected={isConnected}
-                />
-            );
     }
+
+    // Type-based fallback
+    if (field.type === 'boolean') {
+        return (
+            <div className="flex items-center h-8">
+                <Switch checked={!!value} onCheckedChange={onChange} disabled={isDisabled} />
+                <span className="ml-2 text-xs text-muted-foreground">{value ? 'True' : 'False'}</span>
+            </div>
+        );
+    }
+
+    if (field.type === 'select') {
+        return (
+            <Select value={String(safeVal)} onValueChange={onChange} disabled={isDisabled}>
+                <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {(rules.options || []).map((opt: string) => (
+                        <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        );
+    }
+
+    if (field.type === 'number') {
+        return (
+            <Input
+                type="number"
+                value={safeVal}
+                onChange={(e) => onChange(Number(e.target.value))}
+                disabled={isDisabled}
+                min={rules.min}
+                max={rules.max}
+                step={rules.step}
+                className="h-8 text-xs"
+            />
+        );
+    }
+
+    // Default: text input
+    return (
+        <Input
+            value={safeVal}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={isDisabled}
+            placeholder={rules.placeholder}
+            className="h-8 text-xs"
+        />
+    );
 }

@@ -28,16 +28,4 @@ widgetRegistry.register(TextAreaWidget);
 widgetRegistry.register(JSONInputWidget);
 widgetRegistry.register(AspectRatioSelectorWidget);
 
-// Re-export components for backward compatibility
-export { ModelConfigurator } from './ModelConfigurator';
-export type { ModelConfigValue } from './ModelConfigurator';
-export { LLMConfigurator } from './LLMConfigurator';
-export type { LLMConfigValue } from './LLMConfigurator';
-export { ImagePicker } from './ImagePicker';
-export type { ImagePickerValue } from './ImagePicker';
-export { TextInput } from './TextInput';
-export { TextArea } from './TextArea';
-export { JSONInput } from './JSONInput';
-export { AspectRatioSelector } from './AspectRatioSelector';
-
 console.log('[Widgets] Registry initialized:', widgetRegistry.getAll().map(w => w.id).join(', '));

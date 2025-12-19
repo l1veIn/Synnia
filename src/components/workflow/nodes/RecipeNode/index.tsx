@@ -87,7 +87,27 @@ const RecipeFieldRow = ({
     const formatValue = (val: any) => {
         if (val === undefined || val === '' || val === null) return null;
         if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-        if (typeof val === 'object') return JSON.stringify(val).slice(0, 20) + '...';
+        if (typeof val === 'object') {
+            // Special case: LLMConfigValue - show model name
+            if (val.modelId) {
+                // Try to shorten modelId for display
+                const id = val.modelId as string;
+                // Extract readable name: "gpt-4o-mini" -> "GPT-4o Mini", "gemini-2.5-flash..." -> "Gemini 2.5"
+                const shortName = id
+                    .replace(/-preview.*$/, '')
+                    .replace(/-latest$/, '')
+                    .replace(/-exp$/, '')
+                    .split('-')
+                    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+                    .join('-');
+                return shortName.length > 15 ? shortName.slice(0, 15) + '...' : shortName;
+            }
+            // Special case: image value
+            if (val.url || val.base64) {
+                return '🖼️ Image';
+            }
+            return JSON.stringify(val).slice(0, 20) + '...';
+        }
         const str = String(val);
         return str.length > 25 ? str.slice(0, 25) + '...' : str;
     };
@@ -139,10 +159,6 @@ const RecipeFieldRow = ({
                     ) : (
                         <span className="text-[10px] text-muted-foreground/50 italic">empty</span>
                     )}
-
-                    {/* {hasOutputHandle && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
-                    )} */}
                 </div>
             </div>
 

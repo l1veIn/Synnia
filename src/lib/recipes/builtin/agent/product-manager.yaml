@@ -1,4 +1,5 @@
 # 产品经理 Agent 配方 (中文版)
+version: 1
 # 从分类目录选择资产并撰写文案
 # Soulmate Protocol v1.0 - 第三阶段：蓝图
 
@@ -59,10 +60,6 @@ inputSchema:
   - key: maxTokens
     hidden: true
     default: 4096
-
-outputSchema:
-  type: json
-  description: 生产清单表
 
 executor:
   type: llm-agent
@@ -137,15 +134,29 @@ executor:
     titleTemplate: "生产清单 ({{count}} 项)"
     collapsed: false
     schema:
+      - key: assetId
+        label: 资产ID
+        type: string
+        widget: text
+        hidden: true
       - key: assetName
         label: 资产
         type: string
+        widget: text
+        connection:
+          output: true
       - key: priority
         label: 优先级
         type: string
+        widget: text
       - key: microCopy
         label: 文案/上下文
         type: string
+        widget: textarea
+        placeholder: "角色的微文案..."
+        connection:
+          output: true
       - key: reason
         label: 理由
         type: string
+        widget: textarea

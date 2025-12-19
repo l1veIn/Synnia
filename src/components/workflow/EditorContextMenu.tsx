@@ -1,23 +1,27 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-  ContextMenuSub,
-  ContextMenuSubTrigger,
-  ContextMenuSubContent,
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useWorkflowStore } from "@/store/workflowStore";
 import { useReactFlow } from "@xyflow/react";
 import { NodeType, SynniaNode } from "@/types/project";
-import { nodesConfig } from "./nodes";
 import { useNavigate } from "react-router-dom";
 import { Home } from "lucide-react";
 import { toast } from "sonner";
 import { graphEngine } from "@/lib/engine/GraphEngine";
+import { NodePicker, NodePickerItem } from "./NodePicker";
+import { apiClient } from "@/lib/apiClient";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -51,28 +55,46 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const toastId = toast.loading("Importing image...");
 
         const reader = new FileReader();
-        reader.onload = (ev) => {
-          const base64 = ev.target?.result;
+        reader.onload = async (ev) => {
+          const base64 = ev.target?.result as string;
           if (base64) {
-            const position = contextMenuTarget?.position
-              ? screenToFlowPosition({
-                x: contextMenuTarget.position.x,
-                y: contextMenuTarget.position.y,
-              })
-              : { x: 100, y: 100 };
+            try {
+              // Import dynamically to avoid circular dependency
+              const { apiClient } = await import('@/lib/apiClient');
 
-            graphEngine.mutator.addNode(NodeType.ASSET, position, {
-              assetType: 'image',
-              content: base64 as string,
-              assetName: file.name
-            });
-            toast.success("Image added", { id: toastId });
+              // Save via backend (creates file + thumbnail)
+              const result = await apiClient.saveProcessedImage(base64);
+
+              const position = contextMenuTarget?.position
+                ? screenToFlowPosition({
+                  x: contextMenuTarget.position.x,
+                  y: contextMenuTarget.position.y,
+                })
+                : { x: 100, y: 100 };
+
+              graphEngine.mutator.addNode(NodeType.ASSET, position, {
+                assetType: 'image',
+                content: result.relativePath,
+                assetName: file.name,
+                metadata: {
+                  image: {
+                    width: result.width,
+                    height: result.height,
+                    thumbnail: result.thumbnailPath || undefined
+                  }
+                }
+              });
+              toast.success("Image imported", { id: toastId });
+            } catch (err) {
+              console.error("Failed to save image:", err);
+              toast.error("Failed to import image", { id: toastId });
+            }
           } else {
             toast.error("Failed to read file", { id: toastId });
           }
@@ -172,86 +194,109 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     }
   };
 
+  const [nodePickerOpen, setNodePickerOpen] = useState(false);
+
+  const handleNodePickerSelect = (item: NodePickerItem) => {
+    const position = contextMenuTarget?.position
+      ? screenToFlowPosition({
+        x: contextMenuTarget.position.x,
+        y: contextMenuTarget.position.y,
+      })
+      : { x: 150, y: 150 };
+
+    if (item.action === 'import-file') {
+      handleAddImage();
+    } else if (item.recipeId) {
+      graphEngine.mutator.addNode(`recipe:${item.recipeId}` as any, position);
+    } else if (item.nodeType) {
+      handleAddNode(item.nodeType);
+    }
+    setNodePickerOpen(false);
+  };
+
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="block h-full w-full">
-        {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-64">
-        {contextMenuTarget?.type === 'canvas' && (
-          <>
-            <ContextMenuLabel>Canvas Actions</ContextMenuLabel>
-            <ContextMenuSeparator />
-            <ContextMenuSub>
-              <ContextMenuSubTrigger>Add Node</ContextMenuSubTrigger>
-              <ContextMenuSubContent>
-                {Object.entries(nodesConfig)
-                  .filter(([_, config]) => !config.hidden)
-                  .map(([type, config]) => (
-                    <ContextMenuItem key={type} onSelect={() => handleAddNode(type as NodeType)}>
-                      {config.title}
-                    </ContextMenuItem>
-                  ))}
-                <ContextMenuItem onSelect={handleAddImage}>
-                  Image
-                </ContextMenuItem>
-              </ContextMenuSubContent>
-            </ContextMenuSub>
-            <ContextMenuItem onSelect={handlePaste}>Paste</ContextMenuItem>
-          </>
-        )}
-
-        {contextMenuTarget?.type === 'selection' && (
-          <>
-            <ContextMenuLabel>Selection Actions</ContextMenuLabel>
-            <ContextMenuSeparator />
-            <ContextMenuItem disabled>Create Group (Deprecated)</ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
-            <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onSelect={handleDelete}
-              className="text-red-600 focus:text-red-600"
-            >
-              Delete
-            </ContextMenuItem>
-          </>
-        )}
-
-        {(contextMenuTarget?.type === 'node' || contextMenuTarget?.type === 'group') && (
-          <>
-            <ContextMenuLabel>
-              {contextMenuTarget.type === 'group' ? 'Group Actions' : 'Node Actions'}
-            </ContextMenuLabel>
-            <ContextMenuSeparator />
-            {hasParent && (
-              <ContextMenuItem onSelect={handleDetach}>
-                Detach from {parentLabel}
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger className="block h-full w-full">
+          {children}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-64">
+          {contextMenuTarget?.type === 'canvas' && (
+            <>
+              <ContextMenuLabel>Canvas Actions</ContextMenuLabel>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={() => setNodePickerOpen(true)}>
+                Add Node...
               </ContextMenuItem>
-            )}
-            <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
-            {/* Only Asset Nodes can be shortcutted */}
-            {isShortcuttable && (
-              <ContextMenuItem onSelect={handleCreateShortcut}>Create Shortcut</ContextMenuItem>
-            )}
-            <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              onSelect={handleDelete}
-              className="text-red-600 focus:text-red-600"
-            >
-              Delete
-            </ContextMenuItem>
-          </>
-        )}
+              <ContextMenuItem onSelect={handlePaste}>Paste</ContextMenuItem>
+            </>
+          )}
 
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={() => navigate('/')}>
-          <Home className="w-4 h-4 mr-2" />
-          Back to Home
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+          {contextMenuTarget?.type === 'selection' && (
+            <>
+              <ContextMenuLabel>Selection Actions</ContextMenuLabel>
+              <ContextMenuSeparator />
+              <ContextMenuItem disabled>Create Group (Deprecated)</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
+              <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onSelect={handleDelete}
+                className="text-red-600 focus:text-red-600"
+              >
+                Delete
+              </ContextMenuItem>
+            </>
+          )}
+
+          {(contextMenuTarget?.type === 'node' || contextMenuTarget?.type === 'group') && (
+            <>
+              <ContextMenuLabel>
+                {contextMenuTarget.type === 'group' ? 'Group Actions' : 'Node Actions'}
+              </ContextMenuLabel>
+              <ContextMenuSeparator />
+              {hasParent && (
+                <ContextMenuItem onSelect={handleDetach}>
+                  Detach from {parentLabel}
+                </ContextMenuItem>
+              )}
+              <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
+              {/* Only Asset Nodes can be shortcutted */}
+              {isShortcuttable && (
+                <ContextMenuItem onSelect={handleCreateShortcut}>Create Shortcut</ContextMenuItem>
+              )}
+              <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                onSelect={handleDelete}
+                className="text-red-600 focus:text-red-600"
+              >
+                Delete
+              </ContextMenuItem>
+            </>
+          )}
+
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => navigate('/')}>
+            <Home className="w-4 h-4 mr-2" />
+            Back to Home
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      {/* NodePicker Dialog */}
+      <Dialog open={nodePickerOpen} onOpenChange={setNodePickerOpen}>
+        <DialogContent className="max-w-md p-0">
+          <VisuallyHidden>
+            <DialogTitle>Add Node</DialogTitle>
+          </VisuallyHidden>
+          <NodePicker
+            onSelect={handleNodePickerSelect}
+            onClose={() => setNodePickerOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

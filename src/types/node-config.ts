@@ -26,6 +26,19 @@ export type OutputResolver = (node: SynniaNode, asset: Asset | undefined) => Dat
 export type NodeOutputConfig = Record<string, OutputResolver>;
 
 /**
+ * File import configuration for nodes that require file selection
+ * (e.g., Image, PDF, Video, Audio nodes)
+ */
+export interface FileImportConfig {
+  /** Accept pattern for file input (e.g., 'image/*', 'application/pdf') */
+  accept: string;
+  /** Label shown in NodePicker */
+  label?: string;
+  /** Asset type to create (e.g., 'image', 'video') */
+  assetType: 'image' | 'video' | 'audio' | 'pdf' | 'file';
+}
+
+/**
  * Node configuration interface
  */
 export interface NodeConfig {
@@ -39,4 +52,7 @@ export interface NodeConfig {
   hidden?: boolean;
   /** Default data to set when creating this node */
   defaultData?: Partial<BaseNodeData>;
+  /** If set, this node requires file import and will show in NodePicker with file selector */
+  fileImport?: FileImportConfig;
 }
+

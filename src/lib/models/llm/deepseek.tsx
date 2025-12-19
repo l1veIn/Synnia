@@ -1,10 +1,11 @@
-// DeepSeek LLM Plugins Plugins
-// Uses OpenAI-compatible API
+// DeepSeek LLM Plugins
+// Unified with ModelPlugin interface
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { LLMPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
+import { ModelPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
 import { extractJson } from './utils';
+import { DefaultLLMSettings } from './DefaultLLMSettings';
 
 // ============================================================================
 // Shared DeepSeek Execution Logic
@@ -21,7 +22,6 @@ async function executeDeepSeek(
     }
 
     try {
-        // DeepSeek uses OpenAI-compatible API
         const deepseek = createOpenAI({
             apiKey: credentials.apiKey,
             baseURL: credentials.baseUrl || 'https://api.deepseek.com',
@@ -61,10 +61,10 @@ async function executeDeepSeek(
 }
 
 // ============================================================================
-// DeepSeek Chat Plugin
+// DeepSeek Model Exports
 // ============================================================================
 
-export const deepseekChat: LLMPlugin = {
+export const deepseekChat: ModelPlugin = {
     id: 'deepseek-chat',
     name: 'DeepSeek V3',
     description: 'DeepSeek V3 MoE model',
@@ -75,5 +75,14 @@ export const deepseekChat: LLMPlugin = {
     contextWindow: 64000,
     maxOutputTokens: 8192,
     defaultTemperature: 0.7,
-    execute: (input) => executeDeepSeek(input, 'deepseek-chat'),
+
+    renderConfig: (props) => (
+        <DefaultLLMSettings
+            {...props}
+            defaultTemperature={0.7}
+            maxOutputTokens={8192}
+        />
+    ),
+
+    execute: (input) => executeDeepSeek(input as LLMExecutionInput, 'deepseek-chat'),
 };

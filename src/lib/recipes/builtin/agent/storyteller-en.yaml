@@ -1,4 +1,5 @@
 # Chief Storyteller Agent Recipe (English)
+version: 1
 # Generates the "Soul Profile" (Visual DNA + Personality) based on the Identity Anchor
 # Part of the Soulmate Protocol v1.0 - Phase 2: Persona
 
@@ -72,10 +73,6 @@ inputSchema:
     hidden: true
     default: 4096
 
-outputSchema:
-  type: json
-  description: A Soul Profile object containing Visual DNA, Personality, and Backstory
-
 executor:
   type: llm-agent
   systemPrompt: |
@@ -143,4 +140,36 @@ executor:
     type: json
     titleTemplate: "Soul Profile: {{name}}"
     collapsed: false
-    schema: auto
+    schema:
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        connection:
+          output: true
+      - key: title
+        label: Title
+        type: string
+        widget: text
+      - key: visualDNA
+        label: Visual DNA
+        type: string
+        widget: textarea
+        placeholder: "Appearance, fashion, accessories, colors..."
+        connection:
+          output: true
+      - key: personality
+        label: Personality
+        type: string
+        widget: textarea
+        placeholder: "Archetype, voice, traits..."
+        connection:
+          output: true
+      - key: story
+        label: Origin Story
+        type: string
+        widget: textarea
+      - key: synergy
+        label: Brand Synergy
+        type: string
+        widget: textarea

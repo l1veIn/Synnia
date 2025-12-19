@@ -1,9 +1,11 @@
 // Google Gemini LLM Plugins
+// Unified with ModelPlugin interface
 
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { LLMPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
+import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
 import { extractJson } from './utils';
+import { DefaultLLMSettings } from './DefaultLLMSettings';
 
 // ============================================================================
 // Shared Google Execution Logic
@@ -61,37 +63,70 @@ async function executeGoogle(
 }
 
 // ============================================================================
-// Gemini 2.0 Flash Plugin
+// Factory Function for Gemini Models
 // ============================================================================
 
-export const gemini2Flash: LLMPlugin = {
-    id: 'gemini-2.0-flash-exp',
-    name: 'Gemini 2.0 Flash',
-    description: 'Fast Gemini model with multimodal support',
-    category: 'llm-vision',
+interface GeminiModelConfig {
+    id: string;
+    name: string;
+    description: string;
+    hasVision: boolean;
+    contextWindow: number;
+    maxOutputTokens: number;
+}
+
+const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
+    id: config.id,
+    name: config.name,
+    description: config.description,
+    category: config.hasVision ? 'llm-vision' : 'llm-chat',
     supportedProviders: ['google'],
     provider: 'google',
-    capabilities: ['chat', 'vision', 'function-calling', 'json-mode', 'streaming'],
-    contextWindow: 1000000,
-    maxOutputTokens: 8192,
+    capabilities: config.hasVision
+        ? ['chat', 'vision', 'function-calling', 'json-mode', 'streaming']
+        : ['chat', 'function-calling', 'json-mode', 'streaming'],
+    contextWindow: config.contextWindow,
+    maxOutputTokens: config.maxOutputTokens,
     defaultTemperature: 0.7,
-    execute: (input) => executeGoogle(input, 'gemini-2.0-flash-exp'),
-};
+
+    renderConfig: (props) => (
+        <DefaultLLMSettings
+            {...props}
+            defaultTemperature={0.7}
+            maxOutputTokens={config.maxOutputTokens}
+        />
+    ),
+
+    getInputHandles: config.hasVision
+        ? (cfg) => {
+            if (!cfg?.visionImage) {
+                return [{ id: 'visionImage', dataType: 'image', label: 'Vision Image' } as HandleSpec];
+            }
+            return [];
+        }
+        : undefined,
+
+    execute: (input) => executeGoogle(input as LLMExecutionInput, config.id),
+});
 
 // ============================================================================
-// Gemini 2.5 Flash Plugin (latest)
+// Gemini Model Exports
 // ============================================================================
 
-export const gemini25Flash: LLMPlugin = {
+export const gemini25Flash = createGeminiModel({
     id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
     description: 'Latest Gemini with 1M context',
-    category: 'llm-vision',
-    supportedProviders: ['google'],
-    provider: 'google',
-    capabilities: ['chat', 'vision', 'function-calling', 'json-mode', 'streaming'],
+    hasVision: true,
     contextWindow: 1000000,
     maxOutputTokens: 65536,
-    defaultTemperature: 0.7,
-    execute: (input) => executeGoogle(input, 'gemini-2.5-flash'),
-};
+});
+
+export const gemini2Flash = createGeminiModel({
+    id: 'gemini-2.0-flash-exp',
+    name: 'Gemini 2.0 Flash',
+    description: 'Fast Gemini model with multimodal support',
+    hasVision: true,
+    contextWindow: 1000000,
+    maxOutputTokens: 8192,
+});

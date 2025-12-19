@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { ImagePickerValue, fileToBase64, isValidUrl } from '@/lib/utils/image';
-import { WidgetDefinition, WidgetProps } from './types';
+import { WidgetDefinition, WidgetProps } from '../lib/types';
 
 // ============================================================================
 // Types (re-export for backward compatibility)

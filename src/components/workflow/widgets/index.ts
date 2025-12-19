@@ -1,27 +1,27 @@
 // Widget System - Entry Point
 // Central registry for all workflow widgets
 
-export * from './types';
-export * from './registry';
+export * from './lib/types';
+export * from './lib/registry';
+export * from './lib/WidgetServices';
+export { RecipeFieldRow, RecipeFormRenderer } from './lib/FieldRow';
 
 // ============================================================================
 // Register Built-in Widgets
 // ============================================================================
 
-import { widgetRegistry } from './registry';
+import { widgetRegistry } from './lib/registry';
 
 // Self-contained widget definitions
-import { ModelConfiguratorWidget } from './ModelConfigurator';
-import { LLMConfiguratorWidget } from './LLMConfigurator';
-import { ImagePickerWidget } from './ImagePicker';
-import { TextInputWidget } from './TextInput';
-import { TextAreaWidget } from './TextArea';
-import { JSONInputWidget } from './JSONInput';
-import { AspectRatioSelectorWidget } from './AspectRatioSelector';
+import { ModelConfiguratorWidget } from './impl/ModelConfigurator';
+import { ImagePickerWidget } from './impl/ImagePicker';
+import { TextInputWidget } from './impl/TextInput';
+import { TextAreaWidget } from './impl/TextArea';
+import { JSONInputWidget } from './impl/JSONInput';
+import { AspectRatioSelectorWidget } from './impl/AspectRatioSelector';
 
 // Register all widgets
 widgetRegistry.register(ModelConfiguratorWidget);
-widgetRegistry.register(LLMConfiguratorWidget);
 widgetRegistry.register(ImagePickerWidget);
 widgetRegistry.register(TextInputWidget);
 widgetRegistry.register(TextAreaWidget);
@@ -29,6 +29,6 @@ widgetRegistry.register(JSONInputWidget);
 widgetRegistry.register(AspectRatioSelectorWidget);
 
 // Re-export ImagePicker for model plugins that render it directly
-export { ImagePicker } from './ImagePicker';
+export { ImagePicker } from './impl/ImagePicker';
 
 console.log('[Widgets] Registry initialized:', widgetRegistry.getAll().map(w => w.id).join(', '));

@@ -9,7 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { WidgetDefinition, WidgetProps } from './types';
+import { WidgetDefinition, WidgetProps } from '../lib/types';
 
 // Visual representation of ratios
 const RATIOS = [

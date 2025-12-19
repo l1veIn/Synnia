@@ -47,14 +47,7 @@ export interface ManifestField {
     };
 }
 
-/**
- * Output schema definition
- */
-export interface OutputSchema {
-    type: 'json' | 'text' | 'image' | 'void';
-    jsonSchema?: object;
-    description?: string;
-}
+// OutputSchema removed - use executor.nodeConfig.schema instead for output definitions
 
 /**
  * Executor types available
@@ -149,7 +142,7 @@ export interface CustomExecutorConfig extends BaseExecutorConfig {
  */
 export interface MediaExecutorConfig extends BaseExecutorConfig {
     type: 'media';
-    mode: 'text-to-image' | 'image-to-image' | 'text-to-video' | 'image-to-video' | 'start-end-frame' | 'reference-to-video';
+    mode: 'image-generation' | 'video-generation';
     outputNode?: {
         type: 'gallery' | 'video' | 'audio';
         titleTemplate?: string;
@@ -168,6 +161,9 @@ export type ExecutorConfig =
  * Recipe Manifest - the YAML configuration structure
  */
 export interface RecipeManifest {
+    // Schema version for future migrations
+    version: 1;
+
     // Basic info
     id: string;
     name: string;
@@ -180,7 +176,7 @@ export interface RecipeManifest {
 
     // Schema
     inputSchema: ManifestField[];
-    outputSchema?: OutputSchema;
+    // NOTE: outputSchema removed - use executor.nodeConfig.schema for output definitions
 
     // Executor
     executor: ExecutorConfig;
@@ -248,8 +244,6 @@ export interface RecipeDefinition {
     category?: string;
     /** Input fields schema (resolved from manifest + mixins) */
     inputSchema: FieldDefinition[];
-    /** Output validation schema */
-    outputSchema?: OutputSchema;
     /** The manifest this was created from */
     manifest: RecipeManifest;
     /** Core execution logic */
@@ -279,13 +273,13 @@ export const manifestFieldToDefinition = (field: ManifestField): FieldDefinition
     defaultValue: field.default,
     disabled: field.disabled,
     hidden: field.hidden,
+    options: field.options, // Widget-specific options (e.g. category for model-configurator)
     rules: {
         required: field.required,
         placeholder: field.placeholder,
         min: field.min,
         max: field.max,
         step: field.step,
-        options: field.options,
         filterRecipeType: field.filterRecipeType,
         // Merge nested rules from YAML
         ...field.rules,

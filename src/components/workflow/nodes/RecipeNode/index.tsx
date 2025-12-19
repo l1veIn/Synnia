@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useEffect, useRef } from 'react';
-import { NodeProps, Position, NodeResizer, useNodeConnections } from '@xyflow/react';
+import { NodeProps, NodeResizer } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
@@ -8,15 +8,13 @@ import { useNode } from '@/hooks/useNode';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
 import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { NodeConfig } from '@/types/node-config';
-import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { portRegistry } from '@/lib/engine/ports';
-import { getWidgetInputHandles } from '@/components/workflow/widgets';
+import { RecipeFormRenderer } from '@/components/workflow/widgets';
 
 // --- Register Ports ---
 portRegistry.register(NodeType.RECIPE, {
@@ -57,140 +55,6 @@ export const config: NodeConfig = {
 export const behavior = StandardAssetBehavior;
 
 export { RecipeNode as Node, RecipeNodeInspector as Inspector };
-
-// --- Field Row ---
-const RecipeFieldRow = ({
-    field,
-    value,
-}: {
-    field: FieldDefinition;
-    value: any;
-}) => {
-    const connections = useNodeConnections({
-        handleType: 'target',
-        handleId: field.key,
-    });
-    const isConnected = connections.length > 0;
-    const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
-    const isDisabled = field.disabled === true;
-
-    // Determine if handles should be shown
-    const conn = field.connection;
-    const hasInputHandle = conn?.input === true ||
-        (typeof conn?.input === 'object' && conn.input.enabled) ||
-        field.widget === 'json-input' ||
-        field.type === 'object' ||
-        conn?.enabled;
-    const hasOutputHandle = conn?.output === true ||
-        (typeof conn?.output === 'object' && conn.output.enabled);
-
-    // Get extra handles from widget (if widget declares them)
-    const extraHandles = useMemo(() => {
-        if (!field.widget) return [];
-        return getWidgetInputHandles(field.widget, value);
-    }, [field.widget, value]);
-
-    // Format display value
-    const formatValue = (val: any) => {
-        if (val === undefined || val === '' || val === null) return null;
-        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
-        if (typeof val === 'object') {
-            // Special case: LLMConfigValue - show model name
-            if (val.modelId) {
-                // Try to shorten modelId for display
-                const id = val.modelId as string;
-                // Extract readable name: "gpt-4o-mini" -> "GPT-4o Mini", "gemini-2.5-flash..." -> "Gemini 2.5"
-                const shortName = id
-                    .replace(/-preview.*$/, '')
-                    .replace(/-latest$/, '')
-                    .replace(/-exp$/, '')
-                    .split('-')
-                    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-                    .join('-');
-                return shortName.length > 15 ? shortName.slice(0, 15) + '...' : shortName;
-            }
-            // Special case: image value
-            if (val.url || val.base64) {
-                return '🖼️ Image';
-            }
-            return JSON.stringify(val).slice(0, 20) + '...';
-        }
-        const str = String(val);
-        return str.length > 25 ? str.slice(0, 25) + '...' : str;
-    };
-
-    const displayValue = formatValue(value);
-
-    return (
-        <div className={cn(
-            "relative flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors",
-            "bg-background/50 hover:bg-background/80 border border-transparent",
-            isConnected && "border-blue-500/30 bg-blue-500/5",
-            isDisabled && "bg-muted/30 opacity-70",
-            isMissing && !isConnected && "border-destructive/40 bg-destructive/5"
-        )}>
-            {/* Input Handle (Left) */}
-            {hasInputHandle && (
-                <NodePort.Input id={field.key} connected={isConnected} />
-            )}
-
-            {/* Extra Input Handles from Widget (stacked vertically if multiple) */}
-            {extraHandles.map((h, idx) => (
-                <NodePort.Input
-                    key={h.id}
-                    id={`${field.key}:${h.id}`}
-                    connected={false}
-                />
-            ))}
-
-            {/* Field Info */}
-            <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-                {/* Label */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {/* {hasInputHandle && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500/60" />
-                    )} */}
-                    <span className={cn(
-                        "text-[11px] font-medium truncate max-w-[70px]",
-                        isMissing && !isConnected ? "text-destructive" : "text-muted-foreground"
-                    )}>
-                        {field.label || field.key}
-                    </span>
-                    {/* Show badge if extra handles exist */}
-                    {extraHandles.length > 0 && (
-                        <span className="text-[9px] text-purple-500 bg-purple-500/10 px-1 rounded">
-                            +{extraHandles.length}
-                        </span>
-                    )}
-                </div>
-
-                {/* Value */}
-                <div className="flex items-center gap-1.5">
-                    {isConnected ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-500 font-medium bg-blue-500/10 px-2 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                            linked
-                        </span>
-                    ) : displayValue ? (
-                        <span className={cn(
-                            "text-[11px] font-mono px-2 py-0.5 rounded",
-                            isDisabled ? "bg-muted/50 text-muted-foreground" : "bg-muted/80 text-foreground"
-                        )}>
-                            {displayValue}
-                        </span>
-                    ) : (
-                        <span className="text-[10px] text-muted-foreground/50 italic">empty</span>
-                    )}
-                </div>
-            </div>
-
-            {/* Output Handle (Right) */}
-            {hasOutputHandle && (
-                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`} />
-            )}
-        </div>
-    );
-};
 
 // --- Main Node ---
 export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
@@ -262,27 +126,11 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             return <div className="text-destructive text-xs">Recipe not found: {recipeId}</div>;
         }
 
-        // Filter fields that have handles (and are not hidden)
-        const fieldsWithHandles = recipe.inputSchema.filter(field => {
-            if (field.hidden) return false; // Skip hidden fields
-            const conn = field.connection;
-            return conn?.input === true ||
-                (typeof conn?.input === 'object' && conn.input.enabled) ||
-                conn?.output === true ||
-                (typeof conn?.output === 'object' && conn.output.enabled) ||
-                field.widget === 'json-input' ||
-                field.type === 'object';
-        });
-
-        // Filter out hidden fields from visible schema
-        const visibleSchema = recipe.inputSchema.filter(field => !field.hidden);
-
-        // When collapsed, only show fields with handles
-        const fieldsToShow = state.isCollapsed ? fieldsWithHandles : visibleSchema;
-
-        if (fieldsToShow.length === 0) {
+        // Check if there are any visible fields
+        const visibleFields = recipe.inputSchema.filter(field => !field.hidden);
+        if (visibleFields.length === 0) {
             if (state.isCollapsed) {
-                return null; // No handle fields to show when collapsed
+                return null;
             }
             return (
                 <div className="flex flex-col w-full h-full text-xs items-center justify-center text-muted-foreground italic">
@@ -303,10 +151,12 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                     </div>
                 )}
                 <div className="flex-1 w-full overflow-y-auto">
-                    <div className={cn("space-y-1.5 pb-2 px-5", state.isCollapsed && "py-1")}>
-                        {fieldsToShow.map(field => (
-                            <RecipeFieldRow key={field.id} field={field} value={values[field.key]} />
-                        ))}
+                    <div className={cn("pb-2 px-5", state.isCollapsed && "py-1")}>
+                        <RecipeFormRenderer
+                            fields={recipe.inputSchema}
+                            values={values}
+                            isCollapsed={state.isCollapsed}
+                        />
                     </div>
                 </div>
             </div>

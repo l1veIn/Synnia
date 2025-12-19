@@ -1,4 +1,5 @@
 # Art Director Agent Recipe (English)
+version: 1
 # Generates executable Image Prompts by merging Templates, Style, and Visual DNA
 # Part of the Soulmate Protocol v1.0 - Phase 3: Blueprint
 
@@ -61,10 +62,6 @@ inputSchema:
   - key: maxTokens
     hidden: true
     default: 8192  # High token count for many prompts
-
-outputSchema:
-  type: json
-  description: A Visual Blueprint table containing final prompts
 
 executor:
   type: llm-agent
@@ -143,13 +140,19 @@ executor:
       - key: assetName
         label: Asset
         type: string
+        widget: text
       - key: finalPrompt
         label: Prompt
         type: string
-        width: 400
+        widget: textarea
+        placeholder: "AI image generation prompt..."
+        connection:
+          output: true
       - key: resolution
         label: Res
         type: string
+        widget: text
       - key: aspectRatio
         label: AR
         type: string
+        widget: text

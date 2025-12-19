@@ -1,4 +1,5 @@
 # Reference to Video Recipe
+version: 1
 # Generate video using multiple reference images
 
 id: media.reference-to-video
@@ -31,10 +32,6 @@ inputSchema:
     widget: model-configurator
     filterRecipeType: reference-to-video
     required: true
-
-outputSchema:
-  type: json
-  description: Generated video
 
 executor:
   type: media

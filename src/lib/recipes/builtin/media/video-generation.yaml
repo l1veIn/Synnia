@@ -1,9 +1,10 @@
-# Text to Video Recipe
-# Generate videos directly from text prompts
+# Video Generation Recipe
+version: 1
+# Generate videos from text prompts using configured video provider
 
-id: media.text-to-video
-name: Text to Video
-description: Generate videos from text descriptions
+id: media.video-generation
+name: Video Generation
+description: Generate videos from text prompts
 category: Media
 icon: Film
 
@@ -21,16 +22,13 @@ inputSchema:
     label: Model & Settings
     type: object
     widget: model-configurator
-    filterRecipeType: text-to-video
+    options:
+      category: video-generation
     required: true
-
-outputSchema:
-  type: json
-  description: Generated video
 
 executor:
   type: media
-  mode: text-to-video
+  mode: video-generation
   outputNode:
     type: video
     titleTemplate: "Video: {{prompt}}"

@@ -1,4 +1,5 @@
 # Text Concatenation Recipe
+version: 1
 # Joins two text inputs with a separator
 
 id: text.concat
@@ -38,10 +39,6 @@ inputSchema:
     disabled: true
     connection:
       output: true
-
-outputSchema:
-  type: text
-  description: Concatenated text result
 
 executor:
   type: template

@@ -1,4 +1,5 @@
 # 首席叙事官 Agent 配方 (中文版)
+version: 1
 # 基于身份锚点生成"灵魂档案"（视觉DNA + 人格矩阵）
 # Soulmate Protocol v1.0 - 第二阶段：人格
 
@@ -72,10 +73,6 @@ inputSchema:
     hidden: true
     default: 4096
 
-outputSchema:
-  type: json
-  description: 包含视觉DNA、人格和背景故事的灵魂档案对象
-
 executor:
   type: llm-agent
   systemPrompt: |
@@ -143,4 +140,36 @@ executor:
     type: json
     titleTemplate: "灵魂档案: {{name}}"
     collapsed: false
-    schema: auto
+    schema:
+      - key: name
+        label: 名称
+        type: string
+        widget: text
+        connection:
+          output: true
+      - key: title
+        label: 头衔
+        type: string
+        widget: text
+      - key: visualDNA
+        label: 视觉DNA
+        type: string
+        widget: textarea
+        placeholder: "外貌、时尚、配饰、色彩描述..."
+        connection:
+          output: true
+      - key: personality
+        label: 人格
+        type: string
+        widget: textarea
+        placeholder: "原型、说话风格、性格特征..."
+        connection:
+          output: true
+      - key: story
+        label: 起源故事
+        type: string
+        widget: textarea
+      - key: synergy
+        label: 品牌协同
+        type: string
+        widget: textarea

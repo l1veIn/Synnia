@@ -8,13 +8,9 @@ import { ReactNode } from 'react';
 // ============================================================================
 
 export type ModelCategory =
-    // Media categories
-    | 'text-to-image'
-    | 'image-to-image'
-    | 'text-to-video'
-    | 'image-to-video'
-    | 'start-end-frame'
-    | 'reference-to-video'
+    // Media categories (simplified)
+    | 'image-generation'    // text/image → image
+    | 'video-generation'    // text/image → video
     // LLM categories
     | 'llm-chat'
     | 'llm-vision'
@@ -91,6 +87,17 @@ export interface LLMExecutionResult {
     wasTruncated?: boolean;
 }
 
+// ============================================================================
+// Unified Model Plugin Interface
+// ============================================================================
+
+export type LLMCapability =
+    | 'chat'
+    | 'vision'
+    | 'function-calling'
+    | 'json-mode'
+    | 'streaming';
+
 export interface ModelPlugin {
     // Metadata
     id: string;
@@ -100,15 +107,35 @@ export interface ModelPlugin {
 
     // Provider support
     supportedProviders: ProviderType[];
+    provider?: ProviderType;  // Primary provider (for LLMs)
+    isLocal?: boolean;        // True for Ollama/LM Studio
+
+    // LLM-specific metadata (optional)
+    capabilities?: LLMCapability[];
+    contextWindow?: number;
+    maxOutputTokens?: number;
+    defaultTemperature?: number;
 
     // UI: Model renders its own config form
     renderConfig: (props: ModelConfigProps) => ReactNode;
+
+    // Input handles: Model declares what external inputs it needs
+    getInputHandles?: (config: any) => HandleSpec[];
 
     // Validation (optional)
     validate?: (config: any) => { valid: boolean; errors?: string[] };
 
     // Execution: Model handles its own API calls
-    execute: (input: ModelExecutionInput) => Promise<ModelExecutionResult>;
+    // For Media models: uses ModelExecutionInput -> ModelExecutionResult
+    // For LLM models: uses LLMExecutionInput -> LLMExecutionResult
+    execute: (input: ModelExecutionInput | LLMExecutionInput) => Promise<ModelExecutionResult | LLMExecutionResult>;
+}
+
+// Handle specification for widget-declared inputs
+export interface HandleSpec {
+    id: string;
+    dataType: 'image' | 'video' | 'text' | 'any';
+    label: string;
 }
 
 // ============================================================================
@@ -123,36 +150,6 @@ export interface ModelRegistry {
     getAll: () => ModelPlugin[];
 }
 
-// ============================================================================
-// LLM Plugin Interface
-// ============================================================================
-
-export interface LLMPlugin {
-    // Metadata
-    id: string;
-    name: string;
-    description?: string;
-    category: 'llm-chat' | 'llm-vision' | 'llm-code';
-
-    // Provider support
-    supportedProviders: ProviderType[];
-    provider: ProviderType;  // Primary provider (first in supportedProviders)
-    isLocal?: boolean;       // True for Ollama/LM Studio
-
-    // Model capabilities
-    capabilities: LLMCapability[];
-    contextWindow: number;
-    maxOutputTokens: number;
-    defaultTemperature?: number;
-
-    // Execution: LLM handles its own API calls
-    execute: (input: LLMExecutionInput) => Promise<LLMExecutionResult>;
-}
-
-export type LLMCapability =
-    | 'chat'
-    | 'vision'
-    | 'function-calling'
-    | 'json-mode'
-    | 'streaming';
+// Legacy alias for backward compatibility
+export type LLMPlugin = ModelPlugin;
 

@@ -31,7 +31,7 @@ class LLMRegistryImpl {
     }
 
     getByCapability(capability: LLMCapability): LLMPlugin[] {
-        return this.getAll().filter(p => p.capabilities.includes(capability));
+        return this.getAll().filter(p => p.capabilities?.includes(capability));
     }
 }
 
@@ -89,7 +89,7 @@ export async function callLLM(options: CallLLMOptions): Promise<LLMExecutionResu
     const settings = await loadSettings();
 
     // Determine which model to use
-    const modelId = options.modelId || settings.defaultLLM || 'gpt-4o-mini';
+    const modelId = options.modelId || settings.defaultModels?.['llm-chat'] || 'gpt-4o-mini';
     const plugin = llmRegistry.get(modelId);
 
     if (!plugin) {

@@ -26,6 +26,11 @@ export const parseManifest = (yamlContent: string): RecipeManifest => {
     if (!raw.inputSchema) throw new Error('Recipe manifest missing "inputSchema"');
     if (!raw.executor) throw new Error('Recipe manifest missing "executor"');
 
+    // Validate version (warn but don't fail for forward compatibility)
+    if (raw.version !== 1) {
+        console.warn(`[RecipeLoader] Recipe "${raw.id}" has unknown version: ${raw.version}, expected 1`);
+    }
+
     return raw as RecipeManifest;
 };
 
@@ -112,7 +117,6 @@ export const createRecipeFromManifest = (
         icon: getIcon(manifest.icon),
         category: manifest.category,
         inputSchema,
-        outputSchema: manifest.outputSchema,
         manifest,
         execute,
         mixin: manifest.mixin,

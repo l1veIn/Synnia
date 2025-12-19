@@ -130,6 +130,57 @@ pub fn save_processed_image(
     })
 }
 
+/// Download an image from a URL and save it to the assets folder.
+/// This is used for AI-generated images that are returned as HTTP URLs.
+#[tauri::command]
+pub async fn download_and_save_image(
+    url: String,
+    filename: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<SaveImageResult, AppError> {
+    let project_root = get_project_root(&state)?;
+    
+    // Download the image
+    let response = reqwest::get(&url).await
+        .map_err(|e| AppError::Unknown(format!("Failed to download image: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err(AppError::Unknown(format!("HTTP error: {}", response.status())));
+    }
+    
+    let image_data = response.bytes().await
+        .map_err(|e| AppError::Unknown(format!("Failed to read response: {}", e)))?;
+    
+    // Get image dimensions
+    let (width, height) = get_image_dimensions(&image_data)?;
+    
+    // Generate unique filename
+    let file_id = uuid::Uuid::new_v4().to_string();
+    let ext = detect_image_format(&image_data).unwrap_or("png");
+    let final_filename = filename.unwrap_or_else(|| format!("{}.{}", file_id, ext));
+    
+    // Ensure assets directory exists
+    let assets_dir = project_root.join("assets");
+    if !assets_dir.exists() {
+        std::fs::create_dir_all(&assets_dir)?;
+    }
+    
+    // Save the image
+    let relative_path = format!("assets/{}", final_filename);
+    let target_path = project_root.join(&relative_path);
+    std::fs::write(&target_path, &image_data)?;
+    
+    // Generate thumbnail
+    let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data)?;
+    
+    Ok(SaveImageResult {
+        relative_path,
+        thumbnail_path: Some(thumbnail_path),
+        width,
+        height,
+    })
+}
+
 /// Get all media assets (images, videos, audio) for the asset library.
 /// Excludes text and json types.
 #[tauri::command]
@@ -299,4 +350,109 @@ fn generate_thumbnail(project_root: &PathBuf, file_id: &str, image_data: &[u8]) 
         .map_err(|e| AppError::Unknown(format!("Failed to save thumbnail: {}", e)))?;
     
     Ok(thumb_relative)
+}
+
+/// Result for a single file in batch import
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchImportResult {
+    /// Original file path
+    pub source_path: String,
+    /// Success result (if import succeeded)
+    pub result: Option<SaveImageResult>,
+    /// Error message (if import failed)
+    pub error: Option<String>,
+}
+
+/// Import multiple files from the file system into the project assets folder.
+/// Returns results for each file, including any errors.
+#[tauri::command]
+pub fn batch_import_images(
+    file_paths: Vec<String>,
+    state: State<AppState>,
+) -> Result<Vec<BatchImportResult>, AppError> {
+    let project_root = get_project_root(&state)?;
+    
+    // Create assets directory if it doesn't exist
+    let assets_dir = project_root.join("assets");
+    if !assets_dir.exists() {
+        std::fs::create_dir_all(&assets_dir)?;
+    }
+    
+    let mut results: Vec<BatchImportResult> = Vec::with_capacity(file_paths.len());
+    
+    for file_path in file_paths {
+        let source_path = PathBuf::from(&file_path);
+        
+        // Check if file exists
+        if !source_path.exists() {
+            results.push(BatchImportResult {
+                source_path: file_path,
+                result: None,
+                error: Some("File not found".to_string()),
+            });
+            continue;
+        }
+        
+        // Get extension and generate new filename
+        let ext = source_path.extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("bin")
+            .to_lowercase();
+        
+        // Skip non-image files
+        if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp") {
+            results.push(BatchImportResult {
+                source_path: file_path,
+                result: None,
+                error: Some(format!("Unsupported image format: {}", ext)),
+            });
+            continue;
+        }
+        
+        let file_id = uuid::Uuid::new_v4().to_string();
+        let new_filename = format!("{}.{}", file_id, ext);
+        let relative_path = format!("assets/{}", new_filename);
+        let target_path = project_root.join(&relative_path);
+        
+        // Copy file
+        match std::fs::copy(&source_path, &target_path) {
+            Ok(_) => {
+                // Read image and generate thumbnail
+                match std::fs::read(&target_path) {
+                    Ok(image_data) => {
+                        let (width, height) = get_image_dimensions(&image_data).unwrap_or((0, 0));
+                        let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data).ok();
+                        
+                        results.push(BatchImportResult {
+                            source_path: file_path,
+                            result: Some(SaveImageResult {
+                                relative_path,
+                                thumbnail_path,
+                                width,
+                                height,
+                            }),
+                            error: None,
+                        });
+                    }
+                    Err(e) => {
+                        results.push(BatchImportResult {
+                            source_path: file_path,
+                            result: None,
+                            error: Some(format!("Failed to read image: {}", e)),
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                results.push(BatchImportResult {
+                    source_path: file_path,
+                    result: None,
+                    error: Some(format!("Failed to copy file: {}", e)),
+                });
+            }
+        }
+    }
+    
+    Ok(results)
 }

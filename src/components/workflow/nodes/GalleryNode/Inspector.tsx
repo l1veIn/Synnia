@@ -3,15 +3,16 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Save, AlertCircle, FolderOpen } from 'lucide-react';
+import { Plus, Save, AlertCircle, FolderOpen, Upload } from 'lucide-react';
 import { GalleryAssetContent, GalleryImage } from './index';
 import { AssetPicker } from '@/components/AssetPicker';
-import { MediaAssetInfo } from '@/lib/apiClient';
+import { MediaAssetInfo, apiClient } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 interface InspectorProps {
     assetId: string;
@@ -146,7 +147,59 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     onClick={() => setIsPickerOpen(true)}
                 >
                     <FolderOpen className="h-4 w-4 mr-2" />
-                    Add from Asset Library
+                    Add from Library
+                </Button>
+
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                        const selected = await openDialog({
+                            multiple: true,
+                            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+                        });
+                        if (selected && Array.isArray(selected) && selected.length > 0) {
+                            const toastId = toast.loading(`Importing ${selected.length} images...`);
+                            try {
+                                const results = await apiClient.batchImportImages(selected);
+                                const succeeded = results.filter(r => r.result);
+                                const failed = results.filter(r => r.error).length;
+
+                                // Add imported images to gallery
+                                const newImages: GalleryImage[] = succeeded.map(r => {
+                                    const path = r.result!.relativePath;
+                                    const src = serverPort
+                                        ? `http://localhost:${serverPort}/assets/${path.split('/').pop()}`
+                                        : path;
+                                    return {
+                                        id: uuidv4(),
+                                        src,
+                                        caption: r.sourcePath.split('/').pop() || 'Imported',
+                                        starred: false,
+                                    };
+                                });
+
+                                if (newImages.length > 0) {
+                                    setContent({
+                                        ...savedContent,
+                                        images: [...savedContent.images, ...newImages]
+                                    });
+                                }
+
+                                if (failed > 0) {
+                                    toast.warning(`Added ${succeeded.length}, failed ${failed}`, { id: toastId });
+                                } else {
+                                    toast.success(`Added ${succeeded.length} images`, { id: toastId });
+                                }
+                            } catch (e) {
+                                console.error('Batch import failed:', e);
+                                toast.error('Import failed', { id: toastId });
+                            }
+                        }
+                    }}
+                >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Add from Local
                 </Button>
 
                 <div className="border-t" />

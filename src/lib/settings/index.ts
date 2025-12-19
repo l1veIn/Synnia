@@ -81,7 +81,7 @@ export interface UseSettingsReturn {
     loading: boolean;
     error: Error | null;
     updateProvider: (provider: ProviderKey, config: Partial<ProviderConfig>) => Promise<void>;
-    setDefaultLLM: (model: string) => Promise<void>;
+    setDefaultModel: (category: string, modelId: string) => Promise<void>;
     refresh: () => Promise<void>;
 }
 
@@ -126,11 +126,14 @@ export function useSettings(): UseSettingsReturn {
         setSettings(newSettings);
     }, [settings]);
 
-    const setDefaultLLM = useCallback(async (model: string) => {
+    const setDefaultModel = useCallback(async (category: string, modelId: string) => {
         if (!settings) return;
         const newSettings: AppSettings = {
             ...settings,
-            defaultLLM: model,
+            defaultModels: {
+                ...settings.defaultModels,
+                [category]: modelId,
+            },
         };
         await saveSettings(newSettings);
         setSettings(newSettings);
@@ -145,7 +148,7 @@ export function useSettings(): UseSettingsReturn {
         }
     }, []);
 
-    return { settings, loading, error, updateProvider, setDefaultLLM, refresh };
+    return { settings, loading, error, updateProvider, setDefaultModel, refresh };
 }
 
 // Re-export types

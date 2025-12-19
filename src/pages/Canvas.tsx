@@ -1,12 +1,13 @@
 import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { nodeTypes } from '@/components/workflow/nodes';
 import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
-import { Plus, Save, Box, Home, Image as ImageIcon, FileText, FolderOpen } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus, Save, Home, FolderOpen } from 'lucide-react';
 import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -23,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { dirname } from '@tauri-apps/api/path';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
-import { useState } from 'react';
+import { NodePicker, NodePickerItem } from '@/components/workflow/NodePicker';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
@@ -178,7 +179,7 @@ function CanvasFlow() {
             {/* <Controls /> */}
             <MiniMap className="border bg-card" />
 
-            {/* 临时工具栏 */}
+            {/* Canvas Toolbar */}
             <Panel position="top-center" className="m-4">
               <div className="flex items-center gap-2 bg-card/80 backdrop-blur p-2 rounded-lg border shadow-lg">
                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => navigate('/')}>
@@ -187,31 +188,32 @@ function CanvasFlow() {
 
                 <div className="w-px h-4 bg-border mx-1" />
 
-                <span className="text-xs font-bold text-muted-foreground px-2">ADD NODE</span>
-
-                <Button size="sm" variant="secondary" onClick={() => handleAddNode(NodeType.ASSET)}>
-                  <FileText className="w-3 h-3 mr-1" /> Text
-                </Button>
-
-                <Button size="sm" variant="ghost" onClick={() => handleAddImage()}>
-                  <ImageIcon className="w-3 h-3 mr-1" /> Image
-                </Button>
-
-                <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.RECIPE)}>
-                  Recipe
-                </Button>
-
-                {/* <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.GROUP)}>
-                   <Box className="w-3 h-3 mr-1" /> Group
-                 </Button> */}
-
-                {/* <Button size="sm" variant="ghost" onClick={() => handleAddNode(NodeType.NOTE)}>
-                   Note
-                 </Button> */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="secondary">
+                      <Plus className="w-4 h-4 mr-1" /> Add Node
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="start">
+                    <NodePicker
+                      onSelect={(item) => {
+                        if (item.action === 'import-file') {
+                          // File import action (Image, PDF, Video, etc.)
+                          // For now handleAddImage handles image import
+                          handleAddImage();
+                        } else if (item.recipeId) {
+                          graphEngine.mutator.addNode(`recipe:${item.recipeId}` as any, { x: 150, y: 150 });
+                        } else if (item.nodeType) {
+                          handleAddNode(item.nodeType);
+                        }
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
 
                 <div className="w-px h-4 bg-border mx-1" />
 
-                <Button size="sm" variant="outline" title="Save (JSON)" onClick={handleSave}>
+                <Button size="sm" variant="outline" title="Save (Cmd+S)" onClick={handleSave}>
                   <Save className="w-4 h-4" />
                 </Button>
 

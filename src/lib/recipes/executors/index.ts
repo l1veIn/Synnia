@@ -8,6 +8,7 @@ import {
     HttpExecutorConfig,
     LlmAgentExecutorConfig,
     MediaExecutorConfig,
+    manifestFieldToDefinition,
 } from '@/types/recipe';
 import { invoke } from '@tauri-apps/api/core';
 import { NodeType } from '@/types/project';
@@ -270,13 +271,8 @@ const createLlmAgentExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor 
                 // Build schema from config or auto-infer
                 const buildSchema = (item: any) => {
                     if (config.nodeConfig?.schema && config.nodeConfig.schema !== 'auto') {
-                        // Use explicit schema
-                        return config.nodeConfig.schema.map((f: any) => ({
-                            id: f.key,
-                            key: f.key,
-                            label: f.label || f.key,
-                            type: f.type || 'string'
-                        }));
+                        // Use explicit schema - convert ManifestField to FieldDefinition
+                        return config.nodeConfig.schema.map(manifestFieldToDefinition);
                     }
                     // Auto-infer from data
                     return Object.keys(item).map(key => ({
@@ -427,12 +423,50 @@ const createMediaExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
 
             // Handle output based on result type
             if (modelResult.data?.type === 'images' && modelResult.data.images) {
-                const galleryImages = modelResult.data.images.map((img, idx) => ({
-                    id: `gen-${Date.now()}-${idx}`,
-                    src: img.url,
-                    starred: false,
-                    caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
-                }));
+                // Import apiClient for image saving
+                const { apiClient } = await import('@/lib/apiClient');
+
+                // Save each image to assets folder
+                const galleryImages = await Promise.all(
+                    modelResult.data.images.map(async (img: { url: string; width?: number; height?: number }, idx: number) => {
+                        const imageId = `gen-${Date.now()}-${idx}`;
+
+                        try {
+                            let result;
+                            if (img.url.startsWith('data:')) {
+                                // Base64 data URI - save directly
+                                result = await apiClient.saveProcessedImage(img.url);
+                            } else if (img.url.startsWith('http')) {
+                                // HTTP URL - download and save
+                                result = await apiClient.downloadAndSaveImage(img.url);
+                            } else {
+                                // Already a local path
+                                return {
+                                    id: imageId,
+                                    src: img.url,
+                                    starred: false,
+                                    caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
+                                };
+                            }
+
+                            return {
+                                id: imageId,
+                                src: result.relativePath,
+                                starred: false,
+                                caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
+                            };
+                        } catch (err) {
+                            console.error('Failed to save image:', err);
+                            // Fallback to original URL if save fails
+                            return {
+                                id: imageId,
+                                src: img.url,
+                                starred: false,
+                                caption: `${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`,
+                            };
+                        }
+                    })
+                );
 
                 const title = outputNode?.titleTemplate
                     ? interpolate(outputNode.titleTemplate, inputs)

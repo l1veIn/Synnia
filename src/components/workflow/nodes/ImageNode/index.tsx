@@ -46,8 +46,11 @@ export const config: NodeConfig = {
     title: 'Image',
     category: 'Asset',
     icon: ImageIcon,
-    description: 'Image content',
-    hidden: true,
+    description: 'Import image from file',
+    fileImport: {
+        accept: 'image/*',
+        assetType: 'image',
+    },
 };
 
 export const behavior = StandardAssetBehavior;

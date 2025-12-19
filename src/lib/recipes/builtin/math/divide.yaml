@@ -1,4 +1,5 @@
 # Division Calculator Recipe
+version: 1
 # Divides A by B (B != 0)
 
 id: math.divide
@@ -31,10 +32,6 @@ inputSchema:
     disabled: true
     connection:
       output: true
-
-outputSchema:
-  type: json
-  description: Result of A / B
 
 executor:
   type: expression

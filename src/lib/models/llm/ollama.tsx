@@ -1,10 +1,11 @@
 // Ollama LLM Plugins (Local)
-// Uses OpenAI-compatible API
+// Unified with ModelPlugin interface
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { LLMPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
+import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
 import { extractJson } from './utils';
+import { DefaultLLMSettings } from './DefaultLLMSettings';
 
 // ============================================================================
 // Shared Ollama Execution Logic
@@ -19,9 +20,8 @@ async function executeOllama(
     const baseUrl = credentials.baseUrl || 'http://localhost:11434';
 
     try {
-        // Ollama uses OpenAI-compatible API
         const ollama = createOpenAI({
-            apiKey: 'ollama', // Ollama doesn't need real API key
+            apiKey: 'ollama',
             baseURL: `${baseUrl}/v1`,
         });
 
@@ -59,39 +59,71 @@ async function executeOllama(
 }
 
 // ============================================================================
-// Llama 3.2 Plugin
+// Factory Function for Ollama Models  
 // ============================================================================
 
-export const llama32: LLMPlugin = {
+interface OllamaModelConfig {
+    id: string;
+    name: string;
+    description: string;
+    hasVision: boolean;
+    contextWindow: number;
+    maxOutputTokens: number;
+}
+
+const createOllamaModel = (config: OllamaModelConfig): ModelPlugin => ({
+    id: config.id,
+    name: config.name,
+    description: config.description,
+    category: config.hasVision ? 'llm-vision' : 'llm-chat',
+    supportedProviders: ['ollama'],
+    provider: 'ollama',
+    isLocal: true,
+    capabilities: config.hasVision
+        ? ['chat', 'vision', 'streaming']
+        : ['chat', 'streaming'],
+    contextWindow: config.contextWindow,
+    maxOutputTokens: config.maxOutputTokens,
+    defaultTemperature: 0.7,
+
+    renderConfig: (props) => (
+        <DefaultLLMSettings
+            {...props}
+            defaultTemperature={0.7}
+            maxOutputTokens={config.maxOutputTokens}
+        />
+    ),
+
+    getInputHandles: config.hasVision
+        ? (cfg) => {
+            if (!cfg?.visionImage) {
+                return [{ id: 'visionImage', dataType: 'image', label: 'Vision Image' } as HandleSpec];
+            }
+            return [];
+        }
+        : undefined,
+
+    execute: (input) => executeOllama(input as LLMExecutionInput, config.id),
+});
+
+// ============================================================================
+// Ollama Model Exports
+// ============================================================================
+
+export const llama32 = createOllamaModel({
     id: 'llama3.2',
     name: 'Llama 3.2',
     description: 'Meta Llama 3.2 (Local)',
-    category: 'llm-chat',
-    supportedProviders: ['ollama'],
-    provider: 'ollama',
-    isLocal: true,
-    capabilities: ['chat', 'streaming'],
+    hasVision: false,
     contextWindow: 128000,
     maxOutputTokens: 4096,
-    defaultTemperature: 0.7,
-    execute: (input) => executeOllama(input, 'llama3.2'),
-};
+});
 
-// ============================================================================
-// Llama 3.2 Vision Plugin
-// ============================================================================
-
-export const llama32Vision: LLMPlugin = {
+export const llama32Vision = createOllamaModel({
     id: 'llama3.2-vision',
     name: 'Llama 3.2 Vision',
     description: 'Meta Llama 3.2 with vision (Local)',
-    category: 'llm-vision',
-    supportedProviders: ['ollama'],
-    provider: 'ollama',
-    isLocal: true,
-    capabilities: ['chat', 'vision', 'streaming'],
+    hasVision: true,
     contextWindow: 128000,
     maxOutputTokens: 4096,
-    defaultTemperature: 0.7,
-    execute: (input) => executeOllama(input, 'llama3.2-vision'),
-};
+});

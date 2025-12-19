@@ -26,8 +26,8 @@ export interface AppSettings {
     // Provider configurations
     providers: Partial<Record<ProviderKey, ProviderConfig>>;
 
-    // Default LLM for utility functions (PromptEnhancer, AutoGenerate)
-    defaultLLM: string;
+    // Default models per category (e.g., 'llm-chat': 'gpt-4o')
+    defaultModels: Partial<Record<string, string>>;
 
     // Settings version for future migrations
     _version: number;
@@ -138,9 +138,20 @@ export const PROVIDER_INFO: ProviderInfo[] = [
 export function createDefaultSettings(): AppSettings {
     return {
         providers: {},
-        defaultLLM: 'gpt-4o-mini',
-        _version: 2,
+        defaultModels: {
+            'llm-chat': 'gpt-4o-mini',
+            'llm-vision': 'gpt-4o',
+        },
+        _version: 3,
     };
+}
+
+// Helper: Get default model for a category
+export function getDefaultModel(
+    settings: AppSettings | null,
+    category: string
+): string | undefined {
+    return settings?.defaultModels?.[category];
 }
 
 // Helper: Check if a provider is configured

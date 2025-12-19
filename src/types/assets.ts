@@ -85,6 +85,7 @@ export interface FieldDefinition {
     defaultValue?: any;
     disabled?: boolean; // Whether the field is read-only
     hidden?: boolean;   // Whether to hide in Inspector (for mixin overrides)
+    options?: Record<string, any>; // Widget-specific options (e.g. category for model-configurator)
 }
 
 export interface FormAssetContent {

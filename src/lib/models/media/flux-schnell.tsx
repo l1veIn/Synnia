@@ -110,8 +110,8 @@ export const fluxSchnell: ModelPlugin = {
     id: 'flux-schnell',
     name: 'Flux Schnell',
     description: 'Ultra-fast image generation',
-    category: 'text-to-image',
+    category: 'image-generation',
     supportedProviders: ['fal'],
     renderConfig: (props) => <FluxSchnellConfig {...props} />,
-    execute,
+    execute: execute as any,
 };

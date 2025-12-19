@@ -1,4 +1,5 @@
 # 命名大师 Agent 配方 (中文)
+version: 1
 # 使用关联度光谱策略生成品牌IP角色命名
 # 中文优化提示词，更适合生成中文名称
 
@@ -71,10 +72,6 @@ inputSchema:
     hidden: true
     default: 4096
 
-outputSchema:
-  type: json
-  description: 包含9个命名选项的数组，每个选项包含名字、口头禅、理由和风格
-
 executor:
   type: llm-agent
   systemPrompt: |
@@ -135,12 +132,26 @@ executor:
       - key: name
         label: 名称
         type: string
+        widget: text
+        placeholder: "角色名"
+        connection:
+          output: true
       - key: tagline
         label: 口号
         type: string
+        widget: text
+        placeholder: "角色的口头禅"
+        connection:
+          output: true
       - key: rationale
         label: 理由
         type: string
+        widget: textarea
+        placeholder: "为什么选择这个名字"
+        connection:
+          output: true
       - key: style
         label: 风格
         type: string
+        widget: text
+        placeholder: "Direct/Metaphor/Abstract"

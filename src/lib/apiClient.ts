@@ -49,6 +49,13 @@ export interface MediaAssetInfo {
     updatedAt: number;
 }
 
+/** Result for a single file in batch import */
+export interface BatchImportResult {
+    sourcePath: string;
+    result: SaveImageResult | null;
+    error: string | null;
+}
+
 // ============================================
 // Environment Detection
 // ============================================
@@ -161,6 +168,20 @@ export const apiClient = {
      */
     getMediaAssets: (): Promise<MediaAssetInfo[]> =>
         apiClient.invoke('get_media_assets', {}),
+
+    /**
+     * Download an image from a URL and save it to the assets folder.
+     * Used for AI-generated images returned as HTTP URLs.
+     */
+    downloadAndSaveImage: (url: string, filename?: string): Promise<SaveImageResult> =>
+        apiClient.invoke('download_and_save_image', { url, filename }),
+
+    /**
+     * Batch import multiple image files from file system.
+     * Returns results for each file, including errors.
+     */
+    batchImportImages: (filePaths: string[]): Promise<BatchImportResult[]> =>
+        apiClient.invoke('batch_import_images', { filePaths }),
 
     // ========================================
     // Utility Commands

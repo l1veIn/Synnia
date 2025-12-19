@@ -111,6 +111,8 @@ pub fn run() {
             // Asset Commands
             commands::asset::import_file,
             commands::asset::save_processed_image,
+            commands::asset::download_and_save_image,
+            commands::asset::batch_import_images,
             commands::asset::get_media_assets,
 
             // History Commands

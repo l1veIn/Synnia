@@ -1,4 +1,5 @@
 # 艺术总监 Agent 配方 (中文版)
+version: 1
 # 通过合并模板、风格和视觉DNA生成可执行的图像提示词
 # Soulmate Protocol v1.0 - 第三阶段：蓝图
 
@@ -61,10 +62,6 @@ inputSchema:
   - key: maxTokens
     hidden: true
     default: 8192
-
-outputSchema:
-  type: json
-  description: 包含最终提示词的视觉蓝图表
 
 executor:
   type: llm-agent
@@ -143,13 +140,19 @@ executor:
       - key: assetName
         label: 资产
         type: string
+        widget: text
       - key: finalPrompt
         label: 提示词
         type: string
-        width: 400
+        widget: textarea
+        placeholder: "AI 图像生成提示词..."
+        connection:
+          output: true
       - key: resolution
         label: 分辨率
         type: string
+        widget: text
       - key: aspectRatio
         label: 宽高比
         type: string
+        widget: text

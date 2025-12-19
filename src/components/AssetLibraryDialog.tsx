@@ -15,8 +15,9 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Image, FileImage, Search, ArrowLeft, MapPin, Trash2, Loader2, FolderOpen } from 'lucide-react';
+import { Image, FileImage, Search, ArrowLeft, MapPin, Trash2, Loader2, FolderOpen, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 interface AssetLibraryDialogProps {
     open: boolean;
@@ -193,9 +194,41 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                             <span className="text-xs text-muted-foreground">
                                 {filteredAssets.length} assets
                             </span>
-                            <Button size="sm" variant="outline" onClick={loadAssets}>
-                                Refresh
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={async () => {
+                                        const selected = await openDialog({
+                                            multiple: true,
+                                            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+                                        });
+                                        if (selected && Array.isArray(selected) && selected.length > 0) {
+                                            const toastId = toast.loading(`Importing ${selected.length} images...`);
+                                            try {
+                                                const results = await apiClient.batchImportImages(selected);
+                                                const succeeded = results.filter(r => r.result).length;
+                                                const failed = results.filter(r => r.error).length;
+                                                if (failed > 0) {
+                                                    toast.warning(`Imported ${succeeded}, failed ${failed}`, { id: toastId });
+                                                } else {
+                                                    toast.success(`Imported ${succeeded} images`, { id: toastId });
+                                                }
+                                                loadAssets();
+                                            } catch (e) {
+                                                console.error('Batch import failed:', e);
+                                                toast.error('Import failed', { id: toastId });
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <Upload className="w-3.5 h-3.5 mr-1" />
+                                    Import...
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={loadAssets}>
+                                    Refresh
+                                </Button>
+                            </div>
                         </div>
                     </div>
 

@@ -49,7 +49,16 @@ export function useRunRecipe() {
             // Resolve dynamic values from connections using PortResolver
             const dynamicValues = collectInputValues(nodeId);
 
-            const effectiveValues = { ...staticValues, ...dynamicValues };
+            // Apply default values from schema
+            const defaultValues: Record<string, any> = {};
+            for (const field of recipe.inputSchema) {
+                if (field.defaultValue !== undefined) {
+                    defaultValues[field.key] = field.defaultValue;
+                }
+            }
+
+            // Merge: defaults < static < dynamic (later values override earlier)
+            const effectiveValues = { ...defaultValues, ...staticValues, ...dynamicValues };
 
             // --- Validation ---
             for (const field of recipe.inputSchema) {
@@ -95,11 +104,76 @@ export function useRunRecipe() {
 
             // --- Handle createNodes (if recipe wants to create product nodes) ---
             if (result.createNodes && result.createNodes.length > 0) {
-                const freshNode = useWorkflowStore.getState().nodes.find(n => n.id === nodeId);
+                const freshStore = useWorkflowStore.getState();
+                const freshNode = freshStore.nodes.find(n => n.id === nodeId);
                 if (!freshNode) return;
 
+                // Check if there's an existing product node connected via Output Edge
+                const existingOutputEdge = freshStore.edges.find(e =>
+                    e.source === nodeId &&
+                    e.sourceHandle === 'product' &&
+                    e.data?.edgeType === 'output'
+                );
+
+                const existingProductNode = existingOutputEdge
+                    ? freshStore.nodes.find(n => n.id === existingOutputEdge.target)
+                    : null;
+
+                // If there's an existing product node, update/append instead of creating new
+                if (existingProductNode && result.createNodes.length === 1) {
+                    const nodeSpec = result.createNodes[0];
+                    const specData = nodeSpec.data as any;
+                    const existingAsset = freshStore.assets[existingProductNode.data.assetId as string];
+
+                    // Check if it's a collection type (Gallery, Table, Selector)
+                    const isCollection = [NodeType.GALLERY, NodeType.TABLE, NodeType.SELECTOR].includes(existingProductNode.type as NodeType);
+
+                    if (isCollection && existingAsset?.content && specData.content) {
+                        // Append new items to the top of the collection
+                        const existingContent = existingAsset.content as any;
+                        const newContent = specData.content as any;
+
+                        let mergedContent: any;
+
+                        if (existingProductNode.type === NodeType.GALLERY) {
+                            // Gallery: prepend new images
+                            mergedContent = {
+                                ...existingContent,
+                                images: [...(newContent.images || []), ...(existingContent.images || [])],
+                            };
+                        } else if (existingProductNode.type === NodeType.TABLE) {
+                            // Table: prepend new rows
+                            mergedContent = {
+                                ...existingContent,
+                                rows: [...(newContent.rows || []), ...(existingContent.rows || [])],
+                            };
+                        } else if (existingProductNode.type === NodeType.SELECTOR) {
+                            // Selector: prepend new options
+                            mergedContent = {
+                                ...existingContent,
+                                options: [...(newContent.options || []), ...(existingContent.options || [])],
+                            };
+                        }
+
+                        if (mergedContent) {
+                            graphEngine.assets.update(existingAsset.id, mergedContent);
+                            console.log(`📥 [RunRecipe] Appended to existing ${existingProductNode.type}:`, mergedContent);
+                        }
+                    } else {
+                        // Non-collection: replace content entirely
+                        if (existingAsset && specData.content) {
+                            graphEngine.assets.update(existingAsset.id, specData.content);
+                            console.log(`🔄 [RunRecipe] Updated existing ${existingProductNode.type} content`);
+                        }
+                    }
+
+                    // Done - no new nodes needed
+                    return;
+                }
+
+                // --- Create new nodes (original logic for first-time execution) ---
                 let prevNodeId: string | null = null;
-                const NODE_HEIGHT = 120; // Estimated height for docked nodes
+                const NODE_HEIGHT = 120;
 
                 for (let i = 0; i < result.createNodes.length; i++) {
                     const nodeSpec = result.createNodes[i];
@@ -117,7 +191,6 @@ export function useRunRecipe() {
                     let dockedToId: string | undefined;
                     if (nodeSpec.dockedTo === '$prev' && prevNodeId) {
                         dockedToId = prevNodeId;
-                        // Position below the previous node
                         const prevNode = useWorkflowStore.getState().nodes.find(n => n.id === prevNodeId);
                         if (prevNode) {
                             targetPos = {
@@ -150,12 +223,10 @@ export function useRunRecipe() {
                         });
                     } else if (i === 0) {
                         // Default: connect first node to recipe's 'product' output with Output Edge
-                        // 1. Set hasProductHandle on target node
                         graphEngine.updateNode(newNodeId, {
                             data: { hasProductHandle: true }
                         });
 
-                        // 2. Create Output Edge (type: 'output')
                         graphEngine.connectOutputEdge({
                             source: nodeId,
                             sourceHandle: 'product',

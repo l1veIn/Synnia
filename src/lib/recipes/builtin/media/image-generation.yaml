@@ -1,8 +1,9 @@
-# Text to Image Recipe
+# Image Generation Recipe
+version: 1
 # Generate images from text prompts using configured image provider
 
-id: media.text-to-image
-name: Text to Image
+id: media.image-generation
+name: Image Generation
 description: Generate images from text prompts
 category: Media
 icon: Image
@@ -27,16 +28,13 @@ inputSchema:
     label: Model & Settings
     type: object
     widget: model-configurator
-    filterRecipeType: text-to-image
+    options:
+      category: image-generation
     required: true
-
-outputSchema:
-  type: json
-  description: Generated images array
 
 executor:
   type: media
-  mode: text-to-image
+  mode: image-generation
   outputNode:
     type: gallery
     titleTemplate: "Generated: {{prompt}}"

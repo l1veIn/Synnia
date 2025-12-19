@@ -1,10 +1,11 @@
 // OpenAI LLM Plugins
-// GPT-4o and GPT-4o-mini
+// Unified with ModelPlugin interface
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { LLMPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
+import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
 import { extractJson } from './utils';
+import { DefaultLLMSettings } from './DefaultLLMSettings';
 
 // ============================================================================
 // Shared OpenAI Execution Logic
@@ -28,7 +29,6 @@ async function executeOpenAI(
 
         const model = openai(modelId);
 
-        // Build prompt
         let prompt = userPrompt;
         if (systemPrompt) {
             prompt = `System: ${systemPrompt}\n\nUser: ${userPrompt}`;
@@ -49,12 +49,7 @@ async function executeOpenAI(
             if (success) {
                 return { success: true, text: responseText, data, wasTruncated };
             } else {
-                return {
-                    success: false,
-                    text: responseText,
-                    error: 'Failed to parse JSON from response',
-                    wasTruncated,
-                };
+                return { success: false, text: responseText, error: 'Failed to parse JSON', wasTruncated };
             }
         }
 
@@ -66,37 +61,70 @@ async function executeOpenAI(
 }
 
 // ============================================================================
-// GPT-4o Plugin
+// Factory Function for OpenAI Models
 // ============================================================================
 
-export const gpt4o: LLMPlugin = {
+interface OpenAIModelConfig {
+    id: string;
+    name: string;
+    description: string;
+    hasVision: boolean;
+    contextWindow: number;
+    maxOutputTokens: number;
+}
+
+const createOpenAIModel = (config: OpenAIModelConfig): ModelPlugin => ({
+    id: config.id,
+    name: config.name,
+    description: config.description,
+    category: config.hasVision ? 'llm-vision' : 'llm-chat',
+    supportedProviders: ['openai'],
+    provider: 'openai',
+    capabilities: config.hasVision
+        ? ['chat', 'vision', 'function-calling', 'json-mode', 'streaming']
+        : ['chat', 'function-calling', 'json-mode', 'streaming'],
+    contextWindow: config.contextWindow,
+    maxOutputTokens: config.maxOutputTokens,
+    defaultTemperature: 0.7,
+
+    renderConfig: (props) => (
+        <DefaultLLMSettings
+            {...props}
+            defaultTemperature={0.7}
+            maxOutputTokens={config.maxOutputTokens}
+        />
+    ),
+
+    getInputHandles: config.hasVision
+        ? (cfg) => {
+            if (!cfg?.visionImage) {
+                return [{ id: 'visionImage', dataType: 'image', label: 'Vision Image' } as HandleSpec];
+            }
+            return [];
+        }
+        : undefined,
+
+    execute: (input) => executeOpenAI(input as LLMExecutionInput, config.id),
+});
+
+// ============================================================================
+// OpenAI Model Exports
+// ============================================================================
+
+export const gpt4o = createOpenAIModel({
     id: 'gpt-4o',
     name: 'GPT-4o',
     description: 'Most capable GPT-4 model with vision support',
-    category: 'llm-vision',
-    supportedProviders: ['openai'],
-    provider: 'openai',
-    capabilities: ['chat', 'vision', 'function-calling', 'json-mode', 'streaming'],
+    hasVision: true,
     contextWindow: 128000,
     maxOutputTokens: 16384,
-    defaultTemperature: 0.7,
-    execute: (input) => executeOpenAI(input, 'gpt-4o'),
-};
+});
 
-// ============================================================================
-// GPT-4o-mini Plugin
-// ============================================================================
-
-export const gpt4oMini: LLMPlugin = {
+export const gpt4oMini = createOpenAIModel({
     id: 'gpt-4o-mini',
     name: 'GPT-4o Mini',
     description: 'Fast and affordable GPT-4o variant',
-    category: 'llm-chat',
-    supportedProviders: ['openai'],
-    provider: 'openai',
-    capabilities: ['chat', 'vision', 'function-calling', 'json-mode', 'streaming'],
+    hasVision: true,  // GPT-4o-mini also supports vision
     contextWindow: 128000,
     maxOutputTokens: 16384,
-    defaultTemperature: 0.7,
-    execute: (input) => executeOpenAI(input, 'gpt-4o-mini'),
-};
+});

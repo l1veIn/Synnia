@@ -303,8 +303,22 @@ export const nanoBananaPro: ModelPlugin = {
     id: 'nano-banana-pro',
     name: 'Nano Banana Pro',
     description: 'Fast image generation with reference image support (FAL / Google Gemini)',
-    category: 'text-to-image',
+    category: 'image-generation',
     supportedProviders: ['fal', 'google'],
     renderConfig: (props) => <NanoBananaProConfig {...props} />,
-    execute,
+
+    // Declare optional reference image input
+    getInputHandles: (config) => {
+        // Only show handle if user hasn't already selected a reference image in config
+        if (!config?.referenceImage?.url && !config?.referenceImage?.base64) {
+            return [{
+                id: 'referenceImage',
+                dataType: 'image',
+                label: 'Reference Image',
+            }];
+        }
+        return [];
+    },
+
+    execute: execute as any,
 };

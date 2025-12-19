@@ -1,4 +1,5 @@
 # LLM Call Recipe
+version: 1
 # Basic LLM invocation with model selection and parameters
 
 id: llm.call
@@ -30,12 +31,10 @@ inputSchema:
   - key: llmConfig
     label: Model & Settings
     type: object
-    widget: llm-configurator
+    widget: model-configurator
+    options:
+      category: llm-chat
     required: true
-
-outputSchema:
-  type: text
-  description: LLM response text
 
 executor:
   type: llm-agent

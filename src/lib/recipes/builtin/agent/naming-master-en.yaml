@@ -1,4 +1,5 @@
 # Naming Master Agent Recipe (English)
+version: 1
 # Generates brand IP character names using the Relevance Spectrum strategy
 # English-optimized prompts for better English name generation
 
@@ -71,10 +72,6 @@ inputSchema:
     hidden: true
     default: 4096
 
-outputSchema:
-  type: json
-  description: Array of 9 naming options with name, tagline, rationale, and style
-
 executor:
   type: llm-agent
   systemPrompt: |
@@ -123,6 +120,34 @@ executor:
   parseAs: json
   createNodes: true
   nodeConfig:
-    type: json
-    titleTemplate: "#{{index}}: {{name}}"
-    collapsed: true
+    type: selector
+    selectorMode: single
+    titleTemplate: "Naming Options ({{count}} items)"
+    collapsed: false
+    schema:
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        placeholder: "Character name"
+        connection:
+          output: true
+      - key: tagline
+        label: Tagline
+        type: string
+        widget: text
+        placeholder: "Character's catchphrase"
+        connection:
+          output: true
+      - key: rationale
+        label: Rationale
+        type: string
+        widget: textarea
+        placeholder: "Why this name fits"
+        connection:
+          output: true
+      - key: style
+        label: Style
+        type: string
+        widget: text
+        placeholder: "Direct/Metaphor/Abstract"

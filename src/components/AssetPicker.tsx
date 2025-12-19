@@ -15,8 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Image, Search, Loader2, FolderOpen, Check } from 'lucide-react';
+import { Image, Search, Loader2, FolderOpen, Check, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 interface AssetPickerProps {
     open: boolean;
@@ -122,9 +123,9 @@ export const AssetPicker = ({
                 </DialogHeader>
 
                 <div className="flex-1 flex flex-col min-h-0">
-                    {/* Search */}
-                    <div className="p-3 border-b shrink-0">
-                        <div className="relative">
+                    {/* Search + Import */}
+                    <div className="p-3 border-b shrink-0 flex gap-2">
+                        <div className="relative flex-1">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 placeholder="Search assets..."
@@ -133,6 +134,36 @@ export const AssetPicker = ({
                                 className="pl-9 h-9"
                             />
                         </div>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                                const selected = await openDialog({
+                                    multiple: true,
+                                    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+                                });
+                                if (selected && Array.isArray(selected) && selected.length > 0) {
+                                    const toastId = toast.loading(`Importing ${selected.length} images...`);
+                                    try {
+                                        const results = await apiClient.batchImportImages(selected);
+                                        const succeeded = results.filter(r => r.result).length;
+                                        const failed = results.filter(r => r.error).length;
+                                        if (failed > 0) {
+                                            toast.warning(`Imported ${succeeded}, failed ${failed}`, { id: toastId });
+                                        } else {
+                                            toast.success(`Imported ${succeeded} images`, { id: toastId });
+                                        }
+                                        loadAssets();
+                                    } catch (e) {
+                                        console.error('Batch import failed:', e);
+                                        toast.error('Import failed', { id: toastId });
+                                    }
+                                }
+                            }}
+                        >
+                            <Upload className="w-3.5 h-3.5 mr-1" />
+                            Import
+                        </Button>
                     </div>
 
                     {/* Asset Grid */}

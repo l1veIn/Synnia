@@ -1,4 +1,5 @@
 # Start-End Frame Recipe
+version: 1
 # Generate video with specified start and end frames
 
 id: media.start-end-frame
@@ -39,10 +40,6 @@ inputSchema:
     widget: model-configurator
     filterRecipeType: start-end-frame
     required: true
-
-outputSchema:
-  type: json
-  description: Generated video
 
 executor:
   type: media

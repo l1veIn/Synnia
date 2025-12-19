@@ -3,7 +3,7 @@
 
 import { Link2, Check, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WidgetDefinition, WidgetProps } from './types';
+import { WidgetDefinition, WidgetProps } from '../lib/types';
 
 // ============================================================================
 // Inspector Component (render)

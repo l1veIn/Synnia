@@ -113,7 +113,7 @@ function ProviderInput({
 
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
-  const { settings, loading, updateProvider, setDefaultLLM, refresh } = useSettings();
+  const { settings, loading, updateProvider, setDefaultModel, refresh } = useSettings();
 
   const handleProviderChange = async (provider: ProviderKey, config: { apiKey?: string; baseUrl?: string }) => {
     try {
@@ -129,7 +129,7 @@ export function SettingsDialog() {
 
   const handleDefaultLLMChange = async (model: string) => {
     try {
-      await setDefaultLLM(model);
+      await setDefaultModel('llm-chat', model);
       toast.success("Default LLM updated");
     } catch (e: any) {
       toast.error(`Failed to save: ${e.message}`);
@@ -139,7 +139,10 @@ export function SettingsDialog() {
   // Filter available default LLM options based on configured providers
   const availableLLMOptions = useMemo(() => {
     const allModels = getAllLLMModels();
-    return allModels.filter(m => isProviderConfigured(settings, m.provider));
+    return allModels.filter(m => {
+      const provider = m.provider || m.supportedProviders[0];
+      return provider ? isProviderConfigured(settings, provider) : false;
+    });
   }, [settings]);
 
   const cloudProviders = PROVIDER_INFO.filter(p => p.type === 'cloud');
@@ -220,7 +223,7 @@ export function SettingsDialog() {
             Used for utility functions like Prompt Enhancer
           </p>
           <Select
-            value={settings?.defaultLLM || 'gpt-4o-mini'}
+            value={settings?.defaultModels?.['llm-chat'] || 'gpt-4o-mini'}
             onValueChange={handleDefaultLLMChange}
             disabled={loading}
           >

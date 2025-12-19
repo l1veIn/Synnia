@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { NodeProps, Position, NodeResizer, useNodeConnections } from '@xyflow/react';
+import { NodeProps, Position, NodeResizer } from '@xyflow/react';
 import { SynniaNode, NodeType } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
@@ -13,6 +13,7 @@ import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { JSONNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { portRegistry } from '@/lib/engine/ports';
+import { RecipeFieldRow } from '@/components/workflow/widgets';
 
 // --- Register Ports ---
 portRegistry.register(NodeType.JSON, {
@@ -86,71 +87,6 @@ export const behavior = StandardAssetBehavior;
 
 export { JSONNode as Node, JSONNodeInspector as Inspector };
 
-// --- Field Row with Connection Support ---
-const JSONFieldRow = ({
-    field,
-    value,
-}: {
-    field: FieldDefinition;
-    value: any;
-}) => {
-    const connections = useNodeConnections({
-        handleType: 'target',
-        handleId: field.key,
-    });
-    const isConnected = connections.length > 0;
-
-    // Determine if handles should be shown
-    const conn = field.connection;
-    const hasInputHandle = conn?.input === true ||
-        (typeof conn?.input === 'object' && conn.input.enabled) ||
-        field.widget === 'json-input' ||
-        field.type === 'object' ||
-        conn?.enabled;
-    const hasOutputHandle = conn?.output === true ||
-        (typeof conn?.output === 'object' && conn.output.enabled);
-
-    const displayValue = value === undefined || value === '' || value === null
-        ? <span className="text-muted-foreground/50">-</span>
-        : typeof value === 'object'
-            ? <span className="text-blue-500 text-[10px]">{JSON.stringify(value).slice(0, 30)}...</span>
-            : String(value);
-
-    return (
-        <div className="relative flex items-center justify-between gap-2 min-h-[20px]">
-            {/* Input Handle (Left) */}
-            {hasInputHandle && (
-                <NodePort.Input id={field.key} connected={isConnected} />
-            )}
-
-            <span
-                className="shrink-0 max-w-[80px] truncate text-muted-foreground"
-                title={field.label || field.key}
-            >
-                {field.label || field.key}:
-            </span>
-
-            {isConnected ? (
-                <span className="text-blue-500 text-[10px] italic font-medium bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                    Linked
-                </span>
-            ) : (
-                <span
-                    className="text-foreground truncate font-medium bg-muted/50 px-1.5 py-0.5 rounded max-w-[120px]"
-                    title={String(value)}
-                >
-                    {displayValue}
-                </span>
-            )}
-
-            {/* Output Handle (Right) */}
-            {hasOutputHandle && (
-                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key} `} />
-            )}
-        </div>
-    );
-};
-
 // --- Main Node ---
 export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
@@ -222,7 +158,7 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                     <div className={cn("space-y-1.5 pb-2 px-5", state.isCollapsed && "py-1")}>
                         {fieldsToShow.map((field: FieldDefinition) => {
                             const val = values?.[field.key];
-                            return <JSONFieldRow key={field.id} field={field} value={val} />;
+                            return <RecipeFieldRow key={field.id} field={field} value={val} />;
                         })}
                     </div>
                 </div>

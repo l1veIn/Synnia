@@ -28,4 +28,7 @@ widgetRegistry.register(TextAreaWidget);
 widgetRegistry.register(JSONInputWidget);
 widgetRegistry.register(AspectRatioSelectorWidget);
 
+// Re-export ImagePicker for model plugins that render it directly
+export { ImagePicker } from './ImagePicker';
+
 console.log('[Widgets] Registry initialized:', widgetRegistry.getAll().map(w => w.id).join(', '));

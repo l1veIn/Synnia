@@ -7,37 +7,13 @@ import { cn } from '@/lib/utils';
 import { WidgetDefinition, WidgetProps } from './types';
 
 // ============================================================================
-// Legacy Interface (for backward compatibility with FormRenderer)
+// Widget Component
 // ============================================================================
 
-interface TextInputProps {
-    value?: string | number;
-    onChange: (value: string | number) => void;
-    disabled?: boolean;
-    placeholder?: string;
-    isConnected?: boolean;
-    connectedLabel?: string;
-    type?: 'text' | 'number' | 'password' | 'email';
-    min?: number;
-    max?: number;
-    step?: number;
-    className?: string;
-}
+function WidgetComponent({ value, onChange, disabled, field }: WidgetProps) {
+    const options = (field as any)?.options || {};
+    const { placeholder, type = 'text', min, max, step, isConnected, connectedLabel = 'Connected', className } = options;
 
-// Original component with legacy interface
-export function TextInput({
-    value,
-    onChange,
-    disabled,
-    placeholder,
-    isConnected,
-    connectedLabel = 'Connected',
-    type = 'text',
-    min,
-    max,
-    step,
-    className
-}: TextInputProps) {
     // When connected, show connected state
     if (isConnected) {
         return (
@@ -73,23 +49,12 @@ export function TextInput({
 }
 
 // ============================================================================
-// Widget Definition (for registry)
+// Widget Definition Export
 // ============================================================================
-
-function WidgetComponent({ value, onChange, disabled, field }: WidgetProps) {
-    const options = (field as any)?.options || {};
-    return (
-        <TextInput
-            value={value}
-            onChange={onChange}
-            disabled={disabled}
-            {...options}
-        />
-    );
-}
 
 export const TextInputWidget: WidgetDefinition = {
     id: 'text-input',
     render: (props) => <WidgetComponent {...props} />,
 };
+
 

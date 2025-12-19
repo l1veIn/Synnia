@@ -1,7 +1,10 @@
+// TextArea Widget
+// Multi-line text input with AI enhancement and fullscreen editor
+
 import { useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, Link, Maximize2 } from 'lucide-react';
+import { Wand2, Loader2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { callLLM } from '@/lib/models/llm';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
@@ -12,20 +15,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-interface TextAreaProps {
-    value?: string;
-    onChange: (value: string) => void;
-    disabled?: boolean;
-    placeholder?: string;
-    isConnected?: boolean;
-    connectedLabel?: string;
-    showEnhance?: boolean;
-    enhancePrompt?: string;
-    showEditor?: boolean;
-    editorMode?: 'plain' | 'markdown';
-    className?: string;
-}
+import { WidgetDefinition, WidgetProps } from './types';
 
 const DEFAULT_ENHANCE_PROMPT = `You are an expert prompt engineer for AI image and video generation.
 Your task is to enhance the user's prompt to be more detailed, evocative, and effective for AI generation.
@@ -37,35 +27,17 @@ Rules:
 - Output ONLY the enhanced prompt, no explanations or meta-commentary
 - Keep it concise but rich (ideally under 200 words)`;
 
-export function TextArea({
-    value,
-    onChange,
-    disabled,
-    placeholder,
-    isConnected,
-    connectedLabel = 'Connected',
-    showEnhance = true,
-    enhancePrompt = DEFAULT_ENHANCE_PROMPT,
-    showEditor = true,
-    editorMode = 'plain',
-    className
-}: TextAreaProps) {
+// ============================================================================
+// Inspector Component (render)
+// ============================================================================
+
+function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
+    const options = (field as any)?.options || {};
+    const { placeholder, showEnhance = true, enhancePrompt = DEFAULT_ENHANCE_PROMPT, showEditor = true, editorMode = 'plain' } = options;
+
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editorValue, setEditorValue] = useState('');
-
-    // When connected, show connected state
-    if (isConnected) {
-        return (
-            <div className={cn(
-                "flex items-center gap-2 min-h-[80px] px-3 py-2 rounded-md border border-blue-500/30 bg-blue-500/5",
-                className
-            )}>
-                <Link className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs text-blue-500 font-medium">{connectedLabel}</span>
-            </div>
-        );
-    }
 
     const handleEnhance = useCallback(async () => {
         if (!value?.trim() || isEnhancing) return;
@@ -103,7 +75,7 @@ export function TextArea({
 
     return (
         <>
-            <div className={cn("relative", className)}>
+            <div className="relative">
                 <Textarea
                     className="text-xs min-h-[80px] pr-16 resize-none"
                     value={value || ''}
@@ -201,3 +173,15 @@ export function TextArea({
         </>
     );
 }
+
+// ============================================================================
+// Widget Definition Export
+// ============================================================================
+
+export const TextAreaWidget: WidgetDefinition = {
+    id: 'textarea',
+    render: (props) => <InspectorComponent {...props} />,
+};
+
+// Backward compatibility export
+export { InspectorComponent as TextArea };

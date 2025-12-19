@@ -1,3 +1,6 @@
+// LLMConfigurator Widget
+// Self-contained widget with all forms: Inspector, FieldRow, Handle declarations
+
 import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Brain, Thermometer, Hash, FileJson } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,22 +31,22 @@ import {
     LLMModelDefinition,
     LLMCapability
 } from '@/lib/models/llm';
+import { WidgetDefinition, WidgetProps, HandleSpec } from './types';
 
-interface LLMConfiguratorProps {
-    value?: LLMConfigValue;
-    onChange: (value: LLMConfigValue) => void;
-    disabled?: boolean;
-    filterCapability?: LLMCapability;  // Only show models with this capability
-}
+// ============================================================================
+// Types (re-export for backward compatibility)
+// ============================================================================
 
-export function LLMConfigurator({
-    value,
-    onChange,
-    disabled,
-    filterCapability
-}: LLMConfiguratorProps) {
+export type { LLMConfigValue };
+
+// ============================================================================
+// Inspector Component (render)
+// ============================================================================
+
+function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
     const [open, setOpen] = useState(false);
     const { settings } = useSettings();
+    const filterCapability = (field as any)?.options?.filterCapability as LLMCapability | undefined;
 
     // Get available models (optionally filtered by capability)
     const allModels = useMemo(() => {
@@ -73,7 +76,6 @@ export function LLMConfigurator({
     // Auto-select default LLM from settings when no value is provided
     useEffect(() => {
         if (!value?.modelId && settings?.defaultLLM && availableModels.length > 0) {
-            // Try to find the default model in available models
             const defaultModel = availableModels.find(m => m.id === settings.defaultLLM);
             if (defaultModel) {
                 onChange({
@@ -84,7 +86,6 @@ export function LLMConfigurator({
                     jsonMode: false,
                 });
             } else if (availableModels.length > 0) {
-                // Fall back to first available model
                 const firstModel = availableModels[0];
                 onChange({
                     modelId: firstModel.id,
@@ -296,3 +297,40 @@ export function LLMConfigurator({
         </div>
     );
 }
+
+// ============================================================================
+// Handle Declarations (getInputHandles)
+// ============================================================================
+
+function getInputHandles(value: any): HandleSpec[] {
+    if (!value?.modelId) return [];
+
+    const model = getLLMModel(value.modelId);
+    if (!model) return [];
+
+    const handles: HandleSpec[] = [];
+
+    // If model supports vision, add image input handle
+    if (model.capabilities.includes('vision')) {
+        handles.push({
+            id: 'visionImage',
+            dataType: 'image',
+            label: 'Vision Image',
+        });
+    }
+
+    return handles;
+}
+
+// ============================================================================
+// Widget Definition Export
+// ============================================================================
+
+export const LLMConfiguratorWidget: WidgetDefinition = {
+    id: 'llm-configurator',
+    render: (props) => <InspectorComponent {...props} />,
+    getInputHandles,
+};
+
+// Backward compatibility export
+export { InspectorComponent as LLMConfigurator };

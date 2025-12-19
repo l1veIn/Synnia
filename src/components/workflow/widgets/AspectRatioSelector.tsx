@@ -1,3 +1,6 @@
+// AspectRatioSelector Widget
+// Visual aspect ratio picker with toggle group
+
 import { cn } from '@/lib/utils';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
@@ -6,12 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-interface AspectRatioSelectorProps {
-    value?: string;
-    onChange: (value: string) => void;
-    disabled?: boolean;
-}
+import { WidgetDefinition, WidgetProps } from './types';
 
 // Visual representation of ratios
 const RATIOS = [
@@ -23,7 +21,11 @@ const RATIOS = [
     { id: '21:9', label: 'Cinema (21:9)', w: 26, h: 11 },
 ];
 
-export function AspectRatioSelector({ value, onChange, disabled }: AspectRatioSelectorProps) {
+// ============================================================================
+// Inspector Component (render)
+// ============================================================================
+
+function InspectorComponent({ value, onChange, disabled }: WidgetProps) {
     const currentValue = value || '1:1';
 
     return (
@@ -69,3 +71,15 @@ export function AspectRatioSelector({ value, onChange, disabled }: AspectRatioSe
         </ToggleGroup>
     );
 }
+
+// ============================================================================
+// Widget Definition Export
+// ============================================================================
+
+export const AspectRatioSelectorWidget: WidgetDefinition = {
+    id: 'aspect-ratio',
+    render: (props) => <InspectorComponent {...props} />,
+};
+
+// Backward compatibility export
+export { InspectorComponent as AspectRatioSelector };

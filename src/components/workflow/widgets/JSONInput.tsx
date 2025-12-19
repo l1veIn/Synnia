@@ -1,29 +1,25 @@
 // JSONInput Widget
-// Visual display for json-input fields showing expected keys and connection status
+// Visual display for JSON input fields showing expected keys and connection status
 
 import { Link2, Check, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { WidgetDefinition, WidgetProps } from './types';
 
-interface JSONInputProps {
-    value?: any;
-    requiredKeys?: string[];
-    isConnected?: boolean;
-    connectedLabel?: string;
-}
+// ============================================================================
+// Inspector Component (render)
+// ============================================================================
 
-export function JSONInput({
-    value,
-    requiredKeys = [],
-    isConnected = false,
-    connectedLabel = 'Connected'
-}: JSONInputProps) {
+function InspectorComponent({ value, disabled, field }: WidgetProps) {
+    const options = (field as any)?.options || {};
+    const { requiredKeys = [], isConnected = false, connectedLabel = 'Connected' } = options;
+
     // Parse value to check keys
     const connectedValue = isConnected && value && typeof value === 'object' ? value : null;
     const presentKeys = connectedValue ? Object.keys(connectedValue) : [];
     const hasExpectedKeys = requiredKeys.length > 0;
 
     // Calculate validation status
-    const validationStatus = requiredKeys.map(key => {
+    const validationStatus = requiredKeys.map((key: string) => {
         const isPresent = presentKeys.includes(key);
         const hasValue = connectedValue &&
             connectedValue[key] !== undefined &&
@@ -32,8 +28,8 @@ export function JSONInput({
         return { key, isPresent, hasValue };
     });
 
-    const allValid = validationStatus.every(s => s.hasValue);
-    const someValid = validationStatus.some(s => s.hasValue);
+    const allValid = validationStatus.every((s: { hasValue: boolean }) => s.hasValue);
+    const someValid = validationStatus.some((s: { hasValue: boolean }) => s.hasValue);
 
     // If connected, show connection status with validation
     if (isConnected) {
@@ -64,7 +60,7 @@ export function JSONInput({
                 {/* Expected Keys with Validation */}
                 {hasExpectedKeys && (
                     <div className="flex flex-wrap gap-1.5">
-                        {validationStatus.map(({ key, hasValue }) => (
+                        {validationStatus.map(({ key, hasValue }: { key: string; hasValue: boolean }) => (
                             <span
                                 key={key}
                                 className={cn(
@@ -107,7 +103,7 @@ export function JSONInput({
                 <div className="space-y-1">
                     <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Expected Keys</p>
                     <div className="flex flex-wrap gap-1">
-                        {requiredKeys.map(key => (
+                        {requiredKeys.map((key: string) => (
                             <span
                                 key={key}
                                 className="inline-flex items-center px-2 py-0.5 rounded bg-muted text-[10px] font-mono text-muted-foreground"
@@ -121,3 +117,15 @@ export function JSONInput({
         </div>
     );
 }
+
+// ============================================================================
+// Widget Definition Export
+// ============================================================================
+
+export const JSONInputWidget: WidgetDefinition = {
+    id: 'json-input',
+    render: (props) => <InspectorComponent {...props} />,
+};
+
+// Backward compatibility export
+export { InspectorComponent as JSONInput };

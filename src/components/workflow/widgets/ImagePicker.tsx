@@ -1,8 +1,8 @@
 // ImagePicker Widget
-// Unified image input: URL, upload, asset library, or node connection
+// Self-contained widget: URL, upload, asset library, or node connection
 
 import { useState, useRef, useCallback } from 'react';
-import { ImageIcon, Link2, Upload, FolderOpen, X, Image as ImagePreview } from 'lucide-react';
+import { ImageIcon, Link2, Upload, FolderOpen, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,22 +13,19 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { ImagePickerValue, fileToBase64, isValidUrl } from '@/lib/utils/image';
+import { WidgetDefinition, WidgetProps } from './types';
 
-interface ImagePickerProps {
-    value?: ImagePickerValue;
-    onChange: (value: ImagePickerValue | undefined) => void;
-    disabled?: boolean;
-    isConnected?: boolean;
-    connectedLabel?: string;
-}
+// ============================================================================
+// Types (re-export for backward compatibility)
+// ============================================================================
 
-export function ImagePicker({
-    value,
-    onChange,
-    disabled,
-    isConnected,
-    connectedLabel = 'Connected to node'
-}: ImagePickerProps) {
+export type { ImagePickerValue };
+
+// ============================================================================
+// Inspector Component (render)
+// ============================================================================
+
+function InspectorComponent({ value, onChange, disabled }: WidgetProps) {
     const [urlInput, setUrlInput] = useState('');
     const [showUrlInput, setShowUrlInput] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,21 +68,6 @@ export function ImagePicker({
     const handleClear = useCallback(() => {
         onChange(undefined);
     }, [onChange]);
-
-    // If connected to node
-    if (isConnected) {
-        return (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
-                <div className="flex items-center justify-center w-8 h-8 rounded bg-primary/10">
-                    <Link2 className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-primary truncate">{connectedLabel}</p>
-                    <p className="text-[10px] text-muted-foreground">Image will be provided by connected node</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-2">
@@ -202,3 +184,15 @@ export function ImagePicker({
         </div>
     );
 }
+
+// ============================================================================
+// Widget Definition Export
+// ============================================================================
+
+export const ImagePickerWidget: WidgetDefinition = {
+    id: 'image-picker',
+    render: (props) => <InspectorComponent {...props} />,
+};
+
+// Backward compatibility export
+export { InspectorComponent as ImagePicker };

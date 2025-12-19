@@ -16,6 +16,7 @@ import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { portRegistry } from '@/lib/engine/ports';
+import { getWidgetInputHandles } from '@/lib/widgets';
 
 // --- Register Ports ---
 portRegistry.register(NodeType.RECIPE, {
@@ -83,6 +84,12 @@ const RecipeFieldRow = ({
     const hasOutputHandle = conn?.output === true ||
         (typeof conn?.output === 'object' && conn.output.enabled);
 
+    // Get extra handles from widget (if widget declares them)
+    const extraHandles = useMemo(() => {
+        if (!field.widget) return [];
+        return getWidgetInputHandles(field.widget, value);
+    }, [field.widget, value]);
+
     // Format display value
     const formatValue = (val: any) => {
         if (val === undefined || val === '' || val === null) return null;
@@ -127,6 +134,15 @@ const RecipeFieldRow = ({
                 <NodePort.Input id={field.key} connected={isConnected} />
             )}
 
+            {/* Extra Input Handles from Widget (stacked vertically if multiple) */}
+            {extraHandles.map((h, idx) => (
+                <NodePort.Input
+                    key={h.id}
+                    id={`${field.key}:${h.id}`}
+                    connected={false}
+                />
+            ))}
+
             {/* Field Info */}
             <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
                 {/* Label */}
@@ -140,6 +156,12 @@ const RecipeFieldRow = ({
                     )}>
                         {field.label || field.key}
                     </span>
+                    {/* Show badge if extra handles exist */}
+                    {extraHandles.length > 0 && (
+                        <span className="text-[9px] text-purple-500 bg-purple-500/10 px-1 rounded">
+                            +{extraHandles.length}
+                        </span>
+                    )}
                 </div>
 
                 {/* Value */}

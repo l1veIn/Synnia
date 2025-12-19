@@ -83,7 +83,7 @@ export const gemini2Flash: LLMPlugin = {
 // ============================================================================
 
 export const gemini25Flash: LLMPlugin = {
-    id: 'gemini-2.5-flash-preview-05-20',
+    id: 'gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
     description: 'Latest Gemini with 1M context',
     category: 'llm-vision',
@@ -93,5 +93,5 @@ export const gemini25Flash: LLMPlugin = {
     contextWindow: 1000000,
     maxOutputTokens: 65536,
     defaultTemperature: 0.7,
-    execute: (input) => executeGoogle(input, 'gemini-2.5-flash-preview-05-20'),
+    execute: (input) => executeGoogle(input, 'gemini-2.5-flash'),
 };

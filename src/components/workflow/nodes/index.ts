@@ -7,6 +7,7 @@ import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { portRegistry } from '@/lib/engine/ports';
 import { FormAssetContent } from '@/types/assets';
 import { FileText } from 'lucide-react';
+import { getWidgetInputHandles } from '@/lib/widgets';
 
 // Auto-import all node modules
 const modules = import.meta.glob('./**/*.tsx', { eager: true });
@@ -101,9 +102,16 @@ for (const recipe of recipes) {
                 }
             ];
 
-            // Add field-level output ports based on recipe schema
+            // Get current field values from asset
+            const values = (asset?.content as FormAssetContent)?.values || {};
+
+            // Add field-level ports based on recipe schema
             for (const field of recipe.inputSchema) {
                 const conn = field.connection;
+                const fieldKey = field.key;
+                const fieldValue = values[fieldKey];
+
+                // Output port
                 const hasOutput = conn?.output === true ||
                     (typeof conn?.output === 'object' && conn.output.enabled);
 
@@ -113,7 +121,6 @@ for (const recipe of recipes) {
                         : `field:${field.key}`;
 
                     const isDisabled = field.disabled === true;
-                    const fieldKey = field.key;
 
                     ports.push({
                         id: handleId,
@@ -145,9 +152,24 @@ for (const recipe of recipes) {
                         }
                     });
                 }
+
+                // Widget extra input handles (NEW)
+                if (field.widget) {
+                    const extraHandles = getWidgetInputHandles(field.widget, fieldValue);
+                    for (const h of extraHandles) {
+                        const extraHandleId = `${fieldKey}:${h.id}`;
+                        ports.push({
+                            id: extraHandleId,
+                            direction: 'input',
+                            dataType: h.dataType || 'json',
+                            label: h.label || h.id,
+                        });
+                    }
+                }
             }
 
             return ports;
         }
     });
 }
+

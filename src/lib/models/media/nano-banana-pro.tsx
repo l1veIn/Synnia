@@ -184,7 +184,7 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
 
         // Build content parts
         const parts: any[] = [];
-        let finalPrompt = prompt;
+        let finalPrompt = prompt || '';
 
         // Add reference image if provided (Image-to-Image)
         if (config?.referenceImage?.base64 || config?.referenceImage?.url) {
@@ -213,38 +213,54 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
                     mimeType: mimeType
                 }
             });
-            finalPrompt = `(Strictly follow the character design in the reference image) ${prompt}`;
+            finalPrompt = `(Strictly follow the character design in the reference image) ${prompt || ''}`;
         }
 
         parts.push({ text: finalPrompt });
 
-        // Call Gemini Imagen
+        console.log('[Gemini] Generating image with prompt:', finalPrompt.slice(0, 100) + '...');
+
+        // Call Gemini Imagen - using imageConfig like visualAgent.ts
         const response = await client.models.generateContent({
-            model: 'gemini-2.0-flash-preview-image-generation',
+            model: 'gemini-3-pro-image-preview',
             contents: { parts },
             config: {
-                responseModalities: ['Text', 'Image'],
                 imageConfig: {
                     aspectRatio: config?.aspectRatio || '1:1',
                 }
-            } as any
+            }
         });
 
-        // Extract image from response
-        for (const part of (response as any).candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                return {
-                    success: true,
-                    data: {
-                        type: 'images',
-                        images: [{
-                            url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                            width: 1024,
-                            height: 1024,
-                        }]
-                    }
-                };
+        console.log('[Gemini] Response received:', JSON.stringify(response, null, 2).slice(0, 500));
+
+        // Extract image from response - check multiple possible locations
+        const candidates = (response as any).candidates || [];
+        for (const candidate of candidates) {
+            const parts = candidate?.content?.parts || [];
+            for (const part of parts) {
+                if (part.inlineData?.data) {
+                    console.log('[Gemini] Found image data, mimeType:', part.inlineData.mimeType);
+                    return {
+                        success: true,
+                        data: {
+                            type: 'images',
+                            images: [{
+                                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                                width: 1024,
+                                height: 1024,
+                            }]
+                        }
+                    };
+                }
             }
+        }
+
+        // Check if there's text explaining why no image was generated
+        const textParts = candidates[0]?.content?.parts?.filter((p: any) => p.text) || [];
+        if (textParts.length > 0) {
+            const textResponse = textParts.map((p: any) => p.text).join('\n');
+            console.log('[Gemini] Text response (no image):', textResponse);
+            return { success: false, error: `Gemini declined to generate: ${textResponse.slice(0, 200)}` };
         }
 
         return { success: false, error: 'No image data found in Gemini response' };

@@ -16,7 +16,7 @@ import { HANDLE_IDS } from '@/types/handles';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { portRegistry } from '@/lib/engine/ports';
-import { getWidgetInputHandles } from '@/lib/widgets';
+import { getWidgetInputHandles } from '@/components/workflow/widgets';
 
 // --- Register Ports ---
 portRegistry.register(NodeType.RECIPE, {

@@ -1,5 +1,5 @@
 // Widget System - Entry Point
-// Re-exports all widget functionality
+// Central registry for all workflow widgets
 
 export * from './types';
 export * from './registry';
@@ -10,10 +10,10 @@ export * from './registry';
 
 import { widgetRegistry } from './registry';
 
-// Widget definitions
-import { modelConfiguratorWidget } from './definitions/model-configurator';
+// Self-contained widget definitions
+import { ModelConfiguratorWidget } from './ModelConfigurator';
 
 // Register all widgets
-widgetRegistry.register(modelConfiguratorWidget);
+widgetRegistry.register(ModelConfiguratorWidget);
 
-console.log('[Widgets] Widget registry initialized with:', widgetRegistry.getAll().map(w => w.id).join(', '));
+console.log('[Widgets] Registry initialized:', widgetRegistry.getAll().map(w => w.id).join(', '));

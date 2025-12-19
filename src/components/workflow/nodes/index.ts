@@ -7,7 +7,7 @@ import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { portRegistry } from '@/lib/engine/ports';
 import { FormAssetContent } from '@/types/assets';
 import { FileText } from 'lucide-react';
-import { getWidgetInputHandles } from '@/lib/widgets';
+import { getWidgetInputHandles } from '@/components/workflow/widgets';
 
 // Auto-import all node modules
 const modules = import.meta.glob('./**/*.tsx', { eager: true });

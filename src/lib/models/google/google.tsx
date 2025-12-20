@@ -4,8 +4,8 @@
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
-import { extractJson } from './utils';
-import { DefaultLLMSettings } from './DefaultLLMSettings';
+import { extractJson } from '../utils';
+import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
 // Shared Google Execution Logic
@@ -15,7 +15,8 @@ async function executeGoogle(
     input: LLMExecutionInput,
     modelId: string
 ): Promise<LLMExecutionResult> {
-    const { credentials, systemPrompt, userPrompt, temperature, maxTokens, jsonMode } = input;
+    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const userPrompt = input.userPrompt || input.prompt || '';
 
     if (!credentials.apiKey) {
         return { success: false, error: 'Google API key not configured' };
@@ -79,7 +80,7 @@ const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
     id: config.id,
     name: config.name,
     description: config.description,
-    category: config.hasVision ? 'llm-vision' : 'llm-chat',
+    category: 'llm',  // Unified LLM category
     supportedProviders: ['google'],
     provider: 'google',
     capabilities: config.hasVision

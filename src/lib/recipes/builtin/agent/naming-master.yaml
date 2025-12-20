@@ -125,33 +125,19 @@ executor:
   createNodes: true
   nodeConfig:
     type: selector
-    selectorMode: single
     titleTemplate: "命名方案 ({{count}}项)"
     collapsed: false
     schema:
       - key: name
         label: 名称
         type: string
-        widget: text
-        placeholder: "角色名"
-        connection:
-          output: true
       - key: tagline
         label: 口号
         type: string
-        widget: text
-        placeholder: "角色的口头禅"
-        connection:
-          output: true
       - key: rationale
         label: 理由
         type: string
-        widget: textarea
-        placeholder: "为什么选择这个名字"
-        connection:
-          output: true
       - key: style
         label: 风格
         type: string
-        widget: text
-        placeholder: "Direct/Metaphor/Abstract"
+

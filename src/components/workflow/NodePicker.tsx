@@ -1,6 +1,6 @@
 /**
- * NodePicker - Searchable node/recipe picker with multi-level category navigation
- * Used by toolbar and context menu for adding nodes to canvas
+ * NodePicker - Searchable node/recipe picker with path-based multi-level navigation
+ * Supports arbitrary depth nesting based on recipe directory structure
  */
 
 import { useMemo, useState } from 'react';
@@ -11,15 +11,27 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
+    CommandSeparator,
 } from '@/components/ui/command';
 import { nodesConfig } from '@/components/workflow/nodes';
-import { getRecipesByCategory } from '@/lib/recipes';
+import { getRecipeTree, RecipeTreeNode } from '@/lib/recipes';
 import { NodeType } from '@/types/project';
-import { FileText, Box, Image as ImageIcon, Hash, Wand2, LucideIcon, ChevronRight, ArrowLeft } from 'lucide-react';
+import {
+    FileText,
+    Box,
+    Image as ImageIcon,
+    Hash,
+    Wand2,
+    LucideIcon,
+    ChevronRight,
+    Home,
+    Folder,
+    FolderOpen,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-// Category icon mapping
+// Category icon mapping for base nodes
 const categoryIcons: Record<string, LucideIcon> = {
     'Basic': Box,
     'Agent': Wand2,
@@ -37,7 +49,6 @@ export interface NodePickerItem {
     icon?: LucideIcon;
     recipeId?: string;
     nodeType?: NodeType;
-    // Special action identifier (e.g., 'import-image')
     action?: string;
 }
 
@@ -49,21 +60,16 @@ export interface NodePickerProps {
 
 export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
     const [search, setSearch] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [currentPath, setCurrentPath] = useState<string[]>([]);
 
-    // Build unified list of all pickable items
-    const items = useMemo(() => {
+    // Build base node items (always shown at top level)
+    const baseNodeItems = useMemo(() => {
         const result: NodePickerItem[] = [];
 
-        // 1. Add base node types from nodesConfig
         for (const [type, config] of Object.entries(nodesConfig)) {
-            // Skip recipe virtual types
             if (type.startsWith('recipe:')) continue;
-
-            // Skip hidden nodes UNLESS they have fileImport (those are shown as import actions)
             if (config.hidden && !config.fileImport) continue;
 
-            // If node has fileImport config, add as action item
             if (config.fileImport) {
                 result.push({
                     id: `action:import-${config.fileImport.assetType}`,
@@ -72,11 +78,9 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
                     category: config.category || 'Asset',
                     icon: typeof config.icon === 'function' ? config.icon : undefined,
                     action: 'import-file',
-                    // Store import config for handler
                     nodeType: type as NodeType,
                 });
             } else {
-                // Regular node
                 result.push({
                     id: type,
                     label: config.title,
@@ -88,126 +92,134 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
             }
         }
 
-        // 2. Add recipe nodes grouped by category
-        const recipesByCategory = getRecipesByCategory();
-        for (const [category, recipes] of Object.entries(recipesByCategory)) {
-            for (const recipe of recipes) {
-                result.push({
-                    id: `recipe:${recipe.id}`,
-                    label: recipe.name,
-                    description: recipe.description,
-                    category,
-                    recipeId: recipe.id,
-                });
-            }
-        }
-
         return result;
     }, []);
 
-    // Get unique categories with counts
-    const categories = useMemo(() => {
-        const counts: Record<string, number> = {};
-        for (const item of items) {
-            counts[item.category] = (counts[item.category] || 0) + 1;
-        }
+    // Get recipe tree
+    const recipeTree = useMemo(() => getRecipeTree(), []);
 
-        // Sort: Basic first, then alphabetically
-        return Object.entries(counts)
-            .sort(([a], [b]) => {
-                if (a === 'Basic') return -1;
-                if (b === 'Basic') return 1;
-                return a.localeCompare(b);
-            })
-            .map(([name, count]) => ({ name, count }));
-    }, [items]);
-
-    // Filter items by search and category
-    const filteredItems = useMemo(() => {
-        let filtered = items;
-
-        // If searching, search across all categories
-        if (search) {
-            const lower = search.toLowerCase();
-            filtered = items.filter(item =>
-                item.label.toLowerCase().includes(lower) ||
-                item.description?.toLowerCase().includes(lower) ||
-                item.category.toLowerCase().includes(lower)
+    // Navigate to current path in tree
+    const currentTreeNode = useMemo(() => {
+        let node = recipeTree;
+        for (const segment of currentPath) {
+            const child = node.children?.find(
+                (c) => c.type === 'folder' && c.name === segment
             );
-        } else if (selectedCategory) {
-            // If category selected, show only that category
-            filtered = items.filter(item => item.category === selectedCategory);
+            if (!child) return recipeTree; // Fallback to root
+            node = child;
+        }
+        return node;
+    }, [recipeTree, currentPath]);
+
+    // All recipe items for search (flattened)
+    const allRecipeItems = useMemo(() => {
+        const items: NodePickerItem[] = [];
+
+        function collectRecipes(node: RecipeTreeNode, pathPrefix: string[]) {
+            if (node.type === 'recipe' && node.recipe) {
+                items.push({
+                    id: `recipe:${node.recipe.id}`,
+                    label: node.recipe.name,
+                    description: node.recipe.description,
+                    category: pathPrefix.join('/'),
+                    recipeId: node.recipe.id,
+                    icon: node.recipe.icon,
+                });
+            }
+            if (node.children) {
+                for (const child of node.children) {
+                    collectRecipes(child, child.type === 'folder' ? [...pathPrefix, child.name] : pathPrefix);
+                }
+            }
         }
 
-        return filtered;
-    }, [items, search, selectedCategory]);
+        collectRecipes(recipeTree, []);
+        return items;
+    }, [recipeTree]);
+
+    // Filter items when searching
+    const filteredItems = useMemo(() => {
+        if (!search) return null;
+
+        const lower = search.toLowerCase();
+        const filteredBase = baseNodeItems.filter(item =>
+            item.label.toLowerCase().includes(lower) ||
+            item.description?.toLowerCase().includes(lower)
+        );
+        const filteredRecipes = allRecipeItems.filter(item =>
+            item.label.toLowerCase().includes(lower) ||
+            item.description?.toLowerCase().includes(lower) ||
+            item.category.toLowerCase().includes(lower)
+        );
+
+        return [...filteredBase, ...filteredRecipes];
+    }, [search, baseNodeItems, allRecipeItems]);
 
     const handleSelect = (item: NodePickerItem) => {
         onSelect(item);
         onClose?.();
     };
 
-    // Show category list when no search and no category selected
-    const showCategoryList = !search && !selectedCategory;
+    const handleFolderClick = (folderName: string) => {
+        setCurrentPath([...currentPath, folderName]);
+    };
+
+    const handleNavigateUp = (targetIndex: number) => {
+        setCurrentPath(currentPath.slice(0, targetIndex));
+    };
+
+    const isAtRoot = currentPath.length === 0;
+    const isSearching = search.length > 0;
+
+    // Count items in a folder (recursive)
+    const countItems = (node: RecipeTreeNode): number => {
+        if (node.type === 'recipe') return 1;
+        return node.children?.reduce((acc, child) => acc + countItems(child), 0) || 0;
+    };
 
     return (
         <Command className={cn("flex flex-col", className)}>
             <CommandInput
-                placeholder="Search nodes..."
+                placeholder="Search nodes and recipes..."
                 value={search}
                 onValueChange={(val) => {
                     setSearch(val);
-                    if (val) setSelectedCategory(null); // Reset category when searching
                 }}
             />
 
-            {/* Back button when viewing a category */}
-            {selectedCategory && !search && (
-                <div className="px-2 py-1 border-b">
+            {/* Breadcrumb Navigation */}
+            {!isSearching && !isAtRoot && (
+                <div className="flex items-center gap-0.5 px-2 py-1.5 border-b text-sm overflow-x-auto">
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSelectedCategory(null)}
+                        className="h-6 w-6 p-0 shrink-0"
+                        onClick={() => setCurrentPath([])}
                     >
-                        <ArrowLeft className="w-3 h-3 mr-1" />
-                        All Categories
+                        <Home className="w-3.5 h-3.5" />
                     </Button>
+                    {currentPath.map((segment, i) => (
+                        <div key={i} className="flex items-center shrink-0">
+                            <ChevronRight className="w-3 h-3 text-muted-foreground mx-0.5" />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-1.5 text-xs"
+                                onClick={() => handleNavigateUp(i + 1)}
+                            >
+                                {segment}
+                            </Button>
+                        </div>
+                    ))}
                 </div>
             )}
 
-            <CommandList className="max-h-[280px]">
+            <CommandList className="max-h-[320px]">
                 <CommandEmpty>No nodes found.</CommandEmpty>
 
-                {/* Category List View */}
-                {showCategoryList && (
-                    <CommandGroup heading="Categories">
-                        {categories.map(({ name, count }) => {
-                            const Icon = categoryIcons[name] || Box;
-                            return (
-                                <CommandItem
-                                    key={name}
-                                    value={name}
-                                    onSelect={() => setSelectedCategory(name)}
-                                    className="flex items-center justify-between cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Icon className="w-4 h-4 text-muted-foreground" />
-                                        <span>{name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-muted-foreground">
-                                        <span className="text-xs">{count}</span>
-                                        <ChevronRight className="w-3 h-3" />
-                                    </div>
-                                </CommandItem>
-                            );
-                        })}
-                    </CommandGroup>
-                )}
-
-                {/* Items List View */}
-                {!showCategoryList && (
-                    <CommandGroup heading={selectedCategory || 'Search Results'}>
+                {/* Search Results */}
+                {isSearching && filteredItems && (
+                    <CommandGroup heading="Search Results">
                         {filteredItems.map(item => {
                             const ItemIcon = item.icon || categoryIcons[item.category] || Box;
                             return (
@@ -226,15 +238,102 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
                                             </span>
                                         )}
                                     </div>
-                                    {search && (
-                                        <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
-                                            {item.category}
-                                        </span>
-                                    )}
+                                    <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                                        {item.category || 'Basic'}
+                                    </span>
                                 </CommandItem>
                             );
                         })}
                     </CommandGroup>
+                )}
+
+                {/* Normal Navigation View */}
+                {!isSearching && (
+                    <>
+                        {/* Base Nodes (only at root level) */}
+                        {isAtRoot && (
+                            <CommandGroup heading="Basic Nodes">
+                                {baseNodeItems.map(item => {
+                                    const ItemIcon = item.icon || categoryIcons[item.category] || Box;
+                                    return (
+                                        <CommandItem
+                                            key={item.id}
+                                            value={item.label}
+                                            onSelect={() => handleSelect(item)}
+                                            className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                            <ItemIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-medium truncate">{item.label}</span>
+                                                {item.description && (
+                                                    <span className="text-xs text-muted-foreground line-clamp-1">
+                                                        {item.description}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </CommandItem>
+                                    );
+                                })}
+                            </CommandGroup>
+                        )}
+
+                        {isAtRoot && <CommandSeparator />}
+
+                        {/* Recipe Folders and Items */}
+                        <CommandGroup heading={isAtRoot ? "Recipes" : currentPath[currentPath.length - 1]}>
+                            {currentTreeNode.children?.map(child => {
+                                if (child.type === 'folder') {
+                                    const itemCount = countItems(child);
+                                    return (
+                                        <CommandItem
+                                            key={`folder:${child.name}`}
+                                            value={child.name}
+                                            onSelect={() => handleFolderClick(child.name)}
+                                            className="flex items-center justify-between cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Folder className="w-4 h-4 text-muted-foreground group-hover:hidden" />
+                                                <FolderOpen className="w-4 h-4 text-muted-foreground hidden group-hover:block" />
+                                                <span className="font-medium">{child.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                                <span className="text-xs">{itemCount}</span>
+                                                <ChevronRight className="w-3.5 h-3.5" />
+                                            </div>
+                                        </CommandItem>
+                                    );
+                                } else if (child.recipe) {
+                                    const ItemIcon = child.recipe.icon || Wand2;
+                                    return (
+                                        <CommandItem
+                                            key={`recipe:${child.recipe.id}`}
+                                            value={child.recipe.name}
+                                            onSelect={() => handleSelect({
+                                                id: `recipe:${child.recipe!.id}`,
+                                                label: child.recipe!.name,
+                                                description: child.recipe!.description,
+                                                category: currentPath.join('/'),
+                                                recipeId: child.recipe!.id,
+                                                icon: child.recipe!.icon,
+                                            })}
+                                            className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                            <ItemIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="font-medium truncate">{child.recipe.name}</span>
+                                                {child.recipe.description && (
+                                                    <span className="text-xs text-muted-foreground line-clamp-1">
+                                                        {child.recipe.description}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </CommandItem>
+                                    );
+                                }
+                                return null;
+                            })}
+                        </CommandGroup>
+                    </>
                 )}
             </CommandList>
         </Command>

@@ -9,7 +9,6 @@ import { useNode } from '@/hooks/useNode';
 import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
@@ -18,7 +17,7 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { portRegistry } from '@/lib/engine/ports';
+import type { NodeDefinition, AssetContentSchema } from '@/lib/nodes/NodeRegistry';
 
 // --- Asset Content Type ---
 /**
@@ -45,42 +44,6 @@ export interface SelectorAssetContent {
     options: SelectorOption[];
     selected: string[]; // array of option IDs
 }
-
-// --- Register Ports ---
-portRegistry.register(NodeType.SELECTOR, {
-    static: [
-        {
-            id: 'output',
-            direction: 'output',
-            dataType: 'array',
-            label: 'Selected Items',
-            resolver: (node, asset) => {
-                if (!asset?.content) return null;
-                const content = asset.content as SelectorAssetContent;
-                const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
-                return {
-                    type: 'array',
-                    value: selectedOptions,
-                    meta: { nodeId: node.id, portId: 'output' }
-                };
-            }
-        }
-    ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.SELECTOR,
-    title: 'Selector',
-    category: 'Asset',
-    icon: List,
-    description: 'Select items from a list',
-    defaultWidth: 280,
-    defaultHeight: 300,
-};
-
-export const behavior = StandardAssetBehavior;
-
 // --- Node Component ---
 export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
@@ -323,5 +286,67 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 });
 SelectorNode.displayName = 'SelectorNode';
 
-// Standard Exports
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+    type: NodeType.SELECTOR,
+    component: SelectorNode,
+    inspector: Inspector,
+    config: {
+        type: NodeType.SELECTOR,
+        title: 'Selector',
+        category: 'Asset',
+        icon: List,
+        description: 'Select items from a list',
+
+        // Self-declaration
+        requiresAsset: true,
+        defaultAssetType: 'json',
+        createNodeAlias: 'selector',
+
+        // Factory: default style
+        defaultStyle: { width: 280, height: 300 },
+
+        // Factory: default content for new node
+        createDefaultContent: (): SelectorAssetContent => ({
+            mode: 'multi',
+            showSearch: true,
+            optionSchema: DEFAULT_OPTION_SCHEMA,
+            options: [],
+            selected: []
+        }),
+    },
+    behavior: StandardAssetBehavior,
+    ports: {
+        static: [
+            {
+                id: 'output',
+                direction: 'output',
+                dataType: 'array',
+                label: 'Selected Items',
+                resolver: (node, asset) => {
+                    if (!asset?.content) return null;
+                    const content = asset.content as SelectorAssetContent;
+                    const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
+                    return {
+                        type: 'array',
+                        value: selectedOptions,
+                        meta: { nodeId: node.id, portId: 'output' }
+                    };
+                }
+            }
+        ]
+    },
+    // Schema for documentation generation
+    assetContentSchema: {
+        mode: { type: 'enum', options: ['single', 'multi'], default: 'multi', description: 'Selection mode' },
+        showSearch: { type: 'boolean', default: true, description: 'Show search input' },
+        optionSchema: { type: 'array', itemType: 'FieldDefinition', description: 'Schema for option fields' },
+        options: { type: 'array', itemType: 'object', required: true, default: [], description: 'List of selectable options' },
+        selected: { type: 'array', itemType: 'string', default: [], description: 'IDs of selected options' },
+    }
+};
+
+// Legacy exports for compatibility with current node loader
 export { SelectorNode as Node, Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;

@@ -6,7 +6,7 @@ import { Asset } from '@/types/assets';
 import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 
-let isHistoryPaused = false;
+
 
 /**
  * WorkflowState - Pure State Container
@@ -35,6 +35,7 @@ export interface WorkflowState {
     position?: { x: number; y: number };
   } | null;
   inspectorPosition: { x: number; y: number } | null;
+  isHistoryPaused: boolean;
 }
 
 /**
@@ -80,6 +81,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         dockPreviewId: null,
         contextMenuTarget: null,
         inspectorPosition: null,
+        isHistoryPaused: false,
 
         // Project Lifecycle
         loadProject: (project: SynniaProject) => {
@@ -117,8 +119,8 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         setHighlightedGroupId: (id) => set({ highlightedGroupId: id }),
 
         // History Control
-        pauseHistory: () => { isHistoryPaused = true; },
-        resumeHistory: () => { isHistoryPaused = false; },
+        pauseHistory: () => set({ isHistoryPaused: true }),
+        resumeHistory: () => set({ isHistoryPaused: false }),
         triggerCommit: () => set((state) => ({ nodes: [...state.nodes] })),
       }),
       {
@@ -129,7 +131,8 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         }),
         limit: 100,
         equality: (past, current) => {
-          if (isHistoryPaused) return true;
+          // Access the full state to check isHistoryPaused, as it's not in the partialized history
+          if (useWorkflowStore.getState().isHistoryPaused) return true;
           return JSON.stringify(past) === JSON.stringify(current);
         }
       }

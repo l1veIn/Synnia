@@ -15,7 +15,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "gen:types": "cd src-tauri && cargo test export_bindings && ./fix-bindings.sh"
+    "gen:types": "cd src-tauri && cargo test export_bindings && ./fix-bindings.sh",
+    "gen:node-docs": "npx tsx scripts/gen-node-docs.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",

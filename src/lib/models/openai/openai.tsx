@@ -1,31 +1,34 @@
-// Ollama LLM Plugins (Local)
+// OpenAI LLM Plugins
 // Unified with ModelPlugin interface
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
-import { extractJson } from './utils';
-import { DefaultLLMSettings } from './DefaultLLMSettings';
+import { extractJson } from '../utils';
+import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
-// Shared Ollama Execution Logic
+// Shared OpenAI Execution Logic
 // ============================================================================
 
-async function executeOllama(
+async function executeOpenAI(
     input: LLMExecutionInput,
     modelId: string
 ): Promise<LLMExecutionResult> {
-    const { credentials, systemPrompt, userPrompt, temperature, maxTokens, jsonMode } = input;
+    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const userPrompt = input.userPrompt || input.prompt || '';
 
-    const baseUrl = credentials.baseUrl || 'http://localhost:11434';
+    if (!credentials.apiKey) {
+        return { success: false, error: 'OpenAI API key not configured' };
+    }
 
     try {
-        const ollama = createOpenAI({
-            apiKey: 'ollama',
-            baseURL: `${baseUrl}/v1`,
+        const openai = createOpenAI({
+            apiKey: credentials.apiKey,
+            baseURL: credentials.baseUrl || 'https://api.openai.com/v1',
         });
 
-        const model = ollama(modelId);
+        const model = openai(modelId);
 
         let prompt = userPrompt;
         if (systemPrompt) {
@@ -53,16 +56,16 @@ async function executeOllama(
 
         return { success: true, text: responseText, wasTruncated };
     } catch (error: any) {
-        console.error('[Ollama] Call failed:', error);
-        return { success: false, error: error.message || 'Ollama call failed' };
+        console.error('[OpenAI] Call failed:', error);
+        return { success: false, error: error.message || 'OpenAI call failed' };
     }
 }
 
 // ============================================================================
-// Factory Function for Ollama Models  
+// Factory Function for OpenAI Models
 // ============================================================================
 
-interface OllamaModelConfig {
+interface OpenAIModelConfig {
     id: string;
     name: string;
     description: string;
@@ -71,17 +74,16 @@ interface OllamaModelConfig {
     maxOutputTokens: number;
 }
 
-const createOllamaModel = (config: OllamaModelConfig): ModelPlugin => ({
+const createOpenAIModel = (config: OpenAIModelConfig): ModelPlugin => ({
     id: config.id,
     name: config.name,
     description: config.description,
-    category: config.hasVision ? 'llm-vision' : 'llm-chat',
-    supportedProviders: ['ollama'],
-    provider: 'ollama',
-    isLocal: true,
+    category: 'llm',  // Unified LLM category
+    supportedProviders: ['openai'],
+    provider: 'openai',
     capabilities: config.hasVision
-        ? ['chat', 'vision', 'streaming']
-        : ['chat', 'streaming'],
+        ? ['chat', 'vision', 'function-calling', 'json-mode', 'streaming']
+        : ['chat', 'function-calling', 'json-mode', 'streaming'],
     contextWindow: config.contextWindow,
     maxOutputTokens: config.maxOutputTokens,
     defaultTemperature: 0.7,
@@ -103,27 +105,27 @@ const createOllamaModel = (config: OllamaModelConfig): ModelPlugin => ({
         }
         : undefined,
 
-    execute: (input) => executeOllama(input as LLMExecutionInput, config.id),
+    execute: (input) => executeOpenAI(input as LLMExecutionInput, config.id),
 });
 
 // ============================================================================
-// Ollama Model Exports
+// OpenAI Model Exports
 // ============================================================================
 
-export const llama32 = createOllamaModel({
-    id: 'llama3.2',
-    name: 'Llama 3.2',
-    description: 'Meta Llama 3.2 (Local)',
-    hasVision: false,
-    contextWindow: 128000,
-    maxOutputTokens: 4096,
-});
-
-export const llama32Vision = createOllamaModel({
-    id: 'llama3.2-vision',
-    name: 'Llama 3.2 Vision',
-    description: 'Meta Llama 3.2 with vision (Local)',
+export const gpt4o = createOpenAIModel({
+    id: 'gpt-4o',
+    name: 'GPT-4o',
+    description: 'Most capable GPT-4 model with vision support',
     hasVision: true,
     contextWindow: 128000,
-    maxOutputTokens: 4096,
+    maxOutputTokens: 16384,
+});
+
+export const gpt4oMini = createOpenAIModel({
+    id: 'gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'Fast and affordable GPT-4o variant',
+    hasVision: true,  // GPT-4o-mini also supports vision
+    contextWindow: 128000,
+    maxOutputTokens: 16384,
 });

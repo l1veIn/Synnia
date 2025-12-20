@@ -44,7 +44,7 @@ export function useFileUploadDrag() {
             // Save via backend
             const result = await apiClient.saveProcessedImage(base64);
 
-            graphEngine.mutator.addNode(NodeType.ASSET, {
+            graphEngine.mutator.addNode(NodeType.IMAGE, {
               x: position.x + offset,
               y: position.y + offset,
             }, {
@@ -68,7 +68,7 @@ export function useFileUploadDrag() {
 
           offset += 30;
         } else if (isText) {
-          const nodeId = graphEngine.mutator.addNode(NodeType.ASSET, {
+          const nodeId = graphEngine.mutator.addNode(NodeType.TEXT, {
             x: position.x + offset,
             y: position.y + offset,
           });

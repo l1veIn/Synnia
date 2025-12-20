@@ -7,11 +7,10 @@ import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { ListTodo, Trash2, ChevronDown, ChevronUp, Play, Pause, RotateCcw, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
-import { portRegistry } from '@/lib/engine/ports';
+import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Asset Content Type ---
 export type TaskStatus = 'pending' | 'running' | 'success' | 'error';
@@ -34,42 +33,6 @@ export interface QueueAssetContent {
     tasks: QueueTask[];
     isRunning: boolean;
 }
-
-// --- Register Ports ---
-portRegistry.register(NodeType.QUEUE, {
-    static: [
-        {
-            id: 'output',
-            direction: 'output',
-            dataType: 'array',
-            label: 'Completed Results',
-            resolver: (node, asset) => {
-                if (!asset?.content) return null;
-                const content = asset.content as QueueAssetContent;
-                return {
-                    type: 'array',
-                    value: content.tasks
-                        .filter(t => t.status === 'success')
-                        .map(t => t.result),
-                    meta: { nodeId: node.id, portId: 'output' }
-                };
-            }
-        }
-    ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.QUEUE,
-    title: 'Queue',
-    category: 'Process',
-    icon: ListTodo,
-    description: 'Task queue management',
-    defaultWidth: 300,
-    defaultHeight: 280,
-};
-
-export const behavior = StandardAssetBehavior;
 
 // Status icon component
 const StatusIcon = ({ status }: { status: TaskStatus }) => {
@@ -240,5 +203,67 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
 });
 QueueNode.displayName = 'QueueNode';
 
-// Standard Exports
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+    type: NodeType.QUEUE,
+    component: QueueNode,
+    inspector: Inspector,
+    config: {
+        type: NodeType.QUEUE,
+        title: 'Queue',
+        category: 'Process',
+        icon: ListTodo,
+        description: 'Task queue management',
+
+        requiresAsset: true,
+        defaultAssetType: 'json',
+
+        defaultStyle: { width: 300, height: 280 },
+
+        createDefaultContent: (): QueueAssetContent => ({
+            concurrency: 1,
+            autoStart: false,
+            retryOnError: true,
+            retryCount: 3,
+            continueOnError: false,
+            tasks: [],
+            isRunning: false,
+        }),
+    },
+    behavior: StandardAssetBehavior,
+    ports: {
+        static: [
+            {
+                id: 'output',
+                direction: 'output',
+                dataType: 'array',
+                label: 'Completed Results',
+                resolver: (node, asset) => {
+                    if (!asset?.content) return null;
+                    const content = asset.content as QueueAssetContent;
+                    return {
+                        type: 'array',
+                        value: content.tasks
+                            .filter(t => t.status === 'success')
+                            .map(t => t.result),
+                        meta: { nodeId: node.id, portId: 'output' }
+                    };
+                }
+            }
+        ]
+    },
+    assetContentSchema: {
+        concurrency: { type: 'number', default: 1, description: 'Max concurrent tasks' },
+        autoStart: { type: 'boolean', default: false, description: 'Auto-start queue' },
+        retryOnError: { type: 'boolean', default: true, description: 'Retry failed tasks' },
+        retryCount: { type: 'number', default: 3, description: 'Max retry count' },
+        continueOnError: { type: 'boolean', default: false, description: 'Continue on error' },
+        tasks: { type: 'array', itemType: 'QueueTask', required: true, description: 'Task list' },
+        isRunning: { type: 'boolean', default: false, description: 'Queue running state' },
+    }
+};
+
+// Legacy exports for compatibility
 export { QueueNode as Node, Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;

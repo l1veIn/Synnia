@@ -1,86 +1,84 @@
 import { NodeType } from '@/types/project';
 import { NodeConfig, NodeCategory } from '@/types/node-config';
+import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
 import { behaviorRegistry } from '@/lib/engine/BehaviorRegistry';
+import { portRegistry } from '@/lib/engine/ports';
 import { getAllRecipes } from '@/lib/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
-import { portRegistry } from '@/lib/engine/ports';
 import { FormAssetContent } from '@/types/assets';
 import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
 
-// Auto-import all node modules
-const modules = import.meta.glob('./**/*.tsx', { eager: true });
+// Import node definitions
+import { definition as selectorDef } from './SelectorNode';
+import { definition as tableDef } from './TableNode';
+import { definition as galleryDef } from './GalleryNode';
+import { definition as jsonDef } from './JSONNode';
+import { definition as textDef } from './TextNode';
+import { definition as imageDef } from './ImageNode';
+import { definition as queueDef } from './QueueNode';
 
-export const nodeTypes: Record<string, any> = {};
+// ============================================================================
+// Register Static Nodes
+// ============================================================================
 
-export const inspectorTypes: Record<string, any> = {};
+const staticDefinitions = [
+    selectorDef,
+    tableDef,
+    galleryDef,
+    jsonDef,
+    textDef,
+    imageDef,
+    queueDef,
+];
 
-export const nodesConfig: Record<string, NodeConfig> = {};
+for (const def of staticDefinitions) {
+    // Register to NodeRegistry
+    nodeRegistry.register(def);
 
+    // Register behavior (still needed for engine compatibility)
+    if (def.behavior) {
+        behaviorRegistry.register(def.type, def.behavior);
+    }
 
-
-// Process Auto-Loaded Modules
-for (const path in modules) {
-    const mod = modules[path] as any;
-
-    // Check if it's a valid Node Module (has config and Node export)
-    if (mod.config && mod.Node) {
-        const type = mod.config.type;
-
-        // Register Canvas Node
-        nodeTypes[type] = mod.Node;
-
-        // Register Inspector (if exists)
-        if (mod.Inspector) {
-            inspectorTypes[type] = mod.Inspector;
-        }
-
-        // Register Metadata
-        nodesConfig[type] = mod.config;
-
-        // Register Behavior
-        if (mod.behavior) {
-            behaviorRegistry.register(type, mod.behavior);
-        }
-
-        // Note: Ports are now registered via portRegistry.register() in each node file
+    // Register ports (still needed for engine compatibility)
+    if (def.ports) {
+        portRegistry.register(def.type, def.ports);
     }
 }
 
 // ============================================================================
-// Recipe-as-Node: Each Recipe appears as a separate node type in menus
+// Recipe-as-Node: Each Recipe appears as a separate node type
 // ============================================================================
 
 const recipes = getAllRecipes();
 
 for (const recipe of recipes) {
-    // Virtual node type: use recipe id as type key (e.g., "math.divide")
     const virtualType = `recipe:${recipe.id}`;
 
-    // All recipes use the RecipeNode component
-    nodeTypes[virtualType] = RecipeNode;
-    inspectorTypes[virtualType] = RecipeNodeInspector;
+    // Register to NodeRegistry
+    nodeRegistry.register({
+        type: virtualType,
+        component: RecipeNode,
+        inspector: RecipeNodeInspector,
+        config: {
+            type: virtualType as any,
+            title: recipe.name,
+            category: (recipe.category || 'Recipe') as NodeCategory,
+            icon: recipe.icon || FileText,
+            description: recipe.description || '',
+            defaultData: {
+                recipeId: recipe.id,
+                inputs: {}
+            }
+        },
+    });
 
-    // Config for menu display
-    nodesConfig[virtualType] = {
-        type: virtualType as any,
-        title: recipe.name,
-        category: (recipe.category || 'Recipe') as NodeCategory,
-        icon: recipe.icon || FileText,
-        description: recipe.description || '',
-        // Extra data for node creation
-        defaultData: {
-            recipeId: recipe.id,
-            inputs: {}
-        }
-    };
-
-    // Register dynamic ports for this recipe type
+    // Register dynamic ports for recipe nodes
     portRegistry.register(virtualType, {
         dynamic: (node, asset) => {
             const ports: any[] = [
-                // Base reference output (same as RECIPE type)
                 {
                     id: 'reference',
                     direction: 'output',
@@ -102,16 +100,13 @@ for (const recipe of recipes) {
                 }
             ];
 
-            // Get current field values from asset
             const values = (asset?.content as FormAssetContent)?.values || {};
 
-            // Add field-level ports based on recipe schema
             for (const field of recipe.inputSchema) {
                 const conn = field.connection;
                 const fieldKey = field.key;
                 const fieldValue = values[fieldKey];
 
-                // Output port
                 const hasOutput = conn?.output === true ||
                     (typeof conn?.output === 'object' && conn.output.enabled);
 
@@ -128,7 +123,6 @@ for (const recipe of recipes) {
                         dataType: 'json',
                         label: field.label || field.key,
                         resolver: (n: any, a: any) => {
-                            // For disabled fields: read from executionResult
                             if (isDisabled) {
                                 const execResult = n.data?.executionResult;
                                 if (execResult && typeof execResult === 'object') {
@@ -140,7 +134,6 @@ for (const recipe of recipes) {
                                 return null;
                             }
 
-                            // For normal fields: read from asset.content.values
                             if (a?.content && typeof a.content === 'object') {
                                 const content = a.content as FormAssetContent;
                                 const value = content.values?.[fieldKey];
@@ -153,7 +146,6 @@ for (const recipe of recipes) {
                     });
                 }
 
-                // Widget extra input handles (NEW)
                 if (field.widget) {
                     const extraHandles = getWidgetInputHandles(field.widget, fieldValue);
                     for (const h of extraHandles) {
@@ -173,3 +165,13 @@ for (const recipe of recipes) {
     });
 }
 
+// ============================================================================
+// Exports - Delegated from NodeRegistry
+// ============================================================================
+
+export const nodeTypes = nodeRegistry.getNodeTypes();
+export const inspectorTypes = nodeRegistry.getInspectorTypes();
+export const nodesConfig = nodeRegistry.getAllConfigs();
+
+// Re-export nodeRegistry for direct access
+export { nodeRegistry };

@@ -150,6 +150,7 @@ export const dallE3: ModelPlugin = {
     name: 'DALL-E 3',
     description: 'OpenAI\'s most advanced image generation model',
     category: 'image-generation',
+    provider: 'openai',
     supportedProviders: ['openai'],
     renderConfig: (props) => <DallE3Config {...props} />,
     execute: execute as any,

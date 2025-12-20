@@ -14,7 +14,7 @@ import { LLMPlugin, LLMCapability } from '../../types';
 const createMockPlugin = (id: string, overrides?: Partial<LLMPlugin>): LLMPlugin => ({
     id,
     name: `Test ${id}`,
-    category: 'llm-chat', // Required field
+    category: 'llm', // Unified LLM category
     provider: 'openai',
     supportedProviders: ['openai'],
     capabilities: ['chat'],

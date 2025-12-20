@@ -98,7 +98,7 @@ export function useCanvasLogic() {
         const STD_HEIGHT = 240;
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
-        graphEngine.mutator.addNode(NodeType.ASSET, targetPos, {
+        graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
           assetType: 'image',
           content: result.relativePath,
           assetName: filePath.split(/[/\\]/).pop(),
@@ -131,7 +131,7 @@ export function useCanvasLogic() {
             const base64 = ev.target?.result;
             if (base64) {
               const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
-              graphEngine.mutator.addNode(NodeType.ASSET, targetPos, {
+              graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
                 assetType: 'image',
                 content: base64 as string,
                 assetName: file.name

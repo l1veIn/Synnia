@@ -8,84 +8,11 @@ import { useNode } from '@/hooks/useNode';
 import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { JSONNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { portRegistry } from '@/lib/engine/ports';
 import { RecipeFieldRow } from '@/components/workflow/widgets';
-
-// --- Register Ports ---
-portRegistry.register(NodeType.JSON, {
-    static: [
-        {
-            id: 'output',
-            direction: 'output',
-            dataType: 'json',
-            label: 'JSON Output',
-            resolver: (node, asset) => {
-                if (!asset) return null;
-                const content = asset.content as FormAssetContent;
-                return {
-                    type: 'json',
-                    value: content?.values || {},
-                    meta: { nodeId: node.id, portId: 'output' }
-                };
-            }
-        },
-        {
-            id: 'array',
-            direction: 'output',
-            dataType: 'array',
-            label: 'Array Output',
-            semantic: true,
-            resolver: (node, asset) => {
-                const store = useWorkflowStore.getState();
-                const chain: any[] = [];
-
-                // Traverse upward through docked chain
-                let currentId: string | null = node.id;
-                while (currentId) {
-                    const currentNode = store.nodes.find(n => n.id === currentId);
-                    if (!currentNode) break;
-
-                    const nodeAsset = currentNode.data.assetId
-                        ? store.assets[currentNode.data.assetId]
-                        : undefined;
-
-                    if (nodeAsset) {
-                        const content = nodeAsset.content as FormAssetContent;
-                        if (content?.values) {
-                            chain.unshift(content.values);
-                        }
-                    }
-
-                    currentId = currentNode.data.dockedTo as string | null;
-                }
-
-                return {
-                    type: 'array',
-                    value: chain,
-                    meta: { nodeId: node.id, portId: 'array' }
-                };
-            }
-        }
-    ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.JSON,
-    title: 'JSON',
-    category: 'Asset',
-    icon: Braces,
-    description: 'Custom JSON data with schema',
-};
-
-// --- Behavior ---
-export const behavior = StandardAssetBehavior;
-
-export { JSONNode as Node, JSONNodeInspector as Inspector };
+import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Main Node ---
 export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
@@ -247,3 +174,94 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
     );
 });
 JSONNode.displayName = 'JSONNode';
+
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+    type: NodeType.JSON,
+    component: JSONNode,
+    inspector: JSONNodeInspector,
+    config: {
+        type: NodeType.JSON,
+        title: 'JSON',
+        category: 'Asset',
+        icon: Braces,
+        description: 'Custom JSON data with schema',
+
+        requiresAsset: true,
+        defaultAssetType: 'json',
+        createNodeAlias: 'json',
+
+        defaultStyle: { width: 250, height: 200 },
+
+        createDefaultContent: (): FormAssetContent => ({
+            schema: [],
+            values: {}
+        }),
+    },
+    behavior: StandardAssetBehavior,
+    ports: {
+        static: [
+            {
+                id: 'output',
+                direction: 'output',
+                dataType: 'json',
+                label: 'JSON Output',
+                resolver: (node, asset) => {
+                    if (!asset) return null;
+                    const content = asset.content as FormAssetContent;
+                    return {
+                        type: 'json',
+                        value: content?.values || {},
+                        meta: { nodeId: node.id, portId: 'output' }
+                    };
+                }
+            },
+            {
+                id: 'array',
+                direction: 'output',
+                dataType: 'array',
+                label: 'Array Output',
+                semantic: true,
+                resolver: (node, asset) => {
+                    const store = useWorkflowStore.getState();
+                    const chain: any[] = [];
+
+                    let currentId: string | null = node.id;
+                    while (currentId) {
+                        const currentNode = store.nodes.find(n => n.id === currentId);
+                        if (!currentNode) break;
+
+                        const nodeAsset = currentNode.data.assetId
+                            ? store.assets[currentNode.data.assetId]
+                            : undefined;
+
+                        if (nodeAsset) {
+                            const content = nodeAsset.content as FormAssetContent;
+                            if (content?.values) {
+                                chain.unshift(content.values);
+                            }
+                        }
+
+                        currentId = currentNode.data.dockedTo as string | null;
+                    }
+
+                    return {
+                        type: 'array',
+                        value: chain,
+                        meta: { nodeId: node.id, portId: 'array' }
+                    };
+                }
+            }
+        ]
+    },
+    assetContentSchema: {
+        schema: { type: 'array', itemType: 'FieldDefinition', description: 'Field schema' },
+        values: { type: 'object', required: true, description: 'Form values' },
+    }
+};
+
+// Legacy exports for compatibility
+export { JSONNode as Node, JSONNodeInspector as Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;
+

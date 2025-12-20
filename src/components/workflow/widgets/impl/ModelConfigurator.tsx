@@ -145,15 +145,9 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
     // Get available models for this category
     const models = useMemo(() => {
         if (isLLMCategory) {
-            // For LLM, get all LLM models and filter by category if specified
+            // For LLM, get all LLM models - no category split needed
             const allLLMs = getAllLLMModels();
-            if (filterCategory && filterCategory !== 'llm') {
-                // llm-chat includes llm-vision models (vision models can do chat too)
-                if (filterCategory === 'llm-chat') {
-                    return allLLMs.filter(m => m.category === 'llm-chat' || m.category === 'llm-vision');
-                }
-                return allLLMs.filter(m => m.category === filterCategory);
-            }
+            // All LLMs are now category 'llm', filter by capabilities if needed
             return allLLMs;
         }
         // For media models
@@ -164,13 +158,25 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
     }, [filterCategory, isLLMCategory]);
 
     // Current selected model
+    // IMPORTANT: Try both registries to handle node switching correctly
+    // When switching from LLM to Media node, the memoized value may recalculate
+    // with stale category before the parent component fully updates
     const selectedModel = useMemo(() => {
         if (!value?.modelId) return null;
+
+        // Try expected registry first, then fallback to other
         if (isLLMCategory) {
+            const llmModel = getAllLLMModels().find(m => m.id === value.modelId);
+            if (llmModel) return llmModel;
+            // Fallback: maybe it's a media model ID stored when category was different
+            return getModel(value.modelId);
+        } else {
+            const mediaModel = getModel(value.modelId);
+            if (mediaModel) return mediaModel;
+            // Fallback: maybe it's an LLM model ID
             return getAllLLMModels().find(m => m.id === value.modelId);
         }
-        return getModel(value.modelId);
-    }, [value?.modelId, isLLMCategory]);
+    }, [value?.modelId, isLLMCategory, getAllLLMModels, getModel]);
 
     // Get providers user has configured
     const configuredProviders = useMemo(() => {
@@ -189,7 +195,8 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
     // Available providers for current model
     const availableProviders = useMemo(() => {
         if (!selectedModel) return [];
-        return selectedModel.supportedProviders.filter(p => configuredProviders.includes(p));
+        const providers = selectedModel.supportedProviders || [selectedModel.provider];
+        return providers.filter(p => configuredProviders.includes(p));
     }, [selectedModel, configuredProviders]);
 
     // Auto-select default model if none selected
@@ -206,12 +213,13 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
             if (!modelToSelect) {
                 // Fallback to first model with configured provider
                 modelToSelect = models.find(m =>
-                    m.supportedProviders.some(p => configuredProviders.includes(p))
+                    (m.supportedProviders || [m.provider]).some(p => configuredProviders.includes(p))
                 );
             }
 
             if (modelToSelect) {
-                const availableProvider = modelToSelect.supportedProviders.find(p => configuredProviders.includes(p));
+                const providers = modelToSelect.supportedProviders || [modelToSelect.provider];
+                const availableProvider = providers.find(p => configuredProviders.includes(p));
                 onChange({
                     modelId: modelToSelect.id,
                     provider: availableProvider,
@@ -228,7 +236,8 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
             : getModel(modelId);
         if (!model) return;
 
-        const availableProvider = model.supportedProviders.find(p => configuredProviders.includes(p));
+        const providers = model.supportedProviders || [model.provider];
+        const availableProvider = providers.find(p => configuredProviders.includes(p));
 
         onChange({
             modelId,
@@ -268,7 +277,7 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
                                     variant="secondary"
                                     className="px-1 py-0 h-5 text-[10px] uppercase font-normal text-muted-foreground"
                                 >
-                                    {value?.provider || selectedModel.supportedProviders[0]}
+                                    {value?.provider || (selectedModel.supportedProviders || [selectedModel.provider])[0]}
                                 </Badge>
                                 <span className="truncate">{selectedModel.name}</span>
                             </div>
@@ -285,7 +294,7 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
                             <CommandEmpty>No models found.</CommandEmpty>
                             <CommandGroup heading="Available Models">
                                 {models.map((model) => {
-                                    const hasProvider = model.supportedProviders.some(p =>
+                                    const hasProvider = (model.supportedProviders || [model.provider]).some(p =>
                                         configuredProviders.includes(p)
                                     );
                                     return (
@@ -305,7 +314,7 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{model.name}</span>
                                                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                    {model.supportedProviders.map(p => (
+                                                    {(model.supportedProviders || [model.provider]).map(p => (
                                                         <span
                                                             key={p}
                                                             className={cn(
@@ -334,7 +343,7 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
                 <Alert variant="destructive" className="py-2">
                     <AlertCircle className="h-3 w-3" />
                     <AlertDescription className="text-xs">
-                        需要配置 {selectedModel.supportedProviders.join(' 或 ')} 的 API Key
+                        需要配置 {(selectedModel.supportedProviders || [selectedModel.provider]).join(' 或 ')} 的 API Key
                     </AlertDescription>
                 </Alert>
             )}
@@ -408,14 +417,17 @@ function FieldRowComponent({ value, onChange, disabled, field, isConnected, conn
     const filterCategory = (field as any)?.options?.category as string | undefined;
     const isLLMCategory = filterCategory?.startsWith('llm-') || filterCategory === 'llm';
 
-    // Get the selected model
+    // Get the selected model (try both registries for robustness)
     const selectedModel = useMemo(() => {
         if (!value?.modelId) return null;
         if (isLLMCategory) {
-            return getAllLLMModels().find(m => m.id === value.modelId);
+            const llmModel = getAllLLMModels().find(m => m.id === value.modelId);
+            return llmModel || getModel(value.modelId);
+        } else {
+            const mediaModel = getModel(value.modelId);
+            return mediaModel || getAllLLMModels().find(m => m.id === value.modelId);
         }
-        return getModel(value.modelId);
-    }, [value?.modelId, isLLMCategory]);
+    }, [value?.modelId, isLLMCategory, getAllLLMModels, getModel]);
 
     // Get dynamic handles from model
     const dynamicHandles: HandleSpec[] = useMemo(() => {

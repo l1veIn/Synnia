@@ -8,52 +8,9 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
-import { portRegistry } from '@/lib/engine/ports';
-
-// --- Register Ports ---
-portRegistry.register(NodeType.IMAGE, {
-    static: [
-        {
-            id: 'output',
-            direction: 'output',
-            dataType: 'image',
-            label: 'Image Output',
-            resolver: (node, asset) => {
-                if (!asset) return null;
-                const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
-                let url = '';
-                if (typeof asset.content === 'string') {
-                    url = asset.content;
-                } else if (typeof asset.content === 'object' && asset.content !== null) {
-                    url = (asset.content as any).src || (asset.content as any).url || '';
-                }
-                return {
-                    type: 'image',
-                    value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType },
-                    meta: { nodeId: node.id, portId: 'output' }
-                };
-            }
-        }
-    ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.IMAGE,
-    title: 'Image',
-    category: 'Asset',
-    icon: ImageIcon,
-    description: 'Import image from file',
-    fileImport: {
-        accept: 'image/*',
-        assetType: 'image',
-    },
-};
-
-export const behavior = StandardAssetBehavior;
+import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Node Component ---
 export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
@@ -62,12 +19,10 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
     const serverPort = useWorkflowStore(s => s.serverPort);
     const updateNodeInternals = useUpdateNodeInternals();
 
-    // Trigger re-measure when collapsed state changes
     useEffect(() => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Image URL resolution
     const [imageUrl, setImageUrl] = useState('');
 
     useEffect(() => {
@@ -109,7 +64,6 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Origin Handle - shown when this is a recipe product */}
             <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
@@ -159,5 +113,63 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
 });
 ImageNode.displayName = 'ImageNode';
 
-// Standard Exports
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+    type: NodeType.IMAGE,
+    component: ImageNode,
+    inspector: Inspector,
+    config: {
+        type: NodeType.IMAGE,
+        title: 'Image',
+        category: 'Asset',
+        icon: ImageIcon,
+        description: 'Import image from file',
+        fileImport: {
+            accept: 'image/*',
+            assetType: 'image',
+        },
+
+        requiresAsset: true,
+        defaultAssetType: 'image',
+        createNodeAlias: 'image',
+
+        defaultStyle: { width: 300, height: 300 },
+
+        createDefaultContent: () => '',
+    },
+    behavior: StandardAssetBehavior,
+    ports: {
+        static: [
+            {
+                id: 'output',
+                direction: 'output',
+                dataType: 'image',
+                label: 'Image Output',
+                resolver: (node, asset) => {
+                    if (!asset) return null;
+                    const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
+                    let url = '';
+                    if (typeof asset.content === 'string') {
+                        url = asset.content;
+                    } else if (typeof asset.content === 'object' && asset.content !== null) {
+                        url = (asset.content as any).src || (asset.content as any).url || '';
+                    }
+                    return {
+                        type: 'image',
+                        value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType },
+                        meta: { nodeId: node.id, portId: 'output' }
+                    };
+                }
+            }
+        ]
+    },
+    assetContentSchema: {
+        content: { type: 'string', required: true, description: 'Image URL or path' },
+    }
+};
+
+// Legacy exports for compatibility
 export { ImageNode as Node, Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;
+

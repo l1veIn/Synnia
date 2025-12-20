@@ -6,6 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@/lib/graphUtils';
 import { XYPosition } from '@xyflow/react';
 import { getRecipe } from '@/lib/recipes';
+import { NodeCreationConfig } from '@/types/recipe';
+
+// NOTE: Node-specific logic (default content, build from data, etc.)
+// is defined in each node's config via factory methods.
+// See: src/lib/engine/引擎设计原则.md
+
 
 export class GraphMutator {
     private engine: GraphEngine;
@@ -14,92 +20,198 @@ export class GraphMutator {
         this.engine = engine;
     }
 
+    /**
+     * Build createNodes array from executor result data and nodeConfig.
+     * Uses generic logic based on nodeConfig.type - no node-specific buildFromData.
+     * 
+     * Supported types:
+     * - 'table': Creates TableNode with auto-inferred columns
+     * - 'gallery': Creates GalleryNode with image array
+     * - 'selector': Creates SelectorNode with options
+     * - 'json' (default): Creates JSONNode cards for each item
+     */
+    public buildNodesFromConfig(
+        data: any,
+        nodeConfig: NodeCreationConfig,
+        sourceNodeId: string
+    ): {
+        type: NodeType | string;
+        data: any;
+        position?: 'below' | 'right' | XYPosition;
+        dockedTo?: string | '$prev';
+    }[] {
+        if (!Array.isArray(data) || data.length === 0) {
+            return [];
+        }
+
+        const nodeTypeStr = String(nodeConfig.type || 'json');
+
+        switch (nodeTypeStr) {
+            case 'table': {
+                // Auto-infer columns from first row, or use provided schema
+                const columns = nodeConfig.schema && nodeConfig.schema !== 'auto'
+                    ? nodeConfig.schema.map((f: any) => ({
+                        key: f.key,
+                        label: f.label || f.key,
+                        type: f.type as 'string' | 'number' | 'boolean',
+                    }))
+                    : Object.keys(data[0] || {}).map(key => ({
+                        key,
+                        label: key.charAt(0).toUpperCase() + key.slice(1),
+                        type: 'string' as const,
+                    }));
+
+                const title = nodeConfig.titleTemplate
+                    ? nodeConfig.titleTemplate.replace(/\{\{count\}\}/g, String(data.length))
+                    : `表格 (${data.length}行)`;
+
+                return [{
+                    type: NodeType.TABLE,
+                    data: {
+                        title,
+                        collapsed: nodeConfig.collapsed ?? false,
+                        assetType: 'json' as const,
+                        content: { columns, rows: data, showRowNumbers: true, allowAddRow: true, allowDeleteRow: true }
+                    },
+                    position: 'below' as const,
+                }];
+            }
+
+            case 'gallery': {
+                const images = data.map((item: any, idx: number) => ({
+                    id: item.id || `img-${idx}`,
+                    src: item.src || item.url || '',
+                    starred: item.starred ?? false,
+                    caption: item.caption || '',
+                }));
+
+                const title = nodeConfig.titleTemplate
+                    ? nodeConfig.titleTemplate.replace(/\{\{count\}\}/g, String(data.length))
+                    : `图库 (${data.length}张)`;
+
+                return [{
+                    type: NodeType.GALLERY,
+                    data: {
+                        title,
+                        collapsed: nodeConfig.collapsed ?? false,
+                        assetType: 'json' as const,
+                        content: {
+                            viewMode: 'grid',
+                            columnsPerRow: data.length > 2 ? 3 : data.length,
+                            allowStar: true,
+                            allowDelete: true,
+                            images,
+                        }
+                    },
+                    position: 'below' as const,
+                    dockedTo: sourceNodeId,
+                }];
+            }
+
+            case 'selector': {
+                const options = data.map((item: any, idx: number) => ({
+                    id: item.id || `opt-${idx}`,
+                    label: item.label || item.name || item.title || `Option ${idx + 1}`,
+                    value: item.value !== undefined ? item.value : item,
+                    description: item.description || '',
+                }));
+
+                const title = nodeConfig.titleTemplate
+                    ? nodeConfig.titleTemplate.replace(/\{\{count\}\}/g, String(data.length))
+                    : `选择器 (${data.length}项)`;
+
+                return [{
+                    type: NodeType.SELECTOR,
+                    data: {
+                        title,
+                        collapsed: nodeConfig.collapsed ?? false,
+                        assetType: 'json' as const,
+                        content: {
+                            mode: 'single',
+                            options,
+                            selectedIds: [],
+                            allowAdd: false,
+                            allowDelete: false,
+                        }
+                    },
+                    position: 'below' as const,
+                }];
+            }
+
+            case 'json':
+            default: {
+                // Create individual JSON cards for each item
+                return data.map((item: any, index: number) => {
+                    const schema = nodeConfig.schema && nodeConfig.schema !== 'auto'
+                        ? nodeConfig.schema.map((f: any) => ({
+                            id: f.key,
+                            key: f.key,
+                            label: f.label || f.key,
+                            type: f.type,
+                            widget: f.widget
+                        }))
+                        : Object.keys(item).map(key => ({
+                            id: key,
+                            key,
+                            label: key.charAt(0).toUpperCase() + key.slice(1),
+                            type: 'string' as const
+                        }));
+
+                    const title = nodeConfig.titleTemplate
+                        ? nodeConfig.titleTemplate
+                            .replace(/\{\{index\}\}/g, String(index + 1))
+                            .replace(/\{\{(\w+)\}\}/g, (_, k: string) => item[k] ?? '')
+                        : `#${index + 1}`;
+
+                    return {
+                        type: NodeType.JSON,
+                        data: {
+                            title,
+                            collapsed: nodeConfig.collapsed ?? true,
+                            assetType: 'json' as const,
+                            content: { schema, values: item }
+                        },
+                        position: index === 0 ? 'below' as const : undefined,
+                        dockedTo: index > 0 ? '$prev' as const : undefined,
+                    };
+                });
+            }
+        }
+    }
+
+
+
     public addNode(type: NodeType | string, position: XYPosition, options: { assetType?: AssetType, content?: any, assetId?: string, assetName?: string, metadata?: any, style?: any } = {}) {
         // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
         const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
 
         // Get config - for virtual recipes, look up by the full type string
-        const config = nodesConfig[type] || nodesConfig[NodeType.ASSET];
+        const config = nodesConfig[type] || nodesConfig[NodeType.JSON];
 
-        // Determine final React Flow node type
-        let finalType: string = type as string;
-        if (isVirtualRecipe) {
-            // Virtual recipes render using RecipeNode component
-            finalType = type; // Keep "recipe:xxx" as the type key (nodeTypes maps this to RecipeNode)
-        } else if (type === NodeType.ASSET) {
-            // Legacy asset type routing
-            const assetType = options.assetType || 'text';
-            switch (assetType) {
-                case 'text': finalType = NodeType.TEXT; break;
-                case 'image': finalType = NodeType.IMAGE; break;
-                case 'json': finalType = NodeType.JSON; break;
-                default: finalType = NodeType.TEXT;
-            }
-        }
+        // Node type is used directly (no legacy routing needed)
+        const finalType: string = type as string;
 
 
 
-        // Asset creation logic - for asset-based nodes AND recipe nodes
+        // Asset creation logic - check node's self-declaration (no hardcoded list)
         let assetId = options.assetId;
-        const isAssetNode = [
-            NodeType.TEXT,
-            NodeType.IMAGE,
-            NodeType.JSON,
-            NodeType.SELECTOR,
-            NodeType.GALLERY,
-            NodeType.TABLE,
-            NodeType.QUEUE,
-        ].includes(finalType as NodeType);
+        const nodeConfigForAsset = nodesConfig[finalType];
+        const isAssetNode = nodeConfigForAsset?.requiresAsset === true;
 
         // Create asset for regular asset nodes
         if (isAssetNode && !assetId) {
-            let assetType: AssetType = options.assetType || 'json'; // Default to json for collection nodes
+            // Use node's declared default asset type
+            let assetType: AssetType = options.assetType || nodeConfigForAsset?.defaultAssetType || 'json';
             let content = options.content;
             const name = options.assetName || config.title;
             const extraMeta = options.metadata || {};
 
-            // Determine asset type and default content based on node type
-            if (!options.assetType) {
-                if (finalType === NodeType.TEXT) assetType = 'text';
-                else if (finalType === NodeType.IMAGE) assetType = 'image';
-                else assetType = 'json'; // All collection nodes use json
-            }
-
-            // Default content by node type
+            // Use factory to get default content (Design: no switch/case on node types)
             if (!content) {
-                switch (finalType) {
-                    case NodeType.TEXT:
-                        content = '';
-                        break;
-                    case NodeType.IMAGE:
-                        content = '';
-                        break;
-                    case NodeType.JSON:
-                        content = { schema: [], values: {} };
-                        break;
-                    case NodeType.SELECTOR:
-                        content = {
-                            mode: 'multi',
-                            showSearch: true,
-                            optionSchema: [
-                                { id: 'label', key: 'label', label: 'Label', type: 'string', widget: 'text' },
-                                { id: 'description', key: 'description', label: 'Description', type: 'string', widget: 'text' },
-                            ],
-                            options: [],
-                            selected: []
-                        };
-                        break;
-                    case NodeType.GALLERY:
-                        content = { viewMode: 'grid', columnsPerRow: 4, allowStar: true, allowDelete: true, images: [] };
-                        break;
-                    case NodeType.TABLE:
-                        content = { columns: [], rows: [], showRowNumbers: true, allowAddRow: true, allowDeleteRow: true };
-                        break;
-                    case NodeType.QUEUE:
-                        content = { concurrency: 1, autoStart: false, retryOnError: true, retryCount: 3, continueOnError: false, tasks: [], isRunning: false };
-                        break;
-                    default:
-                        content = '';
+                if (nodeConfigForAsset?.createDefaultContent) {
+                    content = nodeConfigForAsset.createDefaultContent();
+                } else {
+                    content = ''; // Fallback
                 }
             }
 
@@ -157,13 +269,9 @@ export class GraphMutator {
             position,
             data: nodeData,
             style: {
-                ...(finalType === NodeType.IMAGE ? { width: 300, height: 300 } : {}),
-                ...(finalType === NodeType.TEXT ? { width: 250, height: 200 } : {}),
-                ...(finalType === NodeType.SELECTOR ? { width: 280, height: 300 } : {}),
-                ...(finalType === NodeType.GALLERY ? { width: 320, height: 280 } : {}),
-                ...(finalType === NodeType.TABLE ? { width: 360, height: 250 } : {}),
-                ...(finalType === NodeType.QUEUE ? { width: 300, height: 280 } : {}),
-                ...(isVirtualRecipe ? { width: 280 } : {}), // No fixed height for recipe nodes
+                // Use defaultStyle from node config (Design: no hardcoded dimensions)
+                ...(config.defaultStyle || {}),
+                ...(isVirtualRecipe ? { width: 280 } : {}), // Recipe nodes have fixed width
                 ...(options.style || {}),
             },
         };
@@ -250,9 +358,12 @@ export class GraphMutator {
     public createShortcut(nodeId: string) {
         const { nodes } = this.engine.state;
         const node = nodes.find(n => n.id === nodeId);
+        if (!node) return;
 
-        const contentTypes = [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE];
-        if (!node || !contentTypes.includes(node.type as NodeType)) return;
+        // Only nodes with requiresAsset or RECIPE can have shortcuts
+        const nodeConfig = nodesConfig[node.type];
+        const canShortcut = nodeConfig?.requiresAsset || node.type === NodeType.RECIPE;
+        if (!canShortcut) return;
 
         const newId = uuidv4();
         const sanitizedNode = sanitizeNodeForClipboard(node);

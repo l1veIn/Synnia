@@ -304,6 +304,7 @@ export const nanoBananaPro: ModelPlugin = {
     name: 'Nano Banana Pro',
     description: 'Fast image generation with reference image support (FAL / Google Gemini)',
     category: 'image-generation',
+    provider: 'fal',  // Primary provider
     supportedProviders: ['fal', 'google'],
     renderConfig: (props) => <NanoBananaProConfig {...props} />,
 

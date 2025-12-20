@@ -50,46 +50,19 @@ export interface ManifestField {
 // OutputSchema removed - use executor.nodeConfig.schema instead for output definitions
 
 /**
- * Executor types available
+ * Base executor configuration - extensible pattern
+ * Each executor defines its own config type extending this base
+ * 
+ * Built-in types: 'template', 'expression', 'http', 'llm-agent', 'media', 'custom'
+ * Custom types can be added by creating new executor files in impl/
  */
-export type ExecutorType = 'template' | 'http' | 'llm-agent' | 'custom' | 'expression' | 'media';
-
-/**
- * Base executor configuration
- */
-export interface BaseExecutorConfig {
-    type: ExecutorType;
-}
-
-/**
- * Template executor: simple string interpolation
- */
-export interface TemplateExecutorConfig extends BaseExecutorConfig {
-    type: 'template';
-    template: string;
-    outputKey?: string; // Default: 'result'
-}
-
-/**
- * Expression executor: JavaScript expression evaluation
- */
-export interface ExpressionExecutorConfig extends BaseExecutorConfig {
-    type: 'expression';
-    expression: string;
+export interface ExecutorConfig {
+    /** Executor type - matches the filename in executors/impl/ */
+    type: string;
+    /** Output key for result data (optional, executor-specific) */
     outputKey?: string;
-}
-
-/**
- * HTTP executor: make HTTP requests
- */
-export interface HttpExecutorConfig extends BaseExecutorConfig {
-    type: 'http';
-    url: string;
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
-    headers?: Record<string, string>;
-    body?: string; // Template string
-    responseType?: 'json' | 'text';
-    outputKey?: string;
+    /** Allow any additional properties for flexibility */
+    [key: string]: any;
 }
 
 /**
@@ -113,49 +86,6 @@ export interface NodeCreationConfig {
     // Table node specific (future)
     // ...
 }
-
-/**
- * LLM Agent executor: call LLM with prompts
- */
-export interface LlmAgentExecutorConfig extends BaseExecutorConfig {
-    type: 'llm-agent';
-    systemPrompt?: string;
-    userPromptTemplate: string;
-    parseAs?: 'json' | 'text';
-    temperature?: number;
-    maxTokens?: number;
-    // Node creation config
-    createNodes?: boolean;
-    nodeConfig?: NodeCreationConfig;
-}
-
-/**
- * Custom executor: load from TypeScript file
- */
-export interface CustomExecutorConfig extends BaseExecutorConfig {
-    type: 'custom';
-    executorPath: string; // Relative path like './executor.ts'
-}
-
-/**
- * Media executor: generate images/videos/audio
- */
-export interface MediaExecutorConfig extends BaseExecutorConfig {
-    type: 'media';
-    mode: 'image-generation' | 'video-generation';
-    outputNode?: {
-        type: 'gallery' | 'video' | 'audio';
-        titleTemplate?: string;
-    };
-}
-
-export type ExecutorConfig =
-    | TemplateExecutorConfig
-    | ExpressionExecutorConfig
-    | HttpExecutorConfig
-    | LlmAgentExecutorConfig
-    | MediaExecutorConfig
-    | CustomExecutorConfig;
 
 /**
  * Recipe Manifest - the YAML configuration structure

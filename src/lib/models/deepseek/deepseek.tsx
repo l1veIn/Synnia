@@ -4,8 +4,8 @@
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { ModelPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
-import { extractJson } from './utils';
-import { DefaultLLMSettings } from './DefaultLLMSettings';
+import { extractJson } from '../utils';
+import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
 // Shared DeepSeek Execution Logic
@@ -15,7 +15,8 @@ async function executeDeepSeek(
     input: LLMExecutionInput,
     modelId: string
 ): Promise<LLMExecutionResult> {
-    const { credentials, systemPrompt, userPrompt, temperature, maxTokens, jsonMode } = input;
+    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const userPrompt = input.userPrompt || input.prompt || '';
 
     if (!credentials.apiKey) {
         return { success: false, error: 'DeepSeek API key not configured' };
@@ -68,7 +69,7 @@ export const deepseekChat: ModelPlugin = {
     id: 'deepseek-chat',
     name: 'DeepSeek V3',
     description: 'DeepSeek V3 MoE model',
-    category: 'llm-chat',
+    category: 'llm',  // Unified LLM category
     supportedProviders: ['deepseek'],
     provider: 'deepseek',
     capabilities: ['chat', 'function-calling', 'json-mode', 'streaming'],

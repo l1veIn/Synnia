@@ -8,38 +8,9 @@ import { useNode } from '@/hooks/useNode';
 import { FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { TextNodeInspector } from './Inspector';
-import { portRegistry } from '@/lib/engine/ports';
-
-// --- Register Ports ---
-portRegistry.register(NodeType.TEXT, {
-  static: [
-    {
-      id: 'output',
-      direction: 'output',
-      dataType: 'text',
-      label: 'Text Output',
-      resolver: (node, asset) => ({
-        type: 'text',
-        value: asset?.content || '',
-        meta: { nodeId: node.id, portId: 'output' }
-      })
-    }
-  ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-  type: NodeType.TEXT,
-  title: 'Text',
-  category: 'Asset',
-  icon: FileText,
-  description: 'Text content',
-};
-
-export const behavior = StandardAssetBehavior;
+import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Node Component ---
 export const TextNode = memo((props: NodeProps<SynniaNode>) => {
@@ -47,12 +18,10 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   const { state, actions } = useNode(id);
   const updateNodeInternals = useUpdateNodeInternals();
 
-  // Trigger re-measure when collapsed state changes
   useEffect(() => {
     updateNodeInternals(id);
   }, [state.isCollapsed, id, updateNodeInternals]);
 
-  // Local editing buffer
   const [localContent, setLocalContent] = useState('');
 
   useEffect(() => {
@@ -88,7 +57,6 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
         onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
       />
 
-      {/* Origin Handle - shown when this is a recipe product */}
       <NodePort.Origin show={state.hasProductHandle} />
 
       <NodeHeader
@@ -135,5 +103,49 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
 });
 TextNode.displayName = 'TextNode';
 
-// Standard Exports for Auto-Loader
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+  type: NodeType.TEXT,
+  component: TextNode,
+  inspector: TextNodeInspector,
+  config: {
+    type: NodeType.TEXT,
+    title: 'Text',
+    category: 'Asset',
+    icon: FileText,
+    description: 'Text content',
+
+    requiresAsset: true,
+    defaultAssetType: 'text',
+    createNodeAlias: 'text',
+
+    defaultStyle: { width: 250, height: 200 },
+
+    createDefaultContent: () => '',
+  },
+  behavior: StandardAssetBehavior,
+  ports: {
+    static: [
+      {
+        id: 'output',
+        direction: 'output',
+        dataType: 'text',
+        label: 'Text Output',
+        resolver: (node, asset) => ({
+          type: 'text',
+          value: asset?.content || '',
+          meta: { nodeId: node.id, portId: 'output' }
+        })
+      }
+    ]
+  },
+  assetContentSchema: {
+    content: { type: 'string', required: true, description: 'Text content' },
+  }
+};
+
+// Legacy exports for compatibility
 export { TextNode as Node, TextNodeInspector as Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;
+

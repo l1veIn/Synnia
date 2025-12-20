@@ -75,7 +75,7 @@ export interface FieldConnection {
 }
 
 export interface FieldDefinition {
-    id: string; // Internal ID for UI key stability
+    id?: string; // Internal ID for UI key stability
     key: string; // The actual variable name
     label?: string; // Human readable label
     type: FieldType;

@@ -121,33 +121,19 @@ executor:
   createNodes: true
   nodeConfig:
     type: selector
-    selectorMode: single
     titleTemplate: "Naming Options ({{count}} items)"
     collapsed: false
     schema:
       - key: name
         label: Name
         type: string
-        widget: text
-        placeholder: "Character name"
-        connection:
-          output: true
       - key: tagline
         label: Tagline
         type: string
-        widget: text
-        placeholder: "Character's catchphrase"
-        connection:
-          output: true
       - key: rationale
         label: Rationale
         type: string
-        widget: textarea
-        placeholder: "Why this name fits"
-        connection:
-          output: true
       - key: style
         label: Style
         type: string
-        widget: text
-        placeholder: "Direct/Metaphor/Abstract"
+

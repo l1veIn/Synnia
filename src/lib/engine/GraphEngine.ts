@@ -34,11 +34,11 @@ export class GraphEngine {
      * Trigger a state update via the store.
      * This is the only way the Engine modifies the Model.
      */
-    public setNodes(nodes: any[]) {
+    public setNodes(nodes: SynniaNode[]) {
         useWorkflowStore.setState({ nodes });
     }
 
-    public setEdges(edges: any[]) {
+    public setEdges(edges: SynniaEdge[]) {
         useWorkflowStore.setState({ edges });
     }
 
@@ -83,8 +83,23 @@ export class GraphEngine {
             return n;
         });
 
-        // Trigger Layout Fix (Constraint Solving)
-        nodes = this.layout.fixGlobalLayout(nodes);
+        // Optimization: Only trigger layout if geometry or hierarchy changed
+        const affectsLayout =
+            patch.position !== undefined ||
+            patch.width !== undefined ||
+            patch.height !== undefined ||
+            patch.parentId !== undefined ||
+            patch.measured !== undefined ||
+            patch.style !== undefined ||
+            (patch.data && (
+                'collapsed' in patch.data ||
+                'dockedTo' in patch.data ||
+                'hasDockedFollower' in patch.data
+            ));
+
+        if (affectsLayout) {
+            nodes = this.layout.fixGlobalLayout(nodes);
+        }
 
         this.setNodes(nodes);
     }
@@ -95,9 +110,26 @@ export class GraphEngine {
      */
     public updateNodes(updates: { id: string, patch: Partial<SynniaNode> }[]) {
         const updateMap = new Map<string, Partial<SynniaNode>>();
+        let shouldFixLayout = false;
 
         for (const u of updates) {
             const existing = updateMap.get(u.id) || {};
+
+            // Check if this specific update affects layout
+            if (!shouldFixLayout) {
+                shouldFixLayout = Boolean(
+                    u.patch.position !== undefined ||
+                    u.patch.width !== undefined ||
+                    u.patch.height !== undefined ||
+                    u.patch.parentId !== undefined ||
+                    u.patch.measured !== undefined ||
+                    u.patch.style !== undefined ||
+                    (u.patch.data && (
+                        'collapsed' in u.patch.data ||
+                        'dockedTo' in u.patch.data ||
+                        'hasDockedFollower' in u.patch.data
+                    )));
+            }
 
             // Merge logic: Accumulate changes
             updateMap.set(u.id, {
@@ -123,8 +155,9 @@ export class GraphEngine {
             return n;
         });
 
-        // Trigger Layout Fix
-        nodes = this.layout.fixGlobalLayout(nodes);
+        if (shouldFixLayout) {
+            nodes = this.layout.fixGlobalLayout(nodes);
+        }
 
         this.setNodes(nodes);
     }

@@ -1,7 +1,7 @@
 // Auto-Generate Service
 // High-level service for node content generation
 
-import { callLLM } from '@/lib/models/llm';
+import { callLLM } from '../llm/registry';
 
 export interface AutoGenerateOptions {
     mode: 'text' | 'json-complete' | 'table-rows' | 'table-full' | 'form-autofill';

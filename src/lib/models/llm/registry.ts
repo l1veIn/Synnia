@@ -27,7 +27,7 @@ class LLMRegistryImpl {
     }
 
     getByProvider(provider: ProviderType): LLMPlugin[] {
-        return this.getAll().filter(p => p.supportedProviders.includes(provider));
+        return this.getAll().filter(p => (p.supportedProviders || [p.provider]).includes(provider));
     }
 
     getByCapability(capability: LLMCapability): LLMPlugin[] {
@@ -100,7 +100,7 @@ export async function callLLM(options: CallLLMOptions): Promise<LLMExecutionResu
     }
 
     // Get credentials for the plugin's provider
-    const provider = plugin.supportedProviders[0];
+    const provider = plugin.provider || (plugin.supportedProviders || [])[0];
     const apiKey = getApiKey(provider as any);
     const baseUrl = getBaseUrl(provider as any);
 

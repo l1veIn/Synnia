@@ -1,6 +1,8 @@
 import { LucideIcon } from 'lucide-react';
 import { NodeType, SynniaNode, BaseNodeData } from './project';
 import { Asset } from './assets';
+import { NodeCreationConfig } from './recipe';
+import { XYPosition } from '@xyflow/react';
 
 export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container' | 'Math' | 'Text' | 'HTTP' | 'Recipe';
 
@@ -39,20 +41,56 @@ export interface FileImportConfig {
 }
 
 /**
+ * Node specification for creating nodes from executor results
+ */
+export interface NodeSpec {
+  type: NodeType | string;
+  data: Partial<BaseNodeData> & { content?: any };
+  position?: 'below' | 'right' | XYPosition;
+  dockedTo?: string | '$prev';
+}
+
+/**
  * Node configuration interface
+ * 
+ * Design Principle: Node-specific logic lives HERE, not in the engine.
+ * The engine calls these factories - it never hardcodes node type logic.
  */
 export interface NodeConfig {
-  type: NodeType | string;  // Allow string for virtual recipe types
+  type: NodeType | string;
   title: string;
   category: NodeCategory;
   icon: LucideIcon;
   description?: string;
-  defaultWidth?: number;
-  defaultHeight?: number;
   hidden?: boolean;
+
   /** Default data to set when creating this node */
   defaultData?: Partial<BaseNodeData>;
-  /** If set, this node requires file import and will show in NodePicker with file selector */
+
+  /** If set, this node requires file import */
   fileImport?: FileImportConfig;
+
+  // ============================================================================
+  // Self-Declaration Fields - Engine never hardcodes node type lists
+  // ============================================================================
+
+  /** If true, this node type requires an asset to be created with it */
+  requiresAsset?: boolean;
+
+  /** Default asset type for this node (text, image, json) */
+  defaultAssetType?: 'text' | 'image' | 'json';
+
+  /** Alias used in YAML nodeConfig.type (e.g., 'selector', 'table', 'gallery') */
+  createNodeAlias?: string;
+
+  // ============================================================================
+  // Factory Methods - Node-specific logic (Engine never hardcodes these)
+  // ============================================================================
+
+  /** Default style (width/height) for this node type */
+  defaultStyle?: { width?: number; height?: number };
+
+  /** Factory: create default content for this node type's asset */
+  createDefaultContent?: () => any;
 }
 

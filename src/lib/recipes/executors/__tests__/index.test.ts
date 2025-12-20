@@ -10,7 +10,7 @@ import {
     extractText,
     extractNumber,
 } from '../index';
-import { ExecutionContext, ExecutionResult, TemplateExecutorConfig, ExpressionExecutorConfig } from '@/types/recipe';
+import { ExecutionContext, ExecutionResult } from '@/types/recipe';
 
 // Helper to create mock ExecutionContext
 const createMockContext = (inputs: Record<string, any>): ExecutionContext => ({
@@ -231,12 +231,11 @@ describe('createExecutor - expression', () => {
 
 describe('createExecutor - factory', () => {
     it('should throw for unknown executor type', () => {
-        // @ts-expect-error - testing invalid type
-        expect(() => createExecutor({ type: 'unknown' })).toThrow('Unknown executor type');
+        expect(() => createExecutor({ type: 'unknown-nonexistent-type' })).toThrow('Unknown executor type');
     });
 
     it('should throw for custom executor type', () => {
-        // @ts-expect-error - testing incomplete custom config
         expect(() => createExecutor({ type: 'custom' })).toThrow('Custom executors should be loaded');
     });
 });
+

@@ -4,8 +4,8 @@
 import { generateText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
-import { extractJson } from './utils';
-import { DefaultLLMSettings } from './DefaultLLMSettings';
+import { extractJson } from '../utils';
+import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
 // Shared Anthropic Execution Logic
@@ -15,7 +15,8 @@ async function executeAnthropic(
     input: LLMExecutionInput,
     modelId: string
 ): Promise<LLMExecutionResult> {
-    const { credentials, systemPrompt, userPrompt, temperature, maxTokens, jsonMode } = input;
+    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const userPrompt = input.userPrompt || input.prompt || '';
 
     if (!credentials.apiKey) {
         return { success: false, error: 'Anthropic API key not configured' };
@@ -77,7 +78,7 @@ const createClaudeModel = (config: ClaudeModelConfig): ModelPlugin => ({
     id: config.id,
     name: config.name,
     description: config.description,
-    category: config.hasVision ? 'llm-vision' : 'llm-chat',
+    category: 'llm',  // Unified LLM category
     supportedProviders: ['anthropic'],
     provider: 'anthropic',
     capabilities: config.hasVision

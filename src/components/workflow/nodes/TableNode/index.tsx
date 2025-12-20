@@ -6,12 +6,11 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Table as TableIcon, Trash2, ChevronDown, ChevronUp, Edit } from 'lucide-react';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { TableEditor } from './TableEditor';
 import { cn } from '@/lib/utils';
-import { portRegistry } from '@/lib/engine/ports';
+import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Asset Content Type ---
 export interface TableColumn {
@@ -28,40 +27,6 @@ export interface TableAssetContent {
     allowAddRow: boolean;
     allowDeleteRow: boolean;
 }
-
-// --- Register Ports ---
-portRegistry.register(NodeType.TABLE, {
-    static: [
-        {
-            id: 'output',
-            direction: 'output',
-            dataType: 'array',
-            label: 'Table Rows',
-            resolver: (node, asset) => {
-                if (!asset?.content) return null;
-                const content = asset.content as TableAssetContent;
-                return {
-                    type: 'array',
-                    value: content.rows,
-                    meta: { nodeId: node.id, portId: 'output' }
-                };
-            }
-        }
-    ]
-});
-
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.TABLE,
-    title: 'Table',
-    category: 'Asset',
-    icon: TableIcon,
-    description: 'Editable data table',
-    defaultWidth: 360,
-    defaultHeight: 250,
-};
-
-export const behavior = StandardAssetBehavior;
 
 // --- Node Component ---
 export const TableNode = memo((props: NodeProps<SynniaNode>) => {
@@ -206,5 +171,62 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
 });
 TableNode.displayName = 'TableNode';
 
-// Standard Exports
+// --- Node Definition (unified registration) ---
+export const definition: NodeDefinition = {
+    type: NodeType.TABLE,
+    component: TableNode,
+    inspector: Inspector,
+    config: {
+        type: NodeType.TABLE,
+        title: 'Table',
+        category: 'Asset',
+        icon: TableIcon,
+        description: 'Editable data table',
+
+        requiresAsset: true,
+        defaultAssetType: 'json',
+        createNodeAlias: 'table',
+
+        defaultStyle: { width: 360, height: 250 },
+
+        createDefaultContent: (): TableAssetContent => ({
+            columns: [],
+            rows: [],
+            showRowNumbers: true,
+            allowAddRow: true,
+            allowDeleteRow: true,
+        }),
+    },
+    behavior: StandardAssetBehavior,
+    ports: {
+        static: [
+            {
+                id: 'output',
+                direction: 'output',
+                dataType: 'array',
+                label: 'Table Rows',
+                resolver: (node, asset) => {
+                    if (!asset?.content) return null;
+                    const content = asset.content as TableAssetContent;
+                    return {
+                        type: 'array',
+                        value: content.rows,
+                        meta: { nodeId: node.id, portId: 'output' }
+                    };
+                }
+            }
+        ]
+    },
+    assetContentSchema: {
+        columns: { type: 'array', itemType: 'TableColumn', required: true, description: 'Column definitions' },
+        rows: { type: 'array', itemType: 'object', required: true, description: 'Table row data' },
+        showRowNumbers: { type: 'boolean', default: true, description: 'Show row numbers' },
+        allowAddRow: { type: 'boolean', default: true, description: 'Allow adding rows' },
+        allowDeleteRow: { type: 'boolean', default: true, description: 'Allow deleting rows' },
+    }
+};
+
+// Legacy exports for compatibility with current node loader
 export { TableNode as Node, Inspector };
+export const config = definition.config;
+export const behavior = definition.behavior;

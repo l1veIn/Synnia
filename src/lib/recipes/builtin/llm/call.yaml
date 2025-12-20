@@ -33,7 +33,7 @@ inputSchema:
     type: object
     widget: model-configurator
     options:
-      category: llm-chat
+      category: llm
     required: true
 
 executor:

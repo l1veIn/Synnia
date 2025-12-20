@@ -8,7 +8,7 @@ import {
     getLLMModelsForCapability as defaultGetLLMModelsForCapability,
     LLMModelDefinition,
     LLMCapability,
-} from '@/lib/models/llm';
+} from '@/lib/models';
 import {
     getModel as defaultGetModel,
     getModelsForCategory as defaultGetModelsForCategory,

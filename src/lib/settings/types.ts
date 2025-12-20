@@ -1,19 +1,11 @@
 // Unified Settings Types
 // Support both cloud providers (API key) and local providers (base URL)
 
-export type ProviderKey =
-    // Cloud providers (need API key)
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'fal'
-    | 'replicate'
-    | 'deepseek'
-    | 'ppio'
-    // Local/self-hosted providers (need base URL)
-    | 'ollama'
-    | 'lmstudio'
-    | 'comfyui';
+import { ProviderKey } from '@/lib/models/types';
+import { PROVIDER_INFO } from '@/lib/models/providers';
+
+export type { ProviderKey, ProviderInfo } from '@/lib/models/types';
+export { PROVIDER_INFO } from '@/lib/models/providers';
 
 // Provider configuration
 export interface ProviderConfig {
@@ -32,105 +24,6 @@ export interface AppSettings {
     // Settings version for future migrations
     _version: number;
 }
-
-// Provider metadata for UI display
-export interface ProviderInfo {
-    key: ProviderKey;
-    name: string;
-    description: string;
-    type: 'cloud' | 'local';
-    placeholder: string;           // For API key or base URL
-    defaultBaseUrl?: string;       // Default base URL for local providers
-    requiresApiKey: boolean;
-}
-
-export const PROVIDER_INFO: ProviderInfo[] = [
-    // Cloud providers
-    {
-        key: 'openai',
-        name: 'OpenAI',
-        description: 'GPT-4o, DALL-E 3',
-        type: 'cloud',
-        placeholder: 'sk-...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'anthropic',
-        name: 'Anthropic',
-        description: 'Claude 3.5 Sonnet',
-        type: 'cloud',
-        placeholder: 'sk-ant-...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'google',
-        name: 'Google AI',
-        description: 'Gemini 2.0, Imagen',
-        type: 'cloud',
-        placeholder: 'AIza...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'fal',
-        name: 'FAL.ai',
-        description: 'Flux, Nano Banana, Kling',
-        type: 'cloud',
-        placeholder: 'fal_...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'replicate',
-        name: 'Replicate',
-        description: 'Various open models',
-        type: 'cloud',
-        placeholder: 'r8_...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'deepseek',
-        name: 'DeepSeek',
-        description: 'DeepSeek V3',
-        type: 'cloud',
-        placeholder: 'sk-...',
-        requiresApiKey: true,
-    },
-    {
-        key: 'ppio',
-        name: 'PPIO',
-        description: 'PPIO Cloud GPU',
-        type: 'cloud',
-        placeholder: 'pp_...',
-        requiresApiKey: true,
-    },
-    // Local providers
-    {
-        key: 'ollama',
-        name: 'Ollama',
-        description: 'Local LLM server',
-        type: 'local',
-        placeholder: 'http://localhost:11434',
-        defaultBaseUrl: 'http://localhost:11434',
-        requiresApiKey: false,
-    },
-    {
-        key: 'lmstudio',
-        name: 'LM Studio',
-        description: 'Local LLM server',
-        type: 'local',
-        placeholder: 'http://localhost:1234',
-        defaultBaseUrl: 'http://localhost:1234',
-        requiresApiKey: false,
-    },
-    {
-        key: 'comfyui',
-        name: 'ComfyUI',
-        description: 'Local image generation',
-        type: 'local',
-        placeholder: 'http://localhost:8188',
-        defaultBaseUrl: 'http://localhost:8188',
-        requiresApiKey: false,
-    },
-];
 
 
 

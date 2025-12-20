@@ -1,5 +1,5 @@
 import { FormAssetContent, isFormAsset } from '@/types/assets';
-import { useMemo, useEffect, useState, useCallback } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -41,19 +41,26 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Initialize draft from saved values
+    // Track previous assetId to detect actual node switches
+    const prevAssetIdRef = useRef<string | undefined>(undefined);
+
+    // Effect 1: When assetId changes, mark as needing re-initialization
+    useEffect(() => {
+        if (prevAssetIdRef.current !== assetId) {
+            prevAssetIdRef.current = assetId;
+            // Mark for re-init - will sync on next effect run when savedValues updates
+            setIsInitialized(false);
+        }
+    }, [assetId]);
+
+    // Effect 2: Sync to savedValues when not initialized
+    // This runs after assetId change triggers re-init, AND after savedValues updates
     useEffect(() => {
         if (!isInitialized && savedValues) {
             setDraftValues(savedValues);
             setIsInitialized(true);
         }
     }, [savedValues, isInitialized]);
-
-    // Reset draft when node changes
-    useEffect(() => {
-        setDraftValues(savedValues);
-        setIsInitialized(true);
-    }, [nodeId, assetId]);
 
     // Check if there are unsaved changes
     const hasChanges = useMemo(() => {

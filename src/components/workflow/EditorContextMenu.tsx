@@ -39,7 +39,8 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const parentNode = hasParent ? nodes.find(n => n.id === targetNode?.parentId) : null;
   const parentLabel = parentNode ? 'Container' : '';
 
-  const isShortcuttable = targetNode && [NodeType.ASSET, NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
+  const isShortcuttable = false;
+  // const isShortcuttable = targetNode && [NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
 
   const handleAddNode = (type: NodeType) => {
     if (contextMenuTarget?.position) {
@@ -78,7 +79,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 })
                 : { x: 100, y: 100 };
 
-              graphEngine.mutator.addNode(NodeType.ASSET, position, {
+              graphEngine.mutator.addNode(NodeType.IMAGE, position, {
                 assetType: 'image',
                 content: result.relativePath,
                 assetName: file.name,

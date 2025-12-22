@@ -25,8 +25,8 @@ portRegistry.register(NodeType.RECIPE, {
             dataType: 'json',
             label: 'Reference Output',
             resolver: (node, asset) => {
-                if (asset?.content && typeof asset.content === 'object') {
-                    const content = asset.content as any;
+                if (asset?.value && typeof asset.value === 'object') {
+                    const content = asset.value as any;
                     if (content.values) {
                         return {
                             type: 'json',
@@ -87,10 +87,10 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         }
     }, [isRunning]);
 
-    // Get values from asset
+    // Get values from asset - now from asset.value
     const assetValues = useMemo(() => {
-        if (state.asset?.content && typeof state.asset.content === 'object') {
-            const content = state.asset.content as any;
+        if (state.asset?.value && typeof state.asset.value === 'object') {
+            const content = state.asset.value as any;
             return content.values || {};
         }
         return {};

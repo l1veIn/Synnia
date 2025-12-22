@@ -16,11 +16,11 @@ interface TableEditorProps {
 }
 
 export function TableEditor({ open, onOpenChange, assetId }: TableEditorProps) {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
 
-    // Get saved content
+    // Get saved content - now from asset.value
     const savedContent: TableAssetContent = useMemo(() => {
-        const raw = (asset?.content as TableAssetContent) || {};
+        const raw = (asset?.value as TableAssetContent) || {};
         return {
             columns: raw.columns ?? [],
             rows: raw.rows ?? [],
@@ -28,7 +28,7 @@ export function TableEditor({ open, onOpenChange, assetId }: TableEditorProps) {
             allowAddRow: raw.allowAddRow ?? true,
             allowDeleteRow: raw.allowDeleteRow ?? true,
         };
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     // Draft state
     const [draftRows, setDraftRows] = useState<Record<string, any>[]>([]);
@@ -71,7 +71,7 @@ export function TableEditor({ open, onOpenChange, assetId }: TableEditorProps) {
 
     // Save
     const handleSave = () => {
-        setContent({ ...savedContent, rows: draftRows });
+        setValue({ ...savedContent, rows: draftRows });
         toast.success('Table saved');
         onOpenChange(false);
     };

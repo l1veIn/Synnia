@@ -252,14 +252,14 @@ export class InteractionSystem {
 
         // === Dock Preview Detection ===
         // Check if this JSON node is near another JSON node for docking preview
-        if (node.type === NodeType.JSON && !dockedTo) {
+        if (node.type === NodeType.FORM && !dockedTo) {
             const DOCK_PREVIEW_THRESHOLD = 50;
             const nodeTop = node.position.y;
             const nodeWidth = node.measured?.width ?? node.width ?? 200;
 
             // Find nearby JSON nodes that could be docking targets
             const potentialTargets = nodes.filter(n =>
-                n.type === NodeType.JSON &&
+                n.type === NodeType.FORM &&
                 n.id !== node.id &&
                 !n.parentId &&
                 !(n.data as any).hasDockedFollower
@@ -302,14 +302,14 @@ export class InteractionSystem {
         const { nodes, assets } = this.engine.state;
 
         // === JSON Auto-Docking ===
-        if (node.type === NodeType.JSON) {
+        if (node.type === NodeType.FORM) {
             const DOCK_THRESHOLD = 50; // pixels to trigger dock (matching preview)
             const nodeTop = node.position.y;
             const nodeWidth = node.measured?.width ?? node.width ?? 200;
 
             // Find nearby JSON nodes that could be docking targets
             const potentialTargets = nodes.filter(n =>
-                n.type === NodeType.JSON &&
+                n.type === NodeType.FORM &&
                 n.id !== node.id &&
                 !n.parentId && // Both must be root nodes
                 !(n.data as any).hasDockedFollower // Target must not already have a follower

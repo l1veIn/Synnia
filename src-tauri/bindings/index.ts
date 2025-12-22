@@ -9,7 +9,9 @@ export type { Viewport } from './Viewport';
 export type { Graph } from './Graph';
 
 // Asset Types
-export type { Asset } from './Asset';
+// Re-export from local TypeScript types (discriminated union) instead of Rust bindings
+// This ensures type compatibility across the codebase
+export type { Asset } from '../../src/types/assets';
 export type { AssetMetadata } from './AssetMetadata';
 export type { ImageAssetMetadata } from './ImageAssetMetadata';
 export type { TextAssetMetadata } from './TextAssetMetadata';

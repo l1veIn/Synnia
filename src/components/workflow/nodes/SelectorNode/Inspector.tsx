@@ -22,11 +22,11 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
 
-    // Get saved content
+    // Get saved content - now from asset.value
     const savedContent: SelectorAssetContent = useMemo(() => {
-        const raw = (asset?.content as SelectorAssetContent) || {};
+        const raw = (asset?.value as SelectorAssetContent) || {};
         return {
             mode: raw.mode ?? 'multi',
             showSearch: raw.showSearch ?? true,
@@ -34,7 +34,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             options: raw.options ?? [],
             selected: raw.selected ?? [],
         };
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     // Draft state for settings
     const [draftMode, setDraftMode] = useState<'single' | 'multi'>('multi');
@@ -75,7 +75,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Save settings
     const handleSaveSettings = () => {
-        setContent({
+        setValue({
             ...savedContent,
             mode: draftMode,
             showSearch: draftShowSearch,
@@ -116,7 +116,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Delete option
     const handleDeleteOption = (optionId: string) => {
-        setContent({
+        setValue({
             ...savedContent,
             options: savedContent.options.filter(o => o.id !== optionId),
             selected: savedContent.selected.filter(id => id !== optionId),
@@ -140,7 +140,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             newOptions = [...savedContent.options, updatedOption];
         }
 
-        setContent({ ...savedContent, options: newOptions });
+        setValue({ ...savedContent, options: newOptions });
         setIsOptionDialogOpen(false);
         setEditingOption(null);
         toast.success(exists ? 'Option updated' : 'Option added');
@@ -197,7 +197,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                         ...r,
                                     }));
                                     setDraftSchema(newSchema);
-                                    setContent({
+                                    setValue({
                                         ...savedContent,
                                         optionSchema: newSchema,
                                         options: [...savedContent.options, ...newOptions],

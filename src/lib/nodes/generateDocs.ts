@@ -28,24 +28,10 @@ export function generateNodeDocs(): string {
         if (doc.description) {
             md += `**Description:** ${doc.description}\n`;
         }
-        md += `**Requires Asset:** ${doc.requiresAsset ? 'Yes' : 'No'}\n`;
-        if (doc.defaultAssetType) {
-            md += `**Default Asset Type:** \`${doc.defaultAssetType}\`\n`;
+        if (doc.compatibleValueTypes && doc.compatibleValueTypes.length > 0) {
+            md += `**Compatible Value Types:** ${doc.compatibleValueTypes.map(t => `\`${t}\``).join(', ')}\n`;
         }
         md += '\n';
-
-        if (doc.contentFields.length > 0) {
-            md += '### Content Fields\n\n';
-            md += '| Field | Type | Required | Default | Description |\n';
-            md += '|-------|------|----------|---------|-------------|\n';
-            for (const field of doc.contentFields) {
-                const required = field.required ? '✓' : '';
-                const defaultVal = field.default !== undefined ? `\`${JSON.stringify(field.default)}\`` : '-';
-                const desc = field.description || '-';
-                md += `| ${field.name} | \`${field.type}\` | ${required} | ${defaultVal} | ${desc} |\n`;
-            }
-            md += '\n';
-        }
 
         md += '---\n\n';
     }

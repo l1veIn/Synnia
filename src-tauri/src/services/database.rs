@@ -115,14 +115,15 @@ CREATE TABLE IF NOT EXISTS edges (
     animated INTEGER DEFAULT 0
 );
 
--- Assets (data layer)
+-- Assets (data layer) - New unified structure
 CREATE TABLE IF NOT EXISTS assets (
     id TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    content_json TEXT NOT NULL,
-    metadata_json TEXT NOT NULL,
-    extracted_json TEXT,
+    value_type TEXT NOT NULL,
+    value_hash TEXT NOT NULL,
+    value_json TEXT NOT NULL,
+    value_meta_json TEXT,
+    config_json TEXT,
+    sys_json TEXT NOT NULL,
     updated_at INTEGER NOT NULL
 );
 
@@ -145,7 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_history_time
 
 -- Index for asset lookup by hash
 CREATE INDEX IF NOT EXISTS idx_asset_hash 
-    ON assets(content_hash);
+    ON assets(value_hash);
 
 -- Project settings (key-value store)
 CREATE TABLE IF NOT EXISTS settings (

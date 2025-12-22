@@ -18,12 +18,12 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-    // Get saved content
+    // Get saved content - now from asset.value
     const savedContent: TableAssetContent = useMemo(() => {
-        const raw = (asset?.content as TableAssetContent) || {};
+        const raw = (asset?.value as TableAssetContent) || {};
         return {
             columns: raw.columns ?? [],
             rows: raw.rows ?? [],
@@ -31,7 +31,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             allowAddRow: raw.allowAddRow ?? true,
             allowDeleteRow: raw.allowDeleteRow ?? true,
         };
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     // Draft state - for schema only
     const [draftColumns, setDraftColumns] = useState<TableColumn[]>([]);
@@ -63,7 +63,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Save schema
     const handleSave = () => {
-        setContent({
+        setValue({
             ...savedContent,
             columns: draftColumns,
             showRowNumbers: draftShowRowNumbers,
@@ -121,7 +121,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                             onGenerate={(rows) => {
                                 // Append generated rows to existing rows
                                 const newRows = [...savedContent.rows, ...rows];
-                                setContent({ ...savedContent, rows: newRows });
+                                setValue({ ...savedContent, rows: newRows });
                                 toast.success(`Added ${rows.length} rows`);
                             }}
                             placeholder="Describe the data to generate..."
@@ -137,7 +137,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 // Set both columns and rows
                                 const { columns, rows } = result;
                                 setDraftColumns(columns);
-                                setContent({
+                                setValue({
                                     ...savedContent,
                                     columns,
                                     rows,

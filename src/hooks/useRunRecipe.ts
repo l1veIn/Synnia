@@ -40,8 +40,8 @@ export function useRunRecipe() {
 
             if (node.data.assetId) {
                 const asset = store.assets[node.data.assetId as string];
-                if (asset?.content && typeof asset.content === 'object') {
-                    const content = asset.content as FormAssetContent;
+                if (asset?.value && typeof asset.value === 'object') {
+                    const content = asset.value as FormAssetContent;
                     staticValues = content?.values || {};
                 }
             }
@@ -128,9 +128,9 @@ export function useRunRecipe() {
                     // Check if it's a collection type (Gallery, Table, Selector)
                     const isCollection = [NodeType.GALLERY, NodeType.TABLE, NodeType.SELECTOR].includes(existingProductNode.type as NodeType);
 
-                    if (isCollection && existingAsset?.content && specData.content) {
+                    if (isCollection && existingAsset?.value && specData.content) {
                         // Append new items to the top of the collection
-                        const existingContent = existingAsset.content as any;
+                        const existingContent = existingAsset.value as any;
                         const newContent = specData.content as any;
 
                         let mergedContent: any;

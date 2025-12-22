@@ -1,12 +1,22 @@
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode, NodeType } from '@/types/project';
-import { AssetType } from '@/types/assets';
+import { ValueType } from '@/types/assets';
 import { nodesConfig } from '@/components/workflow/nodes';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@/lib/graphUtils';
 import { XYPosition } from '@xyflow/react';
 import { getRecipe } from '@/lib/recipes';
 import { NodeCreationConfig } from '@/types/recipe';
+
+// Helper: Map old asset type strings to new ValueType
+function toValueType(assetType: string): ValueType {
+    switch (assetType) {
+        case 'text': return 'text';
+        case 'image': return 'image';
+        case 'json': return 'record';
+        default: return 'record';
+    }
+}
 
 // NOTE: Node-specific logic (default content, build from data, etc.)
 // is defined in each node's config via factory methods.
@@ -164,7 +174,7 @@ export class GraphMutator {
                         : `#${index + 1}`;
 
                     return {
-                        type: NodeType.JSON,
+                        type: NodeType.FORM,
                         data: {
                             title,
                             collapsed: nodeConfig.collapsed ?? true,
@@ -181,12 +191,12 @@ export class GraphMutator {
 
 
 
-    public addNode(type: NodeType | string, position: XYPosition, options: { assetType?: AssetType, content?: any, assetId?: string, assetName?: string, metadata?: any, style?: any } = {}) {
+    public addNode(type: NodeType | string, position: XYPosition, options: { valueType?: ValueType, content?: any, assetId?: string, assetName?: string, metadata?: any, style?: any } = {}) {
         // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
         const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
 
         // Get config - for virtual recipes, look up by the full type string
-        const config = nodesConfig[type] || nodesConfig[NodeType.JSON];
+        const config = nodesConfig[type] || nodesConfig[NodeType.FORM];
 
         // Node type is used directly (no legacy routing needed)
         const finalType: string = type as string;
@@ -201,7 +211,7 @@ export class GraphMutator {
         // Create asset for regular asset nodes
         if (isAssetNode && !assetId) {
             // Use node's declared default asset type
-            let assetType: AssetType = options.assetType || nodeConfigForAsset?.defaultAssetType || 'json';
+            let valueType: ValueType = options.valueType || toValueType(nodeConfigForAsset?.defaultAssetType || 'json');
             let content = options.content;
             const name = options.assetName || config.title;
             const extraMeta = options.metadata || {};
@@ -216,7 +226,7 @@ export class GraphMutator {
             }
 
             // Use AssetSystem
-            assetId = this.engine.assets.create(assetType, content, { name, ...extraMeta });
+            assetId = this.engine.assets.create(valueType, content, { name });
         }
 
         // Create asset for recipe nodes (FormAssetContent to store values)
@@ -243,7 +253,7 @@ export class GraphMutator {
             }
 
             const content = { schema, values: defaultValues };
-            assetId = this.engine.assets.create('json', content, { name: recipeName });
+            assetId = this.engine.assets.create('record', content, { name: recipeName, config: { schema } });
         }
 
         const nodeTitle = (options as any).title || options.assetName || config.title;
@@ -311,15 +321,14 @@ export class GraphMutator {
         let newAssetId = sanitizedNode.data.assetId;
         if (newAssetId && assets[newAssetId]) {
             const originalAsset = assets[newAssetId];
-            const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
+            const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
 
             // Use AssetSystem
             newAssetId = this.engine.assets.create(
-                originalAsset.type,
-                contentClone,
+                originalAsset.valueType,
+                valueClone,
                 {
-                    name: `${originalAsset.metadata.name} (Copy)`,
-                    source: 'user'
+                    name: `${originalAsset.sys.name} (Copy)`
                 }
             );
         }
@@ -409,13 +418,13 @@ export class GraphMutator {
             if (newAssetId) {
                 if (assets[newAssetId]) {
                     const originalAsset = assets[newAssetId];
-                    const contentClone = originalAsset.content ? JSON.parse(JSON.stringify(originalAsset.content)) : originalAsset.content;
+                    const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
 
                     // Use AssetSystem
                     newAssetId = this.engine.assets.create(
-                        originalAsset.type,
-                        contentClone,
-                        { name: `${originalAsset.metadata.name} (Copy)` }
+                        originalAsset.valueType,
+                        valueClone,
+                        { name: `${originalAsset.sys.name} (Copy)` }
                     );
                 } else {
                     newAssetId = this.engine.assets.create(

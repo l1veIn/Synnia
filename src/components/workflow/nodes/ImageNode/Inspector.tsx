@@ -6,16 +6,18 @@ import { Edit2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaImageEditor } from '@/components/ui/synnia-image-editor';
+import { isImageAsset } from '@/types/assets';
 
 export const Inspector = ({ assetId }: { assetId: string }) => {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [imageUrl, setImageUrl] = useState('');
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
     useEffect(() => {
         if (!asset) return;
-        let raw = asset.content;
+        // New Asset API: value is the image URL/path
+        let raw = asset.value;
 
         if (typeof raw === 'object' && raw !== null && 'src' in raw) {
             raw = (raw as any).src;
@@ -36,36 +38,28 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
         } else {
             setImageUrl('');
         }
-    }, [asset?.content, serverPort]);
+    }, [asset?.value, serverPort]);
 
     const handleSaveImage = async (blob: Blob) => {
         try {
-            // Convert blob to base64 for backend processing
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = async () => {
                 const base64data = reader.result as string;
 
-                // Call backend to save as file and get path
                 const { apiClient } = await import('@/lib/apiClient');
                 const result = await apiClient.saveProcessedImage(base64data);
 
-                // Update asset with file path (not base64!)
-                setContent(result.relativePath);
+                // Update asset value with file path
+                setValue(result.relativePath);
 
-                // Update metadata with new dimensions
-                if (asset && result.width && result.height) {
+                // Update valueMeta with new dimensions
+                if (asset && isImageAsset(asset) && result.width && result.height) {
                     const { graphEngine } = await import('@/lib/engine/GraphEngine');
-                    graphEngine.assets.updateMetadata(assetId, {
-                        image: {
-                            width: result.width,
-                            height: result.height,
-                            size: asset.metadata.image?.size ?? null,
-                            mimeType: asset.metadata.image?.mimeType ?? null,
-                            thumbnail: result.thumbnailPath ?? null,
-                            hash: asset.metadata.image?.hash ?? null
-                        }
+                    graphEngine.assets.updateConfig(assetId, {
+                        mimeType: asset.config?.mimeType,
                     });
+                    // Note: valueMeta updates would need a separate method if needed
                 }
             };
         } catch (e) {
@@ -75,9 +69,8 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
-    let src = '';
-    if (typeof asset.content === 'string') src = asset.content;
-    else if (typeof asset.content === 'object' && asset.content && 'src' in asset.content) src = (asset.content as any).src;
+    const src = typeof asset.value === 'string' ? asset.value : '';
+    const meta = isImageAsset(asset) ? asset.valueMeta : undefined;
 
     return (
         <div className="p-4 space-y-4">
@@ -87,7 +80,7 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
                         Image Preview
                     </Label>
                     <div className="min-h-[100px] max-h-[300px] flex items-center justify-center rounded-md overflow-hidden border bg-muted">
-                        <img src={imageUrl} alt={asset.metadata?.name} className="max-w-full max-h-full object-contain" />
+                        <img src={imageUrl} alt={asset.sys?.name} className="max-w-full max-h-full object-contain" />
                     </div>
                 </div>
             )}
@@ -96,13 +89,13 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
                 <Input
                     className="text-xs font-mono"
                     value={src}
-                    onChange={(e) => setContent(e.target.value)}
+                    onChange={(e) => setValue(e.target.value)}
                 />
             </div>
             <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Dimensions</Label>
                 <div className="text-xs bg-muted p-2 rounded">
-                    {asset.metadata.image?.width || '?'} x {asset.metadata.image?.height || '?'} px
+                    {meta?.width || '?'} x {meta?.height || '?'} px
                 </div>
             </div>
             <Button

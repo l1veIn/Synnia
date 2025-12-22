@@ -48,7 +48,7 @@ export function useFileUploadDrag() {
               x: position.x + offset,
               y: position.y + offset,
             }, {
-              assetType: 'image',
+              valueType: 'image',
               content: result.relativePath,
               assetName: file.name,
               metadata: {

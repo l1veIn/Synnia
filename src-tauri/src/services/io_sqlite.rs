@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use rusqlite::{Connection, params, Result as SqliteResult};
 use crate::models::{
     SynniaProject, ProjectMeta, Viewport, Graph, 
-    SynniaNode, SynniaEdge, SynniaNodeData, Position, Asset, AssetMetadata
+    SynniaNode, SynniaEdge, SynniaNodeData, Position, Asset, AssetSysMetadata, ValueType
 };
 use crate::error::AppError;
 use crate::services::database;
@@ -172,8 +172,8 @@ pub fn save_asset_with_history(
     let conn = database::open_db(&db_path)
         .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
     
-    let content_json = serde_json::to_string(&asset.content)?;
-    let new_hash = compute_content_hash(&content_json);
+    let value_json = serde_json::to_string(&asset.value)?;
+    let new_hash = compute_content_hash(&value_json);
     
     // Check if hash changed
     let old_hash = history::get_current_hash(&conn, &asset.id)
@@ -184,39 +184,45 @@ pub fn save_asset_with_history(
     // Create snapshot if hash changed
     if hash_changed {
         if let Some(old) = old_hash {
-            // Get old content for snapshot
-            let old_content: Option<String> = conn.query_row(
-                "SELECT content_json FROM assets WHERE id = ?1",
+            let old_value: Option<String> = conn.query_row(
+                "SELECT value_json FROM assets WHERE id = ?1",
                 params![&asset.id],
                 |row| row.get(0),
             ).ok();
             
-            if let Some(old_content) = old_content {
-                history::create_snapshot_if_changed(&conn, &asset.id, &old, &old_content)
+            if let Some(old_value) = old_value {
+                history::create_snapshot_if_changed(&conn, &asset.id, &old, &old_value)
                     .map_err(|e| AppError::Io(format!("Failed to create snapshot: {}", e)))?;
             }
         }
     }
     
     // Upsert asset
-    let metadata_json = serde_json::to_string(&asset.metadata)?;
+    let sys_json = serde_json::to_string(&asset.sys)?;
+    let value_meta_json = asset.value_meta.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
+    let config_json = asset.config.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
+    let value_type_str = serde_json::to_string(&asset.value_type)?;
     let now = chrono::Utc::now().timestamp_millis();
     
     conn.execute(
-        "INSERT INTO assets (id, type, content_hash, content_json, metadata_json, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO assets (id, value_type, value_hash, value_json, value_meta_json, config_json, sys_json, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(id) DO UPDATE SET
-             type = excluded.type,
-             content_hash = excluded.content_hash,
-             content_json = excluded.content_json,
-             metadata_json = excluded.metadata_json,
+             value_type = excluded.value_type,
+             value_hash = excluded.value_hash,
+             value_json = excluded.value_json,
+             value_meta_json = excluded.value_meta_json,
+             config_json = excluded.config_json,
+             sys_json = excluded.sys_json,
              updated_at = excluded.updated_at",
         params![
             &asset.id,
-            &asset.type_,
+            &value_type_str,
             &new_hash,
-            &content_json,
-            &metadata_json,
+            &value_json,
+            &value_meta_json,
+            &config_json,
+            &sys_json,
             now
         ],
     ).map_err(|e| AppError::Io(format!("Failed to save asset: {}", e)))?;
@@ -433,31 +439,36 @@ fn save_edges(conn: &Connection, edges: &[SynniaEdge]) -> Result<(), AppError> {
 
 fn load_assets(conn: &Connection) -> Result<HashMap<String, Asset>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, type, content_json, metadata_json FROM assets"
+        "SELECT id, value_type, value_json, value_meta_json, config_json, sys_json FROM assets"
     ).map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
     
     let mut assets = HashMap::new();
     
     let rows = stmt.query_map([], |row| {
         let id: String = row.get(0)?;
-        let type_: String = row.get(1)?;
-        let content_json: String = row.get(2)?;
-        let metadata_json: String = row.get(3)?;
+        let value_type_str: String = row.get(1)?;
+        let value_json: String = row.get(2)?;
+        let value_meta_json: Option<String> = row.get(3)?;
+        let config_json: Option<String> = row.get(4)?;
+        let sys_json: String = row.get(5)?;
         
-        let content: serde_json::Value = serde_json::from_str(&content_json)
+        let value_type: ValueType = serde_json::from_str(&value_type_str)
+            .unwrap_or(ValueType::Text);
+        let value: serde_json::Value = serde_json::from_str(&value_json)
             .unwrap_or(serde_json::Value::Null);
-        let metadata: AssetMetadata = serde_json::from_str(&metadata_json)
-            .unwrap_or_else(|_| AssetMetadata {
+        let value_meta: Option<serde_json::Value> = value_meta_json
+            .and_then(|s| serde_json::from_str(&s).ok());
+        let config: Option<serde_json::Value> = config_json
+            .and_then(|s| serde_json::from_str(&s).ok());
+        let sys: AssetSysMetadata = serde_json::from_str(&sys_json)
+            .unwrap_or_else(|_| AssetSysMetadata {
                 name: "Unknown".to_string(),
                 created_at: 0,
                 updated_at: 0,
-                source: None,
-                image: None,
-                text: None,
-                extra: HashMap::new(),
+                source: "user".to_string(),
             });
         
-        Ok(Asset { id, type_, content, metadata })
+        Ok(Asset { id, value_type, value, value_meta, config, sys })
     }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
     
     for asset_result in rows {
@@ -473,21 +484,26 @@ fn save_assets(conn: &Connection, assets: &HashMap<String, Asset>) -> Result<(),
     // Instead, we upsert each asset.
     
     for (id, asset) in assets {
-        let content_json = serde_json::to_string(&asset.content)?;
-        let metadata_json = serde_json::to_string(&asset.metadata)?;
-        let content_hash = compute_content_hash(&content_json);
+        let value_json = serde_json::to_string(&asset.value)?;
+        let value_meta_json = asset.value_meta.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
+        let config_json = asset.config.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
+        let sys_json = serde_json::to_string(&asset.sys)?;
+        let value_type_str = serde_json::to_string(&asset.value_type)?;
+        let value_hash = compute_content_hash(&value_json);
         let now = chrono::Utc::now().timestamp_millis();
         
         conn.execute(
-            "INSERT INTO assets (id, type, content_hash, content_json, metadata_json, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "INSERT INTO assets (id, value_type, value_hash, value_json, value_meta_json, config_json, sys_json, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT(id) DO UPDATE SET
-                 type = excluded.type,
-                 content_hash = excluded.content_hash,
-                 content_json = excluded.content_json,
-                 metadata_json = excluded.metadata_json,
+                 value_type = excluded.value_type,
+                 value_hash = excluded.value_hash,
+                 value_json = excluded.value_json,
+                 value_meta_json = excluded.value_meta_json,
+                 config_json = excluded.config_json,
+                 sys_json = excluded.sys_json,
                  updated_at = excluded.updated_at",
-            params![id, &asset.type_, &content_hash, &content_json, &metadata_json, now],
+            params![id, &value_type_str, &value_hash, &value_json, &value_meta_json, &config_json, &sys_json, now],
         ).map_err(|e| AppError::Io(format!("Failed to save asset: {}", e)))?;
     }
     
@@ -511,6 +527,7 @@ fn save_assets(conn: &Connection, assets: &HashMap<String, Asset>) -> Result<(),
     
     Ok(())
 }
+
 
 fn load_settings(conn: &Connection) -> Result<Option<HashMap<String, serde_json::Value>>, AppError> {
     let mut stmt = conn.prepare("SELECT key, value_json FROM settings")
@@ -606,16 +623,15 @@ mod tests {
         
         project.assets.insert("asset-1".to_string(), Asset {
             id: "asset-1".to_string(),
-            type_: "text".to_string(),
-            content: serde_json::json!({"text": "Hello World"}),
-            metadata: AssetMetadata {
+            value_type: ValueType::Text,
+            value: serde_json::json!("Hello World"),
+            value_meta: Some(serde_json::json!({"length": 11})),
+            config: Some(serde_json::json!({"format": "plain"})),
+            sys: AssetSysMetadata {
                 name: "Text Asset".to_string(),
                 created_at: 12345,
                 updated_at: 12345,
-                source: Some("user".to_string()),
-                image: None,
-                text: None,
-                extra: HashMap::new(),
+                source: "user".to_string(),
             },
         });
         

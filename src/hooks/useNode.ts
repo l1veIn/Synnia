@@ -207,11 +207,11 @@ export function useNodeAsset(nodeId: string) {
         }
     }, [assetId]);
 
-    const updateMetadata = useCallback((metadata: Partial<Asset['metadata']>) => {
+    const updateSys = useCallback((sys: Partial<Asset['sys']>) => {
         if (assetId) {
-            graphEngine.assets.updateMetadata(assetId, metadata);
+            graphEngine.assets.updateSys(assetId, sys);
         }
     }, [assetId]);
 
-    return { asset, updateContent, updateMetadata };
+    return { asset, updateContent, updateSys };
 }

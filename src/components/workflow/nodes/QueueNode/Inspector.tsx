@@ -17,11 +17,11 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
 
-    // Get saved content
+    // Get saved content - now from asset.value
     const savedContent: QueueAssetContent = useMemo(() => {
-        const raw = (asset?.content as QueueAssetContent) || {};
+        const raw = (asset?.value as QueueAssetContent) || {};
         return {
             concurrency: raw.concurrency ?? 1,
             autoStart: raw.autoStart ?? false,
@@ -31,7 +31,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             tasks: raw.tasks ?? [],
             isRunning: raw.isRunning ?? false,
         };
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     // Draft state
     const [draftConcurrency, setDraftConcurrency] = useState(1);
@@ -79,7 +79,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Save
     const handleSave = () => {
-        setContent({
+        setValue({
             ...savedContent,
             concurrency: draftConcurrency,
             autoStart: draftAutoStart,

@@ -27,15 +27,16 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // Get asset for values storage
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
 
-    // Saved values from asset
+    // Saved values from asset - now from asset.value
     const savedValues = useMemo(() => {
-        if (asset && isFormAsset(asset.content)) {
-            return asset.content.values || {};
+        const value = asset?.value as FormAssetContent | undefined;
+        if (value && isFormAsset(value)) {
+            return value.values || {};
         }
         return nodeData?.inputs || {};
-    }, [asset, nodeData]);
+    }, [asset?.value, nodeData]);
 
     // Draft state - local edits before save
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});
@@ -89,14 +90,15 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
 
     // Init asset content if needed
     useEffect(() => {
-        if (asset && !isFormAsset(asset.content)) {
-            const legacyValues = typeof asset.content === 'object' ? asset.content : {};
-            setContent({
+        const value = asset?.value as FormAssetContent | undefined;
+        if (asset && !isFormAsset(value)) {
+            const legacyValues = typeof asset.value === 'object' ? asset.value : {};
+            setValue({
                 schema: [],
                 values: legacyValues || {}
             });
         }
-    }, [asset?.content, setContent]);
+    }, [asset?.value, setValue]);
 
     if (!recipe) {
         return <div className="p-4 text-xs text-muted-foreground">Recipe not found: {recipeId}</div>;
@@ -110,7 +112,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Save draft to asset
     const handleSave = () => {
         if (assetId) {
-            setContent({
+            setValue({
                 schema: [],
                 values: draftValues
             });

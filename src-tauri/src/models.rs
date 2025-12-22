@@ -42,73 +42,143 @@ pub struct ProjectMeta {
 
 // ========================================== 
 // Asset System (Data Layer)
+// New unified structure with discriminated union
 // ========================================== 
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+/// ValueType enum for Asset discrimination
+#[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct Asset {
-    pub id: String,
-    pub type_: String, // "text", "image", "recipe", "video", etc.
-    
-    // Content can be a String, a complex Object, or a File Path (handled by Rust)
-    #[ts(type = "any")]
-    pub content: serde_json::Value, 
-    
-    pub metadata: AssetMetadata,
+#[serde(rename_all = "lowercase")]
+pub enum ValueType {
+    Text,
+    Image,
+    Record,
+    Array,
 }
 
+/// System metadata - tracks asset lifecycle
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct AssetMetadata {
+pub struct AssetSysMetadata {
     pub name: String,
     #[ts(type = "number")]
     pub created_at: i64,
     #[ts(type = "number")]
     pub updated_at: i64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>, // "user", "generated", "imported"
-    
-    // Type-specific metadata
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub image: Option<ImageAssetMetadata>,
-    
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text: Option<TextAssetMetadata>,
-    
-    // Flexible extra data
-    #[serde(default)]
-    #[ts(type = "Record<string, any>")]
-    pub extra: HashMap<String, serde_json::Value>,
+    pub source: String, // "user", "ai", "import"
 }
 
-/// Metadata specific to image assets
+/// Value metadata for text assets
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct ImageAssetMetadata {
-    pub width: u32,
-    pub height: u32,
+pub struct TextValueMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub size: Option<u64>,
+    pub preview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub length: Option<u64>,
+}
+
+/// Config for text assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct TextAssetConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>, // "markdown" | "plain" | "json"
+}
+
+/// Value metadata for image assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageValueMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+}
+
+/// Config for image assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageAssetConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumbnail: Option<String>, // Relative path to thumbnail
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hash: Option<String>,
 }
 
-/// Metadata specific to text assets
+/// Value metadata for record assets
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct TextAssetMetadata {
-    pub length: u64,
+pub struct RecordValueMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub encoding: Option<String>,
+    pub preview: Option<String>,
 }
+
+/// Config for record assets (forms)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordAssetConfig {
+    #[ts(type = "any[]")]
+    pub schema: serde_json::Value, // FieldDefinition[]
+}
+
+/// Value metadata for array assets
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrayValueMeta {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub length: Option<u64>,
+}
+
+/// Config for array assets (tables, selectors, galleries)
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrayAssetConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any[]")]
+    pub item_schema: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any[]")]
+    pub columns: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any[]")]
+    pub options: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>, // "single" | "multi"
+}
+
+/// Unified Asset structure with discriminated union
+/// Frontend uses valueType to determine the asset variant
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct Asset {
+    pub id: String,
+    pub value_type: ValueType,
+    
+    #[ts(type = "any")]
+    pub value: serde_json::Value,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any")]
+    pub value_meta: Option<serde_json::Value>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any")]
+    pub config: Option<serde_json::Value>,
+    
+    pub sys: AssetSysMetadata,
+}
+
 
 // ========================================== 
 // Graph System (View Layer)

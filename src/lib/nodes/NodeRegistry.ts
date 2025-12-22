@@ -4,19 +4,21 @@ import type { NodeBehavior } from '@/lib/engine/types/behavior';
 import type { NodePortConfig } from '@/lib/engine/ports/types';
 
 // ============================================================================
-// Asset Content Schema - describes the structure of a node's asset content
-// Used for documentation generation and generic data mapping
+// Asset Content Schema - DEPRECATED
+// Asset now self-describes via valueType + config
 // ============================================================================
 
+/** @deprecated Asset now self-describes via valueType + config */
 export interface FieldSchema {
     type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'enum';
     description?: string;
     default?: any;
-    options?: string[];  // For enum types
-    itemType?: string;   // For array types
+    options?: string[];
+    itemType?: string;
     required?: boolean;
 }
 
+/** @deprecated Asset now self-describes via valueType + config */
 export type AssetContentSchema = Record<string, FieldSchema>;
 
 // ============================================================================
@@ -43,8 +45,8 @@ export interface NodeDefinition {
     ports?: NodePortConfig;
 
     /** 
+     * @deprecated Asset now self-describes via valueType + config.
      * Schema describing the AssetContent structure.
-     * Used for documentation generation and generic data mapping.
      */
     assetContentSchema?: AssetContentSchema;
 }
@@ -59,15 +61,7 @@ export interface NodeConfigDoc {
     title: string;
     description?: string;
     category: string;
-    requiresAsset: boolean;
-    defaultAssetType?: string;
-    contentFields: {
-        name: string;
-        type: string;
-        description?: string;
-        default?: any;
-        required?: boolean;
-    }[];
+    compatibleValueTypes?: string[];
 }
 
 // ============================================================================
@@ -177,28 +171,10 @@ class NodeRegistry {
         const docs: NodeConfigDoc[] = [];
 
         for (const [type, def] of this.nodes) {
-            const { config, assetContentSchema } = def;
+            const { config } = def;
 
             // Skip hidden nodes and recipe nodes
             if (config.hidden || type.startsWith('recipe:')) continue;
-
-            const contentFields: NodeConfigDoc['contentFields'] = [];
-
-            if (assetContentSchema) {
-                for (const [name, schema] of Object.entries(assetContentSchema)) {
-                    contentFields.push({
-                        name,
-                        type: schema.type === 'enum'
-                            ? schema.options?.map(o => `'${o}'`).join(' | ') || schema.type
-                            : schema.type === 'array'
-                                ? `${schema.itemType || 'any'}[]`
-                                : schema.type,
-                        description: schema.description,
-                        default: schema.default,
-                        required: schema.required,
-                    });
-                }
-            }
 
             docs.push({
                 type,
@@ -206,9 +182,7 @@ class NodeRegistry {
                 title: config.title,
                 description: config.description,
                 category: config.category,
-                requiresAsset: config.requiresAsset ?? false,
-                defaultAssetType: config.defaultAssetType,
-                contentFields,
+                compatibleValueTypes: config.compatibleValueTypes,
             });
         }
 

@@ -9,27 +9,27 @@ import { SynniaEditor } from '@/components/ui/synnia-editor';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 
 export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
-    const { asset, setContent, setMetadata } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
     const [localContent, setLocalContent] = useState('');
 
-    // Sync content when asset changes
+    // Sync content when asset changes - now from asset.value
     useEffect(() => {
         if (asset) {
             // Always treat content as string for local editing
-            const content = typeof asset.content === 'object'
-                ? JSON.stringify(asset.content, null, 2)
-                : String(asset.content || '');
+            const content = typeof asset.value === 'object'
+                ? JSON.stringify(asset.value, null, 2)
+                : String(asset.value || '');
             setLocalContent(content);
         }
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset Not Found</div>;
 
-    // Read editorMode from extra metadata
-    const editorMode = (asset.metadata?.extra?.editorMode as string) || 'plain';
+    // Read editorMode from asset config
+    const editorMode = ((asset.config as any)?.editorMode as string) || 'plain';
 
     const handleModeChange = (mode: string) => {
-        setMetadata({ extra: { ...asset.metadata.extra, editorMode: mode } });
+        updateConfig({ ...(asset.config || {}), editorMode: mode });
     };
 
     const handleEditorChange = (val: string) => {
@@ -94,9 +94,9 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
                         onChange={handleEditorChange}
                         mode={editorMode as any}
                         className="flex-1 border-0"
-                        title={asset.metadata?.name || 'Text Asset'}
+                        title={asset.sys?.name || 'Text Asset'}
                         onSave={(val) => {
-                            setContent(val);
+                            setValue(val);
                             toast.success("Saved");
                         }}
                     />

@@ -28,9 +28,9 @@ export function resolvePort(
     }
 
     // Fallback: try to extract from asset content for field-level ports
-    if (portId.startsWith('field:') && asset?.content) {
+    if (portId.startsWith('field:') && asset?.value) {
         const fieldKey = portId.replace('field:', '');
-        const content = asset.content as any;
+        const content = asset.value as any;
 
         // Check for values in different content structures
         if (content.values && content.values[fieldKey] !== undefined) {
@@ -52,8 +52,8 @@ export function resolvePort(
     }
 
     // Fallback: return entire asset content for semantic ports
-    if (!portId.includes(':') && asset?.content) {
-        const content = asset.content as any;
+    if (!portId.includes(':') && asset?.value) {
+        const content = asset.value as any;
 
         // For 'origin' or similar, return the whole structure
         if (content.values) {

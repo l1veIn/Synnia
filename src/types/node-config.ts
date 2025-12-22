@@ -1,6 +1,6 @@
 import { LucideIcon } from 'lucide-react';
 import { NodeType, SynniaNode, BaseNodeData } from './project';
-import { Asset } from './assets';
+import { Asset, ValueType } from './assets';
 import { NodeCreationConfig } from './recipe';
 import { XYPosition } from '@xyflow/react';
 
@@ -74,11 +74,11 @@ export interface NodeConfig {
   // Self-Declaration Fields - Engine never hardcodes node type lists
   // ============================================================================
 
-  /** If true, this node type requires an asset to be created with it */
-  requiresAsset?: boolean;
-
-  /** Default asset type for this node (text, image, json) */
-  defaultAssetType?: 'text' | 'image' | 'json';
+  /** 
+   * Compatible value types for this node.
+   * Used for validation when assigning assets to nodes.
+   */
+  compatibleValueTypes?: ValueType[];
 
   /** Alias used in YAML nodeConfig.type (e.g., 'selector', 'table', 'gallery') */
   createNodeAlias?: string;
@@ -90,7 +90,23 @@ export interface NodeConfig {
   /** Default style (width/height) for this node type */
   defaultStyle?: { width?: number; height?: number };
 
-  /** Factory: create default content for this node type's asset */
+  /** 
+   * Factory: create default asset for this node type.
+   * Returns a partial Asset object, engine will fill in id and sys.
+   */
+  createDefaultAsset?: () => Partial<Asset>;
+
+  // ============================================================================
+  // Deprecated - to be removed after migration
+  // ============================================================================
+
+  /** @deprecated Use createDefaultAsset instead */
+  requiresAsset?: boolean;
+
+  /** @deprecated Use createDefaultAsset instead */
+  defaultAssetType?: 'text' | 'image' | 'json';
+
+  /** @deprecated Use createDefaultAsset instead */
   createDefaultContent?: () => any;
 }
 

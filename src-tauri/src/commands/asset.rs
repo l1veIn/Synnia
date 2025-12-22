@@ -197,59 +197,64 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
     let conn = database::open_db(&db_path)
         .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
     
-    // Query all assets that are not text or json
+    // Query all assets that are not text or record (form)
     let mut stmt = conn.prepare(
-        "SELECT id, type, content_json, metadata_json, updated_at 
+        "SELECT id, value_type, value_json, value_meta_json, sys_json, updated_at 
          FROM assets 
-         WHERE type NOT IN ('text', 'json')
+         WHERE value_type NOT IN ('text', 'record')
          ORDER BY updated_at DESC"
     ).map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
     
     let assets = stmt.query_map([], |row| {
         let id: String = row.get(0)?;
         let asset_type: String = row.get(1)?;
-        let content_json: String = row.get(2)?;
-        let metadata_json: String = row.get(3)?;
-        let updated_at: i64 = row.get(4)?;
-        Ok((id, asset_type, content_json, metadata_json, updated_at))
+        let value_json: String = row.get(2)?;
+        let value_meta_json: Option<String> = row.get(3)?;
+        let sys_json: String = row.get(4)?;
+        let updated_at: i64 = row.get(5)?;
+        Ok((id, asset_type, value_json, value_meta_json, sys_json, updated_at))
     }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
     
     let mut result = Vec::new();
     
     for asset in assets {
-        let (id, asset_type, content_json, metadata_json, updated_at) = 
+        let (id, asset_type, value_json, value_meta_json, sys_json, updated_at) = 
             asset.map_err(|e| AppError::Io(format!("Failed to read asset: {}", e)))?;
         
-        // Parse content (could be string path or object with src)
-        let content: String = serde_json::from_str(&content_json)
-            .unwrap_or_else(|_| content_json.trim_matches('"').to_string());
+        // Parse value (could be string path or object with src)
+        let content: String = serde_json::from_str(&value_json)
+            .unwrap_or_else(|_| value_json.trim_matches('"').to_string());
         
-        // Parse metadata
-        let metadata: serde_json::Value = serde_json::from_str(&metadata_json)
+        // Parse sys metadata for name and createdAt
+        let sys: serde_json::Value = serde_json::from_str(&sys_json)
             .unwrap_or_else(|_| serde_json::json!({}));
         
-        let name = metadata.get("name")
+        let name = sys.get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("Unnamed")
             .to_string();
         
-        let created_at = metadata.get("createdAt")
+        let created_at = sys.get("createdAt")
             .and_then(|v| v.as_i64())
             .unwrap_or(updated_at);
         
-        let image_meta = metadata.get("image");
-        let thumbnail_path = image_meta
-            .and_then(|img| img.get("thumbnail"))
+        // Parse valueMeta for image metadata
+        let value_meta: serde_json::Value = value_meta_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_else(|| serde_json::json!({}));
+        
+        let thumbnail_path = value_meta
+            .get("thumbnail")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
         
-        let width = image_meta
-            .and_then(|img| img.get("width"))
+        let width = value_meta
+            .get("width")
             .and_then(|v| v.as_u64())
             .map(|v| v as u32);
         
-        let height = image_meta
-            .and_then(|img| img.get("height"))
+        let height = value_meta
+            .get("height")
             .and_then(|v| v.as_u64())
             .map(|v| v as u32);
         

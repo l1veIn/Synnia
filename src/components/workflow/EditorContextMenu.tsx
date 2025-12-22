@@ -80,7 +80,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 : { x: 100, y: 100 };
 
               graphEngine.mutator.addNode(NodeType.IMAGE, position, {
-                assetType: 'image',
+                valueType: 'image',
                 content: result.relativePath,
                 assetName: file.name,
                 metadata: {

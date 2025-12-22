@@ -14,7 +14,7 @@ import { getWidgetInputHandles } from '@/components/workflow/widgets';
 import { definition as selectorDef } from './SelectorNode';
 import { definition as tableDef } from './TableNode';
 import { definition as galleryDef } from './GalleryNode';
-import { definition as jsonDef } from './JSONNode';
+import { definition as formDef } from './FormNode';
 import { definition as textDef } from './TextNode';
 import { definition as imageDef } from './ImageNode';
 import { definition as queueDef } from './QueueNode';
@@ -27,7 +27,7 @@ const staticDefinitions = [
     selectorDef,
     tableDef,
     galleryDef,
-    jsonDef,
+    formDef,
     textDef,
     imageDef,
     queueDef,
@@ -100,7 +100,7 @@ for (const recipe of recipes) {
                 }
             ];
 
-            const values = (asset?.content as FormAssetContent)?.values || {};
+            const values = (asset?.value as FormAssetContent)?.values || {};
 
             for (const field of recipe.inputSchema) {
                 const conn = field.connection;

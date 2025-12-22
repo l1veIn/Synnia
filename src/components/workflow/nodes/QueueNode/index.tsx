@@ -54,9 +54,9 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults
+    // Get content with defaults - now from asset.value
     const content: QueueAssetContent = useMemo(() => {
-        const raw = (state.asset?.content as QueueAssetContent) || {};
+        const raw = (state.asset?.value as QueueAssetContent) || {};
         return {
             concurrency: raw.concurrency ?? 1,
             autoStart: raw.autoStart ?? false,
@@ -66,7 +66,7 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
             tasks: raw.tasks ?? [],
             isRunning: raw.isRunning ?? false,
         };
-    }, [state.asset?.content]);
+    }, [state.asset?.value]);
 
     // Stats
     const completedCount = content.tasks.filter(t => t.status === 'success').length;
@@ -220,14 +220,17 @@ export const definition: NodeDefinition = {
 
         defaultStyle: { width: 300, height: 280 },
 
-        createDefaultContent: (): QueueAssetContent => ({
-            concurrency: 1,
-            autoStart: false,
-            retryOnError: true,
-            retryCount: 3,
-            continueOnError: false,
-            tasks: [],
-            isRunning: false,
+        createDefaultAsset: () => ({
+            valueType: 'record' as const,
+            value: {
+                concurrency: 1,
+                autoStart: false,
+                retryOnError: true,
+                retryCount: 3,
+                continueOnError: false,
+                tasks: [],
+                isRunning: false,
+            } as QueueAssetContent,
         }),
     },
     behavior: StandardAssetBehavior,
@@ -239,8 +242,8 @@ export const definition: NodeDefinition = {
                 dataType: 'array',
                 label: 'Completed Results',
                 resolver: (node, asset) => {
-                    if (!asset?.content) return null;
-                    const content = asset.content as QueueAssetContent;
+                    if (!asset?.value) return null;
+                    const content = asset.value as QueueAssetContent;
                     return {
                         type: 'array',
                         value: content.tasks
@@ -252,15 +255,6 @@ export const definition: NodeDefinition = {
             }
         ]
     },
-    assetContentSchema: {
-        concurrency: { type: 'number', default: 1, description: 'Max concurrent tasks' },
-        autoStart: { type: 'boolean', default: false, description: 'Auto-start queue' },
-        retryOnError: { type: 'boolean', default: true, description: 'Retry failed tasks' },
-        retryCount: { type: 'number', default: 3, description: 'Max retry count' },
-        continueOnError: { type: 'boolean', default: false, description: 'Continue on error' },
-        tasks: { type: 'array', itemType: 'QueueTask', required: true, description: 'Task list' },
-        isRunning: { type: 'boolean', default: false, description: 'Queue running state' },
-    }
 };
 
 // Legacy exports for compatibility

@@ -55,9 +55,9 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults
+    // Get content with defaults - now from asset.value
     const content: SelectorAssetContent = useMemo(() => {
-        const raw = (state.asset?.content as SelectorAssetContent) || {};
+        const raw = (state.asset?.value as SelectorAssetContent) || {};
         return {
             mode: raw.mode ?? 'multi',
             showSearch: raw.showSearch ?? true,
@@ -65,7 +65,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
             options: raw.options ?? [],
             selected: raw.selected ?? [],
         };
-    }, [state.asset?.content]);
+    }, [state.asset?.value]);
 
     // Local search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -307,12 +307,15 @@ export const definition: NodeDefinition = {
         defaultStyle: { width: 280, height: 300 },
 
         // Factory: default content for new node
-        createDefaultContent: (): SelectorAssetContent => ({
-            mode: 'multi',
-            showSearch: true,
-            optionSchema: DEFAULT_OPTION_SCHEMA,
-            options: [],
-            selected: []
+        createDefaultAsset: () => ({
+            valueType: 'record' as const,
+            value: {
+                mode: 'multi',
+                showSearch: true,
+                optionSchema: DEFAULT_OPTION_SCHEMA,
+                options: [],
+                selected: []
+            } as SelectorAssetContent,
         }),
     },
     behavior: StandardAssetBehavior,
@@ -324,8 +327,8 @@ export const definition: NodeDefinition = {
                 dataType: 'array',
                 label: 'Selected Items',
                 resolver: (node, asset) => {
-                    if (!asset?.content) return null;
-                    const content = asset.content as SelectorAssetContent;
+                    if (!asset?.value) return null;
+                    const content = asset.value as SelectorAssetContent;
                     const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
                     return {
                         type: 'array',
@@ -336,14 +339,6 @@ export const definition: NodeDefinition = {
             }
         ]
     },
-    // Schema for documentation generation
-    assetContentSchema: {
-        mode: { type: 'enum', options: ['single', 'multi'], default: 'multi', description: 'Selection mode' },
-        showSearch: { type: 'boolean', default: true, description: 'Show search input' },
-        optionSchema: { type: 'array', itemType: 'FieldDefinition', description: 'Schema for option fields' },
-        options: { type: 'array', itemType: 'object', required: true, default: [], description: 'List of selectable options' },
-        selected: { type: 'array', itemType: 'string', default: [], description: 'IDs of selected options' },
-    }
 };
 
 // Legacy exports for compatibility with current node loader

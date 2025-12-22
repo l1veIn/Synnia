@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
+import { isImageAsset, ImageAsset } from '@/types/assets';
 
 // --- Node Component ---
 export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
@@ -27,7 +28,8 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
 
     useEffect(() => {
         if (!state.asset) return;
-        let raw = state.asset.content;
+        // New Asset API: value is the image URL/path string
+        let raw = state.asset.value;
 
         if (typeof raw === 'object' && raw !== null && 'src' in raw) {
             raw = (raw as any).src;
@@ -45,7 +47,7 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
         } else if (raw.startsWith('http') || raw.startsWith('data:')) {
             setImageUrl(raw);
         }
-    }, [state.asset?.content, serverPort]);
+    }, [state.asset?.value, serverPort]);
 
     return (
         <NodeShell
@@ -87,13 +89,13 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
                     {state.asset ? (
                         <div className="flex flex-col w-full h-full gap-1.5">
                             <Label className="text-xs text-muted-foreground select-none shrink-0">
-                                {state.asset.metadata?.name || 'Image Content'}
+                                {state.asset.sys?.name || 'Image Content'}
                             </Label>
                             <div className="flex-1 min-h-0 flex items-center justify-center rounded-md overflow-hidden border bg-muted">
                                 {imageUrl ? (
                                     <img
                                         src={imageUrl}
-                                        alt={state.asset.metadata?.name}
+                                        alt={state.asset.sys?.name}
                                         className="max-w-full max-h-full object-contain"
                                     />
                                 ) : (
@@ -135,7 +137,10 @@ export const definition: NodeDefinition = {
 
         defaultStyle: { width: 300, height: 300 },
 
-        createDefaultContent: () => '',
+        createDefaultAsset: () => ({
+            valueType: 'image' as const,
+            value: '',
+        }),
     },
     behavior: StandardAssetBehavior,
     ports: {
@@ -146,26 +151,18 @@ export const definition: NodeDefinition = {
                 dataType: 'image',
                 label: 'Image Output',
                 resolver: (node, asset) => {
-                    if (!asset) return null;
-                    const meta = (asset.metadata?.image || {}) as { width?: number; height?: number; mimeType?: string };
-                    let url = '';
-                    if (typeof asset.content === 'string') {
-                        url = asset.content;
-                    } else if (typeof asset.content === 'object' && asset.content !== null) {
-                        url = (asset.content as any).src || (asset.content as any).url || '';
-                    }
+                    if (!asset || !isImageAsset(asset)) return null;
+                    const meta = asset.valueMeta || {};
+                    const url = typeof asset.value === 'string' ? asset.value : '';
                     return {
                         type: 'image',
-                        value: { url, width: meta.width, height: meta.height, mimeType: meta.mimeType },
+                        value: { url, width: meta.width, height: meta.height, mimeType: asset.config?.mimeType },
                         meta: { nodeId: node.id, portId: 'output' }
                     };
                 }
             }
         ]
     },
-    assetContentSchema: {
-        content: { type: 'string', required: true, description: 'Image URL or path' },
-    }
 };
 
 // Legacy exports for compatibility

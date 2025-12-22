@@ -45,7 +45,7 @@ const TYPE_LOCATIONS: Record<string, string> = {
     'QueueTask': 'components/workflow/nodes/QueueNode/index.tsx',
 };
 
-const nodeNames = ['SelectorNode', 'TableNode', 'GalleryNode', 'JSONNode', 'TextNode', 'ImageNode', 'QueueNode'];
+const nodeNames = ['SelectorNode', 'TableNode', 'GalleryNode', 'FormNode', 'TextNode', 'ImageNode', 'QueueNode'];
 
 /**
  * Parse a TypeScript interface definition from file content
@@ -102,7 +102,7 @@ function extractNodeInfo(content: string): NodeDoc | null {
     const fields: FieldDoc[] = [];
 
     if (schemaStart !== -1) {
-        let braceStart = content.indexOf('{', schemaStart);
+        const braceStart = content.indexOf('{', schemaStart);
         if (braceStart !== -1) {
             let braceCount = 1;
             let i = braceStart + 1;
@@ -128,7 +128,7 @@ function extractNodeInfo(content: string): NodeDoc | null {
                     const itemTypeM = props.match(/itemType:\s*['"](\w+)['"]/);
 
                     let type = typeM?.[1] || 'unknown';
-                    let itemType = itemTypeM?.[1];
+                    const itemType = itemTypeM?.[1];
                     if (type === 'array' && itemType) {
                         type = `${itemType}[]`;
                     }

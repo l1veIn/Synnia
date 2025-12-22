@@ -114,12 +114,12 @@ export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
     const handleAssetSave = (newAssetData: any) => {
         if (!asset) return;
 
-        if (newAssetData.content !== undefined) {
-            graphEngine.assets.update(asset.id, newAssetData.content);
+        if (newAssetData.value !== undefined) {
+            graphEngine.assets.update(asset.id, newAssetData.value);
         }
 
-        if (newAssetData.metadata) {
-            graphEngine.assets.updateMetadata(asset.id, newAssetData.metadata);
+        if (newAssetData.sys) {
+            graphEngine.assets.updateSys(asset.id, newAssetData.sys);
         }
     };
 
@@ -134,7 +134,7 @@ export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
             />
             {asset && (
                 <JsonEditorBlock
-                    title={`Asset (${asset.type})`}
+                    title={`Asset (${asset.valueType})`}
                     data={fullAssetData}
                     onSave={handleAssetSave}
                 />

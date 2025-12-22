@@ -1,5 +1,5 @@
 import { GraphEngine } from './GraphEngine';
-import { Asset, ExtendedMetadata } from '@/types/assets';
+import { Asset, ValueType, AssetSysMetadata, createSysMetadata } from '@/types/assets';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -22,27 +22,38 @@ export class AssetSystem {
         useWorkflowStore.setState({ assets });
     }
 
-    public create(type: string, content: any, metadata: Partial<Asset['metadata']> = {}): string {
+    /**
+     * Create a new asset with the new unified structure.
+     */
+    public create(
+        valueType: ValueType,
+        value: any,
+        options: {
+            name?: string;
+            config?: any;
+            valueMeta?: any;
+            source?: 'user' | 'ai' | 'import';
+        } = {}
+    ): string {
         const id = uuidv4();
         const now = Date.now();
 
-        // Ensure metadata conforms to Rust binding structure
-        const safeMetadata: Asset['metadata'] = {
-            name: metadata.name || 'New Asset',
-            createdAt: metadata.createdAt || now,
-            updatedAt: metadata.updatedAt || now,
-            source: metadata.source ?? 'user',
-            image: metadata.image ?? null,
-            text: metadata.text ?? null,
-            extra: metadata.extra || {},
+        const sys: AssetSysMetadata = {
+            name: options.name || 'New Asset',
+            createdAt: now,
+            updatedAt: now,
+            source: options.source || 'user',
         };
 
+        // Build the asset based on valueType
         const newAsset: Asset = {
             id,
-            type,
-            content,
-            metadata: safeMetadata
-        };
+            valueType,
+            value,
+            valueMeta: options.valueMeta,
+            config: options.config,
+            sys,
+        } as Asset;
 
         const { assets } = this.store;
         this.setAssets({ ...assets, [id]: newAsset });
@@ -53,7 +64,38 @@ export class AssetSystem {
         return id;
     }
 
-    public update(id: string, content: any) {
+    /**
+     * Create an asset from a partial definition (used by node factories).
+     */
+    public createFromPartial(partial: Partial<Asset> & { valueType: ValueType; value: any }, name?: string): string {
+        const id = uuidv4();
+        const now = Date.now();
+
+        const newAsset: Asset = {
+            id,
+            valueType: partial.valueType,
+            value: partial.value,
+            valueMeta: partial.valueMeta,
+            config: partial.config,
+            sys: partial.sys || {
+                name: name || 'New Asset',
+                createdAt: now,
+                updatedAt: now,
+                source: 'user',
+            },
+        } as Asset;
+
+        const { assets } = this.store;
+        this.setAssets({ ...assets, [id]: newAsset });
+        this.saveAssetToBackend(newAsset);
+
+        return id;
+    }
+
+    /**
+     * Update the value of an asset.
+     */
+    public update(id: string, value: any) {
         const { assets } = this.store;
         const asset = assets[id];
         if (!asset) {
@@ -61,14 +103,14 @@ export class AssetSystem {
             return;
         }
 
-        const updatedAsset = {
+        const updatedAsset: Asset = {
             ...asset,
-            content,
-            metadata: {
-                ...asset.metadata,
+            value,
+            sys: {
+                ...asset.sys,
                 updatedAt: Date.now()
             }
-        };
+        } as Asset;
 
         this.setAssets({
             ...assets,
@@ -78,6 +120,29 @@ export class AssetSystem {
         // Save to backend for history tracking (async, fire-and-forget)
         this.saveAssetToBackend(updatedAsset).catch(err => {
             console.warn('Failed to save asset history:', err);
+        });
+    }
+
+    /**
+     * Update config of an asset (e.g., schema, columns, options).
+     */
+    public updateConfig(id: string, config: any) {
+        const { assets } = this.store;
+        const asset = assets[id];
+        if (!asset) return;
+
+        const updatedAsset: Asset = {
+            ...asset,
+            config: { ...asset.config, ...config },
+            sys: {
+                ...asset.sys,
+                updatedAt: Date.now()
+            }
+        } as Asset;
+
+        this.setAssets({
+            ...assets,
+            [id]: updatedAsset
         });
     }
 
@@ -95,7 +160,10 @@ export class AssetSystem {
         }
     }
 
-    public updateMetadata(id: string, metaUpdates: Partial<Asset['metadata']>) {
+    /**
+     * Update system metadata (name, source).
+     */
+    public updateSys(id: string, sysUpdates: Partial<AssetSysMetadata>) {
         const { assets } = this.store;
         const asset = assets[id];
         if (!asset) return;
@@ -104,12 +172,12 @@ export class AssetSystem {
             ...assets,
             [id]: {
                 ...asset,
-                metadata: {
-                    ...asset.metadata,
-                    ...metaUpdates,
+                sys: {
+                    ...asset.sys,
+                    ...sysUpdates,
                     updatedAt: Date.now()
                 }
-            }
+            } as Asset
         });
     }
 

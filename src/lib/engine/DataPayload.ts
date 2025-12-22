@@ -48,12 +48,14 @@ function getLegacyAssetPayload(node: SynniaNode, assets: Record<string, Asset>):
     const asset = assets[assetId];
     if (!asset) return null;
 
-    switch (asset.type) {
+    // Use new Asset API: valueType instead of type, value instead of content
+    switch (asset.valueType) {
         case 'text':
-            return { type: 'text', value: asset.content };
+            return { type: 'text', value: asset.value };
 
         case 'image': {
-            const meta = (asset.metadata?.image || {}) as {
+            // valueMeta contains image-specific metadata for ImageAsset
+            const meta = (asset.valueMeta || {}) as {
                 width?: number;
                 height?: number;
                 size?: number;
@@ -62,11 +64,11 @@ function getLegacyAssetPayload(node: SynniaNode, assets: Record<string, Asset>):
             let url = '';
             let path = '';
 
-            if (typeof asset.content === 'string') {
-                url = asset.content;
+            if (typeof asset.value === 'string') {
+                url = asset.value;
                 path = url;
-            } else if (typeof asset.content === 'object' && asset.content !== null) {
-                const c = asset.content as any;
+            } else if (typeof asset.value === 'object' && asset.value !== null) {
+                const c = asset.value as any;
                 url = c.src || c.url || '';
                 path = c.path || url;
             }
@@ -77,14 +79,18 @@ function getLegacyAssetPayload(node: SynniaNode, assets: Record<string, Asset>):
             };
         }
 
-        case 'json':
-            if (isFormContent(asset.content)) {
-                return { type: 'json', value: asset.content.values };
+        case 'record':
+            if (isFormContent(asset.value)) {
+                return { type: 'json', value: (asset.value as FormAssetContent).values };
             }
-            return { type: 'json', value: asset.content };
+            return { type: 'json', value: asset.value };
+
+        case 'array':
+            return { type: 'array', value: asset.value };
 
         default:
-            return { type: 'unknown', value: asset.content };
+            // Handle future valueTypes gracefully
+            return { type: 'unknown', value: (asset as any).value };
     }
 }
 

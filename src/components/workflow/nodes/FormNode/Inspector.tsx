@@ -10,8 +10,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useWorkflowStore } from '@/store/workflowStore';
 
-export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
-    const { asset, setContent } = useAsset(assetId);
+export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
+    const { asset, setValue } = useAsset(assetId);
     const edges = useWorkflowStore(s => s.edges);
     const nodes = useWorkflowStore(s => s.nodes);
     const [activeTab, setActiveTab] = useState('values');
@@ -23,13 +23,14 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
         return !!node?.data?.dockedTo;
     }, [nodeId, nodes]);
 
-    // Saved content from asset
+    // Saved content from asset.value
     const savedContent = useMemo(() => {
-        if (asset && isFormAsset(asset.content)) {
-            return asset.content;
+        const value = asset?.value as FormAssetContent | undefined;
+        if (value && isFormAsset(value)) {
+            return value;
         }
         return { schema: [], values: {} };
-    }, [asset]);
+    }, [asset?.value]);
 
     // Draft state - local edits before save
     const [draftSchema, setDraftSchema] = useState<FieldDefinition[]>([]);
@@ -80,21 +81,23 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
 
     // Init Logic: Ensure FormAssetContent structure exists
     useEffect(() => {
-        if (asset && !isFormAsset(asset.content)) {
-            const legacyValues = typeof asset.content === 'object' ? asset.content : {};
+        const value = asset?.value as FormAssetContent | undefined;
+        if (asset && !isFormAsset(value)) {
+            const legacyValues = typeof asset.value === 'object' ? asset.value : {};
             const initContent: FormAssetContent = {
                 schema: [],
                 values: legacyValues || {}
             };
-            if (JSON.stringify(asset.content) !== JSON.stringify(initContent)) {
-                setContent(initContent);
+            if (JSON.stringify(asset.value) !== JSON.stringify(initContent)) {
+                setValue(initContent);
             }
         }
-    }, [asset?.content, setContent]);
+    }, [asset?.value, setValue]);
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
-    if (!isFormAsset(asset.content)) {
+    const assetValue = asset.value as FormAssetContent | undefined;
+    if (!isFormAsset(assetValue)) {
         return <div className="text-xs text-muted-foreground p-4">Initializing JSON Structure...</div>;
     }
 
@@ -109,7 +112,7 @@ export const JSONNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
 
     // Save draft to asset
     const handleSave = () => {
-        setContent({ schema: draftSchema, values: draftValues });
+        setValue({ schema: draftSchema, values: draftValues });
         toast.success('Changes saved');
     };
 

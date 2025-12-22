@@ -9,20 +9,20 @@ import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { FormAssetContent, FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import { JSONNodeInspector } from './Inspector';
+import { FormNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { RecipeFieldRow } from '@/components/workflow/widgets';
 import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Main Node ---
-export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
+export const FormNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
     const { state, actions } = useNode(id);
 
     const renderContent = () => {
         if (!state.asset) return <div className="text-destructive text-xs">Asset Missing</div>;
 
-        const content = state.asset.content as FormAssetContent;
+        const content = state.asset.value as FormAssetContent;
 
         // Check if it's a proper form asset
         if (!content || !Array.isArray(content.schema)) {
@@ -74,9 +74,9 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
             <div className="flex flex-col w-full h-full text-xs font-mono">
                 {!state.isCollapsed && (
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 select-none flex items-center justify-between px-3">
-                        <span>{state.asset.metadata.name || 'JSON Data'}</span>
+                        <span>{state.asset.sys?.name || 'JSON Data'}</span>
                         <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[9px] font-bold">
-                            JSON
+                            Form
                         </span>
                     </div>
                 )}
@@ -94,7 +94,7 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
     };
 
     // Check if there are fields with handles (for header border logic)
-    const content = state.asset?.content as FormAssetContent | undefined;
+    const content = state.asset?.value as FormAssetContent | undefined;
     const hasHandleFields = content?.schema?.some((field: FieldDefinition) => {
         const conn = field.connection;
         return conn?.input || conn?.output || field.widget === 'json-input' || field.type === 'object';
@@ -134,7 +134,7 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
                     state.isCollapsed && hasHandleFields && "border-b"
                 )}
                 icon={<Braces className="h-4 w-4" />}
-                title={state.title || state.asset?.metadata?.name || 'JSON'}
+                title={state.title || state.asset?.sys?.name || 'JSON'}
                 actions={
                     <>
                         <NodeHeaderAction onClick={actions.toggle} title={state.isCollapsed ? 'Expand' : 'Collapse'}>
@@ -173,29 +173,30 @@ export const JSONNode = memo((props: NodeProps<SynniaNode>) => {
         </NodeShell>
     );
 });
-JSONNode.displayName = 'JSONNode';
+FormNode.displayName = 'FormNode';
 
 // --- Node Definition (unified registration) ---
 export const definition: NodeDefinition = {
-    type: NodeType.JSON,
-    component: JSONNode,
-    inspector: JSONNodeInspector,
+    type: NodeType.FORM,
+    component: FormNode,
+    inspector: FormNodeInspector,
     config: {
-        type: NodeType.JSON,
-        title: 'JSON',
+        type: NodeType.FORM,
+        title: 'Form',
         category: 'Asset',
         icon: Braces,
-        description: 'Custom JSON data with schema',
+        description: 'Form data with custom schema',
 
-        requiresAsset: true,
-        defaultAssetType: 'json',
-        createNodeAlias: 'json',
+        createNodeAlias: 'form',
 
         defaultStyle: { width: 250, height: 200 },
 
-        createDefaultContent: (): FormAssetContent => ({
-            schema: [],
-            values: {}
+        createDefaultAsset: () => ({
+            valueType: 'record' as const,
+            value: {
+                schema: [],
+                values: {}
+            } as FormAssetContent,
         }),
     },
     behavior: StandardAssetBehavior,
@@ -208,7 +209,7 @@ export const definition: NodeDefinition = {
                 label: 'JSON Output',
                 resolver: (node, asset) => {
                     if (!asset) return null;
-                    const content = asset.content as FormAssetContent;
+                    const content = asset.value as FormAssetContent;
                     return {
                         type: 'json',
                         value: content?.values || {},
@@ -236,7 +237,7 @@ export const definition: NodeDefinition = {
                             : undefined;
 
                         if (nodeAsset) {
-                            const content = nodeAsset.content as FormAssetContent;
+                            const content = nodeAsset.value as FormAssetContent;
                             if (content?.values) {
                                 chain.unshift(content.values);
                             }
@@ -254,14 +255,10 @@ export const definition: NodeDefinition = {
             }
         ]
     },
-    assetContentSchema: {
-        schema: { type: 'array', itemType: 'FieldDefinition', description: 'Field schema' },
-        values: { type: 'object', required: true, description: 'Form values' },
-    }
 };
 
 // Legacy exports for compatibility
-export { JSONNode as Node, JSONNodeInspector as Inspector };
+export { FormNode as Node, FormNodeInspector as Inspector };
 export const config = definition.config;
 export const behavior = definition.behavior;
 

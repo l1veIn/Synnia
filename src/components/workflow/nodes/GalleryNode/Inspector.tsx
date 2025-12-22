@@ -20,13 +20,13 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setContent } = useAsset(assetId);
+    const { asset, setValue } = useAsset(assetId);
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-    // Get saved content
+    // Get saved content - now from asset.value
     const savedContent: GalleryAssetContent = useMemo(() => {
-        const raw = (asset?.content as GalleryAssetContent) || {};
+        const raw = (asset?.value as GalleryAssetContent) || {};
         return {
             viewMode: raw.viewMode ?? 'grid',
             columnsPerRow: raw.columnsPerRow ?? 4,
@@ -34,7 +34,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             allowDelete: raw.allowDelete ?? true,
             images: raw.images ?? [],
         };
-    }, [asset?.content]);
+    }, [asset?.value]);
 
     // Draft state
     const [draftViewMode, setDraftViewMode] = useState<'grid' | 'list' | 'single'>('grid');
@@ -74,7 +74,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Save
     const handleSave = () => {
-        setContent({
+        setValue({
             ...savedContent,
             viewMode: draftViewMode,
             columnsPerRow: draftColumns,
@@ -111,7 +111,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             };
         });
 
-        setContent({
+        setValue({
             ...savedContent,
             images: [...savedContent.images, ...newImages]
         });
@@ -120,13 +120,13 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Clear all images
     const clearAllImages = () => {
-        setContent({ ...savedContent, images: [] });
+        setValue({ ...savedContent, images: [] });
         toast.success('All images cleared');
     };
 
     // Clear all stars
     const clearAllStars = () => {
-        setContent({
+        setValue({
             ...savedContent,
             images: savedContent.images.map(img => ({ ...img, starred: false }))
         });
@@ -180,7 +180,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 });
 
                                 if (newImages.length > 0) {
-                                    setContent({
+                                    setValue({
                                         ...savedContent,
                                         images: [...savedContent.images, ...newImages]
                                     });

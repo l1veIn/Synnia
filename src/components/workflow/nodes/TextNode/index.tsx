@@ -27,15 +27,15 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
   useEffect(() => {
     if (state.asset) {
       const val =
-        typeof state.asset.content === 'object'
-          ? JSON.stringify(state.asset.content, null, 2)
-          : String(state.asset.content || '');
+        typeof state.asset.value === 'object'
+          ? JSON.stringify(state.asset.value, null, 2)
+          : String(state.asset.value || '');
       setLocalContent(val);
     }
-  }, [state.asset?.content]);
+  }, [state.asset?.value]);
 
   const handleBlur = () => {
-    if (!state.isReference && state.asset && localContent !== state.asset.content) {
+    if (!state.isReference && state.asset && localContent !== state.asset.value) {
       actions.updateContent(localContent);
     }
   };
@@ -80,7 +80,7 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
           {state.asset ? (
             <div className="flex flex-col w-full h-full gap-1.5">
               <Label className="text-xs text-muted-foreground select-none shrink-0">
-                {state.asset.metadata?.name || 'Text Content'}
+                {state.asset.sys?.name || 'Text Content'}
               </Label>
               <Textarea
                 value={localContent}
@@ -121,7 +121,10 @@ export const definition: NodeDefinition = {
 
     defaultStyle: { width: 250, height: 200 },
 
-    createDefaultContent: () => '',
+    createDefaultAsset: () => ({
+      valueType: 'text' as const,
+      value: '',
+    }),
   },
   behavior: StandardAssetBehavior,
   ports: {
@@ -133,15 +136,12 @@ export const definition: NodeDefinition = {
         label: 'Text Output',
         resolver: (node, asset) => ({
           type: 'text',
-          value: asset?.content || '',
+          value: asset?.value || '',
           meta: { nodeId: node.id, portId: 'output' }
         })
       }
     ]
   },
-  assetContentSchema: {
-    content: { type: 'string', required: true, description: 'Text content' },
-  }
 };
 
 // Legacy exports for compatibility

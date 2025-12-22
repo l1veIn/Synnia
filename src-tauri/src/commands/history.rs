@@ -30,9 +30,9 @@ pub fn save_asset_with_history(
     let conn = database::open_db(&db_path)
         .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
     
-    // Serialize content
-    let content_json = serde_json::to_string(&asset.content)?;
-    let new_hash = hash::compute_content_hash(&content_json);
+    // Serialize value (was content)
+    let value_json = serde_json::to_string(&asset.value)?;
+    let new_hash = hash::compute_content_hash(&value_json);
     
     // Get old hash to check if changed
     let old_hash = history::get_current_hash(&conn, &asset.id)
@@ -43,39 +43,46 @@ pub fn save_asset_with_history(
     // If hash changed and we have old content, create a snapshot of the OLD content
     if hash_changed {
         if let Some(ref old) = old_hash {
-            // Get old content for snapshot
-            let old_content: Option<String> = conn.query_row(
-                "SELECT content_json FROM assets WHERE id = ?1",
+            // Get old value for snapshot
+            let old_value: Option<String> = conn.query_row(
+                "SELECT value_json FROM assets WHERE id = ?1",
                 rusqlite::params![&asset.id],
                 |row| row.get(0),
             ).ok();
             
-            if let Some(old_content) = old_content {
-                history::create_snapshot_if_changed(&conn, &asset.id, old, &old_content)
+            if let Some(old_value) = old_value {
+                history::create_snapshot_if_changed(&conn, &asset.id, old, &old_value)
                     .map_err(|e| AppError::Io(format!("Failed to create snapshot: {}", e)))?;
             }
         }
     }
     
     // Upsert the asset
-    let metadata_json = serde_json::to_string(&asset.metadata)?;
+    let sys_json = serde_json::to_string(&asset.sys)?;
+    let value_meta_json = asset.value_meta.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
+    let config_json = asset.config.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
     let now = chrono::Utc::now().timestamp_millis();
+    let value_type_str = serde_json::to_string(&asset.value_type)?;
     
     conn.execute(
-        "INSERT INTO assets (id, type, content_hash, content_json, metadata_json, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO assets (id, value_type, value_hash, value_json, value_meta_json, config_json, sys_json, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(id) DO UPDATE SET
-             type = excluded.type,
-             content_hash = excluded.content_hash,
-             content_json = excluded.content_json,
-             metadata_json = excluded.metadata_json,
+             value_type = excluded.value_type,
+             value_hash = excluded.value_hash,
+             value_json = excluded.value_json,
+             value_meta_json = excluded.value_meta_json,
+             config_json = excluded.config_json,
+             sys_json = excluded.sys_json,
              updated_at = excluded.updated_at",
         rusqlite::params![
             &asset.id,
-            &asset.type_,
+            &value_type_str,
             &new_hash,
-            &content_json,
-            &metadata_json,
+            &value_json,
+            &value_meta_json,
+            &config_json,
+            &sys_json,
             now
         ],
     ).map_err(|e| AppError::Io(format!("Failed to save asset: {}", e)))?;
@@ -100,7 +107,7 @@ pub fn get_asset_history(
     
     // First, get the current version from assets table
     let current: Option<(String, String, i64)> = conn.query_row(
-        "SELECT content_hash, content_json, updated_at FROM assets WHERE id = ?1",
+        "SELECT value_hash, value_json, updated_at FROM assets WHERE id = ?1",
         rusqlite::params![&asset_id],
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).ok();

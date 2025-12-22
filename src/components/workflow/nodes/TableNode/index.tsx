@@ -39,9 +39,9 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults
+    // Get content with defaults - now from asset.value
     const content: TableAssetContent = useMemo(() => {
-        const raw = (state.asset?.content as TableAssetContent) || {};
+        const raw = (state.asset?.value as TableAssetContent) || {};
         return {
             columns: raw.columns ?? [],
             rows: raw.rows ?? [],
@@ -49,7 +49,7 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
             allowAddRow: raw.allowAddRow ?? true,
             allowDeleteRow: raw.allowDeleteRow ?? true,
         };
-    }, [state.asset?.content]);
+    }, [state.asset?.value]);
 
     return (
         <NodeShell
@@ -189,12 +189,15 @@ export const definition: NodeDefinition = {
 
         defaultStyle: { width: 360, height: 250 },
 
-        createDefaultContent: (): TableAssetContent => ({
-            columns: [],
-            rows: [],
-            showRowNumbers: true,
-            allowAddRow: true,
-            allowDeleteRow: true,
+        createDefaultAsset: () => ({
+            valueType: 'record' as const,
+            value: {
+                columns: [],
+                rows: [],
+                showRowNumbers: true,
+                allowAddRow: true,
+                allowDeleteRow: true,
+            } as TableAssetContent,
         }),
     },
     behavior: StandardAssetBehavior,
@@ -206,8 +209,8 @@ export const definition: NodeDefinition = {
                 dataType: 'array',
                 label: 'Table Rows',
                 resolver: (node, asset) => {
-                    if (!asset?.content) return null;
-                    const content = asset.content as TableAssetContent;
+                    if (!asset?.value) return null;
+                    const content = asset.value as TableAssetContent;
                     return {
                         type: 'array',
                         value: content.rows,
@@ -217,13 +220,6 @@ export const definition: NodeDefinition = {
             }
         ]
     },
-    assetContentSchema: {
-        columns: { type: 'array', itemType: 'TableColumn', required: true, description: 'Column definitions' },
-        rows: { type: 'array', itemType: 'object', required: true, description: 'Table row data' },
-        showRowNumbers: { type: 'boolean', default: true, description: 'Show row numbers' },
-        allowAddRow: { type: 'boolean', default: true, description: 'Allow adding rows' },
-        allowDeleteRow: { type: 'boolean', default: true, description: 'Allow deleting rows' },
-    }
 };
 
 // Legacy exports for compatibility with current node loader

@@ -40,9 +40,9 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults
+    // Get content with defaults - now using asset.value for GalleryAssetContent
     const content: GalleryAssetContent = useMemo(() => {
-        const raw = (state.asset?.content as GalleryAssetContent) || {};
+        const raw = (state.asset?.value as GalleryAssetContent) || {};
         return {
             viewMode: raw.viewMode ?? 'grid',
             columnsPerRow: raw.columnsPerRow ?? 4,
@@ -50,7 +50,7 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
             allowDelete: raw.allowDelete ?? true,
             images: raw.images ?? [],
         };
-    }, [state.asset?.content]);
+    }, [state.asset?.value]);
 
     // Resolve image URLs
     const resolveUrl = (src: string): string => {
@@ -236,12 +236,15 @@ export const definition: NodeDefinition = {
 
         defaultStyle: { width: 320, height: 280 },
 
-        createDefaultContent: (): GalleryAssetContent => ({
-            viewMode: 'grid',
-            columnsPerRow: 4,
-            allowStar: true,
-            allowDelete: true,
-            images: []
+        createDefaultAsset: () => ({
+            valueType: 'record' as const,
+            value: {
+                viewMode: 'grid',
+                columnsPerRow: 4,
+                allowStar: true,
+                allowDelete: true,
+                images: []
+            } as GalleryAssetContent,
         }),
     },
     behavior: StandardAssetBehavior,
@@ -253,8 +256,8 @@ export const definition: NodeDefinition = {
                 dataType: 'array',
                 label: 'Gallery Images',
                 resolver: (node, asset) => {
-                    if (!asset?.content) return null;
-                    const content = asset.content as GalleryAssetContent;
+                    if (!asset?.value) return null;
+                    const content = asset.value as GalleryAssetContent;
                     return {
                         type: 'array',
                         value: content.images,
@@ -264,13 +267,6 @@ export const definition: NodeDefinition = {
             }
         ]
     },
-    assetContentSchema: {
-        viewMode: { type: 'enum', options: ['grid', 'list', 'single'], default: 'grid', description: 'View mode' },
-        columnsPerRow: { type: 'number', default: 4, description: 'Columns per row in grid view' },
-        allowStar: { type: 'boolean', default: true, description: 'Allow starring images' },
-        allowDelete: { type: 'boolean', default: true, description: 'Allow deleting images' },
-        images: { type: 'array', itemType: 'GalleryImage', required: true, description: 'Gallery images' },
-    }
 };
 
 // Legacy exports for compatibility with current node loader

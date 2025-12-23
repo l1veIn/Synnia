@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Download, LayoutDashboard } from 'lucide-react'
-import { createImage, generateIcoBlob } from '@/lib/canvasUtils'
+import { createImage, generateIcoBlob } from '@core/utils/canvas'
 import JSZip from 'jszip'; // Import JSZip
 
 interface ImageExportDialogProps {

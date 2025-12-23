@@ -7,7 +7,7 @@ import { SynniaNode, SynniaEdge, NodeType } from '@/types/project';
 import { addEdge, getConnectedEdges, Connection, Edge } from '@xyflow/react';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { EngineContext, NodePatch } from '@core/engine/types/behavior';
-import { sortNodesTopologically } from '@/lib/graphUtils';
+import { sortNodesTopologically } from '@core/utils/graph';
 
 export class GraphEngine {
     public layout: LayoutSystem;

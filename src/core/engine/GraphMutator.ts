@@ -3,7 +3,7 @@ import { SynniaNode, NodeType } from '@/types/project';
 import { ValueType } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
-import { sortNodesTopologically, sanitizeNodeForClipboard } from '@/lib/graphUtils';
+import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
 import { getRecipe } from '@features/recipes';
 import { OutputConfig } from '@/types/recipe';

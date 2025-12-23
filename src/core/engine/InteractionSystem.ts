@@ -9,9 +9,9 @@ import {
     addEdge
 } from '@xyflow/react';
 import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
-import { sortNodesTopologically } from '@/lib/graphUtils';
+import { sortNodesTopologically } from '@core/utils/graph';
 import { v4 as uuidv4 } from 'uuid';
-import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@/lib/graphUtils';
+import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@core/utils/graph';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';

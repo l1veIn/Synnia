@@ -16,7 +16,7 @@ import { InspectorPanel } from '@/components/workflow/InspectorPanel';
 import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
 import OutputEdge from '@/components/workflow/edges/OutputEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
-import { saveProjectToFile } from '@/lib/projectUtils';
+import { saveProjectToFile } from '@core/utils/project';
 import { SynniaProject } from '@/bindings';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';

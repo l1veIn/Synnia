@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { AgentEditorDialog } from '@/components/agent/AgentEditorDialog';
 import { AgentDefinition } from '@/bindings';
 import { toast } from 'sonner';
-import { SYSTEM_AGENTS, SystemAgent } from '@/lib/systemAgents';
+import { SYSTEM_AGENTS, SystemAgent } from '@features/agents/systemAgents';
 import { AgentRunDialog } from '@/components/agent/AgentRunDialog';
 
 export default function AgentsPage() {

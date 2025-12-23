@@ -4,7 +4,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import App from "./App";
 import Dashboard from "./pages/Dashboard";
 import CanvasPage from "./pages/Canvas";
-import AgentsPage from "./pages/Agents"; // Import
 import "./index.css";
 import "@/lib/i18n";
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom"; // Import Navigate
@@ -12,9 +11,9 @@ import { HashRouter, Route, Routes, Navigate } from "react-router-dom"; // Impor
 // Ignore ResizeObserver loop limit exceeded error
 const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';
 window.addEventListener('error', (e) => {
-    if (e.message && e.message.includes(resizeObserverLoopErr)) {
-        e.stopImmediatePropagation();
-    }
+  if (e.message && e.message.includes(resizeObserverLoopErr)) {
+    e.stopImmediatePropagation();
+  }
 });
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -25,7 +24,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <Route path="/" element={<App />}>
             <Route index element={<Dashboard />} />
             <Route path="editor" element={<CanvasPage />} />
-            <Route path="agents" element={<AgentsPage />} /> {/* New Route */}
           </Route>
         </Routes>
       </HashRouter>

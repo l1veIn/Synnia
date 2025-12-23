@@ -2,7 +2,7 @@
 // Legacy shim - delegates to new Port System
 // TODO: Gradually migrate callers to use PortResolver directly
 
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { Asset } from '@/types/assets';
 import { DataPayload } from '@/types/node-config';
 import { useWorkflowStore } from '@/store/workflowStore';

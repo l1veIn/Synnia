@@ -8,7 +8,7 @@ import {
     getAllLLMPlugins,
     getLLMModelsForCapability,
 } from '../registry';
-import { LLMPlugin, LLMCapability } from '../../types';
+import { LLMPlugin } from '../../types';
 
 // Mock plugin for testing
 const createMockPlugin = (id: string, overrides?: Partial<LLMPlugin>): LLMPlugin => ({

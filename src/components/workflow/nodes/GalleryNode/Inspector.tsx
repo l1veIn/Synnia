@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Plus, Save, AlertCircle, FolderOpen, Upload } from 'lucide-react';
+import { Save, AlertCircle, FolderOpen, Upload } from 'lucide-react';
 import { GalleryAssetContent, GalleryImage } from './index';
 import { AssetPicker } from '@/components/AssetPicker';
 import { MediaAssetInfo, apiClient } from '@/lib/apiClient';

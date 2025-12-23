@@ -1,7 +1,6 @@
 import { getRecipe } from '@features/recipes';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { NodeType } from '@/types/project';
 import { collectInputValues } from '@core/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
@@ -79,7 +78,6 @@ export function useRunRecipe() {
                 }
             }
 
-            console.log(`🚀 [RunRecipe] Executing ${recipe.id} with:`, effectiveValues);
 
             // --- Build Context ---
             const ctx: ExecutionContext = {
@@ -162,13 +160,11 @@ export function useRunRecipe() {
 
                             // Update asset with merged items
                             graphEngine.assets.update(existingAsset.id, mergedItems);
-                            console.log(`📥 [RunRecipe] Merged items into ${existingProductNode.type}:`, mergedItems.length);
                         }
                     } else {
                         // Non-collection: replace content entirely
                         if (existingAsset && specData.content) {
                             graphEngine.assets.update(existingAsset.id, specData.content);
-                            console.log(`🔄 [RunRecipe] Updated existing ${existingProductNode.type} content`);
                         }
                     }
 

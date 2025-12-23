@@ -218,7 +218,6 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
 
         parts.push({ text: finalPrompt });
 
-        console.log('[Gemini] Generating image with prompt:', finalPrompt.slice(0, 100) + '...');
 
         // Call Gemini Imagen - using imageConfig like visualAgent.ts
         const response = await client.models.generateContent({
@@ -231,7 +230,6 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
             }
         });
 
-        console.log('[Gemini] Response received:', JSON.stringify(response, null, 2).slice(0, 500));
 
         // Extract image from response - check multiple possible locations
         const candidates = (response as any).candidates || [];
@@ -239,7 +237,6 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
             const parts = candidate?.content?.parts || [];
             for (const part of parts) {
                 if (part.inlineData?.data) {
-                    console.log('[Gemini] Found image data, mimeType:', part.inlineData.mimeType);
                     return {
                         success: true,
                         data: {
@@ -259,7 +256,6 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
         const textParts = candidates[0]?.content?.parts?.filter((p: any) => p.text) || [];
         if (textParts.length > 0) {
             const textResponse = textParts.map((p: any) => p.text).join('\n');
-            console.log('[Gemini] Text response (no image):', textResponse);
             return { success: false, error: `Gemini declined to generate: ${textResponse.slice(0, 200)}` };
         }
 

@@ -5,7 +5,6 @@ import {
     RecipeDefinition,
     ManifestField,
     manifestFieldToDefinition,
-    ExecutorConfig,
 } from '@/types/recipe';
 import { FieldDefinition } from '@/types/assets';
 import { createExecutor } from './executors';

@@ -11,7 +11,6 @@ import { SynniaIcon } from "@/components/SynniaIcon";
 import { SynniaSticker } from "@/components/SynniaSticker";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
 import { apiClient } from '@/lib/apiClient'; // Use our wrapper
 
 interface RecentProject {

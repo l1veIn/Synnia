@@ -1,7 +1,6 @@
 import { memo, useEffect, useState, useMemo, useCallback } from 'react';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
-import { FieldDefinition } from '@/types/assets';
+import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
@@ -9,13 +8,9 @@ import { useNode } from '@/hooks/useNode';
 import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { cn } from '@/lib/utils';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+
+
 
 // Import types for local use
 import { SelectorOption, SelectorAssetContent, DEFAULT_OPTION_SCHEMA } from './types';

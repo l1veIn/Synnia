@@ -5,7 +5,6 @@ import { useHistory } from '@/hooks/useHistory';
 import { NodeType } from '@/types/project';
 import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-dialog';
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { apiClient } from '@/lib/apiClient';
 import { graphEngine } from '@core/engine/GraphEngine';
 

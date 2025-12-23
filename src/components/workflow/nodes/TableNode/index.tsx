@@ -1,16 +1,12 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Table as TableIcon, Trash2, ChevronDown, ChevronUp, Edit } from 'lucide-react';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { Inspector } from './Inspector';
 import { TableEditor } from './TableEditor';
-import { cn } from '@/lib/utils';
-import type { NodeDefinition } from '@core/registry/NodeRegistry';
 
 // --- Asset Content Type ---
 export interface TableColumn {

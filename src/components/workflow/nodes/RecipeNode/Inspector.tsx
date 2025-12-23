@@ -1,13 +1,10 @@
-import { isRecordAsset } from '@/types/assets';
-import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { getResolvedRecipe } from '@features/recipes';
 import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Save, AlertCircle, Sparkles } from 'lucide-react';
+import { Save, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';

@@ -1,5 +1,5 @@
-import { NodeBehavior, NodePatch, EngineContext } from '@core/engine/types/behavior';
-import { SynniaNode, NodeType } from '@/types/project';
+import { NodeBehavior, NodePatch } from '@core/engine/types/behavior';
+import { SynniaNode } from '@/types/project';
 
 export const RACK_CONFIG = {
     PADDING_X: 15,

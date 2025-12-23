@@ -2,7 +2,6 @@
 // Connection validation logic extracted from InteractionSystem
 
 import { useWorkflowStore } from '@/store/workflowStore';
-import { portRegistry } from './PortRegistry';
 import { resolvePort } from './PortResolver';
 import { isTypeCompatible } from './types';
 import type { ConnectionValidation, PortDefinition } from './types';

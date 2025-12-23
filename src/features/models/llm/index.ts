@@ -57,6 +57,3 @@ llmRegistry.register(claude35Haiku);
 import { llama32, llama32Vision } from '../local/ollama';
 llmRegistry.register(llama32);
 llmRegistry.register(llama32Vision);
-
-console.log(`[LLM] Registered ${llmRegistry.getAll().length} LLM plugins`);
-

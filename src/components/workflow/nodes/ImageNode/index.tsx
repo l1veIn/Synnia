@@ -1,6 +1,6 @@
 import { memo, useState, useEffect } from 'react';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
@@ -8,10 +8,6 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { Inspector } from './Inspector';
-import type { NodeDefinition } from '@core/registry/NodeRegistry';
-import { isImageAsset, ImageAsset } from '@/types/assets';
 
 // --- Node Component ---
 export const ImageNode = memo((props: NodeProps<SynniaNode>) => {

@@ -1,4 +1,4 @@
-import { FieldDefinition, isRecordAsset, RecordAsset } from '@/types/assets';
+import { FieldDefinition, isRecordAsset } from '@/types/assets';
 import { useAsset } from '@/hooks/useAsset';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SchemaBuilder } from '../../inspector/SchemaBuilder';

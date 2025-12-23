@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { Minus, X, Maximize2, Minimize2, Activity, Sun, Moon, Languages, Home } from "lucide-react";
+import { Minus, X, Maximize2, Minimize2, Sun, Moon, Languages } from "lucide-react";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";

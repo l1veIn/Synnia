@@ -1,11 +1,9 @@
-import { NodeType } from '@/types/project';
-import { nodeRegistry, NodeMeta, NodeCategory } from '@core/registry/NodeRegistry';
+import { nodeRegistry, NodeCategory } from '@core/registry/NodeRegistry';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { portRegistry } from '@core/engine/ports';
 import { getAllRecipes } from '@features/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
-import { isRecordAsset } from '@/types/assets';
 import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
 

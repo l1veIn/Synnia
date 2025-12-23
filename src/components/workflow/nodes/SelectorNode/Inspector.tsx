@@ -2,7 +2,6 @@ import { useAsset } from '@/hooks/useAsset';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Save, AlertCircle, Trash2, Edit, GripVertical } from 'lucide-react';
 import { SelectorAssetContent, SelectorOption, DEFAULT_OPTION_SCHEMA } from './types';

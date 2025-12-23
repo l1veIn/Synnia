@@ -3,7 +3,7 @@
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { portRegistry } from './PortRegistry';
-import type { PortValue, PortDefinition } from './types';
+import type { PortValue } from './types';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
 import type { Asset } from '@/types/assets';
 

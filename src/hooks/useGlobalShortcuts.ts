@@ -92,7 +92,6 @@ export function useGlobalShortcuts(onSave?: () => void) {
             const nodesToCopy = getAllDescendants(selectedNodes.map(n => n.id));
 
             localStorage.setItem('synnia-clipboard', JSON.stringify(nodesToCopy));
-            console.log('Copied', nodesToCopy.length, 'nodes (including descendants)');
           }
         }
         // Paste (Cmd+V)
@@ -104,7 +103,6 @@ export function useGlobalShortcuts(onSave?: () => void) {
               const nodes = JSON.parse(clipboard);
               if (Array.isArray(nodes) && nodes.length > 0) {
                 graphEngine.mutator.pasteNodes(nodes);
-                console.log('Pasted', nodes.length, 'nodes');
               }
             }
           } catch (e) {

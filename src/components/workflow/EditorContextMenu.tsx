@@ -21,7 +21,6 @@ import { Home } from "lucide-react";
 import { toast } from "sonner";
 import { graphEngine } from "@core/engine/GraphEngine";
 import { NodePicker, NodePickerItem } from "./NodePicker";
-import { apiClient } from "@/lib/apiClient";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -190,7 +189,6 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
       const node = nodes.find(n => n.id === contextMenuTarget.id);
       if (node) {
         localStorage.setItem('synnia-clipboard', JSON.stringify([node]));
-        console.log('Copied node to clipboard');
       }
     }
   };

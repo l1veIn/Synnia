@@ -1,6 +1,5 @@
-import { LucideIcon } from 'lucide-react';
 import { NodeType, SynniaNode, BaseNodeData } from './project';
-import { Asset, ValueType } from './assets';
+import { Asset } from './assets';
 import { XYPosition } from '@xyflow/react';
 
 export type NodeCategory = 'Asset' | 'Process' | 'Utility' | 'Container' | 'Math' | 'Text' | 'HTTP' | 'Recipe';

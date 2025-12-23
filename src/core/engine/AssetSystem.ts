@@ -1,5 +1,5 @@
 import { GraphEngine } from './GraphEngine';
-import { Asset, ValueType, AssetSysMetadata, createSysMetadata } from '@/types/assets';
+import { Asset, ValueType, AssetSysMetadata } from '@/types/assets';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { v4 as uuidv4 } from 'uuid';
 

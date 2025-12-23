@@ -1,7 +1,7 @@
 // Port System Types
 // Standardized abstractions for node data exchange
 
-import type { SynniaNode, SynniaEdge } from '@/types/project';
+import type { SynniaNode } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
 
 // ============================================================================

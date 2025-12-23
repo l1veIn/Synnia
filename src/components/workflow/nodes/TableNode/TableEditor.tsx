@@ -2,12 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Save } from 'lucide-react';
 import { useAsset } from '@/hooks/useAsset';
-import { TableAssetContent, TableColumn } from './index';
+import { TableAssetContent } from './index';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 interface TableEditorProps {
     open: boolean;

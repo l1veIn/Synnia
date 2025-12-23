@@ -131,7 +131,5 @@ modelRegistry.register(llama32Vision);
 // Also trigger llmRegistry population (for backward compat with callLLM)
 import './llm';
 
-console.log(`[Models] Registered ${modelRegistry.getAll().length} models from provider directories`);
-
 // Re-export types
 export * from './types';

@@ -6,7 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import CanvasPage from "./pages/Canvas";
 import "./index.css";
 import "@/lib/i18n";
-import { HashRouter, Route, Routes, Navigate } from "react-router-dom"; // Import Navigate
+import { HashRouter, Route, Routes } from "react-router-dom"; // Import Navigate
 
 // Ignore ResizeObserver loop limit exceeded error
 const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';

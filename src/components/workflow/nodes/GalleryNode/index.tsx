@@ -7,7 +7,6 @@ import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react';
-import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
 
 // --- Asset Content Type ---

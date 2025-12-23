@@ -15,8 +15,7 @@ import {
     RotateCcw,
     Minimize
 } from 'lucide-react'
-import getCroppedImg, { canvasPreview, getRotatedImage, createImage } from '@core/utils/canvas'
-import { cn } from '@/lib/utils'
+import { canvasPreview, getRotatedImage, createImage } from '@core/utils/canvas'
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { removeBackground } from "@imgly/background-removal"
 import { ImageExportDialog } from './image-export-dialog'

@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 
 // Helper: 检测 node 是否在 group 内部
 export const isNodeInsideGroup = (node: Node, group: Node) => {

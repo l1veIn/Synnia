@@ -1,18 +1,15 @@
 import { memo } from 'react';
 import { NodeProps, Position, NodeResizer } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { FieldDefinition, isRecordAsset, RecordAsset } from '@/types/assets';
+import { FieldDefinition, isRecordAsset } from '@/types/assets';
 import { cn } from '@/lib/utils';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { FormNodeInspector } from './Inspector';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { RecipeFieldRow } from '@/components/workflow/widgets';
-import type { NodeDefinition } from '@core/registry/NodeRegistry';
 
 // --- Main Node ---
 export const FormNode = memo((props: NodeProps<SynniaNode>) => {

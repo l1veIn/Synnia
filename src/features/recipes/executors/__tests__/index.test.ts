@@ -2,7 +2,7 @@
 // Tests for recipe executors and utility functions
 // Note: HTTP, LLM, and Media executors need mocked external calls
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
     createExecutor,
     interpolate,
@@ -10,7 +10,7 @@ import {
     extractText,
     extractNumber,
 } from '../index';
-import { ExecutionContext, ExecutionResult } from '@/types/recipe';
+import { ExecutionContext } from '@/types/recipe';
 
 // Helper to create mock ExecutionContext
 const createMockContext = (inputs: Record<string, any>): ExecutionContext => ({

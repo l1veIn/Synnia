@@ -8,7 +8,7 @@ import {
     applyEdgeChanges,
     addEdge
 } from '@xyflow/react';
-import { SynniaNode, NodeType, SynniaEdge } from '@/types/project';
+import { SynniaNode, SynniaEdge } from '@/types/project';
 import { sortNodesTopologically } from '@core/utils/graph';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@core/utils/graph';

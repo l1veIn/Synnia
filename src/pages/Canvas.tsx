@@ -1,10 +1,9 @@
-import { ReactFlow, Background, Controls, Panel, MiniMap, ReactFlowProvider, useReactFlow } from '@xyflow/react';
+import { ReactFlow, Background, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect, useState } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { nodeTypes } from '@/components/workflow/nodes';
-import { NodeType } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Save, Home, FolderOpen } from 'lucide-react';
@@ -24,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { dirname } from '@tauri-apps/api/path';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
-import { NodePicker, NodePickerItem } from '@/components/workflow/NodePicker';
+import { NodePicker } from '@/components/workflow/NodePicker';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
@@ -43,7 +42,6 @@ function CanvasFlow() {
       // 1. Get Server Port (Critical for Assets)
       try {
         const port = await apiClient.invoke<number>('get_server_port');
-        console.log("[System] Local Asset Server port:", port);
         useWorkflowStore.getState().setServerPort(port);
       } catch (e) {
         console.warn("Failed to get server port (Assets may not load)", e);
@@ -55,14 +53,12 @@ function CanvasFlow() {
         const isTauri = !!(window as any).__TAURI_INTERNALS__;
 
         if (path) {
-          console.log("[Hydration] Loading active project path:", path);
           try {
             // Fix: If path is a file, get dirname. If it's a directory, use it as is.
             let root = path;
             if (path.toLowerCase().endsWith('.json') || path.toLowerCase().endsWith('.synnia')) {
               root = await dirname(path);
             }
-            console.log("[Hydration] Resolved Project Root:", root);
             useWorkflowStore.getState().setProjectRoot(root);
           } catch (e) { console.warn("Failed to resolve project root", e); }
 
@@ -70,7 +66,6 @@ function CanvasFlow() {
           loadProject(project);
         } else {
           // 2. Fallback to LocalStorage (Draft)
-          // console.log("[Hydration] No active project. Checking localStorage...");
           const saved = localStorage.getItem(STORAGE_KEY);
           if (saved) {
             try {
@@ -249,7 +244,6 @@ function CanvasFlow() {
                 }
               ]);
 
-              console.log('Located and selected node:', nodeId);
             }
           }}
         />

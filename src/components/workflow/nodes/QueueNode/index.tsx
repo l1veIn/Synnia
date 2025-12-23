@@ -7,10 +7,10 @@ import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { ListTodo, Trash2, ChevronDown, ChevronUp, Play, Pause, RotateCcw, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
-import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
+import type { NodeDefinition } from '@core/registry/NodeRegistry';
 
 // --- Asset Content Type ---
 export type TaskStatus = 'pending' | 'running' | 'success' | 'error';

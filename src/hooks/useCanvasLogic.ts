@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { apiClient } from '@/lib/apiClient';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 
 export function useCanvasLogic() {
   const setContextMenuTarget = useWorkflowStore(s => s.setContextMenuTarget);

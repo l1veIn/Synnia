@@ -8,13 +8,13 @@ import {
     getLLMModelsForCapability as defaultGetLLMModelsForCapability,
     LLMModelDefinition,
     LLMCapability,
-} from '@/lib/models';
+} from '@features/models';
 import {
     getModel as defaultGetModel,
     getModelsForCategory as defaultGetModelsForCategory,
     ModelPlugin,
     ModelCategory,
-} from '@/lib/models';
+} from '@features/models';
 
 // ============================================================================
 // Service Types

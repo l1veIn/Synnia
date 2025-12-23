@@ -1,12 +1,12 @@
-import { getRecipe } from '@/lib/recipes';
+import { getRecipe } from '@features/recipes';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { NodeType } from '@/types/project';
-import { collectInputValues } from '@/lib/engine/ports';
+import { collectInputValues } from '@core/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { ExecutionContext } from '@/types/recipe';
-import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
+import { nodeRegistry } from '@core/registry/NodeRegistry';
 
 /**
  * Hook to run a Recipe Definition.

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { HTMLAttributes, ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { graphEngine } from "@/lib/engine/GraphEngine";
+import { graphEngine } from "@core/engine/GraphEngine";
 
 interface NodeHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   icon?: ReactNode;

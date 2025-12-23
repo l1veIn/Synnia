@@ -9,7 +9,7 @@ import { useNode } from '@/hooks/useNode';
 import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { cn } from '@/lib/utils';
 import {
     Collapsible,

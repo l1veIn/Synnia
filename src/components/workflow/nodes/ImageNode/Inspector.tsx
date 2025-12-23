@@ -55,7 +55,7 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
 
                 // Update valueMeta with new dimensions
                 if (asset && isImageAsset(asset) && result.width && result.height) {
-                    const { graphEngine } = await import('@/lib/engine/GraphEngine');
+                    const { graphEngine } = await import('@core/engine/GraphEngine');
                     graphEngine.assets.updateConfig(assetId, {
                         mimeType: asset.config?.mimeType,
                     });

@@ -1,7 +1,7 @@
 import { LucideIcon } from 'lucide-react';
 import { FieldDefinition } from './assets';
 import { NodeType, BaseNodeData, SynniaNode } from './project';
-import { GraphEngine } from '@/lib/engine/GraphEngine';
+import { GraphEngine } from '@core/engine/GraphEngine';
 import { XYPosition } from '@xyflow/react';
 import { WidgetType } from './widgets';
 

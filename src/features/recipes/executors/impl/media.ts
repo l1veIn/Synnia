@@ -31,7 +31,7 @@ export const createExecutor = (config: MediaExecutorConfig): RecipeExecutor => {
             }
 
             // Get the model plugin
-            const { getModel } = await import('@/lib/models');
+            const { getModel } = await import('@features/models');
             const modelPlugin = getModel(modelConfigValue.modelId);
             if (!modelPlugin) {
                 return { success: false, error: `Model not found: ${modelConfigValue.modelId}` };

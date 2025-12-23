@@ -13,8 +13,8 @@ import {
     CommandList,
     CommandSeparator,
 } from '@/components/ui/command';
-import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
-import { getRecipeTree, RecipeTreeNode } from '@/lib/recipes';
+import { nodeRegistry } from '@core/registry/NodeRegistry';
+import { getRecipeTree, RecipeTreeNode } from '@features/recipes';
 import { NodeType } from '@/types/project';
 import {
     FileText,

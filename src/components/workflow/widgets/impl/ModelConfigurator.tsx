@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getModel, getModelsForCategory, ModelCategory, ProviderType } from '@/lib/models';
+import { getModel, getModelsForCategory, ModelCategory, ProviderType } from '@features/models';
 import { useSettings, ProviderKey, isProviderConfigured, getDefaultModel } from '@/lib/settings';
 import { WidgetDefinition, WidgetProps, HandleSpec } from '../lib/types';
 import { useWidgetServices } from '../lib/WidgetServices';

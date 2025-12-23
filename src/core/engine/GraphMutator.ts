@@ -1,11 +1,11 @@
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode, NodeType } from '@/types/project';
 import { ValueType } from '@/types/assets';
-import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
+import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@/lib/graphUtils';
 import { XYPosition } from '@xyflow/react';
-import { getRecipe } from '@/lib/recipes';
+import { getRecipe } from '@features/recipes';
 import { OutputConfig } from '@/types/recipe';
 
 // Helper: Map old asset type strings to new ValueType

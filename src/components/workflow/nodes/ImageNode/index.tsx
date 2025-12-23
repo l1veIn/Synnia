@@ -8,9 +8,9 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { Inspector } from './Inspector';
-import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
+import type { NodeDefinition } from '@core/registry/NodeRegistry';
 import { isImageAsset, ImageAsset } from '@/types/assets';
 
 // --- Node Component ---

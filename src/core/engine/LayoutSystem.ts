@@ -1,7 +1,7 @@
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode, NodeType } from '@/types/project';
-import { behaviorRegistry } from '@/lib/engine/BehaviorRegistry';
-import { NodePatch, EngineContext } from '@/lib/engine/types/behavior';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
+import { NodePatch, EngineContext } from '@core/engine/types/behavior';
 
 export class LayoutSystem {
     private engine: GraphEngine;

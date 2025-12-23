@@ -1,8 +1,8 @@
 import { Braces } from 'lucide-react';
 import { NodeType } from '@/types/project';
 import { FieldDefinition, RecordAsset, isRecordAsset } from '@/types/assets';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import type { NodeDefinition, CreateContext } from '@/lib/nodes/NodeRegistry';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
+import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { FormNode } from './index';
 import { FormNodeInspector } from './Inspector';

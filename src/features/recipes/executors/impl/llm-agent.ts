@@ -39,7 +39,7 @@ export const createExecutor = (config: LlmAgentExecutorConfig): RecipeExecutor =
             }
 
             // Use LLM Plugin system for LLM call
-            const { callLLM } = await import('@/lib/models/llm');
+            const { callLLM } = await import('@features/models/llm');
             const response = await callLLM({
                 systemPrompt: systemPrompt || undefined,
                 userPrompt,

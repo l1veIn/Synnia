@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { callLLM } from '@/lib/models';
+import { callLLM } from '@features/models';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {

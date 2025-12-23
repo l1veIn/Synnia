@@ -1,8 +1,8 @@
 import { ImageIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { isImageAsset } from '@/types/assets';
-import type { NodeDefinition, CreateContext } from '@/lib/nodes/NodeRegistry';
+import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { ImageNode } from './index';
 import { Inspector } from './Inspector';
 

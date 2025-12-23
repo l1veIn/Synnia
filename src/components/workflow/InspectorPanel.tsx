@@ -11,7 +11,7 @@ import { DebugInspector } from "./inspector/DebugInspector";
 import { AssetHistoryPanel } from "./inspector/AssetHistoryPanel";
 import { Bug, Settings2, GripHorizontal, History } from "lucide-react";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
-import { graphEngine } from "@/lib/engine/GraphEngine";
+import { graphEngine } from "@core/engine/GraphEngine";
 
 // Helper Component for Asset/Recipe Editing
 const NodeInspector = ({ node }: { node: SynniaNode }) => {

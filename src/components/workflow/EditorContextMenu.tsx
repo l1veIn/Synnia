@@ -19,7 +19,7 @@ import { NodeType, SynniaNode } from "@/types/project";
 import { useNavigate } from "react-router-dom";
 import { Home } from "lucide-react";
 import { toast } from "sonner";
-import { graphEngine } from "@/lib/engine/GraphEngine";
+import { graphEngine } from "@core/engine/GraphEngine";
 import { NodePicker, NodePickerItem } from "./NodePicker";
 import { apiClient } from "@/lib/apiClient";
 

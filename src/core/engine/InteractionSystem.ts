@@ -13,8 +13,8 @@ import { sortNodesTopologically } from '@/lib/graphUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@/lib/graphUtils';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { validateConnection, wouldCreateCycle } from '@/lib/engine/ports';
-import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
+import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
+import { nodeRegistry } from '@core/registry/NodeRegistry';
 
 export class InteractionSystem {
     private engine: GraphEngine;

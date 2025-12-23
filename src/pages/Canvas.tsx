@@ -22,7 +22,7 @@ import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { dirname } from '@tauri-apps/api/path';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
 import { NodePicker, NodePickerItem } from '@/components/workflow/NodePicker';
 

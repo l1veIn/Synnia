@@ -1,6 +1,6 @@
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useCallback } from 'react';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { AssetSysMetadata } from '@/types/assets';
 
 /**

@@ -14,7 +14,7 @@ import {
     EdgeProps,
 } from '@xyflow/react';
 import { X } from 'lucide-react';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { DeleteOutputEdgeDialog } from './DeleteOutputEdgeDialog';
 
 const SKIP_CONFIRM_KEY = 'synnia:skipOutputEdgeDeleteConfirm';

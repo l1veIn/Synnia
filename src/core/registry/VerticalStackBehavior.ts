@@ -1,4 +1,4 @@
-import { NodeBehavior, NodePatch, EngineContext } from '@/lib/engine/types/behavior';
+import { NodeBehavior, NodePatch, EngineContext } from '@core/engine/types/behavior';
 import { SynniaNode, NodeType } from '@/types/project';
 
 export const RACK_CONFIG = {

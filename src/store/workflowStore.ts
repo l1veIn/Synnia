@@ -4,7 +4,7 @@ import { temporal } from 'zundo';
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { Asset } from '@/types/assets';
 import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 
 
 

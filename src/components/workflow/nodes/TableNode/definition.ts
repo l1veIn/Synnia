@@ -1,8 +1,8 @@
 import { Table as TableIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
 import { FieldDefinition } from '@/types/assets';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import type { NodeDefinition, CreateContext } from '@/lib/nodes/NodeRegistry';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
+import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { TableNode } from './index';
 import { Inspector } from './Inspector';
 

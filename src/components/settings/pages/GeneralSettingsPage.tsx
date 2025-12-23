@@ -3,7 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useSettings, isProviderConfigured } from "@/lib/settings";
-import { getAllLLMModels } from "@/lib/models";
+import { getAllLLMModels } from "@features/models";
 
 export function GeneralSettingsPage() {
     const { settings, loading, setDefaultModel } = useSettings();

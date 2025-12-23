@@ -1,8 +1,8 @@
 import { NodeType } from '@/types/project';
-import { nodeRegistry, NodeMeta, NodeCategory } from '@/lib/nodes/NodeRegistry';
-import { behaviorRegistry } from '@/lib/engine/BehaviorRegistry';
-import { portRegistry } from '@/lib/engine/ports';
-import { getAllRecipes } from '@/lib/recipes';
+import { nodeRegistry, NodeMeta, NodeCategory } from '@core/registry/NodeRegistry';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
+import { portRegistry } from '@core/engine/ports';
+import { getAllRecipes } from '@features/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { isRecordAsset } from '@/types/assets';

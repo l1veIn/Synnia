@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { BaseNodeData, SynniaNode } from '@/types/project';
 import { Asset } from '@/types/assets';
 import { cn } from '@/lib/utils';

@@ -1,4 +1,4 @@
-import { NodeBehavior } from '@/lib/engine/types/behavior';
+import { NodeBehavior } from '@core/engine/types/behavior';
 
 /**
  * Standard Behavior for Asset Nodes (Text, Image, etc.)

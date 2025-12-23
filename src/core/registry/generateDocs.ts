@@ -8,7 +8,7 @@
  *   const markdown = generateNodeDocs();
  */
 
-import { nodeRegistry, NodeMeta } from '@/lib/nodes/NodeRegistry';
+import { nodeRegistry, NodeMeta } from '@core/registry/NodeRegistry';
 import '@/components/workflow/nodes'; // Ensure nodes are registered
 
 export interface NodeDocEntry {

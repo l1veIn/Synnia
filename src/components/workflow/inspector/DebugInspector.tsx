@@ -6,7 +6,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaNode } from '@/types/project';
 import { toast } from 'sonner';
 import { Save, RotateCcw, Copy } from 'lucide-react';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 
 interface JsonEditorBlockProps {
     title: string;

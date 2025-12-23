@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { History, RotateCcw, Clock, Hash, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 
 interface AssetHistoryPanelProps {
     assetId?: string;

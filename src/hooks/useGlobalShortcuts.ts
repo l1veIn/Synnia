@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useHistory } from '@/hooks/useHistory';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 
 export function useGlobalShortcuts(onSave?: () => void) {
   const { getNodes, getEdges, deleteElements } = useReactFlow();

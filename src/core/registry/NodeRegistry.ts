@@ -1,10 +1,10 @@
 import { NodeProps, XYPosition } from '@xyflow/react';
 import { LucideIcon } from 'lucide-react';
-import type { NodeBehavior } from '@/lib/engine/types/behavior';
-import type { NodePortConfig } from '@/lib/engine/ports/types';
+import type { NodeBehavior } from '@core/engine/types/behavior';
+import type { NodePortConfig } from '@core/engine/ports/types';
 import type { SynniaNode, BaseNodeData, NodeType } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
-import type { GraphEngine } from '@/lib/engine/GraphEngine';
+import type { GraphEngine } from '@core/engine/GraphEngine';
 import type { ExecutionResult } from '@/types/recipe';
 
 // ============================================================================

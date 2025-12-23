@@ -1,7 +1,7 @@
 import { List } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import type { NodeDefinition, CreateContext } from '@/lib/nodes/NodeRegistry';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
+import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { SelectorNode } from './index';
 import { DEFAULT_OPTION_SCHEMA } from './types';
 import { Inspector } from './Inspector';

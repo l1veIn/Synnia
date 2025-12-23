@@ -1,6 +1,6 @@
 import { isRecordAsset } from '@/types/assets';
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { getResolvedRecipe } from '@/lib/recipes';
+import { getResolvedRecipe } from '@features/recipes';
 import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';

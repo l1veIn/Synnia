@@ -10,9 +10,9 @@ import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucid
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import { getResolvedRecipe } from '@/lib/recipes';
-import { portRegistry } from '@/lib/engine/ports';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
+import { getResolvedRecipe } from '@features/recipes';
+import { portRegistry } from '@core/engine/ports';
 import { RecipeFormRenderer } from '@/components/workflow/widgets';
 
 // --- Register Ports ---

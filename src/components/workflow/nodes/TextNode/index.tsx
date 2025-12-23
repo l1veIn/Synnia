@@ -8,9 +8,9 @@ import { useNode } from '@/hooks/useNode';
 import { FileText, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
+import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { TextNodeInspector } from './Inspector';
-import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
+import type { NodeDefinition } from '@core/registry/NodeRegistry';
 
 // --- Node Component ---
 export const TextNode = memo((props: NodeProps<SynniaNode>) => {

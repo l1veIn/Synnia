@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { NodeType } from '@/types/project';
-import { graphEngine } from '@/lib/engine/GraphEngine';
+import { graphEngine } from '@core/engine/GraphEngine';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
 

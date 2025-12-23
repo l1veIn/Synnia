@@ -1,11 +1,11 @@
 // Unified Settings Types
 // Support both cloud providers (API key) and local providers (base URL)
 
-import { ProviderKey } from '@/lib/models/types';
-import { PROVIDER_INFO } from '@/lib/models/providers';
+import { ProviderKey } from '@features/models/types';
+import { PROVIDER_INFO } from '@features/models/providers';
 
-export type { ProviderKey, ProviderInfo } from '@/lib/models/types';
-export { PROVIDER_INFO } from '@/lib/models/providers';
+export type { ProviderKey, ProviderInfo } from '@features/models/types';
+export { PROVIDER_INFO } from '@features/models/providers';
 
 // Provider configuration
 export interface ProviderConfig {

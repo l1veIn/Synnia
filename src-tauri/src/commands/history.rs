@@ -190,7 +190,7 @@ pub fn restore_asset_version(
     let new_hash = crate::services::hash::compute_content_hash(&entry.content_json);
     
     conn.execute(
-        "UPDATE assets SET content_json = ?1, content_hash = ?2, updated_at = ?3 WHERE id = ?4",
+        "UPDATE assets SET value_json = ?1, value_hash = ?2, updated_at = ?3 WHERE id = ?4",
         rusqlite::params![&entry.content_json, &new_hash, now, &asset_id],
     ).map_err(|e| AppError::Io(format!("Failed to restore asset: {}", e)))?;
     

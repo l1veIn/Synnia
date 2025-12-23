@@ -48,15 +48,12 @@ export function useFileUploadDrag() {
               x: position.x + offset,
               y: position.y + offset,
             }, {
-              valueType: 'image',
               content: result.relativePath,
               assetName: file.name,
-              metadata: {
-                image: {
-                  width: result.width,
-                  height: result.height,
-                  thumbnail: result.thumbnailPath || undefined
-                }
+              valueMeta: {
+                width: result.width,
+                height: result.height,
+                preview: result.thumbnailPath || undefined
               }
             });
 

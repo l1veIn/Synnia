@@ -244,7 +244,7 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
             .unwrap_or_else(|| serde_json::json!({}));
         
         let thumbnail_path = value_meta
-            .get("thumbnail")
+            .get("preview")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
         

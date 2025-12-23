@@ -121,7 +121,7 @@ fn cleanup_old_history(conn: &Connection, asset_id: &str) -> SqliteResult<()> {
 /// Get the current content hash for an asset.
 pub fn get_current_hash(conn: &Connection, asset_id: &str) -> SqliteResult<Option<String>> {
     let mut stmt = conn.prepare(
-        "SELECT content_hash FROM assets WHERE id = ?1"
+        "SELECT value_hash FROM assets WHERE id = ?1"
     )?;
     
     let mut rows = stmt.query(params![asset_id])?;

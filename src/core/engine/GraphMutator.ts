@@ -112,7 +112,7 @@ export class GraphMutator {
 
 
 
-    public addNode(type: NodeType | string, position: XYPosition, options: { valueType?: ValueType, content?: any, assetId?: string, assetName?: string, metadata?: any, style?: any } = {}) {
+    public addNode(type: NodeType | string, position: XYPosition, options: { valueType?: ValueType, content?: any, assetId?: string, assetName?: string, valueMeta?: any, style?: any } = {}) {
         // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
         const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
 
@@ -142,8 +142,8 @@ export class GraphMutator {
                 content = ''; // Fallback
             }
 
-            // Use AssetSystem
-            assetId = this.engine.assets.create(valueType, content, { name });
+            // Use AssetSystem - valueMeta is passed through from caller (no engine knowledge of structure)
+            assetId = this.engine.assets.create(valueType, content, { name, valueMeta: options.valueMeta });
         }
 
         // Create asset for recipe nodes (FormAssetContent to store values)

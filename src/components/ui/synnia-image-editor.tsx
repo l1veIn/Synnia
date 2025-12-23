@@ -58,6 +58,11 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
     // Crop State
     const [crop, setCrop] = useState<Crop>()
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>()
+    const [cropAspect, setCropAspect] = useState<number | undefined>(undefined)
+
+    // Zoom/Pan State for crop mode
+    const [imageScale, setImageScale] = useState(1)
+    const canvasContainerRef = useRef<HTMLDivElement>(null)
 
     // Rotate State (Visual only until applied)
     const [rotation, setRotation] = useState(0)
@@ -83,6 +88,8 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
             setRotation(0);
             setCrop(undefined);
             setCompletedCrop(undefined);
+            setCropAspect(undefined);
+            setImageScale(1);
             setActiveTool(null);
             setIsProcessing(false);
             setProcessingStatus('');
@@ -269,7 +276,17 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
                 <DialogDescription className="sr-only">Editor</DialogDescription>
 
                 {/* Canvas */}
-                <div className="relative flex-1 w-full bg-[url('/transparent-grid.svg')] bg-repeat bg-center overflow-auto flex items-center justify-center p-8 select-none">
+                <div
+                    ref={canvasContainerRef}
+                    className="relative flex-1 w-full bg-[url('/transparent-grid.svg')] bg-repeat bg-center overflow-hidden flex items-center justify-center p-8 select-none"
+                    onWheel={(e) => {
+                        if (activeTool === 'crop') {
+                            e.preventDefault();
+                            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                            setImageScale(s => Math.max(0.25, Math.min(3, s + delta)));
+                        }
+                    }}
+                >
                     {/* Background Grid */}
                     <div className="absolute inset-0 opacity-20 pointer-events-none"
                         style={{
@@ -283,7 +300,8 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
                             crop={crop}
                             onChange={(_, percentCrop) => setCrop(percentCrop)}
                             onComplete={(c) => setCompletedCrop(c)}
-                            className="max-h-full max-w-full shadow-lg"
+                            aspect={cropAspect}
+                            className="shadow-lg"
                         >
                             <img
                                 ref={imgRef}
@@ -291,14 +309,16 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
                                 src={currentSrc}
                                 crossOrigin="anonymous"
                                 onLoad={onImageLoad}
-                                // Do not apply rotation here, it messes up react-image-crop coordinates.
-                                // Rotation will be applied in getCroppedImg upon final Save/Apply.
-                                style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                                style={{
+                                    display: 'block',
+                                    maxHeight: '60vh',
+                                    maxWidth: '70vw'
+                                }}
                             />
                         </ReactCrop>
                     ) : (
                         <img
-                            ref={imgRef} // Also use imgRef here for `naturalWidth/Height` access in compress
+                            ref={imgRef}
                             src={currentSrc}
                             alt="Preview"
                             crossOrigin="anonymous"
@@ -359,13 +379,38 @@ export function SynniaImageEditor({ open, src, onOpenChange, onSave }: SynniaIma
                     {activeTool === 'crop' && (
                         <div className="h-14 flex items-center justify-center gap-6 border-b px-4 animate-in slide-in-from-bottom-2 fade-in">
                             <span className="text-xs text-muted-foreground">Adjust the frame to crop</span>
-                            <Button variant="ghost" size="sm" onClick={() => imgRef.current && setCrop(centerAspectCrop(imgRef.current.naturalWidth, imgRef.current.naturalHeight, 1))}>
+                            <Button
+                                variant={cropAspect === 1 ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => {
+                                    setCropAspect(1);
+                                    if (imgRef.current) {
+                                        setCrop(centerAspectCrop(imgRef.current.width, imgRef.current.height, 1));
+                                    }
+                                }}
+                            >
                                 1:1
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => imgRef.current && setCrop(centerAspectCrop(imgRef.current.naturalWidth, imgRef.current.naturalHeight, 16 / 9))}>
+                            <Button
+                                variant={cropAspect === 16 / 9 ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => {
+                                    setCropAspect(16 / 9);
+                                    if (imgRef.current) {
+                                        setCrop(centerAspectCrop(imgRef.current.width, imgRef.current.height, 16 / 9));
+                                    }
+                                }}
+                            >
                                 16:9
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setCrop(undefined)}>
+                            <Button
+                                variant={cropAspect === undefined ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => {
+                                    setCropAspect(undefined);
+                                    setCrop(undefined);
+                                }}
+                            >
                                 Free
                             </Button>
                         </div>

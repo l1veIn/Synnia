@@ -95,15 +95,12 @@ export function useCanvasLogic() {
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
         graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
-          valueType: 'image',
           content: result.relativePath,
           assetName: filePath.split(/[/\\]/).pop(),
-          metadata: {
-            image: {
-              width: result.width,
-              height: result.height,
-              thumbnail: result.thumbnailPath || undefined
-            }
+          valueMeta: {
+            width: result.width,
+            height: result.height,
+            preview: result.thumbnailPath || undefined
           },
           style: { width: STD_WIDTH, height: STD_HEIGHT }
         });
@@ -128,7 +125,6 @@ export function useCanvasLogic() {
             if (base64) {
               const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
               graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
-                valueType: 'image',
                 content: base64 as string,
                 assetName: file.name
               });

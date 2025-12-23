@@ -1,6 +1,46 @@
 import { Handle, HandleProps, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
-import { HandleSemantic, HANDLE_IDS, HANDLE_CONFIG } from "@/types/handles";
+
+// --- Handle Semantics (inlined from types/handles.ts) ---
+enum HandleSemantic {
+  DATA_IN = 'data-in',
+  DATA_OUT = 'data-out',
+  ORIGIN = 'origin',
+  PRODUCT = 'product',
+}
+
+const HANDLE_IDS = {
+  ORIGIN: 'origin',
+  PRODUCT: 'product',
+  OUTPUT: 'output',
+} as const;
+
+const HANDLE_CONFIG: Record<HandleSemantic, {
+  position: 'top' | 'bottom' | 'left' | 'right';
+  color: string;
+  colorConnected?: string;
+  disabled?: boolean;
+}> = {
+  [HandleSemantic.DATA_IN]: {
+    position: 'left',
+    color: 'bg-muted-foreground/40',
+    colorConnected: 'bg-blue-500',
+  },
+  [HandleSemantic.DATA_OUT]: {
+    position: 'right',
+    color: 'bg-green-500',
+  },
+  [HandleSemantic.ORIGIN]: {
+    position: 'top',
+    color: 'bg-violet-500',
+    disabled: true,
+  },
+  [HandleSemantic.PRODUCT]: {
+    position: 'bottom',
+    color: 'bg-purple-500',
+    disabled: true,
+  },
+};
 
 interface NodePortProps extends HandleProps {
   className?: string;

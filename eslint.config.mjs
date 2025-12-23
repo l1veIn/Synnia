@@ -37,13 +37,16 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',
       'react-hooks/refs': 'off',
+      'react-hooks/preserve-manual-memoization': 'warn',
       '@typescript-eslint/no-explicit-any': 'warn',
+      'no-case-declarations': 'warn',
+      'no-empty': 'warn',
       // Allow unused variables if they are prefixed with underscore
       '@typescript-eslint/no-unused-vars': [
-        'warn', 
-        { 
+        'warn',
+        {
           'argsIgnorePattern': '^_',
-          'varsIgnorePattern': '^_' 
+          'varsIgnorePattern': '^_'
         }
       ]
     },

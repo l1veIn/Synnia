@@ -37,6 +37,13 @@ export function RecipeFieldRow({
     // Check if widget wants to render the entire row
     const widget = field.widget ? getWidget(field.widget) : undefined;
 
+    // Get extra handles from widget (if widget declares them)
+    // IMPORTANT: Must be before early return to satisfy React hooks rules
+    const extraHandles = useMemo(() => {
+        if (!field.widget) return [];
+        return getWidgetInputHandles(field.widget, value);
+    }, [field.widget, value]);
+
     if (widget?.renderFieldRow) {
         // Widget takes full control
         const fieldRowProps: FieldRowProps = {
@@ -60,12 +67,6 @@ export function RecipeFieldRow({
         conn?.enabled;
     const hasOutputHandle = conn?.output === true ||
         (typeof conn?.output === 'object' && conn.output.enabled);
-
-    // Get extra handles from widget (if widget declares them)
-    const extraHandles = useMemo(() => {
-        if (!field.widget) return [];
-        return getWidgetInputHandles(field.widget, value);
-    }, [field.widget, value]);
 
     // Format display value
     const formatValue = (val: any) => {

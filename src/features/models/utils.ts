@@ -10,7 +10,7 @@ export function repairTruncatedJsonArray(jsonText: string): string | null {
     try {
         JSON.parse(text);
         return text;
-    } catch { }
+    } catch (_) { /* parse failed, continue */ }
 
     const lastCompleteObject = text.lastIndexOf('}');
     if (lastCompleteObject === -1) return null;
@@ -44,7 +44,7 @@ export function extractJson(text: string): { data: any; success: boolean } {
 
     try {
         return { data: JSON.parse(jsonText), success: true };
-    } catch {
+    } catch (_) {
         // Try to repair truncated JSON
         const repaired = repairTruncatedJsonArray(jsonText);
         if (repaired) {

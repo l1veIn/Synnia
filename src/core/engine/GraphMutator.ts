@@ -89,7 +89,7 @@ export class GraphMutator {
             const createResult = def.create({ data: item, schema });
 
             // Resolve title with item fields
-            let title = config.title
+            const title = config.title
                 ? config.title
                     .replace(/\{\{index\}\}/g, String(index + 1))
                     .replace(/\{\{(\w+)\}\}/g, (_: string, k: string) => item[k] ?? '')
@@ -130,7 +130,7 @@ export class GraphMutator {
         // Create asset for nodes with create factory
         if (hasCreate && !assetId) {
             const createResult = def!.create({});
-            let valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
+            const valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
             let content = options.content;
             const name = options.assetName || meta?.title || 'Node';
 

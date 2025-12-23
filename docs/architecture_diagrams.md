@@ -13,10 +13,11 @@ graph TD
     end
 
     subgraph Logic ["Logic Layer (Controller)"]
-        Engine[GraphEngine Class]
+        Engine[GraphEngine]
         Layout[LayoutSystem]
         Interact[InteractionSystem]
         Mutator[GraphMutator]
+        Assets[AssetSystem]
         Ports[PortRegistry]
     end
 
@@ -24,7 +25,7 @@ graph TD
         Store[Zustand Store]
         Nodes[Nodes State]
         Edges[Edges State]
-        Assets[Assets State]
+        AssetsData[Assets State]
     end
 
     %% Relationships
@@ -38,13 +39,51 @@ graph TD
     Engine --> Layout
     Engine --> Interact
     Engine --> Mutator
+    Engine --> Assets
     
     %% Widget Flow
     Widgets -.->|Render| Inspector
     NodeComp -.->|Render| Widgets
 ```
 
-## 2. Recipe System Execution Flow
+## 2. Project Directory Structure
+Updated to reflect the new modular organization.
+
+```mermaid
+graph TD
+    subgraph src ["src/"]
+        subgraph core ["core/ (Engine Layer)"]
+            engine[engine/]
+            registry[registry/]
+            utils[utils/]
+        end
+        
+        subgraph features ["features/ (Domain Logic)"]
+            recipes[recipes/]
+            models[models/]
+        end
+        
+        subgraph components ["components/ (View)"]
+            workflow[workflow/nodes, widgets]
+            ui[ui/ shadcn]
+            settings[settings/]
+        end
+        
+        hooks[hooks/]
+        store[store/]
+        types[types/]
+        pages[pages/]
+    end
+    
+    %% Dependencies
+    components --> core
+    components --> features
+    features --> core
+    hooks --> core
+    hooks --> features
+```
+
+## 3. Recipe System Execution Flow
 This diagram shows how a Recipe Node executes, from the user clicking "Run" to the final result updating the node.
 
 ```mermaid
@@ -82,8 +121,8 @@ sequenceDiagram
     RecipeNode->>User: Show Result / Create New Nodes
 ```
 
-## 3. Node Update & Optimization Flow
-Illustrating the "Throttled Layout" pattern we just implemented.
+## 4. Node Update & Optimization Flow
+Illustrating the "Throttled Layout" pattern.
 
 ```mermaid
 flowchart LR

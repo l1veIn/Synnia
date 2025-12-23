@@ -1,16 +1,16 @@
 # Codebase Complexity Analysis
 
 ## 1. Complexity Distribution (The "Weight" of Modules)
-This pie chart illustrates where the logical complexity resides in the project. It aligns with our rigorous review finding that the Engine and Recipe System carry the heaviest load.
+This pie chart illustrates where the logical complexity resides in the project.
 
 ```mermaid
 pie title Synnia Codebase Complexity Weights
-    "Graph Engine (Core Logic)" : 35
-    "Recipe System (Executors & Dynamic Forms)" : 30
-    "Node Implementations (Specific Logic)" : 15
+    "Core Engine (GraphEngine, Layout, Ports)" : 35
+    "Recipe System (Executors & Dynamic Forms)" : 25
+    "Node Implementations (15+ Node Types)" : 20
     "Widget System (Form Controls)" : 10
+    "AI Models Integration" : 5
     "UI Components (Shadcn/Basic)" : 5
-    "Pages & Routing" : 5
 ```
 
 ## 2. Directory Structure & Depth Analysis
@@ -23,34 +23,48 @@ This mindmap visualizes the project structure, color-coded by complexity.
 mindmap
   root((Synnia Project))
     src
-      lib
-        engine["engine (Red)"]
-            ::icon(fa fa-cogs)
+      core["core/ (Red)"]
+        engine
             GraphEngine
             LayoutSystem
             InteractionSystem
-            PortRegistry
-        recipes["recipes (Red)"]
-            ::icon(fa fa-scroll)
+            AssetSystem
+        registry
+            NodeRegistry
+            BehaviorRegistry
+        utils
+            graphUtils
+            canvasUtils
+      features["features/ (Red)"]
+        recipes
             Executors
             Loaders
-        models["models (Orange)"]
-            LLM
-            Media
+            BuiltinRecipes
+        models
+            LLM Plugins
+            Media Plugins
       components
         workflow
             nodes["nodes (Orange)"]
                 RecipeNode
                 JSONNode
-                BasicNodes
-            widgets["widgets (Red)"]
-                ::icon(fa fa-sliders-h)
-                RecipeFormRenderer
+                FormNode
+                GalleryNode
+            widgets["widgets (Orange)"]
+                FormRenderer
                 ModelConfigurator
         ui["ui (Green)"]
             shadcn-components
+        settings["settings (Green)"]
       store["store (Orange)"]
         workflowStore
+      hooks["hooks (Orange)"]
+        useRunRecipe
+        useCanvasLogic
+      types["types (Orange)"]
+        assets
+        project
+        recipe
       pages["pages (Green)"]
         Canvas
         Dashboard
@@ -65,25 +79,59 @@ graph TD
     classDef med fill:#ffe,stroke:#333,stroke-width:1px;
     classDef low fill:#efe,stroke:#333,stroke-width:1px;
 
-    Engine[("Graph Engine")]:::high
+    Core[("Core Engine")]:::high
     RecipeSys[("Recipe System")]:::high
+    Models[("AI Models")]:::med
     Widgets[("Widget System")]:::med
     Nodes[("Node Impls")]:::med
     Store["Zustand Store"]:::med
-    Settings["Settings"]:::low
-    Models["AI Models"]:::med
+    Types["Types"]:::low
+    Hooks["Hooks"]:::med
     
     %% Dependencies
-    Nodes --> Engine
+    Nodes --> Core
     Nodes --> RecipeSys
     Nodes --> Widgets
     
-    RecipeSys --> Widgets
     RecipeSys --> Models
+    RecipeSys --> Core
     
     Widgets --> Models
-    Widgets --> Settings
     
-    Engine --> Store
-    Store -.->|Snapshot| Engine
+    Core --> Store
+    Core --> Types
+    
+    Hooks --> Core
+    Hooks --> RecipeSys
+    
+    Store -.->|Snapshot| Core
+```
+
+## 4. Clean Architecture Layers
+
+```mermaid
+graph TB
+    subgraph Presentation ["Presentation Layer"]
+        Pages[Pages]
+        Components[Components]
+    end
+    
+    subgraph Application ["Application Layer"]
+        Hooks[Hooks]
+        Store[Store]
+    end
+    
+    subgraph Domain ["Domain Layer"]
+        Core[Core Engine]
+        Features[Features]
+    end
+    
+    subgraph Infrastructure ["Infrastructure"]
+        Types[Types]
+        Lib[Utilities]
+    end
+    
+    Presentation --> Application
+    Application --> Domain
+    Domain --> Infrastructure
 ```

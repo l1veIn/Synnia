@@ -10,40 +10,20 @@ import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-reac
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
-import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import type { NodeDefinition, AssetContentSchema } from '@/lib/nodes/NodeRegistry';
 
-// --- Asset Content Type ---
-/**
- * Each option is a dynamic object with custom fields defined by schema.
- * The only required field is 'id'. 'label' is used for display (first field or id).
- */
-export interface SelectorOption {
-    id: string;
-    [key: string]: any; // Dynamic fields based on schema
-}
+// Import types for local use
+import { SelectorOption, SelectorAssetContent, DEFAULT_OPTION_SCHEMA } from './types';
 
-/**
- * Default schema fields (used when user doesn't define custom schema)
- */
-export const DEFAULT_OPTION_SCHEMA: FieldDefinition[] = [
-    { id: 'label', key: 'label', label: 'Label', type: 'string', widget: 'text' },
-    { id: 'description', key: 'description', label: 'Description', type: 'string', widget: 'text' },
-];
+// Re-export types for backward compatibility
+export type { SelectorOption, SelectorAssetContent } from './types';
+export { DEFAULT_OPTION_SCHEMA } from './types';
 
-export interface SelectorAssetContent {
-    mode: 'single' | 'multi';
-    showSearch: boolean;
-    optionSchema: FieldDefinition[]; // Schema for option fields
-    options: SelectorOption[];
-    selected: string[]; // array of option IDs
-}
 // --- Node Component ---
 export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
@@ -286,62 +266,8 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 });
 SelectorNode.displayName = 'SelectorNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.SELECTOR,
-    component: SelectorNode,
-    inspector: Inspector,
-    config: {
-        type: NodeType.SELECTOR,
-        title: 'Selector',
-        category: 'Asset',
-        icon: List,
-        description: 'Select items from a list',
+// Re-export from separate files
+export { Inspector } from './Inspector';
+export { definition } from './definition';
+export { SelectorNode as Node };
 
-        // Self-declaration
-        requiresAsset: true,
-        defaultAssetType: 'json',
-        createNodeAlias: 'selector',
-
-        // Factory: default style
-        defaultStyle: { width: 280, height: 300 },
-
-        // Factory: default content for new node
-        createDefaultAsset: () => ({
-            valueType: 'record' as const,
-            value: {
-                mode: 'multi',
-                showSearch: true,
-                optionSchema: DEFAULT_OPTION_SCHEMA,
-                options: [],
-                selected: []
-            } as SelectorAssetContent,
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'array',
-                label: 'Selected Items',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const content = asset.value as SelectorAssetContent;
-                    const selectedOptions = content.options.filter(opt => content.selected.includes(opt.id));
-                    return {
-                        type: 'array',
-                        value: selectedOptions,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility with current node loader
-export { SelectorNode as Node, Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;

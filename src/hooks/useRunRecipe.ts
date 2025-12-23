@@ -1,12 +1,12 @@
 import { getRecipe } from '@/lib/recipes';
-import { FormAssetContent } from '@/types/assets';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { useCallback } from 'react';
 import { NodeType } from '@/types/project';
 import { collectInputValues } from '@/lib/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@/lib/engine/GraphEngine';
 import { ExecutionContext } from '@/types/recipe';
+import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
 
 /**
  * Hook to run a Recipe Definition.
@@ -35,14 +35,14 @@ export function useRunRecipe() {
 
         try {
             // --- Resolve Inputs ---
-            // Get static values from asset (FormAssetContent)
+            // RecordAsset: values are directly in asset.value (not wrapped in FormAssetContent)
             let staticValues: Record<string, any> = {};
 
             if (node.data.assetId) {
                 const asset = store.assets[node.data.assetId as string];
                 if (asset?.value && typeof asset.value === 'object') {
-                    const content = asset.value as FormAssetContent;
-                    staticValues = content?.values || {};
+                    // Values are directly in asset.value for RecordAsset
+                    staticValues = asset.value as Record<string, any>;
                 }
             }
 
@@ -102,6 +102,20 @@ export function useRunRecipe() {
                 data: { executionResult: result.data }
             });
 
+            // --- Build createNodes from output config if specified in manifest ---
+            const executor = recipe.manifest.executor as any;
+            const outputConfig = executor.output;
+
+            if (outputConfig && result.data && !result.createNodes) {
+                // Build nodes using GraphMutator
+                const nodeSpecs = graphEngine.mutator.buildNodesFromConfig(
+                    Array.isArray(result.data) ? result.data : [result.data],
+                    outputConfig,
+                    nodeId
+                );
+                result.createNodes = nodeSpecs;
+            }
+
             // --- Handle createNodes (if recipe wants to create product nodes) ---
             if (result.createNodes && result.createNodes.length > 0) {
                 const freshStore = useWorkflowStore.getState();
@@ -125,39 +139,30 @@ export function useRunRecipe() {
                     const specData = nodeSpec.data as any;
                     const existingAsset = freshStore.assets[existingProductNode.data.assetId as string];
 
-                    // Check if it's a collection type (Gallery, Table, Selector)
-                    const isCollection = [NodeType.GALLERY, NodeType.TABLE, NodeType.SELECTOR].includes(existingProductNode.type as NodeType);
+                    // Check if it's a collection type using nodeRegistry
+                    const isCollection = nodeRegistry.isCollection(existingProductNode.type);
+                    const nodeDef = nodeRegistry.getDefinition(existingProductNode.type);
 
-                    if (isCollection && existingAsset?.value && specData.content) {
-                        // Append new items to the top of the collection
-                        const existingContent = existingAsset.value as any;
-                        const newContent = specData.content as any;
+                    if (isCollection && existingAsset?.value && specData.content && nodeDef?.hooks) {
+                        // Use hooks for collection operations
+                        const { getItems, mergeItems } = nodeDef.hooks;
 
-                        let mergedContent: any;
+                        if (getItems && mergeItems) {
+                            // Get existing items using hook
+                            const existingItems = getItems(existingAsset);
 
-                        if (existingProductNode.type === NodeType.GALLERY) {
-                            // Gallery: prepend new images
-                            mergedContent = {
-                                ...existingContent,
-                                images: [...(newContent.images || []), ...(existingContent.images || [])],
-                            };
-                        } else if (existingProductNode.type === NodeType.TABLE) {
-                            // Table: prepend new rows
-                            mergedContent = {
-                                ...existingContent,
-                                rows: [...(newContent.rows || []), ...(existingContent.rows || [])],
-                            };
-                        } else if (existingProductNode.type === NodeType.SELECTOR) {
-                            // Selector: prepend new options
-                            mergedContent = {
-                                ...existingContent,
-                                options: [...(newContent.options || []), ...(existingContent.options || [])],
-                            };
-                        }
+                            // Get new items from spec content
+                            // For the incoming data, we need to extract items the same way
+                            const newItems = Array.isArray(specData.content)
+                                ? specData.content
+                                : getItems({ ...existingAsset, value: specData.content });
 
-                        if (mergedContent) {
-                            graphEngine.assets.update(existingAsset.id, mergedContent);
-                            console.log(`📥 [RunRecipe] Appended to existing ${existingProductNode.type}:`, mergedContent);
+                            // Merge using hook (hooks decide prepend/append strategy)
+                            const mergedItems = mergeItems(existingItems, newItems);
+
+                            // Update asset with merged items
+                            graphEngine.assets.update(existingAsset.id, mergedItems);
+                            console.log(`📥 [RunRecipe] Merged items into ${existingProductNode.type}:`, mergedItems.length);
                         }
                     } else {
                         // Non-collection: replace content entirely

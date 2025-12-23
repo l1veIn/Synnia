@@ -22,7 +22,7 @@ export interface AssetSysMetadata {
     name: string;
     createdAt: number;
     updatedAt: number;
-    source: 'user' | 'ai' | 'import';
+    source: string;  // Backend uses string, not union
 }
 
 // ==========================================
@@ -50,8 +50,8 @@ export interface TextAssetConfig {
 export interface TextAsset extends BaseAsset {
     valueType: 'text';
     value: string;
-    valueMeta?: TextAssetValueMeta;
-    config?: TextAssetConfig;
+    valueMeta: TextAssetValueMeta;   // Required to match backend
+    config: TextAssetConfig | null;  // Required to match backend (nullable)
 }
 
 // ==========================================
@@ -71,8 +71,8 @@ export interface ImageAssetConfig {
 export interface ImageAsset extends BaseAsset {
     valueType: 'image';
     value: string;
-    valueMeta?: ImageAssetValueMeta;
-    config?: ImageAssetConfig;
+    valueMeta: ImageAssetValueMeta;   // Required to match backend
+    config: ImageAssetConfig | null;  // Required to match backend (nullable)
 }
 
 // ==========================================
@@ -90,7 +90,7 @@ export interface RecordAssetConfig {
 export interface RecordAsset extends BaseAsset {
     valueType: 'record';
     value: Record<string, any>;
-    valueMeta?: RecordAssetValueMeta;
+    valueMeta: RecordAssetValueMeta;   // Required to match backend
     config: RecordAssetConfig;
 }
 
@@ -103,6 +103,7 @@ export interface ArrayAssetValueMeta {
 }
 
 export interface ArrayAssetConfig {
+    // Generic array data structure
     itemSchema?: FieldDefinition[];
     columns?: ColumnDef[];
     options?: SelectorOption[];
@@ -112,8 +113,8 @@ export interface ArrayAssetConfig {
 export interface ArrayAsset extends BaseAsset {
     valueType: 'array';
     value: any[];
-    valueMeta?: ArrayAssetValueMeta;
-    config?: ArrayAssetConfig;
+    valueMeta: ArrayAssetValueMeta;   // Required to match backend
+    config: ArrayAssetConfig | null;  // Required to match backend (nullable)
 }
 
 // ==========================================
@@ -238,23 +239,24 @@ export function createSysMetadata(name: string): AssetSysMetadata {
     return { name, createdAt: now, updatedAt: now, source: 'user' };
 }
 
-export function createTextAsset(id: string, value: string, name: string, config?: TextAssetConfig): TextAsset {
+export function createTextAsset(id: string, value: string, name: string, config?: TextAssetConfig | null): TextAsset {
     return {
         id,
         valueType: 'text',
         value,
         valueMeta: { length: value.length, preview: value.slice(0, 100) },
-        config,
+        config: config ?? null,
         sys: createSysMetadata(name),
     };
 }
 
-export function createImageAsset(id: string, value: string, name: string, config?: ImageAssetConfig): ImageAsset {
+export function createImageAsset(id: string, value: string, name: string, config?: ImageAssetConfig | null): ImageAsset {
     return {
         id,
         valueType: 'image',
         value,
-        config,
+        valueMeta: {},  // Required empty object
+        config: config ?? null,
         sys: createSysMetadata(name),
     };
 }
@@ -264,32 +266,19 @@ export function createRecordAsset(id: string, value: Record<string, any>, schema
         id,
         valueType: 'record',
         value,
+        valueMeta: {},  // Required empty object
         config: { schema },
         sys: createSysMetadata(name),
     };
 }
 
-export function createArrayAsset(id: string, value: any[], name: string, config?: ArrayAssetConfig): ArrayAsset {
+export function createArrayAsset(id: string, value: any[], name: string, config?: ArrayAssetConfig | null): ArrayAsset {
     return {
         id,
         valueType: 'array',
         value,
         valueMeta: { length: value.length },
-        config,
+        config: config ?? null,
         sys: createSysMetadata(name),
     };
 }
-
-// ==========================================
-// Legacy Compatibility (FormAssetContent)
-// TODO: Remove after migrating RecipeNode
-// ==========================================
-
-export interface FormAssetContent {
-    schema: FieldDefinition[];
-    values: Record<string, any>;
-}
-
-export const isFormAsset = (content: any): content is FormAssetContent => {
-    return content && typeof content === 'object' && Array.isArray(content.schema);
-};

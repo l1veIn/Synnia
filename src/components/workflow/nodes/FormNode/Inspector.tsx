@@ -1,4 +1,4 @@
-import { FormAssetContent, isFormAsset, FieldDefinition } from '@/types/assets';
+import { FieldDefinition, isRecordAsset, RecordAsset } from '@/types/assets';
 import { useAsset } from '@/hooks/useAsset';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SchemaBuilder } from '../../inspector/SchemaBuilder';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { useWorkflowStore } from '@/store/workflowStore';
 
 export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
-    const { asset, setValue } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
     const edges = useWorkflowStore(s => s.edges);
     const nodes = useWorkflowStore(s => s.nodes);
     const [activeTab, setActiveTab] = useState('values');
@@ -23,13 +23,21 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
         return !!node?.data?.dockedTo;
     }, [nodeId, nodes]);
 
-    // Saved content from asset.value
-    const savedContent = useMemo(() => {
-        const value = asset?.value as FormAssetContent | undefined;
-        if (value && isFormAsset(value)) {
-            return value;
+    // Get saved content from RecordAsset structure
+    // - Schema is in asset.config.schema
+    // - Values are in asset.value directly
+    const savedSchema = useMemo(() => {
+        if (asset && isRecordAsset(asset)) {
+            return asset.config?.schema || [];
         }
-        return { schema: [], values: {} };
+        return [];
+    }, [asset]);
+
+    const savedValues = useMemo(() => {
+        if (asset && typeof asset.value === 'object') {
+            return asset.value as Record<string, any>;
+        }
+        return {};
     }, [asset?.value]);
 
     // Draft state - local edits before save
@@ -39,26 +47,26 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
 
     // Initialize draft from saved content
     useEffect(() => {
-        if (!isInitialized && savedContent) {
-            setDraftSchema(savedContent.schema || []);
-            setDraftValues(savedContent.values || {});
+        if (!isInitialized && asset) {
+            setDraftSchema(savedSchema);
+            setDraftValues(savedValues);
             setIsInitialized(true);
         }
-    }, [savedContent, isInitialized]);
+    }, [savedSchema, savedValues, isInitialized, asset]);
 
     // Reset draft when asset changes
     useEffect(() => {
-        setDraftSchema(savedContent.schema || []);
-        setDraftValues(savedContent.values || {});
+        setDraftSchema(savedSchema);
+        setDraftValues(savedValues);
         setIsInitialized(true);
     }, [assetId]);
 
     // Check if there are unsaved changes
     const hasChanges = useMemo(() => {
         if (!isInitialized) return false;
-        return JSON.stringify(draftSchema) !== JSON.stringify(savedContent.schema) ||
-            JSON.stringify(draftValues) !== JSON.stringify(savedContent.values);
-    }, [draftSchema, draftValues, savedContent, isInitialized]);
+        return JSON.stringify(draftSchema) !== JSON.stringify(savedSchema) ||
+            JSON.stringify(draftValues) !== JSON.stringify(savedValues);
+    }, [draftSchema, draftValues, savedSchema, savedValues, isInitialized]);
 
     // Get linked field keys (fields with incoming connections)
     const linkedFields = useMemo(() => {
@@ -79,27 +87,17 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
         return new Set(linkedKeys);
     }, [edges, nodeId]);
 
-    // Init Logic: Ensure FormAssetContent structure exists
+    // Init Logic: Ensure RecordAsset structure exists
     useEffect(() => {
-        const value = asset?.value as FormAssetContent | undefined;
-        if (asset && !isFormAsset(value)) {
-            const legacyValues = typeof asset.value === 'object' ? asset.value : {};
-            const initContent: FormAssetContent = {
-                schema: [],
-                values: legacyValues || {}
-            };
-            if (JSON.stringify(asset.value) !== JSON.stringify(initContent)) {
-                setValue(initContent);
-            }
+        if (asset && !isRecordAsset(asset)) {
+            // Migrate from old structure or initialize
+            const existingValues = typeof asset.value === 'object' ? asset.value : {};
+            setValue(existingValues);
+            updateConfig({ schema: [] });
         }
-    }, [asset?.value, setValue]);
+    }, [asset, setValue, updateConfig]);
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
-
-    const assetValue = asset.value as FormAssetContent | undefined;
-    if (!isFormAsset(assetValue)) {
-        return <div className="text-xs text-muted-foreground p-4">Initializing JSON Structure...</div>;
-    }
 
     // Handle draft changes (local only)
     const handleSchemaChange = (newSchema: FieldDefinition[]) => {
@@ -112,14 +110,15 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
 
     // Save draft to asset
     const handleSave = () => {
-        setValue({ schema: draftSchema, values: draftValues });
+        setValue(draftValues);          // Values go to asset.value
+        updateConfig({ schema: draftSchema }); // Schema goes to asset.config
         toast.success('Changes saved');
     };
 
     // Discard changes
     const handleDiscard = () => {
-        setDraftSchema(savedContent.schema || []);
-        setDraftValues(savedContent.values || {});
+        setDraftSchema(savedSchema);
+        setDraftValues(savedValues);
         toast.info('Changes discarded');
     };
 

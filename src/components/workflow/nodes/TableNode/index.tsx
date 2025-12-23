@@ -171,58 +171,8 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
 });
 TableNode.displayName = 'TableNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.TABLE,
-    component: TableNode,
-    inspector: Inspector,
-    config: {
-        type: NodeType.TABLE,
-        title: 'Table',
-        category: 'Asset',
-        icon: TableIcon,
-        description: 'Editable data table',
+// Re-export from separate files
+export { Inspector } from './Inspector';
+export { definition } from './definition';
+export { TableNode as Node };
 
-        requiresAsset: true,
-        defaultAssetType: 'json',
-        createNodeAlias: 'table',
-
-        defaultStyle: { width: 360, height: 250 },
-
-        createDefaultAsset: () => ({
-            valueType: 'record' as const,
-            value: {
-                columns: [],
-                rows: [],
-                showRowNumbers: true,
-                allowAddRow: true,
-                allowDeleteRow: true,
-            } as TableAssetContent,
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'array',
-                label: 'Table Rows',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const content = asset.value as TableAssetContent;
-                    return {
-                        type: 'array',
-                        value: content.rows,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility with current node loader
-export { TableNode as Node, Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;

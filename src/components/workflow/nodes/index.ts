@@ -1,23 +1,22 @@
 import { NodeType } from '@/types/project';
-import { NodeConfig, NodeCategory } from '@/types/node-config';
-import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
+import { nodeRegistry, NodeMeta, NodeCategory } from '@/lib/nodes/NodeRegistry';
 import { behaviorRegistry } from '@/lib/engine/BehaviorRegistry';
 import { portRegistry } from '@/lib/engine/ports';
 import { getAllRecipes } from '@/lib/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
-import { FormAssetContent } from '@/types/assets';
+import { isRecordAsset } from '@/types/assets';
 import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
 
-// Import node definitions
-import { definition as selectorDef } from './SelectorNode';
-import { definition as tableDef } from './TableNode';
-import { definition as galleryDef } from './GalleryNode';
-import { definition as formDef } from './FormNode';
-import { definition as textDef } from './TextNode';
-import { definition as imageDef } from './ImageNode';
-import { definition as queueDef } from './QueueNode';
+// Import node definitions directly to avoid circular dependency
+import { definition as selectorDef } from './SelectorNode/definition';
+import { definition as tableDef } from './TableNode/definition';
+import { definition as galleryDef } from './GalleryNode/definition';
+import { definition as formDef } from './FormNode/definition';
+import { definition as textDef } from './TextNode/definition';
+import { definition as imageDef } from './ImageNode/definition';
+import { definition as queueDef } from './QueueNode/definition';
 
 // ============================================================================
 // Register Static Nodes
@@ -34,15 +33,10 @@ const staticDefinitions = [
 ];
 
 for (const def of staticDefinitions) {
-    // Register to NodeRegistry
     nodeRegistry.register(def);
-
-    // Register behavior (still needed for engine compatibility)
     if (def.behavior) {
         behaviorRegistry.register(def.type, def.behavior);
     }
-
-    // Register ports (still needed for engine compatibility)
     if (def.ports) {
         portRegistry.register(def.type, def.ports);
     }
@@ -57,22 +51,23 @@ const recipes = getAllRecipes();
 for (const recipe of recipes) {
     const virtualType = `recipe:${recipe.id}`;
 
-    // Register to NodeRegistry
     nodeRegistry.register({
         type: virtualType,
         component: RecipeNode,
         inspector: RecipeNodeInspector,
-        config: {
-            type: virtualType as any,
+        meta: {
             title: recipe.name,
-            category: (recipe.category || 'Recipe') as NodeCategory,
             icon: recipe.icon || FileText,
+            category: (recipe.category || 'Recipe') as NodeCategory,
             description: recipe.description || '',
-            defaultData: {
-                recipeId: recipe.id,
-                inputs: {}
-            }
+            hidden: true, // Recipe nodes are picked via recipe tree, not node picker
         },
+        create: () => ({
+            asset: {
+                valueType: 'record' as const,
+                value: { schema: [], values: {} },
+            },
+        }),
     });
 
     // Register dynamic ports for recipe nodes
@@ -100,7 +95,10 @@ for (const recipe of recipes) {
                 }
             ];
 
-            const values = (asset?.value as FormAssetContent)?.values || {};
+            // RecordAsset: values are directly in asset.value
+            const values = (asset?.value && typeof asset.value === 'object')
+                ? asset.value as Record<string, any>
+                : {};
 
             for (const field of recipe.inputSchema) {
                 const conn = field.connection;
@@ -134,9 +132,9 @@ for (const recipe of recipes) {
                                 return null;
                             }
 
-                            if (a?.content && typeof a.content === 'object') {
-                                const content = a.content as FormAssetContent;
-                                const value = content.values?.[fieldKey];
+                            // RecordAsset: values are directly in asset.value
+                            if (a?.value && typeof a.value === 'object') {
+                                const value = (a.value as Record<string, any>)[fieldKey];
                                 if (value !== undefined) {
                                     return { type: 'json', value, meta: { nodeId: n.id, portId: handleId } };
                                 }
@@ -166,12 +164,10 @@ for (const recipe of recipes) {
 }
 
 // ============================================================================
-// Exports - Delegated from NodeRegistry
+// Exports
 // ============================================================================
 
 export const nodeTypes = nodeRegistry.getNodeTypes();
 export const inspectorTypes = nodeRegistry.getInspectorTypes();
-export const nodesConfig = nodeRegistry.getAllConfigs();
 
-// Re-export nodeRegistry for direct access
 export { nodeRegistry };

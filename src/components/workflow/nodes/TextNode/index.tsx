@@ -103,49 +103,8 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
 });
 TextNode.displayName = 'TextNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-  type: NodeType.TEXT,
-  component: TextNode,
-  inspector: TextNodeInspector,
-  config: {
-    type: NodeType.TEXT,
-    title: 'Text',
-    category: 'Asset',
-    icon: FileText,
-    description: 'Text content',
-
-    requiresAsset: true,
-    defaultAssetType: 'text',
-    createNodeAlias: 'text',
-
-    defaultStyle: { width: 250, height: 200 },
-
-    createDefaultAsset: () => ({
-      valueType: 'text' as const,
-      value: '',
-    }),
-  },
-  behavior: StandardAssetBehavior,
-  ports: {
-    static: [
-      {
-        id: 'output',
-        direction: 'output',
-        dataType: 'text',
-        label: 'Text Output',
-        resolver: (node, asset) => ({
-          type: 'text',
-          value: asset?.value || '',
-          meta: { nodeId: node.id, portId: 'output' }
-        })
-      }
-    ]
-  },
-};
-
-// Legacy exports for compatibility
-export { TextNode as Node, TextNodeInspector as Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;
+// Re-export from separate files
+export { TextNodeInspector as Inspector } from './Inspector';
+export { definition } from './definition';
+export { TextNode as Node };
 

@@ -203,61 +203,8 @@ export const QueueNode = memo((props: NodeProps<SynniaNode>) => {
 });
 QueueNode.displayName = 'QueueNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.QUEUE,
-    component: QueueNode,
-    inspector: Inspector,
-    config: {
-        type: NodeType.QUEUE,
-        title: 'Queue',
-        category: 'Process',
-        icon: ListTodo,
-        description: 'Task queue management',
+// Re-export from separate files
+export { Inspector } from './Inspector';
+export { definition } from './definition';
+export { QueueNode as Node };
 
-        requiresAsset: true,
-        defaultAssetType: 'json',
-
-        defaultStyle: { width: 300, height: 280 },
-
-        createDefaultAsset: () => ({
-            valueType: 'record' as const,
-            value: {
-                concurrency: 1,
-                autoStart: false,
-                retryOnError: true,
-                retryCount: 3,
-                continueOnError: false,
-                tasks: [],
-                isRunning: false,
-            } as QueueAssetContent,
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'array',
-                label: 'Completed Results',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const content = asset.value as QueueAssetContent;
-                    return {
-                        type: 'array',
-                        value: content.tasks
-                            .filter(t => t.status === 'success')
-                            .map(t => t.result),
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility
-export { QueueNode as Node, Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;

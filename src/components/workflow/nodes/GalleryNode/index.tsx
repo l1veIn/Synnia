@@ -1,16 +1,14 @@
-import { memo, useEffect, useState, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react';
-import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { Inspector } from './Inspector';
 import { cn } from '@/lib/utils';
-import type { NodeDefinition } from '@/lib/nodes/NodeRegistry';
 
 // --- Asset Content Type ---
 export interface GalleryImage {
@@ -218,58 +216,7 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
 });
 GalleryNode.displayName = 'GalleryNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.GALLERY,
-    component: GalleryNode,
-    inspector: Inspector,
-    config: {
-        type: NodeType.GALLERY,
-        title: 'Gallery',
-        category: 'Asset',
-        icon: ImageIcon,
-        description: 'Image gallery with preview',
-
-        requiresAsset: true,
-        defaultAssetType: 'json',
-        createNodeAlias: 'gallery',
-
-        defaultStyle: { width: 320, height: 280 },
-
-        createDefaultAsset: () => ({
-            valueType: 'record' as const,
-            value: {
-                viewMode: 'grid',
-                columnsPerRow: 4,
-                allowStar: true,
-                allowDelete: true,
-                images: []
-            } as GalleryAssetContent,
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'array',
-                label: 'Gallery Images',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const content = asset.value as GalleryAssetContent;
-                    return {
-                        type: 'array',
-                        value: content.images,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility with current node loader
-export { GalleryNode as Node, Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;
+// Re-export from separate files
+export { Inspector } from './Inspector';
+export { definition } from './definition';
+export { GalleryNode as Node };

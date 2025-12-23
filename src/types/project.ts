@@ -64,6 +64,34 @@ export interface BaseNodeData extends Record<string, unknown> {
   preview?: string;
 }
 
+// --- Node-Specific Data Interfaces ---
+// Display/UI config belongs to NodeData, not Asset
+
+export interface GalleryNodeData extends BaseNodeData {
+  viewMode?: 'grid' | 'list' | 'single';
+  columnsPerRow?: number;
+  allowStar?: boolean;
+  allowDelete?: boolean;
+}
+
+export interface TableNodeData extends BaseNodeData {
+  showRowNumbers?: boolean;
+  allowAddRow?: boolean;
+  allowDeleteRow?: boolean;
+}
+
+export interface QueueNodeData extends BaseNodeData {
+  concurrency?: number;
+  autoStart?: boolean;
+  retryOnError?: boolean;
+  retryCount?: number;
+}
+
+export interface SelectorNodeData extends BaseNodeData {
+  optionSchema?: any[]; // FieldDefinition[]
+  selected?: string[];
+}
+
 /**
  * Synnia 节点类型定义
  * 泛型 T 允许定义特定的 Data 类型，默认为 BaseNodeData
@@ -94,15 +122,10 @@ export type AssetData = any;
  * 用于映射 React Flow 的 nodeTypes
  */
 export enum NodeType {
-  ASSET = 'asset-node',
   TEXT = 'text-node',
   IMAGE = 'image-node',
   FORM = 'form-node',
-  GROUP = 'group-node',
-  RACK = 'rack-node',
   RECIPE = 'recipe-node',
-  NOTE = 'note-node',
-  COLLECTION = 'collection-node',
   SELECTOR = 'selector-node',
   GALLERY = 'gallery-node',
   TABLE = 'table-node',

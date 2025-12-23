@@ -13,7 +13,7 @@ import {
     CommandList,
     CommandSeparator,
 } from '@/components/ui/command';
-import { nodesConfig } from '@/components/workflow/nodes';
+import { nodeRegistry } from '@/lib/nodes/NodeRegistry';
 import { getRecipeTree, RecipeTreeNode } from '@/lib/recipes';
 import { NodeType } from '@/types/project';
 import {
@@ -65,28 +65,29 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
     // Build base node items (always shown at top level)
     const baseNodeItems = useMemo(() => {
         const result: NodePickerItem[] = [];
+        const allMetas = nodeRegistry.getAllMetas();
 
-        for (const [type, config] of Object.entries(nodesConfig)) {
+        for (const [type, meta] of Object.entries(allMetas)) {
             if (type.startsWith('recipe:')) continue;
-            if (config.hidden && !config.fileImport) continue;
+            if (meta.hidden && !meta.fileImport) continue;
 
-            if (config.fileImport) {
+            if (meta.fileImport) {
                 result.push({
-                    id: `action:import-${config.fileImport.assetType}`,
-                    label: config.fileImport.label || config.title,
-                    description: config.description || `Import ${config.fileImport.assetType} from file`,
-                    category: config.category || 'Asset',
-                    icon: typeof config.icon === 'function' ? config.icon : undefined,
+                    id: `action:import-${meta.fileImport.assetType}`,
+                    label: meta.fileImport.label || meta.title,
+                    description: meta.description || `Import ${meta.fileImport.assetType} from file`,
+                    category: meta.category || 'Asset',
+                    icon: meta.icon,
                     action: 'import-file',
                     nodeType: type as NodeType,
                 });
             } else {
                 result.push({
                     id: type,
-                    label: config.title,
-                    description: config.description,
-                    category: config.category || 'Basic',
-                    icon: typeof config.icon === 'function' ? config.icon : undefined,
+                    label: meta.title,
+                    description: meta.description,
+                    category: meta.category || 'Basic',
+                    icon: meta.icon,
                     nodeType: type as NodeType,
                 });
             }

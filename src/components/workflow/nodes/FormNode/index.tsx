@@ -6,7 +6,7 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Braces, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { FormAssetContent, FieldDefinition } from '@/types/assets';
+import { FieldDefinition, isRecordAsset, RecordAsset } from '@/types/assets';
 import { cn } from '@/lib/utils';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { FormNodeInspector } from './Inspector';
@@ -22,10 +22,13 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
     const renderContent = () => {
         if (!state.asset) return <div className="text-destructive text-xs">Asset Missing</div>;
 
-        const content = state.asset.value as FormAssetContent;
+        // RecordAsset: schema in config, values in asset.value directly
+        const asset = state.asset;
+        const schema = isRecordAsset(asset) ? asset.config?.schema || [] : [];
+        const values = asset.value as Record<string, any>;
 
         // Check if it's a proper form asset
-        if (!content || !Array.isArray(content.schema)) {
+        if (!Array.isArray(schema)) {
             return (
                 <div className="flex flex-col w-full h-full text-xs items-center justify-center text-muted-foreground italic">
                     <span className="mb-1">Empty JSON</span>
@@ -33,8 +36,6 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             );
         }
-
-        const { schema, values } = content;
 
         if (schema.length === 0) {
             return (
@@ -94,8 +95,8 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
     };
 
     // Check if there are fields with handles (for header border logic)
-    const content = state.asset?.value as FormAssetContent | undefined;
-    const hasHandleFields = content?.schema?.some((field: FieldDefinition) => {
+    const formSchema = (state.asset && isRecordAsset(state.asset)) ? state.asset.config?.schema : undefined;
+    const hasHandleFields = formSchema?.some((field: FieldDefinition) => {
         const conn = field.connection;
         return conn?.input || conn?.output || field.widget === 'json-input' || field.type === 'object';
     }) ?? false;
@@ -175,90 +176,8 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
 });
 FormNode.displayName = 'FormNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.FORM,
-    component: FormNode,
-    inspector: FormNodeInspector,
-    config: {
-        type: NodeType.FORM,
-        title: 'Form',
-        category: 'Asset',
-        icon: Braces,
-        description: 'Form data with custom schema',
-
-        createNodeAlias: 'form',
-
-        defaultStyle: { width: 250, height: 200 },
-
-        createDefaultAsset: () => ({
-            valueType: 'record' as const,
-            value: {
-                schema: [],
-                values: {}
-            } as FormAssetContent,
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'json',
-                label: 'JSON Output',
-                resolver: (node, asset) => {
-                    if (!asset) return null;
-                    const content = asset.value as FormAssetContent;
-                    return {
-                        type: 'json',
-                        value: content?.values || {},
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            },
-            {
-                id: 'array',
-                direction: 'output',
-                dataType: 'array',
-                label: 'Array Output',
-                semantic: true,
-                resolver: (node, asset) => {
-                    const store = useWorkflowStore.getState();
-                    const chain: any[] = [];
-
-                    let currentId: string | null = node.id;
-                    while (currentId) {
-                        const currentNode = store.nodes.find(n => n.id === currentId);
-                        if (!currentNode) break;
-
-                        const nodeAsset = currentNode.data.assetId
-                            ? store.assets[currentNode.data.assetId]
-                            : undefined;
-
-                        if (nodeAsset) {
-                            const content = nodeAsset.value as FormAssetContent;
-                            if (content?.values) {
-                                chain.unshift(content.values);
-                            }
-                        }
-
-                        currentId = currentNode.data.dockedTo as string | null;
-                    }
-
-                    return {
-                        type: 'array',
-                        value: chain,
-                        meta: { nodeId: node.id, portId: 'array' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility
-export { FormNode as Node, FormNodeInspector as Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;
+// Re-export from separate files
+export { FormNodeInspector as Inspector } from './Inspector';
+export { definition } from './definition';
+export { FormNode as Node };
 

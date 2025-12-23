@@ -115,58 +115,8 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
 });
 ImageNode.displayName = 'ImageNode';
 
-// --- Node Definition (unified registration) ---
-export const definition: NodeDefinition = {
-    type: NodeType.IMAGE,
-    component: ImageNode,
-    inspector: Inspector,
-    config: {
-        type: NodeType.IMAGE,
-        title: 'Image',
-        category: 'Asset',
-        icon: ImageIcon,
-        description: 'Import image from file',
-        fileImport: {
-            accept: 'image/*',
-            assetType: 'image',
-        },
-
-        requiresAsset: true,
-        defaultAssetType: 'image',
-        createNodeAlias: 'image',
-
-        defaultStyle: { width: 300, height: 300 },
-
-        createDefaultAsset: () => ({
-            valueType: 'image' as const,
-            value: '',
-        }),
-    },
-    behavior: StandardAssetBehavior,
-    ports: {
-        static: [
-            {
-                id: 'output',
-                direction: 'output',
-                dataType: 'image',
-                label: 'Image Output',
-                resolver: (node, asset) => {
-                    if (!asset || !isImageAsset(asset)) return null;
-                    const meta = asset.valueMeta || {};
-                    const url = typeof asset.value === 'string' ? asset.value : '';
-                    return {
-                        type: 'image',
-                        value: { url, width: meta.width, height: meta.height, mimeType: asset.config?.mimeType },
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
-            }
-        ]
-    },
-};
-
-// Legacy exports for compatibility
-export { ImageNode as Node, Inspector };
-export const config = definition.config;
-export const behavior = definition.behavior;
+// Re-export from separate files
+export { Inspector } from './Inspector';
+export { definition } from './definition';
+export { ImageNode as Node };
 

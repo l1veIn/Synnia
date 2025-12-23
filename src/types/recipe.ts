@@ -47,7 +47,7 @@ export interface ManifestField {
     };
 }
 
-// OutputSchema removed - use executor.nodeConfig.schema instead for output definitions
+// Output schema is defined in executor.output.schema
 
 /**
  * Base executor configuration - extensible pattern
@@ -66,25 +66,18 @@ export interface ExecutorConfig {
 }
 
 /**
- * Node creation configuration for executors
- * Allows declarative specification of what type of node to create
+ * Output configuration for recipes
+ * Simplified from old NodeCreationConfig
  */
-export interface NodeCreationConfig {
-    // Node type: 'auto' means infer from data (default: json)
-    type: NodeType | 'json' | 'selector' | 'table' | 'auto';
-    titleTemplate?: string;
+export interface OutputConfig {
+    /** Target node type (alias like 'form', 'gallery', 'table', 'selector') */
+    node: string;
+    /** Title template - supports {{count}}, {{index}}, {{fieldName}} */
+    title?: string;
+    /** Schema for structured data (Form, Table, Selector) */
+    schema?: ManifestField[];
+    /** Whether output node starts collapsed */
     collapsed?: boolean;
-
-    // Schema configuration
-    // 'auto' = infer from data keys (default)
-    // ManifestField[] = explicit schema definition
-    schema?: 'auto' | ManifestField[];
-
-    // Selector node specific
-    selectorMode?: 'single' | 'multi';
-
-    // Table node specific (future)
-    // ...
 }
 
 /**
@@ -106,7 +99,7 @@ export interface RecipeManifest {
 
     // Schema
     inputSchema: ManifestField[];
-    // NOTE: outputSchema removed - use executor.nodeConfig.schema for output definitions
+    // Output schema is defined in executor.output.schema
 
     // Executor
     executor: ExecutorConfig;

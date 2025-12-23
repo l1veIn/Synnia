@@ -1,0 +1,43 @@
+# LLM Call Recipe
+version: 1
+# Basic LLM invocation with model selection and parameters
+
+id: llm.call
+name: LLM Call
+description: Call an LLM with a prompt
+category: AI
+icon: Sparkles
+
+inputSchema:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Enter your prompt..."
+    connection:
+      input: true
+      output: true
+
+  - key: systemPrompt
+    label: System Prompt
+    type: string
+    widget: textarea
+    placeholder: "Optional system instructions..."
+    connection:
+      input: true
+      output: true
+
+  - key: llmConfig
+    label: Model & Settings
+    type: object
+    widget: model-configurator
+    options:
+      category: llm
+    required: true
+
+executor:
+  type: llm-agent
+  userPromptTemplate: "{{prompt}}"
+  systemPrompt: "{{systemPrompt}}"
+  parseAs: text

@@ -1,4 +1,4 @@
-import { FormAssetContent, isFormAsset } from '@/types/assets';
+import { isRecordAsset } from '@/types/assets';
 import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { FormRenderer } from '../../inspector/FormRenderer';
@@ -29,11 +29,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Get asset for values storage
     const { asset, setValue } = useAsset(assetId);
 
-    // Saved values from asset - now from asset.value
+    // RecordAsset: values are directly in asset.value (no nested .values)
     const savedValues = useMemo(() => {
-        const value = asset?.value as FormAssetContent | undefined;
-        if (value && isFormAsset(value)) {
-            return value.values || {};
+        if (asset && typeof asset.value === 'object' && asset.value !== null) {
+            return asset.value as Record<string, any>;
         }
         return nodeData?.inputs || {};
     }, [asset?.value, nodeData]);
@@ -88,18 +87,6 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         return new Set(linkedKeys);
     }, [edges, nodeId]);
 
-    // Init asset content if needed
-    useEffect(() => {
-        const value = asset?.value as FormAssetContent | undefined;
-        if (asset && !isFormAsset(value)) {
-            const legacyValues = typeof asset.value === 'object' ? asset.value : {};
-            setValue({
-                schema: [],
-                values: legacyValues || {}
-            });
-        }
-    }, [asset?.value, setValue]);
-
     if (!recipe) {
         return <div className="p-4 text-xs text-muted-foreground">Recipe not found: {recipeId}</div>;
     }
@@ -109,13 +96,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         setDraftValues(newValues);
     };
 
-    // Save draft to asset
+    // Save draft to asset - RecordAsset stores values directly in asset.value
     const handleSave = () => {
         if (assetId) {
-            setValue({
-                schema: [],
-                values: draftValues
-            });
+            setValue(draftValues);  // Values go directly to asset.value
             toast.success('Changes saved');
         }
     };

@@ -31,6 +31,12 @@
       "@/*": [
         "./src/*"
       ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
       "@/bindings": [
         "./src-tauri/bindings"
       ],

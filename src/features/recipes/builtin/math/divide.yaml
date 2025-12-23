@@ -1,0 +1,39 @@
+# Division Calculator Recipe
+version: 1
+# Divides A by B (B != 0)
+
+id: math.divide
+name: Division
+description: Divides A by B (B ≠ 0)
+category: Math
+icon: Calculator
+
+inputSchema:
+  - key: a
+    label: Dividend (A)
+    type: number
+    widget: number
+    required: true
+    connection:
+      input: true
+
+  - key: b
+    label: Divisor (B)
+    type: number
+    widget: number
+    required: true
+    connection:
+      input: true
+
+  - key: result
+    label: Result
+    type: number
+    widget: none
+    disabled: true
+    connection:
+      output: true
+
+executor:
+  type: expression
+  expression: "a / b"
+  outputKey: result

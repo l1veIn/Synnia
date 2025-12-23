@@ -10,7 +10,6 @@ import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucid
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
-import { NodeConfig } from '@/types/node-config';
 import { StandardAssetBehavior } from '@/lib/behaviors/StandardBehavior';
 import { getResolvedRecipe } from '@/lib/recipes';
 import { portRegistry } from '@/lib/engine/ports';
@@ -41,19 +40,10 @@ portRegistry.register(NodeType.RECIPE, {
     ]
 });
 
-// --- Configuration ---
-export const config: NodeConfig = {
-    type: NodeType.RECIPE,
-    title: 'Recipe',
-    category: 'Process',
-    icon: Play,
-    description: 'Processing unit',
-    hidden: true, // Hide generic recipe, recipes show individually
-};
-
 // --- Behavior ---
 export const behavior = StandardAssetBehavior;
 
+// Note: RecipeNodes are registered dynamically in nodes/index.ts for each recipe
 export { RecipeNode as Node, RecipeNodeInspector as Inspector };
 
 // --- Main Node ---

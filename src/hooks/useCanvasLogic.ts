@@ -35,11 +35,8 @@ export function useCanvasLogic() {
 
   // --- Interaction Logic ---
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: any) => {
-    if (node.type === NodeType.GROUP) {
-      fitView({ nodes: [node], padding: 0.2, duration: 800 });
-    } else {
-      fitView({ nodes: [node], minZoom: 1, duration: 500 });
-    }
+    // Fit view to the double-clicked node
+    fitView({ nodes: [node], minZoom: 1, duration: 500 });
   }, [fitView]);
 
   const onNodeContextMenu = useCallback(
@@ -48,7 +45,7 @@ export function useCanvasLogic() {
       const isMultiSelect = selectedNodes.length > 1 && selectedNodes.some(n => n.id === node.id);
 
       setContextMenuTarget({
-        type: isMultiSelect ? 'selection' : (node.type === NodeType.GROUP ? 'group' : 'node'),
+        type: isMultiSelect ? 'selection' : 'node',
         id: node.id,
         position: { x: event.clientX, y: event.clientY },
       });

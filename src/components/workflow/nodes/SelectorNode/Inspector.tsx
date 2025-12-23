@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Save, AlertCircle, Trash2, Edit, GripVertical } from 'lucide-react';
-import { SelectorAssetContent, SelectorOption, DEFAULT_OPTION_SCHEMA } from './index';
+import { SelectorAssetContent, SelectorOption, DEFAULT_OPTION_SCHEMA } from './types';
 import { SchemaBuilder } from '@/components/workflow/inspector/SchemaBuilder';
 import { FormRenderer } from '@/components/workflow/inspector/FormRenderer';
 import { FieldDefinition } from '@/types/assets';

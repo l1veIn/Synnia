@@ -23,17 +23,35 @@ interface InspectorProps {
 export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { asset, setValue } = useAsset(assetId);
 
-    // Get saved content - now from asset.value
+    // Get saved content - handle both array and SelectorAssetContent formats
     const savedContent: SelectorAssetContent = useMemo(() => {
-        const raw = (asset?.value as SelectorAssetContent) || {};
+        const raw = asset?.value;
+        const config = (asset?.config as any) || {};
+
+        // Handle array format (from Recipe output with Universal Output Adapter)
+        if (Array.isArray(raw)) {
+            return {
+                mode: config.mode ?? 'multi',
+                showSearch: config.showSearch ?? true,
+                optionSchema: config.schema ?? DEFAULT_OPTION_SCHEMA,
+                options: raw.map((item: any, i: number) => ({
+                    id: item.id || `opt-${i}`,
+                    ...item,
+                })),
+                selected: config.selected || [],
+            };
+        }
+
+        // Handle SelectorAssetContent format (from Inspector save)
+        const contentObj = (raw as SelectorAssetContent) || {};
         return {
-            mode: raw.mode ?? 'multi',
-            showSearch: raw.showSearch ?? true,
-            optionSchema: raw.optionSchema ?? DEFAULT_OPTION_SCHEMA,
-            options: raw.options ?? [],
-            selected: raw.selected ?? [],
+            mode: contentObj.mode ?? config.mode ?? 'multi',
+            showSearch: contentObj.showSearch ?? true,
+            optionSchema: contentObj.optionSchema ?? config.schema ?? DEFAULT_OPTION_SCHEMA,
+            options: contentObj.options ?? [],
+            selected: contentObj.selected ?? [],
         };
-    }, [asset?.value]);
+    }, [asset?.value, asset?.config]);
 
     // Draft state for settings
     const [draftMode, setDraftMode] = useState<'single' | 'multi'>('multi');

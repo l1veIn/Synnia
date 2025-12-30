@@ -30,17 +30,35 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - now from asset.value
+    // Get content with defaults - handle both array and SelectorAssetContent formats
     const content: SelectorAssetContent = useMemo(() => {
-        const raw = (state.asset?.value as SelectorAssetContent) || {};
+        const raw = state.asset?.value;
+        const config = (state.asset?.config as any) || {};
+
+        // Handle array format (from Recipe output with Universal Output Adapter)
+        if (Array.isArray(raw)) {
+            return {
+                mode: config.mode ?? 'multi',
+                showSearch: config.showSearch ?? true,
+                optionSchema: config.schema ?? DEFAULT_OPTION_SCHEMA,
+                options: raw.map((item: any, i: number) => ({
+                    id: item.id || `opt-${i}`,
+                    ...item,
+                })),
+                selected: config.selected || [],
+            };
+        }
+
+        // Handle SelectorAssetContent format (from Inspector save)
+        const contentObj = (raw as SelectorAssetContent) || {};
         return {
-            mode: raw.mode ?? 'multi',
-            showSearch: raw.showSearch ?? true,
-            optionSchema: raw.optionSchema ?? DEFAULT_OPTION_SCHEMA,
-            options: raw.options ?? [],
-            selected: raw.selected ?? [],
+            mode: contentObj.mode ?? config.mode ?? 'multi',
+            showSearch: contentObj.showSearch ?? true,
+            optionSchema: contentObj.optionSchema ?? config.schema ?? DEFAULT_OPTION_SCHEMA,
+            options: contentObj.options ?? [],
+            selected: contentObj.selected ?? [],
         };
-    }, [state.asset?.value]);
+    }, [state.asset?.value, state.asset?.config]);
 
     // Local search state
     const [searchQuery, setSearchQuery] = useState('');

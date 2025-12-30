@@ -251,7 +251,7 @@ export function SchemaBuilder({ schema, onChange }: BuilderProps) {
 
             <div className="space-y-2 w-full">
                 {(schema || []).map((field, index) => (
-                    <Collapsible key={field.id} className="border rounded-md px-3 bg-card">
+                    <Collapsible key={field.id || field.key || `field-${index}`} className="border rounded-md px-3 bg-card">
                         <div className="flex items-center py-2">
                             <CollapsibleTrigger className="flex-1 text-left flex items-center text-xs font-medium group hover:opacity-80">
                                 <span className="text-muted-foreground mr-2 font-mono">{field.key}</span>

@@ -1,7 +1,7 @@
 // Settings Dialog - Main Entry Point
 // Sidebar navigation with modular page components
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +14,11 @@ import { Settings, Brain, Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettingsPage, ModelSettingsPage } from "./pages";
 
+// Global event to open settings dialog
+export const openSettingsDialog = (tab?: 'general' | 'models') => {
+  window.dispatchEvent(new CustomEvent('open-settings-dialog', { detail: { tab } }));
+};
+
 // ----------------------------------------------------------------------------
 // Main Dialog
 // ----------------------------------------------------------------------------
@@ -23,6 +28,18 @@ type ActiveTab = "general" | "models";
 export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
+
+  // Listen for external open requests
+  useEffect(() => {
+    const handleOpen = (e: CustomEvent<{ tab?: ActiveTab }>) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab);
+      }
+      setOpen(true);
+    };
+    window.addEventListener('open-settings-dialog', handleOpen as EventListener);
+    return () => window.removeEventListener('open-settings-dialog', handleOpen as EventListener);
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

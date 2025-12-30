@@ -43,6 +43,7 @@ export class GraphMutator {
         data: any;
         position?: 'below' | 'right' | XYPosition;
         dockedTo?: string | '$prev';
+        assetConfig?: Record<string, any>;  // Universal Output Adapter: passed to asset.config
     }[] {
         if (!Array.isArray(data) || data.length === 0) {
             return [];
@@ -57,8 +58,9 @@ export class GraphMutator {
             return [];
         }
 
-        // Prepare schema from config
-        const schema = config.schema;
+        // Get schema from config.config (Universal Output Adapter pattern)
+        const nodeConfig = config.config || {};
+        const schema = nodeConfig.schema;
 
         // Prepare title template resolver
         const resolveTitle = (count: number): string => {
@@ -80,6 +82,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
+                // Pass all node config transparently to asset.config
+                assetConfig: nodeConfig,
                 position: 'below' as const,
             }];
         }
@@ -112,7 +116,15 @@ export class GraphMutator {
 
 
 
-    public addNode(type: NodeType | string, position: XYPosition, options: { valueType?: ValueType, content?: any, assetId?: string, assetName?: string, valueMeta?: any, style?: any } = {}) {
+    public addNode(type: NodeType | string, position: XYPosition, options: {
+        valueType?: ValueType,
+        content?: any,
+        assetId?: string,
+        assetName?: string,
+        valueMeta?: any,
+        style?: any,
+        assetConfig?: Record<string, any>  // Universal Output Adapter: passed to asset.config
+    } = {}) {
         // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
         const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
 
@@ -142,11 +154,15 @@ export class GraphMutator {
                 content = ''; // Fallback
             }
 
-            // Use AssetSystem - valueMeta is passed through from caller (no engine knowledge of structure)
-            assetId = this.engine.assets.create(valueType, content, { name, valueMeta: options.valueMeta });
+            // Use AssetSystem - pass assetConfig to config
+            assetId = this.engine.assets.create(valueType, content, {
+                name,
+                valueMeta: options.valueMeta,
+                config: options.assetConfig
+            });
         }
 
-        // Create asset for recipe nodes (FormAssetContent to store values)
+        // Create asset for recipe nodes
         if (isVirtualRecipe && !assetId) {
             const recipeName = meta?.title || 'Recipe';
 
@@ -169,8 +185,11 @@ export class GraphMutator {
                 }
             }
 
-            const content = { schema, values: defaultValues };
-            assetId = this.engine.assets.create('record', content, { name: recipeName, config: { schema } });
+            // Value = form values directly, schema goes in config
+            assetId = this.engine.assets.create('record', defaultValues, {
+                name: recipeName,
+                config: { schema, recipeId }
+            });
         }
 
         const nodeTitle = (options as any).title || options.assetName || meta?.title || 'Node';

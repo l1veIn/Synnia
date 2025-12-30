@@ -24,15 +24,34 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-    // Get saved content - now from asset.value
+    // Get saved content - handle both array and GalleryAssetContent formats
     const savedContent: GalleryAssetContent = useMemo(() => {
-        const raw = (asset?.value as GalleryAssetContent) || {};
+        const raw = asset?.value;
+
+        // Handle array format (from Recipe output or direct array)
+        if (Array.isArray(raw)) {
+            return {
+                viewMode: 'grid' as const,
+                columnsPerRow: Math.min(4, raw.length || 4),
+                allowStar: true,
+                allowDelete: true,
+                images: raw.map((item: any, i: number) => ({
+                    id: item.id || `img-${i}`,
+                    src: item.src || item.url || '',
+                    starred: item.starred ?? false,
+                    caption: item.caption || '',
+                })),
+            };
+        }
+
+        // Handle GalleryAssetContent format (from Inspector)
+        const contentObj = (raw as GalleryAssetContent) || {};
         return {
-            viewMode: raw.viewMode ?? 'grid',
-            columnsPerRow: raw.columnsPerRow ?? 4,
-            allowStar: raw.allowStar ?? true,
-            allowDelete: raw.allowDelete ?? true,
-            images: raw.images ?? [],
+            viewMode: contentObj.viewMode ?? 'grid',
+            columnsPerRow: contentObj.columnsPerRow ?? 4,
+            allowStar: contentObj.allowStar ?? true,
+            allowDelete: contentObj.allowDelete ?? true,
+            images: contentObj.images ?? [],
         };
     }, [asset?.value]);
 

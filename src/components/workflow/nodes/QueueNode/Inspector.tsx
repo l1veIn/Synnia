@@ -19,17 +19,40 @@ interface InspectorProps {
 export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { asset, setValue } = useAsset(assetId);
 
-    // Get saved content - now from asset.value
+    // Get saved content - handle both array and QueueAssetContent formats
     const savedContent: QueueAssetContent = useMemo(() => {
-        const raw = (asset?.value as QueueAssetContent) || {};
+        const raw = asset?.value;
+
+        // Handle array format (from Recipe output or direct array)
+        if (Array.isArray(raw)) {
+            return {
+                concurrency: 1,
+                autoStart: false,
+                retryOnError: true,
+                retryCount: 3,
+                continueOnError: false,
+                tasks: raw.map((item: any, i: number) => ({
+                    id: item.id || `task-${i}`,
+                    name: item.name || `Task ${i + 1}`,
+                    status: item.status || ('pending' as const),
+                    result: item.result,
+                    error: item.error,
+                    duration: item.duration,
+                })),
+                isRunning: false,
+            };
+        }
+
+        // Handle QueueAssetContent format (from Inspector)
+        const contentObj = (raw as QueueAssetContent) || {};
         return {
-            concurrency: raw.concurrency ?? 1,
-            autoStart: raw.autoStart ?? false,
-            retryOnError: raw.retryOnError ?? true,
-            retryCount: raw.retryCount ?? 3,
-            continueOnError: raw.continueOnError ?? false,
-            tasks: raw.tasks ?? [],
-            isRunning: raw.isRunning ?? false,
+            concurrency: contentObj.concurrency ?? 1,
+            autoStart: contentObj.autoStart ?? false,
+            retryOnError: contentObj.retryOnError ?? true,
+            retryCount: contentObj.retryCount ?? 3,
+            continueOnError: contentObj.continueOnError ?? false,
+            tasks: contentObj.tasks ?? [],
+            isRunning: contentObj.isRunning ?? false,
         };
     }, [asset?.value]);
 

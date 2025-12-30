@@ -66,18 +66,24 @@ export interface ExecutorConfig {
 }
 
 /**
- * Output configuration for recipes
- * Simplified from old NodeCreationConfig
+ * Output configuration - how to create product nodes
+ * Uses "Universal Output Adapter" pattern: all node-specific config goes into `config`
  */
 export interface OutputConfig {
     /** Target node type (alias like 'form', 'gallery', 'table', 'selector') */
     node: string;
     /** Title template - supports {{count}}, {{index}}, {{fieldName}} */
     title?: string;
-    /** Schema for structured data (Form, Table, Selector) */
-    schema?: ManifestField[];
     /** Whether output node starts collapsed */
     collapsed?: boolean;
+    /** 
+     * Node-specific configuration - transparently passed to asset.config
+     * Examples:
+     * - schema: field definitions for Form/Table/Selector
+     * - mode: 'single' | 'multi' for Selector
+     * - viewMode: 'grid' | 'list' for Gallery
+     */
+    config?: Record<string, any>;
 }
 
 /**
@@ -123,7 +129,15 @@ export interface ExecutionContext {
     node: SynniaNode;
     /** Recipe manifest (for accessing config) */
     manifest: RecipeManifest;
+
+    // --- Recipe V2: Agent Container Support ---
+
+    /** Chat history for multi-turn conversations */
+    chatContext?: import('./assets').ChatMessage[];
+    /** Model configuration (selected model and parameters) */
+    modelConfig?: import('./assets').ModelConfig;
 }
+
 
 /**
  * Result returned by recipe execute() method.
@@ -140,6 +154,7 @@ export interface ExecutionResult {
         position?: 'below' | 'right' | XYPosition;
         dockedTo?: string | '$prev';
         connectTo?: { sourceHandle: string; targetHandle: string };
+        assetConfig?: Record<string, any>;  // Universal Output Adapter: passed to asset.config
     }[];
     /** Error message if success is false */
     error?: string;

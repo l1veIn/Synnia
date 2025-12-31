@@ -48,8 +48,9 @@ export class GraphMutator {
         }
 
         // Get schema from config.config (Universal Output Adapter pattern)
+        // Support both 'schema' and 'optionSchema' (for SelectorNode compatibility)
         const nodeConfig = config.config || {};
-        const schema = nodeConfig.schema;
+        const schema = nodeConfig.schema || nodeConfig.optionSchema;
 
         // Prepare title template resolver
         const resolveTitle = (count: number): string => {

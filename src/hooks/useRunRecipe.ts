@@ -111,8 +111,8 @@ export function useRunRecipe() {
             });
 
             // --- Build createNodes from output config if specified in manifest ---
-            const executor = recipe.manifest.executor as any;
-            const outputConfig = executor.output;
+            // V2 manifest: output is at top level, not nested under executor
+            const outputConfig = (recipe.manifest as any).output || (recipe.manifest as any).executor?.output;
 
             if (outputConfig && result.data && !result.createNodes) {
                 // Build nodes using GraphMutator

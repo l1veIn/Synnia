@@ -3,7 +3,7 @@
 // V2: Loads recipes from v2/ directory using new flat manifest format
 // ============================================================================
 
-import { recipeRegistryV2 } from './loaderV2';
+import { recipeRegistry as internalRegistry } from './recipeLoader';
 import type { RecipeDefinition } from '@/types/recipe';
 
 // Import all V2 YAML files eagerly
@@ -19,7 +19,7 @@ const recipePathMap = new Map<string, string[]>();
 // Register all V2 YAML recipes
 for (const [filePath, content] of Object.entries(yamlModules)) {
     try {
-        const recipe = recipeRegistryV2.registerFromYaml(content as string);
+        const recipe = internalRegistry.registerFromYaml(content as string);
 
         // Extract path from file path: ./v2/agent/naming-master.yaml -> ['agent']
         const pathMatch = filePath.match(/\.\/v2\/(.+)\/[^/]+\.yaml$/);
@@ -65,7 +65,7 @@ export function getRecipeTree(): RecipeTreeNode {
         children: [],
     };
 
-    for (const recipe of recipeRegistryV2.getAll()) {
+    for (const recipe of internalRegistry.getAll()) {
         const pathSegments = recipePathMap.get(recipe.id) || ['Other'];
         insertIntoTree(root, pathSegments, recipe);
     }
@@ -128,11 +128,11 @@ function sortTreeChildren(node: RecipeTreeNode): void {
 }
 
 // ============================================================================
-// Public API - Using V2 Registry
+// Public API
 // ============================================================================
 
-export const recipeRegistry = recipeRegistryV2;
-export const getRecipe = (id: string) => recipeRegistryV2.get(id);
-export const getResolvedRecipe = (id: string) => recipeRegistryV2.get(id); // V2 doesn't need resolution
-export const getAllRecipes = () => recipeRegistryV2.getAll();
-export const getRecipesByCategory = () => recipeRegistryV2.getByCategory();
+export const recipeRegistry = internalRegistry;
+export const getRecipe = (id: string) => internalRegistry.get(id);
+export const getResolvedRecipe = (id: string) => internalRegistry.get(id);
+export const getAllRecipes = () => internalRegistry.getAll();
+export const getRecipesByCategory = () => internalRegistry.getByCategory();

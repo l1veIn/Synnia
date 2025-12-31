@@ -38,7 +38,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Get asset for values storage
     const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // RecordAsset: form values are stored directly in asset.value (same as FormNode)
+    // RecordAsset: form values are stored directly in asset.value
     const savedValues = useMemo(() => {
         if (asset && typeof asset.value === 'object' && asset.value !== null) {
             return asset.value as Record<string, any>;

@@ -137,48 +137,22 @@ export class GraphMutator {
         // Node type is used directly (no legacy routing needed)
         const finalType: string = type as string;
 
-        // Asset creation logic - use node's create factory
+        // Asset creation logic
+
         let assetId = options.assetId;
-        const hasCreate = def?.create !== undefined;
 
-        // Create asset for nodes with create factory
-        if (hasCreate && !assetId) {
-            const createResult = def!.create({});
-            const valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
-            let content = options.content;
-            const name = options.assetName || meta?.title || 'Node';
-
-            // Use default content from create result
-            if (!content && createResult?.asset?.value !== undefined) {
-                content = createResult.asset.value;
-            }
-            if (!content) {
-                content = ''; // Fallback
-            }
-
-            // Use AssetSystem - pass assetConfig to config
-            assetId = this.engine.assets.create(valueType, content, {
-                name,
-                valueMeta: options.valueMeta,
-                config: options.assetConfig
-            });
-        }
-
-        // Create asset for recipe nodes
+        // === Recipe nodes: use specialized logic with modelConfig initialization ===
         if (isVirtualRecipe && !assetId) {
             const recipeName = meta?.title || 'Recipe';
 
             // Extract recipeId from the type (e.g., "recipe:my-recipe")
             const recipeId = type.replace('recipe:', '');
             const defaultValues: Record<string, any> = {};
-            let schema: any[] = [];
 
             if (recipeId) {
                 const recipe = getRecipe(recipeId);
                 if (recipe?.inputSchema) {
-                    // Copy schema from recipe
-                    schema = recipe.inputSchema.map(field => ({ ...field }));
-                    // Extract default values
+                    // Extract default values from schema
                     for (const field of recipe.inputSchema) {
                         if (field.defaultValue !== undefined) {
                             defaultValues[field.key] = field.defaultValue;
@@ -217,6 +191,33 @@ export class GraphMutator {
             assetId = this.engine.assets.create('record', defaultValues, {
                 name: recipeName,
                 config: { recipeId, modelConfig }
+            });
+        }
+
+        // === Other nodes: use node's create factory ===
+        const hasCreate = def?.create !== undefined;
+        if (hasCreate && !assetId) {
+            const createResult = def!.create({});
+            const valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
+            let content = options.content;
+            const name = options.assetName || meta?.title || 'Node';
+
+            // Use default content from create result
+            if (!content && createResult?.asset?.value !== undefined) {
+                content = createResult.asset.value;
+            }
+            if (!content) {
+                content = ''; // Fallback
+            }
+
+            // Merge config from createResult and options
+            const config = createResult?.asset?.config || options.assetConfig;
+
+            // Use AssetSystem
+            assetId = this.engine.assets.create(valueType, content, {
+                name,
+                valueMeta: options.valueMeta,
+                config
             });
         }
 

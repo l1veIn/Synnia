@@ -179,7 +179,7 @@ export class InteractionSystem {
     };
 
     public onConnect: OnConnect = (connection) => {
-        const { nodes, edges } = this.engine.state;
+        const { nodes, edges, assets } = this.engine.state;
 
         // Cycle detection: check if adding this edge would create a cycle
         if (wouldCreateCycle(nodes, edges, connection)) {
@@ -200,6 +200,41 @@ export class InteractionSystem {
         }
 
         this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
+
+        // === Auto-fill linked field value ===
+        // When connecting to a field-level input, resolve and fill the value
+        const targetHandle = connection.targetHandle;
+        if (targetHandle && !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle)) {
+            // It's a field-level input, resolve the source value
+            const sourceNode = nodes.find(n => n.id === connection.source);
+            const targetNode = nodes.find(n => n.id === connection.target);
+
+            if (sourceNode && targetNode) {
+                const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
+                const sourcePortId = connection.sourceHandle || 'origin';
+
+                // Use PortResolver to get the value
+                import('@core/engine/ports').then(({ resolvePort, resolveInputValue }) => {
+                    const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
+                    const value = resolveInputValue(portValue, targetHandle);
+
+                    if (value !== undefined) {
+                        // Update target asset's value with the resolved field value
+                        const targetAssetId = targetNode.data.assetId as string;
+                        if (targetAssetId) {
+                            const currentAsset = this.engine.assets.get(targetAssetId);
+                            if (currentAsset) {
+                                const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
+                                    ? currentAsset.value as Record<string, any>
+                                    : {};
+                                const newValue = { ...currentValue, [targetHandle]: value };
+                                this.engine.assets.update(targetAssetId, newValue);
+                            }
+                        }
+                    }
+                });
+            }
+        }
     }
     public onNodeDrag: OnNodeDrag = (_event, node) => {
         // Detect hover over Rack/Group for highlighting

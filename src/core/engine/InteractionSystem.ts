@@ -218,14 +218,11 @@ export class InteractionSystem {
                 const sourceAsset = sourceNode.data.assetId ? freshState.assets[sourceNode.data.assetId] : null;
 
                 const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
-                console.log('[AutoFill] portValue:', portValue, 'sourcePortId:', sourcePortId);
                 const value = resolveInputValue(portValue, targetHandle);
-                console.log('[AutoFill] resolved value:', value, 'for targetHandle:', targetHandle);
 
                 if (value !== undefined) {
                     // Update target asset's value with the resolved field value
                     const targetAssetId = targetNode.data.assetId as string;
-                    console.log('[AutoFill] targetAssetId:', targetAssetId);
                     if (targetAssetId) {
                         const currentAsset = this.engine.assets.get(targetAssetId);
                         if (currentAsset) {
@@ -233,7 +230,6 @@ export class InteractionSystem {
                                 ? currentAsset.value as Record<string, any>
                                 : {};
                             const newValue = { ...currentValue, [targetHandle]: value };
-                            console.log('[AutoFill] updating asset with newValue:', newValue);
                             this.engine.assets.update(targetAssetId, newValue);
                         }
                     }

@@ -80,7 +80,7 @@ for (const recipe of recipes) {
             const settings = getSettings();
             if (settings) {
                 // Get model category from recipe manifest, fallback to 'llm'
-                const category = (recipe.manifest as any)?.model?.category || 'llm';
+                const category = recipe.manifest.model.category;
                 const defaultModelId = getDefaultModel(settings, category);
                 if (defaultModelId) {
                     const model = modelRegistry.get(defaultModelId);

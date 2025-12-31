@@ -50,32 +50,7 @@ export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefini
     const inputSchema = manifest.input.map(inputFieldToDefinition);
 
     // Create executor function
-    const execute = createV2Executor(manifest);
-
-    // Build manifest with V2 model info preserved
-    const v1Manifest = {
-        version: 1 as const,
-        id: manifest.id,
-        name: manifest.name,
-        description: manifest.description,
-        category: manifest.category,
-        icon: manifest.icon,
-        inputSchema: manifest.input as any,
-        // Preserve V2 model requirements for capability checking
-        model: manifest.model,
-        executor: {
-            type: 'llm-agent',
-            systemPrompt: manifest.prompt.system,
-            userPromptTemplate: manifest.prompt.user,
-            parseAs: manifest.output.format === 'json' ? 'json' : 'text',
-            output: manifest.output.node ? {
-                node: manifest.output.node,
-                title: manifest.output.title,
-                collapsed: manifest.output.collapsed,
-                config: manifest.output.config,  // Universal Output Adapter
-            } : undefined,
-        },
-    };
+    const execute = createExecutor(manifest);
 
     return {
         id: manifest.id,
@@ -84,7 +59,7 @@ export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefini
         icon: getIcon(manifest.icon),
         category: manifest.category,
         inputSchema,
-        manifest: v1Manifest as any,
+        manifest,
         execute,
     };
 }
@@ -98,7 +73,7 @@ import { callLLM } from '@features/models';
 import { interpolate } from './executors/utils';
 import { extractJson } from '@features/models/utils';
 
-function createV2Executor(manifest: RecipeManifest) {
+function createExecutor(manifest: RecipeManifest) {
     return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
         const { inputs, modelConfig } = ctx;
 
@@ -270,7 +245,7 @@ async function executeMedia(
 // Registry for V2 Recipes
 // ============================================================================
 
-class RecipeRegistryV2 {
+class RecipeRegistry {
     private recipes = new Map<string, RecipeDefinition>();
     private manifests = new Map<string, RecipeManifest>();
 
@@ -314,9 +289,4 @@ class RecipeRegistryV2 {
     }
 }
 
-export const recipeRegistry = new RecipeRegistryV2();
-
-// Convenience exports
-export const getRecipeV2 = (id: string) => recipeRegistry.get(id);
-export const getAllRecipesV2 = () => recipeRegistry.getAll();
-export const getRecipesByCategoryV2 = () => recipeRegistry.getByCategory();
+export const recipeRegistry = new RecipeRegistry();

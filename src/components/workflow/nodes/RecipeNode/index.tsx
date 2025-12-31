@@ -118,7 +118,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         }
 
         // Get recipe capabilities for dynamic ports
-        const recipeCapabilities = (recipe.manifest as any)?.model?.capabilities || [];
+        const recipeCapabilities = recipe.manifest.model.capabilities || [];
 
         // Check if there are any visible fields
         const visibleFields = recipe.inputSchema.filter(field => !field.hidden);

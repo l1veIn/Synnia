@@ -101,7 +101,7 @@ import { extractJson } from '@features/models/utils';
 
 function createV2Executor(manifest: RecipeManifestV2) {
     return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
-        const { inputs, modelConfig, chatContext } = ctx;
+        const { inputs, modelConfig } = ctx;
 
         // Determine model to use
         const modelId = modelConfig?.modelId;
@@ -109,49 +109,162 @@ function createV2Executor(manifest: RecipeManifestV2) {
             return { success: false, error: 'No model selected' };
         }
 
-        // Build system prompt (supports {{variables}})
-        const systemPrompt = interpolate(manifest.prompt.system, inputs);
+        // Route by model category
+        const category = manifest.model.category;
 
-        // Build user prompt (first turn only if no chat context)
-        let userPrompt: string;
-        if (chatContext && chatContext.length > 0) {
-            // Multi-turn: use last user message or inputs
-            const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
-            userPrompt = lastUserMsg?.content || interpolate(manifest.prompt.user, inputs);
+        if (category === 'image-generation' || category === 'video-generation') {
+            // Media execution path
+            return executeMedia(manifest, ctx, modelId);
         } else {
-            // First turn: use template
-            userPrompt = interpolate(manifest.prompt.user, inputs);
+            // LLM execution path (default)
+            return executeLLM(manifest, ctx, modelId);
+        }
+    };
+}
+
+// ============================================================================
+// LLM Execution
+// ============================================================================
+
+async function executeLLM(
+    manifest: RecipeManifestV2,
+    ctx: ExecutionContext,
+    modelId: string
+): Promise<ExecutionResult> {
+    const { inputs, modelConfig, chatContext } = ctx;
+
+    // Build system prompt (supports {{variables}})
+    const systemPrompt = interpolate(manifest.prompt.system, inputs);
+
+    // Build user prompt (first turn only if no chat context)
+    let userPrompt: string;
+    if (chatContext && chatContext.length > 0) {
+        // Multi-turn: use last user message or inputs
+        const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
+        userPrompt = lastUserMsg?.content || interpolate(manifest.prompt.user, inputs);
+    } else {
+        // First turn: use template
+        userPrompt = interpolate(manifest.prompt.user, inputs);
+    }
+
+    // Call LLM
+    const llmResult = await callLLM({
+        modelId,
+        userPrompt,
+        systemPrompt,
+        temperature: modelConfig?.params?.temperature ?? manifest.model.defaultParams?.temperature,
+        maxTokens: modelConfig?.params?.maxTokens ?? manifest.model.defaultParams?.maxTokens,
+        jsonMode: manifest.output.format === 'json' && (modelConfig?.params?.jsonMode !== false),
+    });
+
+    if (!llmResult.success) {
+        return { success: false, error: llmResult.error };
+    }
+
+    // Parse output
+    let data: any;
+    if (manifest.output.format === 'json') {
+        const parsed = extractJson(llmResult.text || '');
+        if (!parsed.success) {
+            return { success: false, error: 'Failed to parse JSON response' };
+        }
+        data = parsed.data;
+    } else {
+        // Text/markdown: use raw text
+        data = llmResult.text || '';
+    }
+
+    return { success: true, data };
+}
+
+// ============================================================================
+// Media Execution (Image/Video Generation)
+// ============================================================================
+
+async function executeMedia(
+    manifest: RecipeManifestV2,
+    ctx: ExecutionContext,
+    modelId: string
+): Promise<ExecutionResult> {
+    const { inputs, modelConfig } = ctx;
+
+    try {
+        // Get the model plugin
+        const { getModel } = await import('@features/models');
+        const modelPlugin = getModel(modelId);
+        if (!modelPlugin) {
+            return { success: false, error: `Model not found: ${modelId}` };
         }
 
-        // Call LLM
-        const llmResult = await callLLM({
-            modelId,
-            userPrompt,
-            systemPrompt,
-            temperature: modelConfig?.params?.temperature ?? manifest.model.defaultParams?.temperature,
-            maxTokens: modelConfig?.params?.maxTokens ?? manifest.model.defaultParams?.maxTokens,
-            jsonMode: manifest.output.format === 'json' && (modelConfig?.params?.jsonMode !== false),
+        // Get credentials from settings
+        const { getSettings, getProviderCredentials } = await import('@/lib/settings');
+        const settings = getSettings();
+        const provider = (modelConfig?.provider || modelPlugin.provider || (modelPlugin.supportedProviders || [])[0]) as import('@/lib/settings/types').ProviderKey;
+        const credentials = getProviderCredentials(settings, provider);
+
+        if (!credentials?.apiKey && !credentials?.baseUrl) {
+            return { success: false, error: `No credentials configured for ${provider}` };
+        }
+
+        // Extract inputs
+        const prompt = inputs.prompt || '';
+        const negativePrompt = inputs.negativePrompt;
+        const images = inputs.image ? [inputs.image] : undefined;
+
+        // Execute via model plugin
+        const modelResult = await modelPlugin.execute({
+            config: modelConfig?.params,
+            prompt,
+            negativePrompt,
+            images,
+            credentials: {
+                apiKey: credentials.apiKey || '',
+                baseUrl: credentials.baseUrl,
+            },
         });
 
-        if (!llmResult.success) {
-            return { success: false, error: llmResult.error };
+        if (!modelResult.success) {
+            return { success: false, error: modelResult.error };
         }
 
-        // Parse output
-        let data: any;
-        if (manifest.output.format === 'json') {
-            const parsed = extractJson(llmResult.text || '');
-            if (!parsed.success) {
-                return { success: false, error: 'Failed to parse JSON response' };
-            }
-            data = parsed.data;
-        } else {
-            // Text/markdown: use raw text
-            data = llmResult.text || '';
+        // Handle image output - prepare gallery data format
+        if (modelResult.data?.type === 'images' && modelResult.data.images) {
+            const { apiClient } = await import('@/lib/apiClient');
+
+            // Save images and return normalized gallery format
+            const galleryImages = await Promise.all(
+                modelResult.data.images.map(async (img: { url: string }, idx: number) => {
+                    const imageId = `gen-${Date.now()}-${idx}`;
+
+                    try {
+                        let result;
+                        if (img.url.startsWith('data:')) {
+                            result = await apiClient.saveProcessedImage(img.url);
+                        } else if (img.url.startsWith('http')) {
+                            result = await apiClient.downloadAndSaveImage(img.url);
+                        } else {
+                            return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
+                        }
+                        return { id: imageId, src: result.relativePath, starred: false, caption: prompt.slice(0, 50) };
+                    } catch (err) {
+                        console.error('Failed to save image:', err);
+                        return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
+                    }
+                })
+            );
+
+            return { success: true, data: galleryImages };
         }
 
-        return { success: true, data };
-    };
+        // Handle video output
+        if (modelResult.data?.type === 'video' && modelResult.data.videoUrl) {
+            return { success: true, data: { videoUrl: modelResult.data.videoUrl } };
+        }
+
+        return { success: true, data: modelResult.data };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Media generation failed' };
+    }
 }
 
 // ============================================================================

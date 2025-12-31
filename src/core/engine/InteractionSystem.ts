@@ -205,35 +205,43 @@ export class InteractionSystem {
         // When connecting to a field-level input, resolve and fill the value
         const targetHandle = connection.targetHandle;
         if (targetHandle && !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle)) {
-            // It's a field-level input, resolve the source value
-            const sourceNode = nodes.find(n => n.id === connection.source);
-            const targetNode = nodes.find(n => n.id === connection.target);
+            const sourceId = connection.source;
+            const targetId = connection.target;
+            const sourcePortId = connection.sourceHandle || 'origin';
 
-            if (sourceNode && targetNode) {
-                const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
-                const sourcePortId = connection.sourceHandle || 'origin';
+            // Use PortResolver to get the value - get FRESH state inside the async callback
+            import('@core/engine/ports').then(({ resolvePort, resolveInputValue }) => {
+                // Get fresh state from store to ensure latest selection/values
+                const freshState = this.engine.state;
+                const sourceNode = freshState.nodes.find(n => n.id === sourceId);
+                const targetNode = freshState.nodes.find(n => n.id === targetId);
 
-                // Use PortResolver to get the value
-                import('@core/engine/ports').then(({ resolvePort, resolveInputValue }) => {
-                    const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
-                    const value = resolveInputValue(portValue, targetHandle);
+                if (!sourceNode || !targetNode) return;
 
-                    if (value !== undefined) {
-                        // Update target asset's value with the resolved field value
-                        const targetAssetId = targetNode.data.assetId as string;
-                        if (targetAssetId) {
-                            const currentAsset = this.engine.assets.get(targetAssetId);
-                            if (currentAsset) {
-                                const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
-                                    ? currentAsset.value as Record<string, any>
-                                    : {};
-                                const newValue = { ...currentValue, [targetHandle]: value };
-                                this.engine.assets.update(targetAssetId, newValue);
-                            }
+                const sourceAsset = sourceNode.data.assetId ? freshState.assets[sourceNode.data.assetId] : null;
+
+                const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
+                console.log('[AutoFill] portValue:', portValue, 'sourcePortId:', sourcePortId);
+                const value = resolveInputValue(portValue, targetHandle);
+                console.log('[AutoFill] resolved value:', value, 'for targetHandle:', targetHandle);
+
+                if (value !== undefined) {
+                    // Update target asset's value with the resolved field value
+                    const targetAssetId = targetNode.data.assetId as string;
+                    console.log('[AutoFill] targetAssetId:', targetAssetId);
+                    if (targetAssetId) {
+                        const currentAsset = this.engine.assets.get(targetAssetId);
+                        if (currentAsset) {
+                            const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
+                                ? currentAsset.value as Record<string, any>
+                                : {};
+                            const newValue = { ...currentValue, [targetHandle]: value };
+                            console.log('[AutoFill] updating asset with newValue:', newValue);
+                            this.engine.assets.update(targetAssetId, newValue);
                         }
                     }
-                });
-            }
+                }
+            });
         }
     }
     public onNodeDrag: OnNodeDrag = (_event, node) => {

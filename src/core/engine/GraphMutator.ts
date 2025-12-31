@@ -1,12 +1,14 @@
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode, NodeType } from '@/types/project';
-import { ValueType } from '@/types/assets';
+import { ValueType, ModelConfig } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
 import { getRecipe } from '@features/recipes';
 import { OutputConfig } from '@/types/recipe';
+import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
+import { modelRegistry } from '@features/models';
 
 // Helper: Map old asset type strings to new ValueType
 function toValueType(assetType: string): ValueType {
@@ -185,10 +187,36 @@ export class GraphMutator {
                 }
             }
 
-            // Value = form values directly, schema goes in config
+            // Initialize modelConfig with default model if available
+            let modelConfig: ModelConfig | undefined;
+            const settings = getSettings();
+            if (settings) {
+                // Get model category from recipe manifest, fallback to 'llm'
+                const recipe = getRecipe(recipeId);
+                const category = (recipe?.manifest as any)?.model?.category || 'llm';
+                const defaultModelId = getDefaultModel(settings, category);
+                if (defaultModelId) {
+                    const model = modelRegistry.get(defaultModelId);
+                    if (model) {
+                        const providers = model.supportedProviders || [model.provider];
+                        const availableProvider = providers.find(p =>
+                            isProviderConfigured(settings, p as any)
+                        );
+                        if (availableProvider) {
+                            modelConfig = {
+                                modelId: defaultModelId,
+                                provider: availableProvider,
+                                params: {},
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Value = form values directly, config has recipeId and modelConfig
             assetId = this.engine.assets.create('record', defaultValues, {
                 name: recipeName,
-                config: { schema, recipeId }
+                config: { recipeId, modelConfig }
             });
         }
 

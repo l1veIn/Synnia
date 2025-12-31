@@ -124,15 +124,13 @@ for (const recipe of recipes) {
                     dataType: 'json',
                     label: 'Reference Output',
                     resolver: (n: any, a: any) => {
-                        if (a?.content && typeof a.content === 'object') {
-                            const content = a.content as any;
-                            if (content.values) {
-                                return {
-                                    type: 'json',
-                                    value: content.values,
-                                    meta: { nodeId: n.id, portId: 'reference' }
-                                };
-                            }
+                        // V2 architecture: form values stored directly in asset.value
+                        if (a?.value && typeof a.value === 'object') {
+                            return {
+                                type: 'json',
+                                value: a.value,
+                                meta: { nodeId: n.id, portId: 'reference' }
+                            };
                         }
                         return { type: 'json', value: {}, meta: { nodeId: n.id, portId: 'reference' } };
                     }

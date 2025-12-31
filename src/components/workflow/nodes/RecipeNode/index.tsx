@@ -6,12 +6,13 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
-import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { getResolvedRecipe } from '@features/recipes';
+import { checkSchemaCompatibility } from '@features/recipes/utils/schemaCompat';
 import { modelRegistry } from '@features/models';
 import { portRegistry } from '@core/engine/ports';
 import { RecipeFormRenderer } from '@/components/workflow/widgets';
@@ -53,10 +54,20 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const { state, actions } = useNode(id);
     const { runRecipe } = useRunRecipe();
 
-    // Get recipeId from asset.config (V2 architecture)
-    const assetConfig = state.asset?.config as { recipeId?: string } | undefined;
+    // Get recipeId and schemaSnapshot from asset.config (V2 architecture)
+    const assetConfig = state.asset?.config as {
+        recipeId?: string;
+        schemaSnapshot?: any[];
+    } | undefined;
     const recipeId = assetConfig?.recipeId;
+    const schemaSnapshot = assetConfig?.schemaSnapshot;
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
+
+    // Check schema compatibility
+    const schemaCompat = useMemo(() => {
+        if (!recipe) return { compatible: true, warnings: [], added: [], removed: [] };
+        return checkSchemaCompatibility(schemaSnapshot, recipe.inputSchema);
+    }, [schemaSnapshot, recipe]);
 
     const isRunning = state.executionState === 'running';
 
@@ -199,6 +210,14 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 title={
                     <div className="flex items-center gap-2">
                         <span>{state.title || recipe?.name || 'Recipe'}</span>
+                        {!schemaCompat.compatible && (
+                            <span
+                                className="text-yellow-500"
+                                title={schemaCompat.warnings.join('\n')}
+                            >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                            </span>
+                        )}
                         {isRunning && (
                             <span className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded-full font-mono">
                                 <Loader2 className="h-3 w-3 animate-spin" />

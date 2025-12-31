@@ -104,7 +104,11 @@ for (const recipe of recipes) {
                 asset: {
                     valueType: 'record' as const,
                     value: defaultValues,
-                    config: { recipeId: recipe.id, modelConfig } as any,
+                    config: {
+                        recipeId: recipe.id,
+                        schemaSnapshot: recipe.inputSchema,  // Freeze schema at creation time
+                        modelConfig
+                    } as any,
                 },
             };
         },

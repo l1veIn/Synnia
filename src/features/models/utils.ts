@@ -53,3 +53,60 @@ export function extractJson(text: string): { data: any; success: boolean } {
         return { data: null, success: false };
     }
 }
+
+// ============================================================================
+// Recipe V2: Model Capability Utilities
+// ============================================================================
+
+import type { ModelPlugin, ModelCapability } from './types';
+import { modelRegistry } from './index';
+
+/**
+ * Check if a model has a specific capability
+ */
+export function hasCapability(modelId: string, capability: ModelCapability): boolean {
+    const model = modelRegistry.get(modelId);
+    if (!model) return false;
+    return model.capabilities?.includes(capability) ?? false;
+}
+
+/**
+ * Check if a model has all specified capabilities
+ */
+export function hasAllCapabilities(modelId: string, capabilities: ModelCapability[]): boolean {
+    const model = modelRegistry.get(modelId);
+    if (!model) return false;
+    return capabilities.every(cap => model.capabilities?.includes(cap) ?? false);
+}
+
+/**
+ * Check if a model has any of the specified capabilities
+ */
+export function hasAnyCapability(modelId: string, capabilities: ModelCapability[]): boolean {
+    const model = modelRegistry.get(modelId);
+    if (!model) return false;
+    return capabilities.some(cap => model.capabilities?.includes(cap) ?? false);
+}
+
+/**
+ * Get all capabilities of a model
+ */
+export function getModelCapabilities(modelId: string): ModelCapability[] {
+    const model = modelRegistry.get(modelId);
+    return model?.capabilities ?? [];
+}
+
+/**
+ * Check if a model supports vision (image input)
+ */
+export function supportsVision(modelId: string): boolean {
+    return hasCapability(modelId, 'vision');
+}
+
+/**
+ * Check if a model supports chat/conversation
+ */
+export function supportsChat(modelId: string): boolean {
+    return hasCapability(modelId, 'chat');
+}
+

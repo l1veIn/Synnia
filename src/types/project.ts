@@ -88,7 +88,7 @@ export interface QueueNodeData extends BaseNodeData {
 }
 
 export interface SelectorNodeData extends BaseNodeData {
-  optionSchema?: any[]; // FieldDefinition[]
+  // optionSchema is now in asset.config (not node.data)
   selected?: string[];
 }
 

@@ -1,13 +1,25 @@
+/**
+ * RecipeNode Inspector - 4-Tab Layout (Form, Model, Chat, Advanced)
+ * Recipe V2 Architecture: Multi-turn AI Agent Container
+ */
+
 import { useMemo, useEffect, useState, useRef } from 'react';
 import { getResolvedRecipe } from '@features/recipes';
-import { FormRenderer } from '../../inspector/FormRenderer';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';
 import { Button } from '@/components/ui/button';
-import { Save, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Save, AlertCircle, FileText, Bot, MessageSquare, Code } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
+import { FormRenderer } from '../../inspector/FormRenderer';
+import type { RecipeAssetConfig, ModelConfig, ChatMessage } from '@/types/assets';
+
+// Tab Components
+import { ModelTab } from './Inspector/ModelTab';
+import { ChatTab } from './Inspector/ChatTab';
+import { AdvancedTab } from './Inspector/AdvancedTab';
 
 interface RecipeNodeInspectorProps {
     assetId?: string;
@@ -17,26 +29,34 @@ interface RecipeNodeInspectorProps {
 export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProps) => {
     const node = useWorkflowStore(s => nodeId ? s.nodes.find(n => n.id === nodeId) : undefined);
     const edges = useWorkflowStore(s => s.edges);
-    const nodeData = node?.data as any;
-
-    // Get recipe definition (schema comes from here)
-    const recipeId = nodeData?.recipeId;
-    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // Get asset for values storage
-    const { asset, setValue } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // RecordAsset: values are directly in asset.value (no nested .values)
+    // Get recipeId from asset.config (V2 architecture)
+    const assetConfig = asset?.config as RecipeAssetConfig | undefined;
+    const recipeId = assetConfig?.recipeId;
+
+    // Get recipe definition (schema comes from here)
+    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
+
+    // RecordAsset: form values are stored directly in asset.value
     const savedValues = useMemo(() => {
         if (asset && typeof asset.value === 'object' && asset.value !== null) {
             return asset.value as Record<string, any>;
         }
-        return nodeData?.inputs || {};
-    }, [asset?.value, nodeData]);
+        return {};
+    }, [asset?.value]);
+
+    // Get recipe-specific config
+    const recipeConfig = useMemo((): RecipeAssetConfig => {
+        return (assetConfig || { recipeId: recipeId || '' }) as RecipeAssetConfig;
+    }, [assetConfig, recipeId]);
 
     // Draft state - local edits before save
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});
     const [isInitialized, setIsInitialized] = useState(false);
+    const [activeTab, setActiveTab] = useState('form');
 
     // Track previous assetId to detect actual node switches
     const prevAssetIdRef = useRef<string | undefined>(undefined);
@@ -45,13 +65,11 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     useEffect(() => {
         if (prevAssetIdRef.current !== assetId) {
             prevAssetIdRef.current = assetId;
-            // Mark for re-init - will sync on next effect run when savedValues updates
             setIsInitialized(false);
         }
     }, [assetId]);
 
     // Effect 2: Sync to savedValues when not initialized
-    // This runs after assetId change triggers re-init, AND after savedValues updates
     useEffect(() => {
         if (!isInitialized && savedValues) {
             setDraftValues(savedValues);
@@ -69,20 +87,29 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     const linkedFields = useMemo(() => {
         if (!nodeId) return new Set<string>();
 
-        // Find all incoming edges to this node
         const linkedKeys = edges
             .filter(e => e.target === nodeId && e.targetHandle)
             .map(e => {
-                // targetHandle format: "field:fieldKey" → extract fieldKey
                 const handle = e.targetHandle!;
                 if (handle.startsWith('field:')) {
-                    return handle.slice(6); // Remove 'field:' prefix
+                    return handle.slice(6);
                 }
                 return handle;
             });
 
         return new Set(linkedKeys);
     }, [edges, nodeId]);
+
+    // Check model capabilities for Chat tab
+    const hasChatCapability = useMemo(() => {
+        const modelId = recipeConfig.modelConfig?.modelId;
+        if (!modelId) return true; // Enable by default if no model selected
+
+        // Use the capability utility to check if model supports chat
+        // Import at top: import { supportsChat } from '@/features/models/utils';
+        // For now, return true as most LLMs support chat
+        return true;
+    }, [recipeConfig.modelConfig]);
 
     if (!recipe) {
         return <div className="p-4 text-xs text-muted-foreground">Recipe not found: {recipeId}</div>;
@@ -93,10 +120,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         setDraftValues(newValues);
     };
 
-    // Save draft to asset - RecordAsset stores values directly in asset.value
+    // Save draft to asset.value directly
     const handleSave = () => {
-        if (assetId) {
-            setValue(draftValues);  // Values go directly to asset.value
+        if (assetId && asset) {
+            setValue(draftValues);
             toast.success('Changes saved');
         }
     };
@@ -105,6 +132,36 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     const handleDiscard = () => {
         setDraftValues(savedValues);
         toast.info('Changes discarded');
+    };
+
+    // Model config change handler
+    const handleModelConfigChange = (modelConfig: ModelConfig) => {
+        if (assetId && updateConfig) {
+            updateConfig({ ...recipeConfig, modelConfig });
+            // toast.success('Model configuration updated');
+        }
+    };
+
+    // Chat message handler
+    const handleSendMessage = (content: string) => {
+        if (!assetId || !updateConfig) return;
+
+        const currentMessages = recipeConfig.chatContext?.messages || [];
+        const newMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content,
+            timestamp: Date.now(),
+        };
+
+        updateConfig({
+            ...recipeConfig,
+            chatContext: {
+                messages: [...currentMessages, newMessage],
+            },
+        });
+
+        toast.success('Message sent');
     };
 
     return (
@@ -131,71 +188,119 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                 )}
             </div>
 
-            {/* Input Form - Edit draft values */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-
-                {recipe.inputSchema.length > 0 ? (
-                    <>
-                        {/* Autofill button */}
-                        <AutoGenerateButton
-                            mode="form-autofill"
-                            formSchema={recipe.inputSchema.map(f => ({
-                                key: f.key,
-                                label: f.label,
-                                type: f.type,
-                                placeholder: f.rules?.placeholder,
-                                widget: f.widget,
-                                options: f.rules?.options,
-                            }))}
-                            onGenerate={(values) => {
-                                // Merge generated values with existing
-                                setDraftValues(prev => ({ ...prev, ...values }));
-                                toast.success('Form auto-filled');
-                            }}
-                            placeholder="Describe what this recipe should do (e.g., 'generate creative product names for a coffee brand')..."
-                            buttonLabel="✨ Autofill"
-                            buttonVariant="outline"
-                            buttonSize="sm"
-                            className="w-full"
-                        />
-                        <FormRenderer
-                            schema={recipe.inputSchema}
-                            values={draftValues}
-                            onChange={handleDraftChange}
-                            linkedFields={linkedFields}
-                        />
-                    </>
-                ) : (
-                    <div className="text-xs text-muted-foreground italic text-center py-8">
-                        This recipe has no input parameters
-                    </div>
-                )}
-            </div>
-
-            {/* Footer with Save Button */}
-            <div className="px-4 py-3 border-t bg-muted/10 flex items-center justify-between">
-                <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
-                    <div>Recipe: {recipe.id}</div>
-                    {assetId && <div>Asset: {assetId.slice(0, 8)}...</div>}
-                </div>
-                <div className="flex items-center gap-2">
-                    {hasChanges && (
-                        <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
-                            Discard
-                        </Button>
-                    )}
-                    <Button
-                        size="sm"
-                        variant={hasChanges ? "default" : "outline"}
-                        onClick={handleSave}
-                        className={cn("h-7 gap-1.5", hasChanges && "bg-primary")}
-                        disabled={!hasChanges}
+            {/* 4-Tab Layout */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4 h-9">
+                    <TabsTrigger value="form" className="gap-1.5 text-xs">
+                        <FileText className="h-3.5 w-3.5" />
+                        Form
+                    </TabsTrigger>
+                    <TabsTrigger value="model" className="gap-1.5 text-xs">
+                        <Bot className="h-3.5 w-3.5" />
+                        Model
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="chat"
+                        className={cn("gap-1.5 text-xs", !hasChatCapability && "opacity-50 cursor-not-allowed")}
                     >
-                        <Save className="h-3.5 w-3.5" />
-                        Save
-                    </Button>
-                </div>
-            </div>
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Chat
+                    </TabsTrigger>
+                    <TabsTrigger value="advanced" className="gap-1.5 text-xs">
+                        <Code className="h-3.5 w-3.5" />
+                        Advanced
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* Form Tab */}
+                <TabsContent value="form" className="flex-1 flex flex-col overflow-hidden mt-0">
+                    {recipe.inputSchema.length > 0 ? (
+                        <>
+                            {/* Scrollable form content */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                <AutoGenerateButton
+                                    mode="form-autofill"
+                                    formSchema={recipe.inputSchema.map(f => ({
+                                        key: f.key,
+                                        label: f.label,
+                                        type: f.type,
+                                        placeholder: f.rules?.placeholder,
+                                        widget: f.widget,
+                                        options: f.rules?.options,
+                                    }))}
+                                    onGenerate={(values) => {
+                                        setDraftValues(prev => ({ ...prev, ...values }));
+                                        toast.success('Form auto-filled');
+                                    }}
+                                    placeholder="Describe what this recipe should do..."
+                                    buttonLabel="✨ Autofill"
+                                    buttonVariant="outline"
+                                    buttonSize="sm"
+                                    className="w-full"
+                                />
+                                <FormRenderer
+                                    schema={recipe.inputSchema}
+                                    values={draftValues}
+                                    onChange={handleDraftChange}
+                                    linkedFields={linkedFields}
+                                />
+                            </div>
+                            {/* Fixed footer */}
+                            <div className="px-4 py-3 border-t bg-muted/10 flex items-center justify-between shrink-0">
+                                <div className="text-[10px] text-muted-foreground font-mono space-y-0.5">
+                                    <div>Recipe: {recipe.id}</div>
+                                    {assetId && <div>Asset: {assetId.slice(0, 8)}...</div>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {hasChanges && (
+                                        <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
+                                            Discard
+                                        </Button>
+                                    )}
+                                    <Button
+                                        size="sm"
+                                        variant={hasChanges ? "default" : "outline"}
+                                        onClick={handleSave}
+                                        className={cn("h-7 gap-1.5", hasChanges && "bg-primary")}
+                                        disabled={!hasChanges}
+                                    >
+                                        <Save className="h-3.5 w-3.5" />
+                                        Save
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-xs text-muted-foreground italic text-center py-8">
+                            This recipe has no input parameters
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* Model Tab */}
+                <TabsContent value="model" className="flex-1 overflow-y-auto mt-0">
+                    <ModelTab
+                        modelConfig={recipeConfig.modelConfig}
+                        onModelConfigChange={handleModelConfigChange}
+                        filterCategory={(recipe?.manifest as any)?.model?.category || 'llm'}
+                        requiredCapabilities={(recipe?.manifest as any)?.model?.capabilities || []}
+                    />
+                </TabsContent>
+
+                {/* Chat Tab */}
+                <TabsContent value="chat" className="flex-1 overflow-hidden mt-0">
+                    <ChatTab
+                        messages={recipeConfig.chatContext?.messages || []}
+                        onSendMessage={handleSendMessage}
+                        disabled={!hasChatCapability || (recipeConfig.chatContext?.messages?.length ?? 0) === 0}
+                    />
+                </TabsContent>
+
+                {/* Advanced Tab */}
+                <TabsContent value="advanced" className="flex-1 overflow-hidden mt-0">
+                    {asset && <AdvancedTab asset={asset as any} />}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 };

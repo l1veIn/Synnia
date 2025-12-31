@@ -37,15 +37,34 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - now using asset.value for GalleryAssetContent
+    // Get content with defaults - handle both array and GalleryAssetContent formats
     const content: GalleryAssetContent = useMemo(() => {
-        const raw = (state.asset?.value as GalleryAssetContent) || {};
+        const raw = state.asset?.value;
+
+        // Handle array format (from Recipe output or direct array)
+        if (Array.isArray(raw)) {
+            return {
+                viewMode: 'grid' as const,
+                columnsPerRow: Math.min(4, raw.length || 4),
+                allowStar: true,
+                allowDelete: true,
+                images: raw.map((item: any, i: number) => ({
+                    id: item.id || `img-${i}`,
+                    src: item.src || item.url || '',
+                    starred: item.starred ?? false,
+                    caption: item.caption || '',
+                })),
+            };
+        }
+
+        // Handle GalleryAssetContent format (from Inspector)
+        const contentObj = (raw as GalleryAssetContent) || {};
         return {
-            viewMode: raw.viewMode ?? 'grid',
-            columnsPerRow: raw.columnsPerRow ?? 4,
-            allowStar: raw.allowStar ?? true,
-            allowDelete: raw.allowDelete ?? true,
-            images: raw.images ?? [],
+            viewMode: contentObj.viewMode ?? 'grid',
+            columnsPerRow: contentObj.columnsPerRow ?? 4,
+            allowStar: contentObj.allowStar ?? true,
+            allowDelete: contentObj.allowDelete ?? true,
+            images: contentObj.images ?? [],
         };
     }, [state.asset?.value]);
 

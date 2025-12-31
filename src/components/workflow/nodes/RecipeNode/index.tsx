@@ -6,12 +6,14 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
-import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { getResolvedRecipe } from '@features/recipes';
+import { checkSchemaCompatibility } from '@features/recipes/utils/schemaCompat';
+import { modelRegistry } from '@features/models';
 import { portRegistry } from '@core/engine/ports';
 import { RecipeFormRenderer } from '@/components/workflow/widgets';
 
@@ -24,15 +26,13 @@ portRegistry.register(NodeType.RECIPE, {
             dataType: 'json',
             label: 'Reference Output',
             resolver: (node, asset) => {
+                // V2 architecture: form values stored directly in asset.value
                 if (asset?.value && typeof asset.value === 'object') {
-                    const content = asset.value as any;
-                    if (content.values) {
-                        return {
-                            type: 'json',
-                            value: content.values,
-                            meta: { nodeId: node.id, portId: 'reference' }
-                        };
-                    }
+                    return {
+                        type: 'json',
+                        value: asset.value,
+                        meta: { nodeId: node.id, portId: 'reference' }
+                    };
                 }
                 return { type: 'json', value: {}, meta: { nodeId: node.id, portId: 'reference' } };
             }
@@ -52,9 +52,20 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const { state, actions } = useNode(id);
     const { runRecipe } = useRunRecipe();
 
-    const nodeData = state.node?.data as any;
-    const recipeId = nodeData?.recipeId;
+    // Get recipeId and schemaSnapshot from asset.config (V2 architecture)
+    const assetConfig = state.asset?.config as {
+        recipeId?: string;
+        schemaSnapshot?: any[];
+    } | undefined;
+    const recipeId = assetConfig?.recipeId;
+    const schemaSnapshot = assetConfig?.schemaSnapshot;
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
+
+    // Check schema compatibility
+    const schemaCompat = useMemo(() => {
+        if (!recipe) return { compatible: true, warnings: [], added: [], removed: [] };
+        return checkSchemaCompatibility(schemaSnapshot, recipe.inputSchema);
+    }, [schemaSnapshot, recipe]);
 
     const isRunning = state.executionState === 'running';
 
@@ -77,17 +88,17 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
         }
     }, [isRunning]);
 
-    // Get values from asset - now from asset.value
+
+    // Get values from asset - directly from asset.value
     const assetValues = useMemo(() => {
         if (state.asset?.value && typeof state.asset.value === 'object') {
-            const content = state.asset.value as any;
-            return content.values || {};
+            return state.asset.value as Record<string, any>;
         }
         return {};
     }, [state.asset]);
 
     // Get execution result values
-    const executionResult = nodeData?.executionResult || {};
+    const executionResult = (state.node?.data as any)?.executionResult || {};
 
     // Merge values: for disabled fields, prefer executionResult
     const values = useMemo(() => {
@@ -116,9 +127,12 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             return <div className="text-destructive text-xs">Recipe not found: {recipeId}</div>;
         }
 
+        // Get recipe capabilities for dynamic ports
+        const recipeCapabilities = recipe.manifest.model.capabilities || [];
+
         // Check if there are any visible fields
         const visibleFields = recipe.inputSchema.filter(field => !field.hidden);
-        if (visibleFields.length === 0) {
+        if (visibleFields.length === 0 && recipeCapabilities.length === 0) {
             if (state.isCollapsed) {
                 return null;
             }
@@ -142,6 +156,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 )}
                 <div className="flex-1 w-full overflow-y-auto">
                     <div className={cn("pb-2 px-5", state.isCollapsed && "py-1")}>
+                        {/* Dynamic capability-based input fields */}
+                        <DynamicInputPorts recipeCapabilities={recipeCapabilities} isCollapsed={state.isCollapsed} />
+                        {/* Regular form fields */}
                         <RecipeFormRenderer
                             fields={recipe.inputSchema}
                             values={values}
@@ -191,6 +208,14 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 title={
                     <div className="flex items-center gap-2">
                         <span>{state.title || recipe?.name || 'Recipe'}</span>
+                        {!schemaCompat.compatible && (
+                            <span
+                                className="text-yellow-500"
+                                title={schemaCompat.warnings.join('\n')}
+                            >
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                            </span>
+                        )}
                         {isRunning && (
                             <span className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded-full font-mono">
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -224,6 +249,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
                 </div>
             )}
 
+
             <NodePort.Output id="reference" />
 
             <NodePort.Product />
@@ -231,3 +257,73 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     );
 });
 RecipeNode.displayName = 'RecipeNode';
+
+// ============================================================================
+// Dynamic Input Ports Component
+// Renders capability-based input ports matching RecipeFieldRow styling
+// ============================================================================
+
+interface DynamicInputPortsProps {
+    /** Recipe-declared required capabilities - determines what ports to render */
+    recipeCapabilities?: string[];
+    /** Whether the node is collapsed */
+    isCollapsed?: boolean;
+}
+
+function DynamicInputPorts({ recipeCapabilities = [], isCollapsed = false }: DynamicInputPortsProps) {
+    // Get dynamic handles based ONLY on RECIPE requirements
+    const dynamicHandles = useMemo(() => {
+        const handles: { id: string; dataType: string; label: string }[] = [];
+
+        // If recipe requires vision capability, add vision input port
+        if (recipeCapabilities.includes('vision')) {
+            handles.push({
+                id: 'visionImage',
+                dataType: 'image',
+                label: 'Vision Image',
+            });
+        }
+
+        // Add more capability-based ports here as needed
+        // e.g., if (recipeCapabilities.includes('audio')) { ... }
+
+        return handles;
+    }, [recipeCapabilities]);
+
+    if (dynamicHandles.length === 0) return null;
+
+    // Render each handle as a form-like row matching RecipeFieldRow styling
+    return (
+        <div className={cn("space-y-1.5 mb-2", isCollapsed && "py-1")}>
+            {dynamicHandles.map((handle) => (
+                <div
+                    key={handle.id}
+                    className={cn(
+                        "relative flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors",
+                        "bg-background/50 hover:bg-background/80 border border-transparent",
+                        "border-purple-500/30 bg-purple-500/5"
+                    )}
+                >
+                    {/* Input Handle (Left) */}
+                    <NodePort.Input id={`model:${handle.id}`} />
+
+                    {/* Field Info */}
+                    <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                        {/* Label */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-medium truncate max-w-[100px] text-muted-foreground">
+                                {handle.label}
+                            </span>
+                            <span className="text-[9px] text-purple-500 bg-purple-500/10 px-1 rounded uppercase">
+                                {handle.dataType}
+                            </span>
+                        </div>
+
+                        {/* Value indicator */}
+                        <span className="text-[10px] text-muted-foreground/50 italic">empty</span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}

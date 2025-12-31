@@ -18,20 +18,30 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setValue } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-    // Get saved content - now from asset.value
-    const savedContent: TableAssetContent = useMemo(() => {
-        const raw = (asset?.value as TableAssetContent) || {};
+    // Get saved content - V2 architecture: rows in value, columns in config
+    const savedContent = useMemo(() => {
+        const config = (asset?.config as any) || {};
+        const rawValue = asset?.value;
+
+        // Handle value: can be array (rows) or object with rows property
+        let rows: Record<string, any>[] = [];
+        if (Array.isArray(rawValue)) {
+            rows = rawValue;
+        } else if (rawValue && typeof rawValue === 'object' && Array.isArray((rawValue as any).rows)) {
+            rows = (rawValue as any).rows;
+        }
+
         return {
-            columns: raw.columns ?? [],
-            rows: raw.rows ?? [],
-            showRowNumbers: raw.showRowNumbers ?? true,
-            allowAddRow: raw.allowAddRow ?? true,
-            allowDeleteRow: raw.allowDeleteRow ?? true,
+            columns: config.columns ?? [],
+            rows,
+            showRowNumbers: config.showRowNumbers ?? true,
+            allowAddRow: config.allowAddRow ?? true,
+            allowDeleteRow: config.allowDeleteRow ?? true,
         };
-    }, [asset?.value]);
+    }, [asset?.value, asset?.config]);
 
     // Draft state - for schema only
     const [draftColumns, setDraftColumns] = useState<TableColumn[]>([]);
@@ -61,10 +71,9 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             draftShowRowNumbers !== savedContent.showRowNumbers;
     }, [draftColumns, draftShowRowNumbers, savedContent, isInitialized]);
 
-    // Save schema
+    // Save schema to config
     const handleSave = () => {
-        setValue({
-            ...savedContent,
+        updateConfig({
             columns: draftColumns,
             showRowNumbers: draftShowRowNumbers,
         });

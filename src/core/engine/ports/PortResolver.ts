@@ -110,6 +110,24 @@ export function resolveInputValue(
 ): any {
     if (!portValue) return undefined;
 
+    // Handle array type (e.g., Selector output)
+    // Extract the target field from the first item in the array
+    if (portValue.type === 'array' && Array.isArray(portValue.value)) {
+        const items = portValue.value;
+        if (items.length === 0) return undefined;
+
+        const firstItem = items[0];
+        if (firstItem && typeof firstItem === 'object') {
+            // Try to get the specific field from first item
+            if (targetFieldKey in firstItem) {
+                return firstItem[targetFieldKey];
+            }
+            // Return entire first item if field not found
+            return firstItem;
+        }
+        return firstItem;
+    }
+
     // If source is a JSON object
     if (portValue.type === 'json' && typeof portValue.value === 'object') {
         // Try to get the specific field

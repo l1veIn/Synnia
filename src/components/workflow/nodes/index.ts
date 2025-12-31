@@ -6,6 +6,9 @@ import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
+import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
+import { modelRegistry } from '@features/models';
+import type { ModelConfig } from '@/types/assets';
 
 // Import node definitions directly to avoid circular dependency
 import { definition as selectorDef } from './SelectorNode/definition';
@@ -59,13 +62,56 @@ for (const recipe of recipes) {
             category: (recipe.category || 'Recipe') as NodeCategory,
             description: recipe.description || '',
             hidden: true, // Recipe nodes are picked via recipe tree, not node picker
+            style: { width: 280 },  // Fixed width for Recipe nodes
         },
-        create: () => ({
-            asset: {
-                valueType: 'record' as const,
-                value: { schema: [], values: {} },
-            },
-        }),
+        create: () => {
+            // Extract default values from recipe input schema
+            const defaultValues: Record<string, any> = {};
+            if (recipe.inputSchema) {
+                for (const field of recipe.inputSchema) {
+                    if (field.defaultValue !== undefined) {
+                        defaultValues[field.key] = field.defaultValue;
+                    }
+                }
+            }
+
+            // Initialize modelConfig with default model if available
+            let modelConfig: ModelConfig | undefined;
+            const settings = getSettings();
+            if (settings) {
+                // Get model category from recipe manifest, fallback to 'llm'
+                const category = recipe.manifest.model.category;
+                const defaultModelId = getDefaultModel(settings, category);
+                if (defaultModelId) {
+                    const model = modelRegistry.get(defaultModelId);
+                    if (model) {
+                        const providers = model.supportedProviders || [model.provider];
+                        const availableProvider = providers.find(p =>
+                            isProviderConfigured(settings, p as any)
+                        );
+                        if (availableProvider) {
+                            modelConfig = {
+                                modelId: defaultModelId,
+                                provider: availableProvider,
+                                params: {},
+                            };
+                        }
+                    }
+                }
+            }
+
+            return {
+                asset: {
+                    valueType: 'record' as const,
+                    value: defaultValues,
+                    config: {
+                        recipeId: recipe.id,
+                        schemaSnapshot: recipe.inputSchema,  // Freeze schema at creation time
+                        modelConfig
+                    } as any,
+                },
+            };
+        },
     });
 
     // Register dynamic ports for recipe nodes
@@ -78,15 +124,13 @@ for (const recipe of recipes) {
                     dataType: 'json',
                     label: 'Reference Output',
                     resolver: (n: any, a: any) => {
-                        if (a?.content && typeof a.content === 'object') {
-                            const content = a.content as any;
-                            if (content.values) {
-                                return {
-                                    type: 'json',
-                                    value: content.values,
-                                    meta: { nodeId: n.id, portId: 'reference' }
-                                };
-                            }
+                        // V2 architecture: form values stored directly in asset.value
+                        if (a?.value && typeof a.value === 'object') {
+                            return {
+                                type: 'json',
+                                value: a.value,
+                                meta: { nodeId: n.id, portId: 'reference' }
+                            };
                         }
                         return { type: 'json', value: {}, meta: { nodeId: n.id, portId: 'reference' } };
                     }

@@ -27,7 +27,7 @@ export const definition: NodeDefinition = {
         const schemaFields = schema || DEFAULT_OPTION_SCHEMA;
         return {
             data: {
-                optionSchema: schemaFields,
+                // Only UI state in node.data
                 selected: [] as string[],
             },
             asset: {
@@ -36,7 +36,10 @@ export const definition: NodeDefinition = {
                     id: item.id || `opt-${i}`,
                     ...item,
                 })),
-                config: { mode: 'multi' as const },
+                config: {
+                    mode: 'multi' as const,
+                    optionSchema: schemaFields,  // Schema belongs in asset.config
+                },
             },
         };
     },
@@ -59,9 +62,23 @@ export const definition: NodeDefinition = {
                 label: 'Selected Items',
                 resolver: (node, asset) => {
                     if (!asset?.value) return null;
-                    const items = Array.isArray(asset.value) ? asset.value : [];
-                    const selected = (node.data as any)?.selected || [];
-                    const selectedOptions = items.filter((opt: any) => selected.includes(opt.id));
+
+                    // Handle both array format and SelectorAssetContent format
+                    let items: any[] = [];
+                    let selectedIds: string[] = [];
+
+                    if (Array.isArray(asset.value)) {
+                        // Array format: items are in asset.value, selected in node.data
+                        items = asset.value;
+                        selectedIds = (node.data as any)?.selected || [];
+                    } else {
+                        // SelectorAssetContent format: options and selected in asset.value
+                        const content = asset.value as any;
+                        items = content.options || [];
+                        selectedIds = content.selected || [];
+                    }
+
+                    const selectedOptions = items.filter((opt: any) => selectedIds.includes(opt.id));
                     return {
                         type: 'array',
                         value: selectedOptions,

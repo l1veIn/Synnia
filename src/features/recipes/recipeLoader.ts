@@ -1,113 +1,56 @@
+/**
+ * Recipe Loader - Loads YAML manifests
+ * Self-contained recipes, no mixin inheritance
+ */
+
 import { parse as parseYaml } from 'yaml';
 import * as LucideIcons from 'lucide-react';
-import {
-    RecipeManifest,
-    RecipeDefinition,
-    ManifestField,
-    manifestFieldToDefinition,
-} from '@/types/recipe';
-import { FieldDefinition } from '@/types/assets';
-import { createExecutor } from './executors';
+import type { RecipeDefinition, RecipeManifest, InputField } from '@/types/recipe';
+import { inputFieldToDefinition } from '@/types/recipe';
 
 // ============================================================================
-// Recipe Loader - Loads YAML manifests and creates RecipeDefinitions
+// Parse YAML to RecipeManifest
 // ============================================================================
 
-/**
- * Parse YAML content to RecipeManifest
- */
-export const parseManifest = (yamlContent: string): RecipeManifest => {
+export function parseManifest(yamlContent: string): RecipeManifest {
     const raw = parseYaml(yamlContent);
 
-    // Validate required fields
-    if (!raw.id) throw new Error('Recipe manifest missing "id"');
-    if (!raw.name) throw new Error('Recipe manifest missing "name"');
-    if (!raw.inputSchema) throw new Error('Recipe manifest missing "inputSchema"');
-    if (!raw.executor) throw new Error('Recipe manifest missing "executor"');
-
-    // Validate version (warn but don't fail for forward compatibility)
-    if (raw.version !== 1) {
-        console.warn(`[RecipeLoader] Recipe "${raw.id}" has unknown version: ${raw.version}, expected 1`);
+    // Validate version
+    if (raw.version !== 2) {
+        throw new Error(`Expected version 2, got ${raw.version}`);
     }
+
+    // Validate required fields
+    if (!raw.id) throw new Error('Recipe V2 manifest missing "id"');
+    if (!raw.name) throw new Error('Recipe V2 manifest missing "name"');
+    if (!raw.input) throw new Error('Recipe V2 manifest missing "input"');
+    if (!raw.model) throw new Error('Recipe V2 manifest missing "model"');
+    if (!raw.prompt) throw new Error('Recipe V2 manifest missing "prompt"');
+    if (!raw.output) throw new Error('Recipe V2 manifest missing "output"');
 
     return raw as RecipeManifest;
-};
+}
 
-/**
- * Get Lucide icon by name
- */
-const getIcon = (iconName?: string): LucideIcons.LucideIcon | undefined => {
+// ============================================================================
+// Get Lucide Icon
+// ============================================================================
+
+function getIcon(iconName?: string): LucideIcons.LucideIcon | undefined {
     if (!iconName) return undefined;
-
-    // Handle custom icon paths (./icon.svg) - return placeholder
-    if (iconName.startsWith('./') || iconName.startsWith('/')) {
-        return LucideIcons.FileCode2; // Placeholder for custom icons
-    }
-
-    // Look up Lucide icon by name
     const icon = (LucideIcons as any)[iconName];
     return typeof icon === 'function' ? icon : undefined;
-};
+}
 
-/**
- * Merge mixin schemas with recipe's own schema
- */
-export const mergeSchemas = (
-    recipeSchema: ManifestField[],
-    mixinSchemas: FieldDefinition[][]
-): FieldDefinition[] => {
-    const mergedFields = new Map<string, FieldDefinition>();
+// ============================================================================
+// Create RecipeDefinition from V2 Manifest
+// ============================================================================
 
-    // Add mixin fields first
-    for (const schema of mixinSchemas) {
-        for (const field of schema) {
-            mergedFields.set(field.key, field);
-        }
-    }
+export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefinition {
+    // Convert input fields to FieldDefinitions
+    const inputSchema = manifest.input.map(inputFieldToDefinition);
 
-    // Override/add recipe's own fields
-    for (const field of recipeSchema) {
-        const existing = mergedFields.get(field.key);
-        if (existing) {
-            // Merge with existing (recipe fields override mixin)
-            mergedFields.set(field.key, {
-                ...existing,
-                ...manifestFieldToDefinition(field),
-                // Preserve some fields if not explicitly set
-                label: field.label ?? existing.label,
-            });
-        } else {
-            mergedFields.set(field.key, manifestFieldToDefinition(field));
-        }
-    }
-
-    return Array.from(mergedFields.values());
-};
-
-/**
- * Create a RecipeDefinition from a manifest
- * This is the main entry point for loading recipes
- */
-export const createRecipeFromManifest = (
-    manifest: RecipeManifest,
-    getMixinRecipe?: (id: string) => RecipeDefinition | undefined
-): RecipeDefinition => {
-    // Resolve mixin schemas
-    const mixinSchemas: FieldDefinition[][] = [];
-    if (manifest.mixin && getMixinRecipe) {
-        for (const mixinId of manifest.mixin) {
-            const mixinRecipe = getMixinRecipe(mixinId);
-            if (mixinRecipe) {
-                mixinSchemas.push(mixinRecipe.inputSchema);
-            }
-        }
-    }
-
-    // Merge schemas
-    const inputSchema = mergeSchemas(manifest.inputSchema, mixinSchemas);
-
-    // Create executor
-    const execute = createExecutor(manifest.executor);
+    // Create executor function
+    const execute = createExecutor(manifest);
 
     return {
         id: manifest.id,
@@ -118,111 +61,232 @@ export const createRecipeFromManifest = (
         inputSchema,
         manifest,
         execute,
-        mixin: manifest.mixin,
     };
-};
+}
 
 // ============================================================================
-// Registry - Manages all loaded recipes
+// V2 Executor - Uses V2 manifest directly
+// ============================================================================
+
+import { ExecutionContext, ExecutionResult } from '@/types/recipe';
+import { callLLM } from '@features/models';
+import { interpolate } from './executors/utils';
+import { extractJson } from '@features/models/utils';
+
+function createExecutor(manifest: RecipeManifest) {
+    return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
+        const { inputs, modelConfig } = ctx;
+
+        // Determine model to use
+        const modelId = modelConfig?.modelId;
+        if (!modelId) {
+            return { success: false, error: 'No model selected' };
+        }
+
+        // Route by model category
+        const category = manifest.model.category;
+
+        if (category === 'image-generation' || category === 'video-generation') {
+            // Media execution path
+            return executeMedia(manifest, ctx, modelId);
+        } else {
+            // LLM execution path (default)
+            return executeLLM(manifest, ctx, modelId);
+        }
+    };
+}
+
+// ============================================================================
+// LLM Execution
+// ============================================================================
+
+async function executeLLM(
+    manifest: RecipeManifest,
+    ctx: ExecutionContext,
+    modelId: string
+): Promise<ExecutionResult> {
+    const { inputs, modelConfig, chatContext } = ctx;
+
+    // Build system prompt (supports {{variables}})
+    const systemPrompt = interpolate(manifest.prompt.system, inputs);
+
+    // Build user prompt (first turn only if no chat context)
+    let userPrompt: string;
+    if (chatContext && chatContext.length > 0) {
+        // Multi-turn: use last user message or inputs
+        const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
+        userPrompt = lastUserMsg?.content || interpolate(manifest.prompt.user, inputs);
+    } else {
+        // First turn: use template
+        userPrompt = interpolate(manifest.prompt.user, inputs);
+    }
+
+    // Call LLM
+    const llmResult = await callLLM({
+        modelId,
+        userPrompt,
+        systemPrompt,
+        temperature: modelConfig?.params?.temperature ?? manifest.model.defaultParams?.temperature,
+        maxTokens: modelConfig?.params?.maxTokens ?? manifest.model.defaultParams?.maxTokens,
+        jsonMode: manifest.output.format === 'json' && (modelConfig?.params?.jsonMode !== false),
+    });
+
+    if (!llmResult.success) {
+        return { success: false, error: llmResult.error };
+    }
+
+    // Parse output
+    let data: any;
+    if (manifest.output.format === 'json') {
+        const parsed = extractJson(llmResult.text || '');
+        if (!parsed.success) {
+            return { success: false, error: 'Failed to parse JSON response' };
+        }
+        data = parsed.data;
+    } else {
+        // Text/markdown: use raw text
+        data = llmResult.text || '';
+    }
+
+    return { success: true, data };
+}
+
+// ============================================================================
+// Media Execution (Image/Video Generation)
+// ============================================================================
+
+async function executeMedia(
+    manifest: RecipeManifest,
+    ctx: ExecutionContext,
+    modelId: string
+): Promise<ExecutionResult> {
+    const { inputs, modelConfig } = ctx;
+
+    try {
+        // Get the model plugin
+        const { getModel } = await import('@features/models');
+        const modelPlugin = getModel(modelId);
+        if (!modelPlugin) {
+            return { success: false, error: `Model not found: ${modelId}` };
+        }
+
+        // Get credentials from settings
+        const { getSettings, getProviderCredentials } = await import('@/lib/settings');
+        const settings = getSettings();
+        const provider = (modelConfig?.provider || modelPlugin.provider || (modelPlugin.supportedProviders || [])[0]) as import('@/lib/settings/types').ProviderKey;
+        const credentials = getProviderCredentials(settings, provider);
+
+        if (!credentials?.apiKey && !credentials?.baseUrl) {
+            return { success: false, error: `No credentials configured for ${provider}` };
+        }
+
+        // Extract inputs
+        const prompt = inputs.prompt || '';
+        const negativePrompt = inputs.negativePrompt;
+        const images = inputs.image ? [inputs.image] : undefined;
+
+        // Execute via model plugin
+        const modelResult = await modelPlugin.execute({
+            config: modelConfig?.params,
+            prompt,
+            negativePrompt,
+            images,
+            credentials: {
+                apiKey: credentials.apiKey || '',
+                baseUrl: credentials.baseUrl,
+            },
+        });
+
+        if (!modelResult.success) {
+            return { success: false, error: modelResult.error };
+        }
+
+        // Handle image output - prepare gallery data format
+        if (modelResult.data?.type === 'images' && modelResult.data.images) {
+            const { apiClient } = await import('@/lib/apiClient');
+
+            // Save images and return normalized gallery format
+            const galleryImages = await Promise.all(
+                modelResult.data.images.map(async (img: { url: string }, idx: number) => {
+                    const imageId = `gen-${Date.now()}-${idx}`;
+
+                    try {
+                        let result;
+                        if (img.url.startsWith('data:')) {
+                            result = await apiClient.saveProcessedImage(img.url);
+                        } else if (img.url.startsWith('http')) {
+                            result = await apiClient.downloadAndSaveImage(img.url);
+                        } else {
+                            return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
+                        }
+                        return { id: imageId, src: result.relativePath, starred: false, caption: prompt.slice(0, 50) };
+                    } catch (err) {
+                        console.error('Failed to save image:', err);
+                        return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
+                    }
+                })
+            );
+
+            return { success: true, data: galleryImages };
+        }
+
+        // Handle video output
+        if (modelResult.data?.type === 'video' && modelResult.data.videoUrl) {
+            return { success: true, data: { videoUrl: modelResult.data.videoUrl } };
+        }
+
+        return { success: true, data: modelResult.data };
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Media generation failed' };
+    }
+}
+
+// ============================================================================
+// Registry for V2 Recipes
 // ============================================================================
 
 class RecipeRegistry {
     private recipes = new Map<string, RecipeDefinition>();
     private manifests = new Map<string, RecipeManifest>();
 
-    /**
-     * Register a recipe from manifest YAML content
-     */
     registerFromYaml(yamlContent: string): RecipeDefinition {
         const manifest = parseManifest(yamlContent);
         return this.registerManifest(manifest);
     }
 
-    /**
-     * Register a recipe from a manifest object
-     */
     registerManifest(manifest: RecipeManifest): RecipeDefinition {
         this.manifests.set(manifest.id, manifest);
-
-        const recipe = createRecipeFromManifest(
-            manifest,
-            (id) => this.recipes.get(id)
-        );
-
+        const recipe = createRecipeFromManifest(manifest);
         this.recipes.set(recipe.id, recipe);
         return recipe;
     }
 
-    /**
-     * Register a custom executor recipe (for legacy/complex recipes)
-     */
-    registerCustom(recipe: RecipeDefinition): void {
-        this.recipes.set(recipe.id, recipe);
-    }
-
-    /**
-     * Get recipe by ID
-     */
     get(id: string): RecipeDefinition | undefined {
         return this.recipes.get(id);
     }
 
-    /**
-     * Get recipe with mixin resolution (re-resolve mixins)
-     */
-    getResolved(id: string): RecipeDefinition | undefined {
-        const manifest = this.manifests.get(id);
-        if (manifest) {
-            return createRecipeFromManifest(manifest, (mid) => this.recipes.get(mid));
-        }
-        return this.recipes.get(id);
-    }
-
-    /**
-     * Get all recipes
-     */
     getAll(): RecipeDefinition[] {
         return Array.from(this.recipes.values());
     }
 
-    /**
-     * Get recipes by category
-     */
     getByCategory(): Record<string, RecipeDefinition[]> {
         const grouped: Record<string, RecipeDefinition[]> = {};
-
         for (const recipe of this.recipes.values()) {
             const category = recipe.category || 'Other';
-            if (!grouped[category]) {
-                grouped[category] = [];
-            }
+            if (!grouped[category]) grouped[category] = [];
             grouped[category].push(recipe);
         }
-
         return grouped;
     }
 
-    /**
-     * Check if recipe exists
-     */
     has(id: string): boolean {
         return this.recipes.has(id);
     }
 
-    /**
-     * Clear all recipes
-     */
     clear(): void {
         this.recipes.clear();
         this.manifests.clear();
     }
 }
 
-// Global registry instance
 export const recipeRegistry = new RecipeRegistry();
-
-// Legacy exports for compatibility
-export const getRecipe = (id: string) => recipeRegistry.get(id);
-export const getResolvedRecipe = (id: string) => recipeRegistry.getResolved(id);
-export const getAllRecipes = () => recipeRegistry.getAll();
-export const getRecipesByCategory = () => recipeRegistry.getByCategory();

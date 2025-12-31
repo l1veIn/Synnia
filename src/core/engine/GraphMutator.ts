@@ -5,18 +5,7 @@ import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
-import { getRecipe } from '@features/recipes';
 import { OutputConfig } from '@/types/recipe';
-
-// Helper: Map old asset type strings to new ValueType
-function toValueType(assetType: string): ValueType {
-    switch (assetType) {
-        case 'text': return 'text';
-        case 'image': return 'image';
-        case 'json': return 'record';
-        default: return 'record';
-    }
-}
 
 // NOTE: Node-specific logic (default content, build from data, etc.)
 // is defined in each node's config via factory methods.
@@ -43,6 +32,7 @@ export class GraphMutator {
         data: any;
         position?: 'below' | 'right' | XYPosition;
         dockedTo?: string | '$prev';
+        assetConfig?: Record<string, any>;  // Universal Output Adapter: passed to asset.config
     }[] {
         if (!Array.isArray(data) || data.length === 0) {
             return [];
@@ -57,8 +47,10 @@ export class GraphMutator {
             return [];
         }
 
-        // Prepare schema from config
-        const schema = config.schema;
+        // Get schema from config.config (Universal Output Adapter pattern)
+        // Support both 'schema' and 'optionSchema' (for SelectorNode compatibility)
+        const nodeConfig = config.config || {};
+        const schema = nodeConfig.schema || nodeConfig.optionSchema;
 
         // Prepare title template resolver
         const resolveTitle = (count: number): string => {
@@ -80,6 +72,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
+                // Pass all node config transparently to asset.config
+                assetConfig: nodeConfig,
                 position: 'below' as const,
             }];
         }
@@ -104,6 +98,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
+                // Pass all node config transparently to asset.config
+                assetConfig: nodeConfig,
                 position: index === 0 ? 'below' as const : undefined,
                 dockedTo: index > 0 ? '$prev' as const : undefined,
             };
@@ -112,22 +108,26 @@ export class GraphMutator {
 
 
 
-    public addNode(type: NodeType | string, position: XYPosition, options: { valueType?: ValueType, content?: any, assetId?: string, assetName?: string, valueMeta?: any, style?: any } = {}) {
-        // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
-        const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
-
-        // Get meta - for virtual recipes, look up by the full type string
+    public addNode(type: NodeType | string, position: XYPosition, options: {
+        valueType?: ValueType,
+        content?: any,
+        assetId?: string,
+        assetName?: string,
+        valueMeta?: any,
+        style?: any,
+        assetConfig?: Record<string, any>  // Universal Output Adapter: passed to asset.config
+    } = {}) {
+        // Get meta and definition from registry
         const meta = nodeRegistry.getMeta(type) || nodeRegistry.getMeta(NodeType.FORM);
         const def = nodeRegistry.getDefinition(type);
 
-        // Node type is used directly (no legacy routing needed)
+        // Node type is used directly
         const finalType: string = type as string;
 
         // Asset creation logic - use node's create factory
         let assetId = options.assetId;
-        const hasCreate = def?.create !== undefined;
 
-        // Create asset for nodes with create factory
+        const hasCreate = def?.create !== undefined;
         if (hasCreate && !assetId) {
             const createResult = def!.create({});
             const valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
@@ -142,48 +142,30 @@ export class GraphMutator {
                 content = ''; // Fallback
             }
 
-            // Use AssetSystem - valueMeta is passed through from caller (no engine knowledge of structure)
-            assetId = this.engine.assets.create(valueType, content, { name, valueMeta: options.valueMeta });
-        }
+            // Merge config from createResult and options.assetConfig
+            // options.assetConfig takes precedence (from recipe output config)
+            const config = {
+                ...(createResult?.asset?.config || {}),
+                ...(options.assetConfig || {})
+            };
 
-        // Create asset for recipe nodes (FormAssetContent to store values)
-        if (isVirtualRecipe && !assetId) {
-            const recipeName = meta?.title || 'Recipe';
-
-            // Extract recipeId from the type (e.g., "recipe:my-recipe")
-            const recipeId = type.replace('recipe:', '');
-            const defaultValues: Record<string, any> = {};
-            let schema: any[] = [];
-
-            if (recipeId) {
-                const recipe = getRecipe(recipeId);
-                if (recipe?.inputSchema) {
-                    // Copy schema from recipe
-                    schema = recipe.inputSchema.map(field => ({ ...field }));
-                    // Extract default values
-                    for (const field of recipe.inputSchema) {
-                        if (field.defaultValue !== undefined) {
-                            defaultValues[field.key] = field.defaultValue;
-                        }
-                    }
-                }
-            }
-
-            const content = { schema, values: defaultValues };
-            assetId = this.engine.assets.create('record', content, { name: recipeName, config: { schema } });
+            // Use AssetSystem
+            assetId = this.engine.assets.create(valueType, content, {
+                name,
+                valueMeta: options.valueMeta,
+                config
+            });
         }
 
         const nodeTitle = (options as any).title || options.assetName || meta?.title || 'Node';
 
         // Build node data
-        const recipeId = isVirtualRecipe ? type.replace('recipe:', '') : undefined;
         const dockedTo = (options as any).dockedTo;
 
         const nodeData: any = {
             title: nodeTitle,
             state: 'idle',
             assetId,
-            recipeId,
             ...(dockedTo ? { dockedTo } : {}),
         };
 
@@ -193,9 +175,8 @@ export class GraphMutator {
             position,
             data: nodeData,
             style: {
-                // Use defaultStyle from node meta
+                // Use style from node meta
                 ...(meta?.style || {}),
-                ...(isVirtualRecipe ? { width: 280 } : {}), // Recipe nodes have fixed width
                 ...(options.style || {}),
             },
         };
@@ -266,26 +247,14 @@ export class GraphMutator {
         this.engine.setNodes(finalNodes);
     }
 
-    public detachNode(nodeId: string) {
-        // Reuse reparentNode logic which now handles transform
-        // VerticalStackBehavior.onChildRemove handles all cleanup (reset flags, styles, resize)
-        const node = this.engine.state.nodes.find(n => n.id === nodeId);
-        if (!node || !node.parentId) return;
-
-        // 1. Reparent to Root (triggers hooks)
-        this.engine.reparentNode(nodeId, undefined);
-
-        // Note: reparentNode automatically triggers fixGlobalLayout and setNodes
-    }
-
     public createShortcut(nodeId: string) {
         const { nodes } = this.engine.state;
         const node = nodes.find(n => n.id === nodeId);
         if (!node) return;
 
-        // Only nodes with create factory or RECIPE can have shortcuts
+        // Only nodes with create factory can have shortcuts
         const def = nodeRegistry.getDefinition(node.type);
-        const canShortcut = def?.create !== undefined || node.type === NodeType.RECIPE;
+        const canShortcut = def?.create !== undefined;
         if (!canShortcut) return;
 
         const newId = uuidv4();

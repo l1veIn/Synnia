@@ -34,13 +34,13 @@ export function useRunRecipe() {
 
         try {
             // --- Resolve Inputs ---
-            // RecordAsset: values are directly in asset.value (not wrapped in FormAssetContent)
+            // RecordAsset: form values are stored directly in asset.value
             let staticValues: Record<string, any> = {};
 
             if (node.data.assetId) {
                 const asset = store.assets[node.data.assetId as string];
                 if (asset?.value && typeof asset.value === 'object') {
-                    // Values are directly in asset.value for RecordAsset
+                    // Values are directly in asset.value
                     staticValues = asset.value as Record<string, any>;
                 }
             }
@@ -80,13 +80,23 @@ export function useRunRecipe() {
 
 
             // --- Build Context ---
+            // Get recipe-specific config from asset
+            const assetConfig = node.data.assetId
+                ? store.assets[node.data.assetId as string]?.config
+                : undefined;
+            const recipeConfig = assetConfig as any;
+
             const ctx: ExecutionContext = {
                 inputs: effectiveValues,
                 nodeId,
                 node,
                 engine: graphEngine,
-                manifest: recipe.manifest
+                manifest: recipe.manifest,
+                // Recipe V2: Include chat history and model config
+                chatContext: recipeConfig?.chatContext?.messages,
+                modelConfig: recipeConfig?.modelConfig,
             };
+
 
             // --- Execute ---
             const result = await recipe.execute(ctx);
@@ -101,8 +111,8 @@ export function useRunRecipe() {
             });
 
             // --- Build createNodes from output config if specified in manifest ---
-            const executor = recipe.manifest.executor as any;
-            const outputConfig = executor.output;
+            // V2 manifest: output is at top level, not nested under executor
+            const outputConfig = (recipe.manifest as any).output || (recipe.manifest as any).executor?.output;
 
             if (outputConfig && result.data && !result.createNodes) {
                 // Build nodes using GraphMutator
@@ -203,6 +213,7 @@ export function useRunRecipe() {
                         dockedToId = nodeSpec.dockedTo;
                     }
 
+
                     // Extract options that addNode expects from data
                     const { content, assetType, assetName, ...restData } = nodeSpec.data as any;
 
@@ -210,6 +221,7 @@ export function useRunRecipe() {
                         content,
                         assetType,
                         assetName,
+                        assetConfig: nodeSpec.assetConfig,  // Universal Output Adapter
                         ...restData,
                         ...(dockedToId ? { dockedTo: dockedToId } : {})
                     });

@@ -1,13 +1,13 @@
 // ============================================================================
 // Recipe Registry - Entry Point
-// Auto-loads all recipes from YAML files in builtin/ directory
+// V2: Loads recipes from v2/ directory using new flat manifest format
 // ============================================================================
 
-import { recipeRegistry } from './recipeLoader';
+import { recipeRegistry as internalRegistry } from './recipeLoader';
 import type { RecipeDefinition } from '@/types/recipe';
 
-// Import all YAML files eagerly using Vite's glob import
-const yamlModules = import.meta.glob('./builtin/**/*.yaml', {
+// Import all V2 YAML files eagerly
+const yamlModules = import.meta.glob('./v2/**/*.yaml', {
     eager: true,
     query: '?raw',
     import: 'default'
@@ -16,16 +16,19 @@ const yamlModules = import.meta.glob('./builtin/**/*.yaml', {
 // Build path mapping: recipeId -> directory path segments
 const recipePathMap = new Map<string, string[]>();
 
-// Register all YAML recipes and track their paths
+// Register all V2 YAML recipes
 for (const [filePath, content] of Object.entries(yamlModules)) {
     try {
-        const recipe = recipeRegistry.registerFromYaml(content as string);
+        const recipe = internalRegistry.registerFromYaml(content as string);
 
-        // Extract path from file path: ./builtin/agent/rag/retriever.yaml -> ['agent', 'rag']
-        const pathMatch = filePath.match(/\.\/builtin\/(.+)\/[^/]+\.yaml$/);
+        // Extract path from file path: ./v2/agent/naming-master.yaml -> ['agent']
+        const pathMatch = filePath.match(/\.\/v2\/(.+)\/[^/]+\.yaml$/);
         if (pathMatch) {
             const pathSegments = pathMatch[1].split('/');
             recipePathMap.set(recipe.id, pathSegments);
+        } else {
+            // Top-level recipe (e.g., ./v2/llm-call.yaml)
+            recipePathMap.set(recipe.id, []);
         }
     } catch (error) {
         console.error(`[RecipeRegistry] Failed to load ${filePath}:`, error);
@@ -52,7 +55,7 @@ export function getRecipePath(recipeId: string): string[] {
 }
 
 /**
- * Build a tree structure from all registered recipes based on their directory paths
+ * Build a tree structure from all registered recipes
  */
 export function getRecipeTree(): RecipeTreeNode {
     const root: RecipeTreeNode = {
@@ -62,14 +65,12 @@ export function getRecipeTree(): RecipeTreeNode {
         children: [],
     };
 
-    for (const recipe of recipeRegistry.getAll()) {
+    for (const recipe of internalRegistry.getAll()) {
         const pathSegments = recipePathMap.get(recipe.id) || ['Other'];
         insertIntoTree(root, pathSegments, recipe);
     }
 
-    // Sort children alphabetically (folders first, then recipes)
     sortTreeChildren(root);
-
     return root;
 }
 
@@ -79,7 +80,6 @@ function insertIntoTree(
     recipe: RecipeDefinition
 ): void {
     if (pathSegments.length === 0) {
-        // At target level, add recipe
         node.children = node.children || [];
         node.children.push({
             type: 'recipe',
@@ -93,7 +93,6 @@ function insertIntoTree(
     const [segment, ...rest] = pathSegments;
     node.children = node.children || [];
 
-    // Find or create folder
     let folder = node.children.find(
         (child) => child.type === 'folder' && child.name === segment
     );
@@ -114,7 +113,6 @@ function insertIntoTree(
 function sortTreeChildren(node: RecipeTreeNode): void {
     if (!node.children) return;
 
-    // Sort: folders first (alphabetically), then recipes (alphabetically)
     node.children.sort((a, b) => {
         if (a.type !== b.type) {
             return a.type === 'folder' ? -1 : 1;
@@ -122,7 +120,6 @@ function sortTreeChildren(node: RecipeTreeNode): void {
         return a.name.localeCompare(b.name);
     });
 
-    // Recursively sort children
     for (const child of node.children) {
         if (child.type === 'folder') {
             sortTreeChildren(child);
@@ -130,11 +127,12 @@ function sortTreeChildren(node: RecipeTreeNode): void {
     }
 }
 
-// Re-export everything from recipeLoader for backward compatibility
-export {
-    recipeRegistry,
-    getRecipe,
-    getResolvedRecipe,
-    getAllRecipes,
-    getRecipesByCategory,
-} from './recipeLoader';
+// ============================================================================
+// Public API
+// ============================================================================
+
+export const recipeRegistry = internalRegistry;
+export const getRecipe = (id: string) => internalRegistry.get(id);
+export const getResolvedRecipe = (id: string) => internalRegistry.get(id);
+export const getAllRecipes = () => internalRegistry.getAll();
+export const getRecipesByCategory = () => internalRegistry.getByCategory();

@@ -95,6 +95,67 @@ export interface RecordAsset extends BaseAsset {
 }
 
 // ==========================================
+// Recipe V2: Model & Chat Types
+// ==========================================
+
+/**
+ * AI Model Configuration
+ * Stores the selected model and its parameters for a Recipe
+ */
+export interface ModelConfig {
+    modelId: string;       // e.g., 'gpt-4-turbo'
+    provider?: string;     // e.g., 'openai'
+    params?: Record<string, any>; // e.g., { temperature: 0.7 }
+}
+
+/**
+ * Reference to another asset (for multi-modal or RAG)
+ */
+export interface AssetReference {
+    assetId: string;
+    type: 'image' | 'text' | 'file';
+}
+
+/**
+ * Chat Message Structure for multi-turn conversations
+ */
+export interface ChatMessage {
+    id: string;              // Unique ID
+    role: 'system' | 'user' | 'assistant';
+    content: string;         // Text content
+    timestamp: number;
+
+    // References to other assets (for multi-modal or RAG)
+    attachments?: AssetReference[];
+
+    // Link to generated output (for 'assistant' messages)
+    outputAssetId?: string;
+}
+
+/**
+ * Chat Context - stores conversation history for a Recipe
+ */
+export interface ChatContext {
+    messages: ChatMessage[];
+}
+
+/**
+ * Recipe-specific Asset Configuration
+ * Extends RecordAssetConfig with model and chat context
+ */
+export interface RecipeAssetConfig extends RecordAssetConfig {
+    // The ID of the recipe definition (e.g., 'text-generator')
+    recipeId: string;
+
+    // AI Model Configuration
+    modelConfig?: ModelConfig;
+
+    // Conversation History
+    chatContext?: ChatContext;
+}
+
+
+// ==========================================
 // Array Asset (Tables, Selectors, Galleries)
 // ==========================================
 

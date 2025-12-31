@@ -35,17 +35,28 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - now from asset.value
+    // Get content with defaults
+    // V2 architecture: rows in asset.value, columns in asset.config
     const content: TableAssetContent = useMemo(() => {
-        const raw = (state.asset?.value as TableAssetContent) || {};
+        const config = (state.asset?.config as any) || {};
+        const rawValue = state.asset?.value;
+
+        // Handle value: can be array (rows) or object with rows property
+        let rows: Record<string, any>[] = [];
+        if (Array.isArray(rawValue)) {
+            rows = rawValue;
+        } else if (rawValue && typeof rawValue === 'object' && Array.isArray((rawValue as any).rows)) {
+            rows = (rawValue as any).rows;
+        }
+
         return {
-            columns: raw.columns ?? [],
-            rows: raw.rows ?? [],
-            showRowNumbers: raw.showRowNumbers ?? true,
-            allowAddRow: raw.allowAddRow ?? true,
-            allowDeleteRow: raw.allowDeleteRow ?? true,
+            columns: config.columns ?? [],
+            rows,
+            showRowNumbers: config.showRowNumbers ?? true,
+            allowAddRow: config.allowAddRow ?? true,
+            allowDeleteRow: config.allowDeleteRow ?? true,
         };
-    }, [state.asset?.value]);
+    }, [state.asset?.value, state.asset?.config]);
 
     return (
         <NodeShell

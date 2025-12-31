@@ -1,0 +1,159 @@
+# Chief Storyteller - V2 Format (English)
+version: 2
+
+id: storyteller-en
+name: Chief Storyteller
+description: Develop a complete character Soul Profile (Visual DNA & Personality) from a name
+category: Agent
+icon: BookOpen
+
+# ============================================================================
+# Input Form
+# ============================================================================
+input:
+  - key: selectedName
+    label: Selected Name
+    type: string
+    required: true
+    placeholder: "e.g., Kiko"
+    connection: input
+
+  - key: tagline
+    label: Tagline (Optional)
+    type: string
+    placeholder: "The catchphrase associated with the name"
+    connection: input
+
+  - key: rationale
+    label: Name Rationale (Optional)
+    type: string
+    widget: textarea
+    placeholder: "Why this name was chosen"
+    connection: input
+
+  - key: productType
+    label: Product Type
+    type: string
+    required: true
+    connection: input
+
+  - key: brandTone
+    label: Brand Tone
+    type: string
+    required: true
+    connection: input
+
+# ============================================================================
+# Model Requirements
+# ============================================================================
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.8
+    maxTokens: 4096
+
+# ============================================================================
+# Prompt Templates
+# ============================================================================
+prompt:
+  system: |
+    You are the Chief Storyteller (Agent B) of the Soulmate Protocol.
+    Your goal is to breathe life into a name, transforming it into a fully realized Virtual IP Character "Soul Profile".
+
+    【INPUT DATA】
+    - Name & Identity: The seed of the character.
+    - Product & Tone: Defines the character's purpose and vibe.
+
+    【YOUR TASK】
+    Develop a "Soul Profile" with the following components:
+
+    1. **Visual DNA** - A comprehensive text description including:
+       - Physical appearance (body type, face, expressions, posture)
+       - Fashion/Clothing style (specific outfits related to brand tone)
+       - Key accessories (that relate to the product function)
+       - Color palette (as text description)
+
+    2. **Personality** - A text description including:
+       - Archetype (e.g., The Sage, The Jester, The Caregiver)
+       - Voice style (e.g., "Short & punchy", "Empathetic & soft")
+       - 3 key personality traits
+    
+    3. **Origin Story** - A 2-3 sentence backstory explaining who they are and why they exist.
+
+    4. **Brand Synergy** - How this character embodies the specific Product Type.
+
+    【OUTPUT FORMAT】
+    Return a SINGLE JSON object inside an array.
+    IMPORTANT: ALL fields must be simple STRINGS, not nested objects.
+    
+    Format:
+    [
+      {
+        "name": "Character Name",
+        "title": "The [Title]",
+        "visualDNA": "A comprehensive paragraph describing appearance, fashion, accessories, and colors...",
+        "personality": "Archetype: [X]. Voice: [Y]. Traits: [A], [B], [C].",
+        "story": "Origin story paragraph...",
+        "synergy": "How the character embodies the product..."
+      }
+    ]
+
+    【CRITICAL】
+    - ALL values must be STRINGS, not nested objects!
+    - visualDNA and personality should be descriptive paragraphs, NOT objects with sub-fields.
+    - Ensure the character FEELS like the Brand Tone.
+    - Return ONLY valid JSON.
+
+  user: |
+    Create a Soul Profile for:
+    
+    **Name:** {{selectedName}}
+    **Tagline:** {{tagline}}
+    **Rationale:** {{rationale}}
+    
+    **Brand Context:**
+    - Product: {{productType}}
+    - Tone: {{brandTone}}
+
+    Bring this character to life.
+
+# ============================================================================
+# Output Definition
+# ============================================================================
+output:
+  format: json
+  node: form
+  title: "Soul Profile: {{name}}"
+  collapsed: false
+  config:
+    schema:
+      - key: name
+        label: Name
+        type: string
+      - key: title
+        label: Title
+        type: string
+      - key: visualDNA
+        label: Visual DNA
+        type: string
+        widget: textarea
+      - key: personality
+        label: Personality
+        type: string
+        widget: textarea
+      - key: story
+        label: Origin Story
+        type: string
+        widget: textarea
+      - key: synergy
+        label: Brand Synergy
+        type: string
+        widget: textarea
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+advanced:
+  multiTurn: true

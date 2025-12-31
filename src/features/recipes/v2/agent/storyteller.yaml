@@ -1,0 +1,159 @@
+# 首席叙事官 - V2 Format
+version: 2
+
+id: storyteller
+name: 首席叙事官
+description: 根据名称发展完整的角色灵魂档案（视觉DNA和人格矩阵）
+category: Agent
+icon: BookOpen
+
+# ============================================================================
+# Input Form
+# ============================================================================
+input:
+  - key: name
+    label: 选定名称
+    type: string
+    required: true
+    placeholder: "例如：小可"
+    connection: input
+
+  - key: tagline
+    label: 标语（可选）
+    type: string
+    placeholder: "与名称相关的口号"
+    connection: input
+
+  - key: rationale
+    label: 命名理由（可选）
+    type: string
+    widget: textarea
+    placeholder: "为什么选择这个名字"
+    connection: input
+
+  - key: productType
+    label: 产品类型
+    type: string
+    required: true
+    connection: input
+
+  - key: brandTone
+    label: 品牌调性
+    type: string
+    required: true
+    connection: input
+
+# ============================================================================
+# Model Requirements
+# ============================================================================
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.8
+    maxTokens: 4096
+
+# ============================================================================
+# Prompt Templates
+# ============================================================================
+prompt:
+  system: |
+    你是 Soulmate Protocol 的首席叙事官（Agent B）。
+    你的目标是为一个名字注入生命，将其转化为完整的虚拟IP角色"灵魂档案"。
+
+    【输入数据】
+    - 名称与身份：角色的种子。
+    - 产品与调性：定义角色的目的和氛围。
+
+    【你的任务】
+    开发包含以下组件的"灵魂档案"：
+
+    1. **视觉DNA** - 一段综合性文字描述，包括：
+       - 外貌特征（体型、面部、表情、姿态）
+       - 时尚/服装风格（与品牌调性相关的具体服装）
+       - 关键配饰（与产品功能相关）
+       - 色彩方案（文字描述）
+
+    2. **人格** - 一段文字描述，包括：
+       - 原型（如：智者、小丑、看护者）
+       - 说话风格（如："简短有力"、"共情柔和"、"科技感"）
+       - 3个关键性格特征
+    
+    3. **起源故事** - 2-3句话的背景故事，解释他们是谁，为什么存在。
+
+    4. **品牌协同** - 这个角色如何体现特定的产品类型。
+
+    【输出格式】
+    返回一个包含单个JSON对象的数组。
+    重要：所有字段必须是简单字符串，不是嵌套对象！
+    
+    格式：
+    [
+      {
+        "name": "角色名称",
+        "title": "[头衔]",
+        "visualDNA": "一段综合性描述，涵盖外貌、时尚、配饰和色彩...",
+        "personality": "原型：[X]。说话风格：[Y]。特征：[A]、[B]、[C]。",
+        "story": "起源故事段落...",
+        "synergy": "角色如何体现产品..."
+      }
+    ]
+
+    【关键要求】
+    - 所有值必须是字符串，不是嵌套对象！
+    - visualDNA 和 personality 应该是描述性段落，不是带子字段的对象。
+    - 确保角色感觉像品牌调性（如调性是"专业"，不要做成小丑）。
+    - 只返回有效的JSON。
+
+  user: |
+    为以下内容创建灵魂档案：
+    
+    **名称：** {{name}}
+    **标语：** {{tagline}}
+    **理由：** {{rationale}}
+    
+    **品牌背景：**
+    - 产品：{{productType}}
+    - 调性：{{brandTone}}
+
+    让这个角色活起来。
+
+# ============================================================================
+# Output Definition
+# ============================================================================
+output:
+  format: json
+  node: form
+  title: "灵魂档案: {{name}}"
+  collapsed: false
+  config:
+    schema:
+      - key: name
+        label: 名称
+        type: string
+      - key: title
+        label: 头衔
+        type: string
+      - key: visualDNA
+        label: 视觉DNA
+        type: string
+        widget: textarea
+      - key: personality
+        label: 人格
+        type: string
+        widget: textarea
+      - key: story
+        label: 起源故事
+        type: string
+        widget: textarea
+      - key: synergy
+        label: 品牌协同
+        type: string
+        widget: textarea
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+advanced:
+  multiTurn: true

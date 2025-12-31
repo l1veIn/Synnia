@@ -13,7 +13,7 @@ import { sortNodesTopologically } from '@core/utils/graph';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@core/utils/graph';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
+import { validateConnection, wouldCreateCycle, resolvePort, resolveInputValue } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 
 export class InteractionSystem {
@@ -179,7 +179,7 @@ export class InteractionSystem {
     };
 
     public onConnect: OnConnect = (connection) => {
-        const { nodes, edges } = this.engine.state;
+        const { nodes, edges, assets } = this.engine.state;
 
         // Cycle detection: check if adding this edge would create a cycle
         if (wouldCreateCycle(nodes, edges, connection)) {
@@ -200,6 +200,42 @@ export class InteractionSystem {
         }
 
         this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
+
+        // === Auto-fill linked field value ===
+        // When connecting to a field-level input, resolve and fill the value
+        const targetHandle = connection.targetHandle;
+        if (targetHandle && !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle)) {
+            const sourceId = connection.source;
+            const targetId = connection.target;
+            const sourcePortId = connection.sourceHandle || 'origin';
+
+            // Get fresh state to ensure latest selection/values
+            const freshState = this.engine.state;
+            const sourceNode = freshState.nodes.find(n => n.id === sourceId);
+            const targetNode = freshState.nodes.find(n => n.id === targetId);
+
+            if (sourceNode && targetNode) {
+                const sourceAsset = sourceNode.data.assetId ? freshState.assets[sourceNode.data.assetId] : null;
+
+                const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
+                const value = resolveInputValue(portValue, targetHandle);
+
+                if (value !== undefined) {
+                    // Update target asset's value with the resolved field value
+                    const targetAssetId = targetNode.data.assetId as string;
+                    if (targetAssetId) {
+                        const currentAsset = this.engine.assets.get(targetAssetId);
+                        if (currentAsset) {
+                            const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
+                                ? currentAsset.value as Record<string, any>
+                                : {};
+                            const newValue = { ...currentValue, [targetHandle]: value };
+                            this.engine.assets.update(targetAssetId, newValue);
+                        }
+                    }
+                }
+            }
+        }
     }
     public onNodeDrag: OnNodeDrag = (_event, node) => {
         // Detect hover over Rack/Group for highlighting
@@ -234,22 +270,7 @@ export class InteractionSystem {
             }
         }
 
-        // Container reparenting disabled - RACK/GROUP node types removed
-        const targets: any[] = [];
-
-        let foundId: string | null = null;
-        // Find topmost intersecting container
-        for (let i = targets.length - 1; i >= 0; i--) {
-            if (isNodeInsideGroup(node as SynniaNode, targets[i])) {
-                foundId = targets[i].id;
-                break;
-            }
-        }
-
-        // Optimization: Only update store if changed
-        if (highlightedGroupId !== foundId) {
-            useWorkflowStore.setState({ highlightedGroupId: foundId });
-        }
+        // Container highlighting disabled - RACK/GROUP node types removed
 
         // === Dock Preview Detection ===
         // Check if this dockable node is near another dockable node for docking preview
@@ -359,25 +380,6 @@ export class InteractionSystem {
                 this.engine.setNodes(updatedNodes);
                 return;
             }
-        }
-
-        // Container reparenting disabled - RACK/GROUP node types removed
-        const targets: any[] = [];
-
-        if (node.parentId) return;
-
-        let droppedTarget: SynniaNode | null = null;
-
-        for (let i = targets.length - 1; i >= 0; i--) {
-            const target = targets[i];
-            if (isNodeInsideGroup(node, target)) {
-                droppedTarget = target;
-                break;
-            }
-        }
-
-        if (droppedTarget) {
-            this.engine.reparentNode(node.id, droppedTarget.id);
         }
     };
 

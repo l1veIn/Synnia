@@ -122,7 +122,34 @@ export function resolveInputValue(
             if (targetFieldKey in firstItem) {
                 return firstItem[targetFieldKey];
             }
-            // Return entire first item if field not found
+
+            // Smart field matching: try to find a partial match
+            // e.g., targetFieldKey "selectedName" should match source field "name"
+            const sourceKeys = Object.keys(firstItem);
+            const targetLower = targetFieldKey.toLowerCase();
+
+            // Try to find a source key that the target key ends with or contains
+            for (const sourceKey of sourceKeys) {
+                const sourceLower = sourceKey.toLowerCase();
+                // Check if target ends with source (e.g., "selectedName" ends with "name")
+                if (targetLower.endsWith(sourceLower) && sourceLower.length >= 3) {
+                    return firstItem[sourceKey];
+                }
+                // Check if target contains source as a word (e.g., "productType" contains "type")  
+                if (targetLower.includes(sourceLower) && sourceLower.length >= 4) {
+                    return firstItem[sourceKey];
+                }
+            }
+
+            // Fallback: return first string field value if target expects a simple value
+            for (const sourceKey of sourceKeys) {
+                const val = firstItem[sourceKey];
+                if (typeof val === 'string' && sourceKey !== 'id') {
+                    return val;
+                }
+            }
+
+            // Return entire first item if no better match found
             return firstItem;
         }
         return firstItem;

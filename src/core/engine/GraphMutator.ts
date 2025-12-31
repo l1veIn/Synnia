@@ -98,6 +98,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
+                // Pass all node config transparently to asset.config
+                assetConfig: nodeConfig,
                 position: index === 0 ? 'below' as const : undefined,
                 dockedTo: index > 0 ? '$prev' as const : undefined,
             };

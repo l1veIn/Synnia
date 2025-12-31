@@ -26,15 +26,13 @@ portRegistry.register(NodeType.RECIPE, {
             dataType: 'json',
             label: 'Reference Output',
             resolver: (node, asset) => {
+                // V2 architecture: form values stored directly in asset.value
                 if (asset?.value && typeof asset.value === 'object') {
-                    const content = asset.value as any;
-                    if (content.values) {
-                        return {
-                            type: 'json',
-                            value: content.values,
-                            meta: { nodeId: node.id, portId: 'reference' }
-                        };
-                    }
+                    return {
+                        type: 'json',
+                        value: asset.value,
+                        meta: { nodeId: node.id, portId: 'reference' }
+                    };
                 }
                 return { type: 'json', value: {}, meta: { nodeId: node.id, portId: 'reference' } };
             }

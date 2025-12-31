@@ -13,7 +13,7 @@ import { sortNodesTopologically } from '@core/utils/graph';
 import { v4 as uuidv4 } from 'uuid';
 import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@core/utils/graph';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
+import { validateConnection, wouldCreateCycle, resolvePort, resolveInputValue } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 
 export class InteractionSystem {
@@ -209,15 +209,12 @@ export class InteractionSystem {
             const targetId = connection.target;
             const sourcePortId = connection.sourceHandle || 'origin';
 
-            // Use PortResolver to get the value - get FRESH state inside the async callback
-            import('@core/engine/ports').then(({ resolvePort, resolveInputValue }) => {
-                // Get fresh state from store to ensure latest selection/values
-                const freshState = this.engine.state;
-                const sourceNode = freshState.nodes.find(n => n.id === sourceId);
-                const targetNode = freshState.nodes.find(n => n.id === targetId);
+            // Get fresh state to ensure latest selection/values
+            const freshState = this.engine.state;
+            const sourceNode = freshState.nodes.find(n => n.id === sourceId);
+            const targetNode = freshState.nodes.find(n => n.id === targetId);
 
-                if (!sourceNode || !targetNode) return;
-
+            if (sourceNode && targetNode) {
                 const sourceAsset = sourceNode.data.assetId ? freshState.assets[sourceNode.data.assetId] : null;
 
                 const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
@@ -241,7 +238,7 @@ export class InteractionSystem {
                         }
                     }
                 }
-            });
+            }
         }
     }
     public onNodeDrag: OnNodeDrag = (_event, node) => {

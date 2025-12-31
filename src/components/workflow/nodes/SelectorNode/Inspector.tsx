@@ -21,37 +21,37 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setValue } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // Get saved content - handle both array and SelectorAssetContent formats
-    const savedContent: SelectorAssetContent = useMemo(() => {
-        const raw = asset?.value;
-        const config = (asset?.config as any) || {};
-
-        // Handle array format (from Recipe output / definition.create)
-        if (Array.isArray(raw)) {
-            return {
-                mode: config.mode ?? 'multi',
-                showSearch: config.showSearch ?? true,
-                optionSchema: config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
-                options: raw.map((item: any, i: number) => ({
-                    id: item.id || `opt-${i}`,
-                    ...item,
-                })),
-                selected: config.selected || [],
-            };
-        }
-
-        // Handle SelectorAssetContent format (from Inspector save - legacy)
-        const contentObj = (raw as SelectorAssetContent) || {};
+    // Get config and options from the new clean data model
+    const config = useMemo(() => {
+        const cfg = (asset?.config as any) || {};
         return {
-            mode: contentObj.mode ?? config.mode ?? 'multi',
-            showSearch: contentObj.showSearch ?? true,
-            optionSchema: contentObj.optionSchema ?? config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
-            options: contentObj.options ?? [],
-            selected: contentObj.selected ?? [],
+            mode: cfg.mode ?? 'multi' as 'single' | 'multi',
+            showSearch: cfg.showSearch ?? true,
+            optionSchema: cfg.optionSchema ?? DEFAULT_OPTION_SCHEMA,
         };
-    }, [asset?.value, asset?.config]);
+    }, [asset?.config]);
+
+    const options: SelectorOption[] = useMemo(() => {
+        const raw = asset?.value;
+        if (Array.isArray(raw)) {
+            return raw.map((item: any, i: number) => ({
+                id: item.id || `opt-${i}`,
+                ...item,
+            }));
+        }
+        return [];
+    }, [asset?.value]);
+
+    // For backward compatibility with savedContent usage in existing code
+    const savedContent: SelectorAssetContent = useMemo(() => ({
+        mode: config.mode,
+        showSearch: config.showSearch,
+        optionSchema: config.optionSchema,
+        options,
+        selected: [],  // Selected is now in node.data, not asset
+    }), [config, options]);
 
     // Draft state for settings
     const [draftMode, setDraftMode] = useState<'single' | 'multi'>('multi');
@@ -90,10 +90,9 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             JSON.stringify(draftSchema) !== JSON.stringify(savedContent.optionSchema);
     }, [draftMode, draftShowSearch, draftSchema, savedContent, isInitialized]);
 
-    // Save settings
+    // Save settings - uses updateConfig for config values
     const handleSaveSettings = () => {
-        setValue({
-            ...savedContent,
+        updateConfig({
             mode: draftMode,
             showSearch: draftShowSearch,
             optionSchema: draftSchema,
@@ -123,7 +122,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Edit existing option
     const handleEditOption = (optionId: string) => {
-        const option = savedContent.options.find(o => o.id === optionId);
+        const option = options.find(o => o.id === optionId);
         if (option) {
             setEditingOption(option);
             setDraftOptionValues({ ...option });
@@ -131,33 +130,30 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         }
     };
 
-    // Delete option
+    // Delete option - saves only options array to asset.value
     const handleDeleteOption = (optionId: string) => {
-        setValue({
-            ...savedContent,
-            options: savedContent.options.filter(o => o.id !== optionId),
-            selected: savedContent.selected.filter(id => id !== optionId),
-        });
+        const newOptions = options.filter(o => o.id !== optionId);
+        setValue(newOptions);
         toast.success('Option deleted');
     };
 
-    // Save option from dialog
+    // Save option from dialog - saves only options array to asset.value
     const handleSaveOption = () => {
         if (!editingOption) return;
 
         const updatedOption = { ...draftOptionValues, id: editingOption.id };
-        const exists = savedContent.options.some(o => o.id === editingOption.id);
+        const exists = options.some(o => o.id === editingOption.id);
 
         let newOptions: SelectorOption[];
         if (exists) {
-            newOptions = savedContent.options.map(o =>
+            newOptions = options.map(o =>
                 o.id === editingOption.id ? updatedOption : o
             );
         } else {
-            newOptions = [...savedContent.options, updatedOption];
+            newOptions = [...options, updatedOption];
         }
 
-        setValue({ ...savedContent, options: newOptions });
+        setValue(newOptions);
         setIsOptionDialogOpen(false);
         setEditingOption(null);
         toast.success(exists ? 'Option updated' : 'Option added');
@@ -214,11 +210,8 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                         ...r,
                                     }));
                                     setDraftSchema(newSchema);
-                                    setValue({
-                                        ...savedContent,
-                                        optionSchema: newSchema,
-                                        options: [...savedContent.options, ...newOptions],
-                                    });
+                                    updateConfig({ optionSchema: newSchema });
+                                    setValue([...options, ...newOptions]);
                                     toast.success(`Added ${newOptions.length} options`);
                                 }}
                                 placeholder="Describe the selector options (e.g., 'color options with name and hex code')..."
@@ -230,12 +223,12 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                         {/* Options list */}
                         <div className="space-y-1">
-                            {savedContent.options.length === 0 ? (
+                            {options.length === 0 ? (
                                 <div className="text-xs text-muted-foreground text-center py-8 border rounded-md border-dashed">
                                     No options defined
                                 </div>
                             ) : (
-                                savedContent.options.map((option, idx) => (
+                                options.map((option, idx) => (
                                     <div
                                         key={option.id}
                                         className="flex items-center gap-2 p-2 border rounded-md bg-muted/30 hover:bg-muted/50"
@@ -265,7 +258,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                         {/* Selection info */}
                         <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                            {savedContent.selected.length} of {savedContent.options.length} selected
+                            0 of {options.length} selected
                         </div>
                     </div>
                 </TabsContent>
@@ -349,7 +342,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>
-                            {editingOption && savedContent.options.some(o => o.id === editingOption.id)
+                            {editingOption && options.some(o => o.id === editingOption.id)
                                 ? 'Edit Option'
                                 : 'Add Option'
                             }

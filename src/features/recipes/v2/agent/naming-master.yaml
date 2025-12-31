@@ -116,7 +116,7 @@ output:
   title: "命名方案 ({{count}}项)"
   collapsed: false
   config:
-    mode: multi
+    mode: single
     optionSchema:
       - key: name
         label: 名称

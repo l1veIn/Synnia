@@ -27,7 +27,7 @@ export const definition: NodeDefinition = {
         const schemaFields = schema || DEFAULT_OPTION_SCHEMA;
         return {
             data: {
-                optionSchema: schemaFields,
+                // Only UI state in node.data
                 selected: [] as string[],
             },
             asset: {
@@ -36,7 +36,10 @@ export const definition: NodeDefinition = {
                     id: item.id || `opt-${i}`,
                     ...item,
                 })),
-                config: { mode: 'multi' as const },
+                config: {
+                    mode: 'multi' as const,
+                    optionSchema: schemaFields,  // Schema belongs in asset.config
+                },
             },
         };
     },

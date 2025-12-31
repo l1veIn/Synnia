@@ -117,7 +117,7 @@ output:
   collapsed: false
   config:
     mode: multi
-    schema:
+    optionSchema:
       - key: name
         label: 名称
         type: string

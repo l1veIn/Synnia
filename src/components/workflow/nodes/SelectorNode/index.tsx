@@ -34,31 +34,32 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     const content: SelectorAssetContent = useMemo(() => {
         const raw = state.asset?.value;
         const config = (state.asset?.config as any) || {};
+        const nodeData = state.node?.data as any;
 
-        // Handle array format (from Recipe output with Universal Output Adapter)
+        // Handle array format (from Recipe output / definition.create)
         if (Array.isArray(raw)) {
             return {
                 mode: config.mode ?? 'multi',
                 showSearch: config.showSearch ?? true,
-                optionSchema: config.schema ?? DEFAULT_OPTION_SCHEMA,
+                optionSchema: config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
                 options: raw.map((item: any, i: number) => ({
                     id: item.id || `opt-${i}`,
                     ...item,
                 })),
-                selected: config.selected || [],
+                selected: nodeData?.selected || [],
             };
         }
 
-        // Handle SelectorAssetContent format (from Inspector save)
+        // Handle SelectorAssetContent format (from Inspector save - legacy)
         const contentObj = (raw as SelectorAssetContent) || {};
         return {
             mode: contentObj.mode ?? config.mode ?? 'multi',
             showSearch: contentObj.showSearch ?? true,
-            optionSchema: contentObj.optionSchema ?? config.schema ?? DEFAULT_OPTION_SCHEMA,
+            optionSchema: contentObj.optionSchema ?? config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
             options: contentObj.options ?? [],
-            selected: contentObj.selected ?? [],
+            selected: contentObj.selected ?? nodeData?.selected ?? [],
         };
-    }, [state.asset?.value, state.asset?.config]);
+    }, [state.asset?.value, state.asset?.config, state.node?.data]);
 
     // Local search state
     const [searchQuery, setSearchQuery] = useState('');

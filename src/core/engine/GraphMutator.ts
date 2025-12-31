@@ -7,16 +7,6 @@ import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/gr
 import { XYPosition } from '@xyflow/react';
 import { OutputConfig } from '@/types/recipe';
 
-// Helper: Map old asset type strings to new ValueType
-function toValueType(assetType: string): ValueType {
-    switch (assetType) {
-        case 'text': return 'text';
-        case 'image': return 'image';
-        case 'json': return 'record';
-        default: return 'record';
-    }
-}
-
 // NOTE: Node-specific logic (default content, build from data, etc.)
 // is defined in each node's config via factory methods.
 // See: src/lib/engine/引擎设计原则.md

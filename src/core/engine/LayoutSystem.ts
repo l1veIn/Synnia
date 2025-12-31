@@ -11,44 +11,6 @@ export class LayoutSystem {
     }
 
     /**
-     * Toggles a Group's collapse state using its defined Behavior.
-     */
-    public toggleGroupCollapse(groupId: string) {
-        const { nodes } = this.engine.state;
-        const group = nodes.find(n => n.id === groupId);
-        if (!group) return;
-
-        const isCollapsed = !group.data.collapsed;
-
-        // 1. Get Behavior
-        const behavior = behaviorRegistry.getByType(group.type as NodeType);
-        let currentNodes = [...nodes];
-
-        // 2. Apply onCollapse hook if exists
-        if (behavior.onCollapse) {
-            const context = this.createContext(currentNodes);
-            const patches = behavior.onCollapse(group, isCollapsed, context);
-            currentNodes = this.applyPatches(currentNodes, patches);
-        } else {
-            // Default behavior: just toggle the data flag
-            currentNodes = currentNodes.map(n => n.id === groupId ? { ...n, data: { ...n.data, collapsed: isCollapsed } } : n);
-        }
-
-        // 3. Fix Global Layout (Handle nested resizing)
-        currentNodes = this.fixGlobalLayout(currentNodes);
-
-        this.engine.setNodes(currentNodes);
-    }
-
-    /**
-     * Simple auto-layout trigger for a group; currently reuses the global layout pass.
-     */
-    public autoLayoutGroup(_groupId: string) {
-        const nodes = this.fixGlobalLayout(this.engine.state.nodes);
-        this.engine.setNodes(nodes);
-    }
-
-    /**
      * Toggles an individual node's collapse state (e.g. Asset Node), triggering a Rack reflow.
      * Now delegates to the node's Behavior (e.g. StandardAssetBehavior) for logic.
      */

@@ -1,0 +1,50 @@
+# Video Generation - V2 Format
+version: 2
+
+id: video-generation
+name: Video Generation
+description: Generate videos from text prompts
+category: Media
+icon: Film
+
+# ============================================================================
+# Input Form
+# ============================================================================
+input:
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    placeholder: "Describe the video scene..."
+    connection: input
+
+# ============================================================================
+# Model Requirements
+# ============================================================================
+model:
+  category: video-generation
+  capabilities: []
+  defaultParams: {}
+
+# ============================================================================
+# Prompt Templates (Not used for media, but required by schema)
+# ============================================================================
+prompt:
+  system: ""
+  user: "{{prompt}}"
+
+# ============================================================================
+# Output Definition
+# ============================================================================
+output:
+  format: json
+  node: video
+  title: "Video: {{prompt}}"
+  collapsed: false
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+advanced:
+  multiTurn: false

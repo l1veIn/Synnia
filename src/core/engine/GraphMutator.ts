@@ -5,7 +5,6 @@ import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
-import { getRecipe } from '@features/recipes';
 import { OutputConfig } from '@/types/recipe';
 
 // Helper: Map old asset type strings to new ValueType
@@ -125,14 +124,11 @@ export class GraphMutator {
         style?: any,
         assetConfig?: Record<string, any>  // Universal Output Adapter: passed to asset.config
     } = {}) {
-        // Check if it's a virtual recipe type (e.g., "recipe:math.divide")
-        const isVirtualRecipe = typeof type === 'string' && type.startsWith('recipe:');
-
-        // Get meta - for virtual recipes, look up by the full type string
+        // Get meta and definition from registry
         const meta = nodeRegistry.getMeta(type) || nodeRegistry.getMeta(NodeType.FORM);
         const def = nodeRegistry.getDefinition(type);
 
-        // Node type is used directly (no legacy routing needed)
+        // Node type is used directly
         const finalType: string = type as string;
 
         // Asset creation logic - use node's create factory
@@ -167,14 +163,12 @@ export class GraphMutator {
         const nodeTitle = (options as any).title || options.assetName || meta?.title || 'Node';
 
         // Build node data
-        const recipeId = isVirtualRecipe ? type.replace('recipe:', '') : undefined;
         const dockedTo = (options as any).dockedTo;
 
         const nodeData: any = {
             title: nodeTitle,
             state: 'idle',
             assetId,
-            recipeId,
             ...(dockedTo ? { dockedTo } : {}),
         };
 
@@ -184,9 +178,8 @@ export class GraphMutator {
             position,
             data: nodeData,
             style: {
-                // Use defaultStyle from node meta
+                // Use style from node meta
                 ...(meta?.style || {}),
-                ...(isVirtualRecipe ? { width: 280 } : {}), // Recipe nodes have fixed width
                 ...(options.style || {}),
             },
         };
@@ -274,9 +267,9 @@ export class GraphMutator {
         const node = nodes.find(n => n.id === nodeId);
         if (!node) return;
 
-        // Only nodes with create factory or RECIPE can have shortcuts
+        // Only nodes with create factory can have shortcuts
         const def = nodeRegistry.getDefinition(node.type);
-        const canShortcut = def?.create !== undefined || node.type === NodeType.RECIPE;
+        const canShortcut = def?.create !== undefined;
         if (!canShortcut) return;
 
         const newId = uuidv4();

@@ -62,6 +62,7 @@ for (const recipe of recipes) {
             category: (recipe.category || 'Recipe') as NodeCategory,
             description: recipe.description || '',
             hidden: true, // Recipe nodes are picked via recipe tree, not node picker
+            style: { width: 280 },  // Fixed width for Recipe nodes
         },
         create: () => {
             // Extract default values from recipe input schema

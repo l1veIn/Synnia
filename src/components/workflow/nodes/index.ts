@@ -6,6 +6,9 @@ import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
+import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
+import { modelRegistry } from '@features/models';
+import type { ModelConfig } from '@/types/assets';
 
 // Import node definitions directly to avoid circular dependency
 import { definition as selectorDef } from './SelectorNode/definition';
@@ -60,12 +63,50 @@ for (const recipe of recipes) {
             description: recipe.description || '',
             hidden: true, // Recipe nodes are picked via recipe tree, not node picker
         },
-        create: () => ({
-            asset: {
-                valueType: 'record' as const,
-                value: {},  // Empty form values - schema/config comes from GraphMutator
-            },
-        }),
+        create: () => {
+            // Extract default values from recipe input schema
+            const defaultValues: Record<string, any> = {};
+            if (recipe.inputSchema) {
+                for (const field of recipe.inputSchema) {
+                    if (field.defaultValue !== undefined) {
+                        defaultValues[field.key] = field.defaultValue;
+                    }
+                }
+            }
+
+            // Initialize modelConfig with default model if available
+            let modelConfig: ModelConfig | undefined;
+            const settings = getSettings();
+            if (settings) {
+                // Get model category from recipe manifest, fallback to 'llm'
+                const category = (recipe.manifest as any)?.model?.category || 'llm';
+                const defaultModelId = getDefaultModel(settings, category);
+                if (defaultModelId) {
+                    const model = modelRegistry.get(defaultModelId);
+                    if (model) {
+                        const providers = model.supportedProviders || [model.provider];
+                        const availableProvider = providers.find(p =>
+                            isProviderConfigured(settings, p as any)
+                        );
+                        if (availableProvider) {
+                            modelConfig = {
+                                modelId: defaultModelId,
+                                provider: availableProvider,
+                                params: {},
+                            };
+                        }
+                    }
+                }
+            }
+
+            return {
+                asset: {
+                    valueType: 'record' as const,
+                    value: defaultValues,
+                    config: { recipeId: recipe.id, modelConfig } as any,
+                },
+            };
+        },
     });
 
     // Register dynamic ports for recipe nodes

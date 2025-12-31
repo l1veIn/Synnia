@@ -29,27 +29,29 @@ interface RecipeNodeInspectorProps {
 export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProps) => {
     const node = useWorkflowStore(s => nodeId ? s.nodes.find(n => n.id === nodeId) : undefined);
     const edges = useWorkflowStore(s => s.edges);
-    const nodeData = node?.data as any;
-
-    // Get recipe definition (schema comes from here)
-    const recipeId = nodeData?.recipeId;
-    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // Get asset for values storage
     const { asset, setValue, updateConfig } = useAsset(assetId);
+
+    // Get recipeId from asset.config (V2 architecture)
+    const assetConfig = asset?.config as RecipeAssetConfig | undefined;
+    const recipeId = assetConfig?.recipeId;
+
+    // Get recipe definition (schema comes from here)
+    const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // RecordAsset: form values are stored directly in asset.value
     const savedValues = useMemo(() => {
         if (asset && typeof asset.value === 'object' && asset.value !== null) {
             return asset.value as Record<string, any>;
         }
-        return nodeData?.inputs || {};
-    }, [asset?.value, nodeData]);
+        return {};
+    }, [asset?.value]);
 
     // Get recipe-specific config
-    const recipeConfig = useMemo(() => {
-        return (asset?.config as RecipeAssetConfig) || { schema: [], recipeId: recipeId || '' };
-    }, [asset?.config, recipeId]);
+    const recipeConfig = useMemo((): RecipeAssetConfig => {
+        return (assetConfig || { recipeId: recipeId || '' }) as RecipeAssetConfig;
+    }, [assetConfig, recipeId]);
 
     // Draft state - local edits before save
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});

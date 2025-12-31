@@ -11,7 +11,7 @@ icon: BookOpen
 # Input Form
 # ============================================================================
 input:
-  - key: selectedName
+  - key: name
     label: 选定名称
     type: string
     required: true
@@ -109,7 +109,7 @@ prompt:
   user: |
     为以下内容创建灵魂档案：
     
-    **名称：** {{selectedName}}
+    **名称：** {{name}}
     **标语：** {{tagline}}
     **理由：** {{rationale}}
     

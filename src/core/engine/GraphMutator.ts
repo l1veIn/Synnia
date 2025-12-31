@@ -140,8 +140,12 @@ export class GraphMutator {
                 content = ''; // Fallback
             }
 
-            // Merge config from createResult and options
-            const config = createResult?.asset?.config || options.assetConfig;
+            // Merge config from createResult and options.assetConfig
+            // options.assetConfig takes precedence (from recipe output config)
+            const config = {
+                ...(createResult?.asset?.config || {}),
+                ...(options.assetConfig || {})
+            };
 
             // Use AssetSystem
             assetId = this.engine.assets.create(valueType, content, {

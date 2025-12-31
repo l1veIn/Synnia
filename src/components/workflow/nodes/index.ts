@@ -63,7 +63,7 @@ for (const recipe of recipes) {
         create: () => ({
             asset: {
                 valueType: 'record' as const,
-                value: { schema: [], values: {} },
+                value: {},  // Empty form values - schema/config comes from GraphMutator
             },
         }),
     });

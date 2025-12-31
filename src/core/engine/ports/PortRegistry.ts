@@ -25,7 +25,12 @@ class PortRegistry {
      * Get all output ports for a node
      */
     getOutputPorts(node: SynniaNode, asset: Asset | null): PortDefinition[] {
-        const config = this.configs.get(node.type);
+        // Try exact match first, then fallback to base type for virtual types (e.g., recipe:xxx -> recipe)
+        let config = this.configs.get(node.type);
+        if (!config && node.type.includes(':')) {
+            const baseType = node.type.split(':')[0];
+            config = this.configs.get(baseType);
+        }
         if (!config) return [];
 
         const outputs: PortDefinition[] = [];
@@ -47,7 +52,12 @@ class PortRegistry {
      * Get all input ports for a node
      */
     getInputPorts(node: SynniaNode, asset: Asset | null): PortDefinition[] {
-        const config = this.configs.get(node.type);
+        // Try exact match first, then fallback to base type for virtual types
+        let config = this.configs.get(node.type);
+        if (!config && node.type.includes(':')) {
+            const baseType = node.type.split(':')[0];
+            config = this.configs.get(baseType);
+        }
         if (!config) return [];
 
         const inputs: PortDefinition[] = [];

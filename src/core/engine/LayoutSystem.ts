@@ -46,58 +46,12 @@ export class LayoutSystem {
     }
 
     /**
-     * Recursively updates layout for all Containers using their Behaviors.
-     * Uses a Bottom-Up approach to ensure inner containers resize before outer ones.
+     * Updates layout for nodes.
+     * Primarily handles docking relationships (sticky constraints).
      */
     public fixGlobalLayout(nodes: SynniaNode[]): SynniaNode[] {
-        // 1. Build a Map for fast access/updates (Simulation State)
-        const nodeMap = new Map(nodes.map(n => [n.id, n]));
-
-        // 2. Helper to get depth (cacheable if needed, but tree is small enough usually)
-        const getDepth = (node: SynniaNode): number => {
-            let depth = 0;
-            let current = node;
-            while (current.parentId && nodeMap.has(current.parentId)) {
-                depth++;
-                current = nodeMap.get(current.parentId)!;
-            }
-            return depth;
-        };
-
-        // 3. Sort nodes by depth (Deepest first)
-        // We only care about nodes that have children, but iterating all is safe if behavior.onLayout is checked
-        const sortedNodes = [...nodes].sort((a, b) => getDepth(b) - getDepth(a));
-
-        // 4. Bubble Up
-        for (const container of sortedNodes) {
-            const behavior = behaviorRegistry.getByType(container.type as NodeType);
-
-            // If this node has a layout behavior
-            if (behavior.onLayout) {
-                // Get *current* children from the simulation state (they might have been updated by their own layout step)
-                const currentChildren = Array.from(nodeMap.values()).filter(n => n.parentId === container.id);
-
-                // Create context based on current simulation
-                const context: EngineContext = {
-                    getNodes: () => Array.from(nodeMap.values()),
-                    getNode: (id) => nodeMap.get(id)
-                };
-
-                // Calculate Layout
-                const patches = behavior.onLayout(container, currentChildren, context);
-
-                // Apply updates to the simulation map
-                patches.forEach(p => {
-                    const target = nodeMap.get(p.id);
-                    if (target) {
-                        nodeMap.set(p.id, this.mergeNode(target, p.patch));
-                    }
-                });
-            }
-        }
-
-        const laidOutNodes = Array.from(nodeMap.values());
-        return this.fixDockingLayout(laidOutNodes);
+        // No container layout needed - directly apply docking
+        return this.fixDockingLayout(nodes);
     }
 
     /**

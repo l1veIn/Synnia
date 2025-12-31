@@ -234,22 +234,7 @@ export class InteractionSystem {
             }
         }
 
-        // Container reparenting disabled - RACK/GROUP node types removed
-        const targets: any[] = [];
-
-        let foundId: string | null = null;
-        // Find topmost intersecting container
-        for (let i = targets.length - 1; i >= 0; i--) {
-            if (isNodeInsideGroup(node as SynniaNode, targets[i])) {
-                foundId = targets[i].id;
-                break;
-            }
-        }
-
-        // Optimization: Only update store if changed
-        if (highlightedGroupId !== foundId) {
-            useWorkflowStore.setState({ highlightedGroupId: foundId });
-        }
+        // Container highlighting disabled - RACK/GROUP node types removed
 
         // === Dock Preview Detection ===
         // Check if this dockable node is near another dockable node for docking preview
@@ -359,25 +344,6 @@ export class InteractionSystem {
                 this.engine.setNodes(updatedNodes);
                 return;
             }
-        }
-
-        // Container reparenting disabled - RACK/GROUP node types removed
-        const targets: any[] = [];
-
-        if (node.parentId) return;
-
-        let droppedTarget: SynniaNode | null = null;
-
-        for (let i = targets.length - 1; i >= 0; i--) {
-            const target = targets[i];
-            if (isNodeInsideGroup(node, target)) {
-                droppedTarget = target;
-                break;
-            }
-        }
-
-        if (droppedTarget) {
-            this.engine.reparentNode(node.id, droppedTarget.id);
         }
     };
 

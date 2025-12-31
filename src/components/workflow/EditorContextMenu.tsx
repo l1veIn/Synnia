@@ -34,9 +34,6 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const { screenToFlowPosition } = useReactFlow();
 
   const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
-  const hasParent = !!targetNode?.parentId;
-  const parentNode = hasParent ? nodes.find(n => n.id === targetNode?.parentId) : null;
-  const parentLabel = parentNode ? 'Container' : '';
 
   const isShortcuttable = false;
   // const isShortcuttable = targetNode && [NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
@@ -143,11 +140,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     }
   };
 
-  const handleDetach = () => {
-    if (contextMenuTarget?.id) {
-      graphEngine.mutator.detachNode(contextMenuTarget.id);
-    }
-  };
+
 
   const handleDelete = () => {
     const selectedNodes = nodes.filter(n => n.selected);
@@ -252,11 +245,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 {contextMenuTarget.type === 'group' ? 'Group Actions' : 'Node Actions'}
               </ContextMenuLabel>
               <ContextMenuSeparator />
-              {hasParent && (
-                <ContextMenuItem onSelect={handleDetach}>
-                  Detach from {parentLabel}
-                </ContextMenuItem>
-              )}
+
               <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
               {/* Only Asset Nodes can be shortcutted */}
               {isShortcuttable && (

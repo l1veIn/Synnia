@@ -240,18 +240,6 @@ export class GraphMutator {
         this.engine.setNodes(finalNodes);
     }
 
-    public detachNode(nodeId: string) {
-        // Reuse reparentNode logic which now handles transform
-        // VerticalStackBehavior.onChildRemove handles all cleanup (reset flags, styles, resize)
-        const node = this.engine.state.nodes.find(n => n.id === nodeId);
-        if (!node || !node.parentId) return;
-
-        // 1. Reparent to Root (triggers hooks)
-        this.engine.reparentNode(nodeId, undefined);
-
-        // Note: reparentNode automatically triggers fixGlobalLayout and setNodes
-    }
-
     public createShortcut(nodeId: string) {
         const { nodes } = this.engine.state;
         const node = nodes.find(n => n.id === nodeId);

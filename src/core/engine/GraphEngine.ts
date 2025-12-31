@@ -46,19 +46,16 @@ export class GraphEngine {
     // INSTRUCTION SET (PRIMITIVES) - MEMO
     // =========================================================================
 
-    // --- 1. Hierarchy & Transform ---
-    // [DONE] reparentNode: Smart move preserving absolute position.
-
-    // --- 2. Selection & Focus ---
+    // --- 1. Selection & Focus ---
     // [DONE] selectNodes: Batch selection control.
     // [DONE] deselectAll: Global cleanup.
 
-    // --- 3. Topology (Edges) ---
+    // --- 2. Topology (Edges) ---
     // [DONE] connect: Safe edge creation using xyflow helper.
     // [DONE] disconnect: Remove specific edge.
     // [DONE] cleanNodeEdges: Cascade delete edges for a node.
 
-    // --- 4. State & Locks ---
+    // --- 3. State & Locks ---
     // [DONE] lockNode: Toggle interactive capability.
     // [DONE] setNodeVisibility: Toggle hidden state.
 
@@ -83,12 +80,11 @@ export class GraphEngine {
             return n;
         });
 
-        // Optimization: Only trigger layout if geometry or hierarchy changed
+        // Optimization: Only trigger layout if geometry changed
         const affectsLayout =
             patch.position !== undefined ||
             patch.width !== undefined ||
             patch.height !== undefined ||
-            patch.parentId !== undefined ||
             patch.measured !== undefined ||
             patch.style !== undefined ||
             (patch.data && (
@@ -121,7 +117,6 @@ export class GraphEngine {
                     u.patch.position !== undefined ||
                     u.patch.width !== undefined ||
                     u.patch.height !== undefined ||
-                    u.patch.parentId !== undefined ||
                     u.patch.measured !== undefined ||
                     u.patch.style !== undefined ||
                     (u.patch.data && (
@@ -186,120 +181,6 @@ export class GraphEngine {
             height: dimensions.height,
             style: { width: dimensions.width, height: dimensions.height }
         });
-    }
-
-    /**
-     * Sets a node's parent and INTELLIGENTLY updates its position to maintain
-     * visual consistency (World Position).
-     * 
-     * Formula: LocalPos = WorldPos - ParentWorldPos
-     */
-    public reparentNode(nodeId: string, newParentId: string | undefined) {
-        this.reparentNodes([nodeId], newParentId);
-    }
-
-    /**
-     * Batch version of reparentNode. 
-     * Handles coordinate transformation AND Lifecycle Hooks (onChildAdd/Remove).
-     */
-    public reparentNodes(nodeIds: string[], newParentId: string | undefined) {
-        const { nodes } = this.state;
-        const targetNodes = nodes.filter(n => nodeIds.includes(n.id));
-        if (targetNodes.length === 0) return;
-
-        // 0. Prepare Context
-        const context: EngineContext = {
-            getNodes: () => this.state.nodes,
-            getNode: (id) => this.state.nodes.find(n => n.id === id)
-        };
-
-        // 1. Calculate New Parent's Absolute Position (once)
-        let newParentAbsPos = { x: 0, y: 0 };
-        let newParentNode: SynniaNode | undefined;
-
-        if (newParentId) {
-            newParentNode = nodes.find(n => n.id === newParentId);
-            const parentAbs = this.getNodeAbsolutePosition(newParentId, nodes);
-            if (parentAbs) {
-                newParentAbsPos = parentAbs;
-            } else {
-                console.warn(`New parent ${newParentId} not found, falling back to root.`);
-            }
-        }
-
-        const pendingPatches: { id: string, patch: Partial<SynniaNode> }[] = [];
-
-        targetNodes.forEach(node => {
-            if (node.parentId === newParentId) return;
-
-            // --- A. Lifecycle: Leave Old Parent ---
-            if (node.parentId) {
-                const oldParent = nodes.find(n => n.id === node.parentId);
-                if (oldParent) {
-                    const behavior = behaviorRegistry.getByType(oldParent.type as NodeType);
-                    if (behavior.onChildRemove) {
-                        const leavePatches = behavior.onChildRemove(oldParent, node, context);
-                        // These patches might target the child (unlocking it) or the parent
-                        leavePatches.forEach(p => pendingPatches.push(p));
-                    }
-                }
-            }
-
-            // --- B. Coordinate Transform ---
-            // Calculate Node's current Absolute (World) Position
-            const nodeAbsPos = this.getNodeAbsolutePosition(node.id, nodes);
-
-            // If nodeAbsPos is null, node is invalid, skip transform but keep processing
-            let newLocalPos = node.position;
-            if (nodeAbsPos) {
-                newLocalPos = {
-                    x: nodeAbsPos.x - newParentAbsPos.x,
-                    y: nodeAbsPos.y - newParentAbsPos.y
-                };
-            }
-
-            // Push the reparent patch
-            // Note: We use a distinct object because we might have collected patches for this node above
-            // Logic below handles merging if multiple patches target same ID, or we just push separate updates
-            // (updateNodes handles last-write-wins for same ID in map, so we should merge manually here or ensure order)
-            // Ideally we merge all changes for 'node.id' into one patch object.
-
-            // For simplicity in this loop, we push specific primitive updates.
-            pendingPatches.push({
-                id: node.id,
-                patch: {
-                    parentId: newParentId,
-                    position: newLocalPos,
-                    extent: newParentId ? 'parent' : undefined
-                }
-            });
-
-            // --- C. Lifecycle: Enter New Parent ---
-            if (newParentNode) {
-                const behavior = behaviorRegistry.getByType(newParentNode.type as NodeType);
-                if (behavior.onChildAdd) {
-                    // Note: pass 'node' (current state). The patch above hasn't applied yet.
-                    // The hook might overwrite position/draggable/etc.
-                    const enterPatches = behavior.onChildAdd(newParentNode, node, context);
-                    enterPatches.forEach(p => pendingPatches.push(p));
-                }
-            }
-        });
-
-        // 3. Apply All Updates
-        if (pendingPatches.length > 0) {
-            // We need to merge patches for the same ID to ensure consistency
-            // e.g. Transform sets 'position', onChildAdd also sets 'position' (e.g. Rack) -> onChildAdd should win (it's last in the loop)
-            this.updateNodes(pendingPatches);
-        }
-
-        // 4. Fix Layout
-        // We need to fetch FRESH nodes because updateNodes updated the store
-        const freshNodes = this.state.nodes;
-        const fixedNodes = this.layout.fixGlobalLayout(freshNodes) as SynniaNode[];
-
-        // Ensure topological order (Parent before Child)
-        this.setNodes(sortNodesTopologically(fixedNodes));
     }
 
     /**

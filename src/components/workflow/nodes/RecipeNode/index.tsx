@@ -53,8 +53,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const { state, actions } = useNode(id);
     const { runRecipe } = useRunRecipe();
 
-    const nodeData = state.node?.data as any;
-    const recipeId = nodeData?.recipeId;
+    // Get recipeId from asset.config (V2 architecture)
+    const assetConfig = state.asset?.config as { recipeId?: string } | undefined;
+    const recipeId = assetConfig?.recipeId;
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     const isRunning = state.executionState === 'running';
@@ -88,7 +89,7 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     }, [state.asset]);
 
     // Get execution result values
-    const executionResult = nodeData?.executionResult || {};
+    const executionResult = (state.node?.data as any)?.executionResult || {};
 
     // Merge values: for disabled fields, prefer executionResult
     const values = useMemo(() => {

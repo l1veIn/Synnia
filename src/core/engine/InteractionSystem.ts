@@ -6,7 +6,8 @@ import {
     OnEdgesChange,
     applyNodeChanges,
     applyEdgeChanges,
-    addEdge
+    addEdge,
+    Connection
 } from '@xyflow/react';
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { sortNodesTopologically } from '@core/utils/graph';
@@ -15,6 +16,8 @@ import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@co
 import { useWorkflowStore } from '@/store/workflowStore';
 import { validateConnection, wouldCreateCycle, resolvePort, resolveInputValue } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
+import type { ConnectionContext } from '@core/engine/types/behavior';
 
 export class InteractionSystem {
     private engine: GraphEngine;
@@ -201,42 +204,59 @@ export class InteractionSystem {
 
         this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
 
-        // === Auto-fill linked field value ===
-        // When connecting to a field-level input, resolve and fill the value
-        const targetHandle = connection.targetHandle;
-        if (targetHandle && !['origin', 'product', 'output', 'trigger', 'array'].includes(targetHandle)) {
-            const sourceId = connection.source;
-            const targetId = connection.target;
-            const sourcePortId = connection.sourceHandle || 'origin';
+        // === IoC: Delegate to target node's onConnect behavior ===
+        this.handleConnectionBehavior(connection);
+    }
 
-            // Get fresh state to ensure latest selection/values
-            const freshState = this.engine.state;
-            const sourceNode = freshState.nodes.find(n => n.id === sourceId);
-            const targetNode = freshState.nodes.find(n => n.id === targetId);
+    /**
+     * Handle connection behavior via IoC pattern.
+     * If target node's behavior has onConnect, use it.
+     * Otherwise, fall back to legacy auto-fill logic.
+     */
+    private handleConnectionBehavior(connection: Connection): void {
+        const { nodes, assets } = this.engine.state;
+        const sourceNode = nodes.find(n => n.id === connection.source);
+        const targetNode = nodes.find(n => n.id === connection.target);
+        if (!sourceNode || !targetNode) return;
 
-            if (sourceNode && targetNode) {
-                const sourceAsset = sourceNode.data.assetId ? freshState.assets[sourceNode.data.assetId] : null;
+        const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
+        const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
 
-                const portValue = resolvePort(sourceNode as any, sourceAsset as any, sourcePortId);
-                const value = resolveInputValue(portValue, targetHandle);
+        // Build ConnectionContext
+        const ctx: ConnectionContext = {
+            getNodes: () => this.engine.state.nodes,
+            getNode: (id) => this.engine.state.nodes.find(n => n.id === id),
+            sourceNode,
+            targetNode,
+            edge: {
+                id: '',
+                source: connection.source,
+                target: connection.target,
+                sourceHandle: connection.sourceHandle ?? undefined,
+                targetHandle: connection.targetHandle ?? undefined,
+            } as SynniaEdge,
+            sourceAsset: sourceAsset as any,
+            targetAsset: targetAsset as any,
+        };
 
-                if (value !== undefined) {
-                    // Update target asset's value with the resolved field value
-                    const targetAssetId = targetNode.data.assetId as string;
-                    if (targetAssetId) {
-                        const currentAsset = this.engine.assets.get(targetAssetId);
-                        if (currentAsset) {
-                            const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
-                                ? currentAsset.value as Record<string, any>
-                                : {};
-                            const newValue = { ...currentValue, [targetHandle]: value };
-                            this.engine.assets.update(targetAssetId, newValue);
-                        }
-                    }
+        // Try behavior.onConnect first (IoC)
+        const behavior = behaviorRegistry.get(targetNode.type);
+        if (behavior.onConnect) {
+            const updates = behavior.onConnect(ctx);
+            if (updates && targetNode.data.assetId) {
+                const currentAsset = this.engine.assets.get(targetNode.data.assetId);
+                if (currentAsset) {
+                    const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
+                        ? currentAsset.value as Record<string, any>
+                        : {};
+                    const newValue = { ...currentValue, ...updates };
+                    this.engine.assets.update(targetNode.data.assetId, newValue);
                 }
             }
         }
+        // Note: All nodes now have onConnect behaviors, legacy fallback removed
     }
+
     public onNodeDrag: OnNodeDrag = (_event, node) => {
         // Detect hover over Rack/Group for highlighting
         const { nodes, highlightedGroupId } = this.engine.state;
@@ -269,8 +289,6 @@ export class InteractionSystem {
                 }
             }
         }
-
-        // Container highlighting disabled - RACK/GROUP node types removed
 
         // === Dock Preview Detection ===
         // Check if this dockable node is near another dockable node for docking preview

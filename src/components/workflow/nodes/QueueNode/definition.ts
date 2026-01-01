@@ -1,9 +1,9 @@
 import { ListTodo } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { QueueNode } from './index';
 import { Inspector } from './Inspector';
+import { QueueBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.QUEUE,
@@ -43,7 +43,7 @@ export const definition: NodeDefinition = {
             return [];
         },
     },
-    behavior: StandardAssetBehavior,
+    behavior: QueueBehavior,
     ports: {
         static: [
             {
@@ -51,15 +51,6 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'array',
                 label: 'Completed Results',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const tasks = Array.isArray(asset.value) ? asset.value : (asset.value as any).tasks || [];
-                    return {
-                        type: 'array',
-                        value: tasks.filter((t: any) => t.status === 'success').map((t: any) => t.result),
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
             }
         ]
     },

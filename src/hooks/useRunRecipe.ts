@@ -118,8 +118,7 @@ export function useRunRecipe() {
                 // Build nodes using GraphMutator
                 const nodeSpecs = graphEngine.mutator.buildNodesFromConfig(
                     Array.isArray(result.data) ? result.data : [result.data],
-                    outputConfig,
-                    nodeId
+                    outputConfig
                 );
                 result.createNodes = nodeSpecs;
             }

@@ -1,10 +1,10 @@
 import { List } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { SelectorNode } from './index';
 import { DEFAULT_OPTION_SCHEMA } from './types';
 import { Inspector } from './Inspector';
+import { SelectorBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.SELECTOR,
@@ -52,7 +52,7 @@ export const definition: NodeDefinition = {
         },
         mergeItems: (existing, incoming) => [...existing, ...incoming],
     },
-    behavior: StandardAssetBehavior,
+    behavior: SelectorBehavior,
     ports: {
         static: [
             {
@@ -60,31 +60,7 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'array',
                 label: 'Selected Items',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-
-                    // Handle both array format and SelectorAssetContent format
-                    let items: any[] = [];
-                    let selectedIds: string[] = [];
-
-                    if (Array.isArray(asset.value)) {
-                        // Array format: items are in asset.value, selected in node.data
-                        items = asset.value;
-                        selectedIds = (node.data as any)?.selected || [];
-                    } else {
-                        // SelectorAssetContent format: options and selected in asset.value
-                        const content = asset.value as any;
-                        items = content.options || [];
-                        selectedIds = content.selected || [];
-                    }
-
-                    const selectedOptions = items.filter((opt: any) => selectedIds.includes(opt.id));
-                    return {
-                        type: 'array',
-                        value: selectedOptions,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
+                // resolver now handled by SelectorBehavior.resolveOutput
             }
         ]
     },

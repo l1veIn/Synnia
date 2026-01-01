@@ -1,9 +1,9 @@
 import { FileText } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { TextNode } from './index';
 import { TextNodeInspector } from './Inspector';
+import { TextBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.TEXT,
@@ -23,7 +23,7 @@ export const definition: NodeDefinition = {
     create: ({ data }: CreateContext) => ({
         asset: { valueType: 'text' as const, value: data || '' },
     }),
-    behavior: StandardAssetBehavior,
+    behavior: TextBehavior,
     ports: {
         static: [
             {
@@ -31,11 +31,6 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'text',
                 label: 'Text Output',
-                resolver: (node, asset) => ({
-                    type: 'text',
-                    value: asset?.value || '',
-                    meta: { nodeId: node.id, portId: 'output' }
-                })
             }
         ]
     },

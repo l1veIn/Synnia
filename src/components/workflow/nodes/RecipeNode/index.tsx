@@ -10,7 +10,7 @@ import { Play, Trash2, ScrollText, ChevronDown, ChevronUp, Loader2, AlertTriangl
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { RecipeNodeInspector } from './Inspector';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
+import { RecipeBehavior } from './behavior';
 import { getResolvedRecipe } from '@features/recipes';
 import { checkSchemaCompatibility } from '@features/recipes/utils/schemaCompat';
 import { modelRegistry } from '@features/models';
@@ -25,23 +25,13 @@ portRegistry.register(NodeType.RECIPE, {
             direction: 'output',
             dataType: 'json',
             label: 'Reference Output',
-            resolver: (node, asset) => {
-                // V2 architecture: form values stored directly in asset.value
-                if (asset?.value && typeof asset.value === 'object') {
-                    return {
-                        type: 'json',
-                        value: asset.value,
-                        meta: { nodeId: node.id, portId: 'reference' }
-                    };
-                }
-                return { type: 'json', value: {}, meta: { nodeId: node.id, portId: 'reference' } };
-            }
+            // resolver now handled by RecipeBehavior.resolveOutput
         }
     ]
 });
 
 // --- Behavior ---
-export const behavior = StandardAssetBehavior;
+export const behavior = RecipeBehavior;
 
 // Note: RecipeNodes are registered dynamically in nodes/index.ts for each recipe
 export { RecipeNode as Node, RecipeNodeInspector as Inspector };

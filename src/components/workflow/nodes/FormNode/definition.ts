@@ -1,11 +1,10 @@
 import { Braces } from 'lucide-react';
 import { NodeType } from '@/types/project';
 import { FieldDefinition, RecordAsset, isRecordAsset } from '@/types/assets';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
-import { useWorkflowStore } from '@/store/workflowStore';
 import { FormNode } from './index';
 import { FormNodeInspector } from './Inspector';
+import { FormBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.FORM,
@@ -42,7 +41,7 @@ export const definition: NodeDefinition = {
             return JSON.stringify(keysA) === JSON.stringify(keysB);
         },
     },
-    behavior: StandardAssetBehavior,
+    behavior: FormBehavior,
     ports: {
         static: [
             {
@@ -50,15 +49,6 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'json',
                 label: 'JSON Output',
-                resolver: (node, asset) => {
-                    if (!asset) return null;
-                    // Values are now directly in asset.value for RecordAsset
-                    return {
-                        type: 'json',
-                        value: asset.value || {},
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
             },
             {
                 id: 'array',
@@ -66,33 +56,6 @@ export const definition: NodeDefinition = {
                 dataType: 'array',
                 label: 'Array Output',
                 semantic: true,
-                resolver: (node, asset) => {
-                    const store = useWorkflowStore.getState();
-                    const chain: any[] = [];
-
-                    let currentId: string | null = node.id;
-                    while (currentId) {
-                        const currentNode = store.nodes.find(n => n.id === currentId);
-                        if (!currentNode) break;
-
-                        const nodeAsset = currentNode.data.assetId
-                            ? store.assets[currentNode.data.assetId]
-                            : undefined;
-
-                        if (nodeAsset && nodeAsset.value) {
-                            // Values are now directly in asset.value
-                            chain.unshift(nodeAsset.value);
-                        }
-
-                        currentId = currentNode.data.dockedTo as string | null;
-                    }
-
-                    return {
-                        type: 'array',
-                        value: chain,
-                        meta: { nodeId: node.id, portId: 'array' }
-                    };
-                }
             }
         ]
     },

@@ -11,7 +11,7 @@ import type { Asset, FieldDefinition } from '@/types/assets';
 /**
  * Data type that can flow through ports
  */
-export type PortDataType = 'text' | 'json' | 'image' | 'video' | 'array' | 'any';
+export type PortDataType = 'text' | 'json' | 'video' | 'array' | 'any';
 
 /**
  * Standardized data packet exchanged between ports
@@ -158,8 +158,8 @@ export function jsonValue(
 }
 
 /**
- * Create an image PortValue
+ * Create an image PortValue (returns json with url field)
  */
 export function imageValue(url: string, meta?: PortValue['meta']): PortValue {
-    return { type: 'image', value: url, meta };
+    return { type: 'json', value: { url }, meta };
 }

@@ -12,7 +12,7 @@ import {
 
 describe('isTypeCompatible', () => {
     describe('exact match', () => {
-        const types: PortDataType[] = ['text', 'json', 'image', 'video', 'array', 'any'];
+        const types: PortDataType[] = ['text', 'json', 'video', 'array', 'any'];
 
         types.forEach(type => {
             it(`should return true for same type: ${type} -> ${type}`, () => {
@@ -22,7 +22,7 @@ describe('isTypeCompatible', () => {
     });
 
     describe('any target', () => {
-        const sources: PortDataType[] = ['text', 'json', 'image', 'video', 'array'];
+        const sources: PortDataType[] = ['text', 'json', 'video', 'array'];
 
         sources.forEach(source => {
             it(`should accept ${source} when target is 'any'`, () => {
@@ -40,10 +40,9 @@ describe('isTypeCompatible', () => {
     describe('incompatible types', () => {
         const incompatiblePairs: [PortDataType, PortDataType][] = [
             ['text', 'json'],
-            ['text', 'image'],
-            ['image', 'text'],
-            ['image', 'json'],
-            ['video', 'image'],
+            ['text', 'video'],
+            ['video', 'text'],
+            ['video', 'json'],
             ['array', 'text'],
         ];
 

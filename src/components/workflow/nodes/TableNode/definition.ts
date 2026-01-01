@@ -1,10 +1,10 @@
 import { Table as TableIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
 import { FieldDefinition } from '@/types/assets';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { TableNode } from './index';
 import { Inspector } from './Inspector';
+import { TableBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.TABLE,
@@ -53,7 +53,7 @@ export const definition: NodeDefinition = {
         },
         mergeItems: (existing, incoming) => [...existing, ...incoming],
     },
-    behavior: StandardAssetBehavior,
+    behavior: TableBehavior,
     ports: {
         static: [
             {
@@ -61,15 +61,7 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'array',
                 label: 'Table Rows',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const rows = Array.isArray(asset.value) ? asset.value : (asset.value as any).rows || [];
-                    return {
-                        type: 'array',
-                        value: rows,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
+                // resolver now handled by TableBehavior.resolveOutput
             }
         ]
     },

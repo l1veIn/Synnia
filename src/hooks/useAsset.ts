@@ -40,19 +40,12 @@ export function useAsset(assetId?: string) {
         }
     }, [assetId]);
 
-    // Legacy aliases for backward compatibility
-    const setContent = setValue;
-    const setMetadata = updateSys;
-
     return {
         asset,
         // New API
         setValue,
         updateConfig,
         updateSys,
-        // Legacy aliases
-        setContent,
-        setMetadata,
         // Status
         isLoading: false,
         exists: !!asset

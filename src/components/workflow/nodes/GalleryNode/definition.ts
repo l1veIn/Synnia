@@ -1,9 +1,9 @@
 import { Image as ImageIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { GalleryNode } from './index';
 import { Inspector } from './Inspector';
+import { GalleryBehavior } from './behavior';
 
 export const definition: NodeDefinition = {
     type: NodeType.GALLERY,
@@ -50,7 +50,7 @@ export const definition: NodeDefinition = {
         },
         mergeItems: (existing, incoming) => [...incoming, ...existing],
     },
-    behavior: StandardAssetBehavior,
+    behavior: GalleryBehavior,
     ports: {
         static: [
             {
@@ -58,15 +58,6 @@ export const definition: NodeDefinition = {
                 direction: 'output',
                 dataType: 'array',
                 label: 'Gallery Images',
-                resolver: (node, asset) => {
-                    if (!asset?.value) return null;
-                    const images = Array.isArray(asset.value) ? asset.value : (asset.value as any).images || [];
-                    return {
-                        type: 'array',
-                        value: images,
-                        meta: { nodeId: node.id, portId: 'output' }
-                    };
-                }
             }
         ]
     },

@@ -3,6 +3,7 @@
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { portRegistry } from './PortRegistry';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import type { PortValue } from './types';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
 import type { Asset } from '@/types/assets';
@@ -13,21 +14,31 @@ import type { Asset } from '@/types/assets';
 
 /**
  * Resolve the value of an output port on a node
+ * 
+ * Resolution order (IoC pattern):
+ * 1. behavior.resolveOutput - Nodes define how to expose their data
+ * 2. port.resolver - Port-registered custom resolver
+ * 3. genericFallback - Minimal fallback for simple cases
  */
 export function resolvePort(
     node: SynniaNode,
     asset: Asset | null,
     portId: string
 ): PortValue | null {
-    // Get port definition
-    const port = portRegistry.getPort(node, asset, portId);
+    // 1. Try behavior-defined resolver first (IoC - Inversion of Control)
+    const behavior = behaviorRegistry.get(node.type);
+    if (behavior.resolveOutput) {
+        const result = behavior.resolveOutput(node, asset, portId);
+        if (result) return result;
+    }
 
+    // 2. Get port definition and try registered resolver
+    const port = portRegistry.getPort(node, asset, portId);
     if (port && port.direction === 'output' && port.resolver) {
-        // Use the registered resolver
         return port.resolver(node, asset);
     }
 
-    // Fallback: try to extract from asset content for field-level ports
+    // 3. Fallback: try to extract from asset content for field-level ports
     if (portId.startsWith('field:') && asset?.value) {
         const fieldKey = portId.replace('field:', '');
         const content = asset.value as any;
@@ -75,8 +86,8 @@ export function resolvePort(
 
         if (content.url !== undefined) {
             return {
-                type: 'image',
-                value: content.url,
+                type: 'json',  // image is just json with url field
+                value: { url: content.url },
                 meta: { nodeId: node.id, portId }
             };
         }

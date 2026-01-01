@@ -25,8 +25,7 @@ export class GraphMutator {
      */
     public buildNodesFromConfig(
         data: any,
-        config: OutputConfig,
-        sourceNodeId: string
+        config: OutputConfig
     ): {
         type: NodeType | string;
         data: any;

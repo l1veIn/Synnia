@@ -126,7 +126,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         <AutoGenerateButton
                             mode="table-rows"
                             schema={draftColumns.map(c => ({ key: c.key, label: c.label, type: c.type }))}
-                            count={5}
+                            count={30}
                             onGenerate={(rows) => {
                                 // Append generated rows to existing rows
                                 const newRows = [...savedContent.rows, ...rows];
@@ -141,7 +141,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     ) : (
                         <AutoGenerateButton
                             mode="table-full"
-                            count={5}
+                            count={30}
                             onGenerate={(result) => {
                                 // Set both columns and rows
                                 const { columns, rows } = result;

@@ -195,7 +195,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                             </Button>
                             <AutoGenerateButton
                                 mode="table-full"
-                                count={5}
+                                count={30}
                                 onGenerate={(result) => {
                                     // Map table-full result to selector format
                                     const { columns, rows } = result;

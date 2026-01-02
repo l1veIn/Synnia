@@ -62,11 +62,12 @@ async function generateTableRows(options: AutoGenerateOptions): Promise<AutoGene
 Each row should be an object with the exact keys specified in the schema.
 Only output the JSON array, no explanations or markdown formatting.`;
 
-    const userPrompt = `Generate ${count} rows for a table with the following schema:
+    const userPrompt = `Generate up to ${count} rows for a table with the following schema:
 ${schemaDescription}
 
 User instruction: ${options.prompt}
 
+Generate as many rows as appropriate based on the user's input, up to the maximum of ${count}.
 Output format: [{"key1": "value1", ...}, ...]`;
 
     const response = await callLLM({
@@ -98,8 +99,10 @@ Output a JSON object with two fields:
 - "rows": array of data rows matching the columns
 Only output the JSON object, no explanations or markdown formatting.`;
 
-    const userPrompt = `Design a table and generate ${count} sample rows based on:
+    const userPrompt = `Design a table and generate up to ${count} sample rows based on:
 ${options.prompt}
+
+Generate as many rows as appropriate based on the description, up to the maximum of ${count}.
 
 Output format:
 {

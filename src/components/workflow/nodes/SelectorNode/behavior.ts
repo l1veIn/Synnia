@@ -44,6 +44,7 @@ export const SelectorBehavior: NodeBehavior = {
         switch (portId) {
             case 'output':
                 // Full selected items array
+                console.log('selectedItems', selectedItems);
                 return {
                     type: 'array',
                     value: selectedItems,

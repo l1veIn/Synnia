@@ -29,13 +29,22 @@ function refreshConnectedInputs(nodeId: string): void {
         const sourceNode = nodes.find(n => n.id === edge.source);
         if (!sourceNode) continue;
 
+        const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
+        const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
+
+        // Pre-resolve source output
+        const sourceBehavior = behaviorRegistry.get(sourceNode.type);
+        const sourcePortId = edge.sourceHandle || 'origin';
+        const sourcePortValue = sourceBehavior.resolveOutput?.(sourceNode, sourceAsset, sourcePortId) || null;
+
         // Build ConnectionContext
         const ctx: ConnectionContext = {
             sourceNode,
             targetNode,
             edge: edge as SynniaEdge,
-            sourceAsset: sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null,
-            targetAsset: targetNode.data.assetId ? assets[targetNode.data.assetId] : null,
+            sourceAsset,
+            targetAsset,
+            sourcePortValue,
             getNodes: () => nodes,
             getNode: (id: string) => nodes.find(n => n.id === id),
         };

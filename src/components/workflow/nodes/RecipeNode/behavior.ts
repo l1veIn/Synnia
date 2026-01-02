@@ -55,73 +55,55 @@ export const RecipeBehavior: NodeBehavior = {
 
     /**
      * Validate if this Recipe can accept the incoming connection.
-     * Return null to allow, or error message to reject.
+     * ctx.sourcePortValue is pre-resolved by the engine.
      */
     canConnect: (ctx: ConnectionContext): string | null => {
-        const { edge, sourceNode, sourceAsset } = ctx;
+        const { edge, sourcePortValue } = ctx;
         const targetHandle = edge.targetHandle;
 
-        // Semantic handles always allowed
         if (!targetHandle || ['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
             return null;
         }
 
-        // Check source has data
-        if (!sourceAsset?.value) {
-            return 'Source node has no data';
+        if (!sourcePortValue?.value) {
+            return 'Source node has no output data';
         }
 
-        // For JSON sources, check if source has the target field or any data
-        const sourceValue = sourceAsset.value;
-        if (typeof sourceValue === 'object' && sourceValue !== null) {
-            const keys = Object.keys(sourceValue);
-            if (keys.length === 0) {
-                return 'Source object is empty';
-            }
-            // If target field exists in source, check it's not empty
-            if (keys.includes(targetHandle)) {
-                const fieldValue = (sourceValue as Record<string, any>)[targetHandle];
-                if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
-                    return `Field '${targetHandle}' in source is empty`;
-                }
-            }
-        }
-
-        return null;  // Allow
+        return null;
     },
 
     /**
      * Handle connections TO this Recipe node.
-     * Extract data from source and auto-fill target field.
+     * ctx.sourcePortValue is pre-resolved - just extract the field we need.
      */
     onConnect: (ctx: ConnectionContext): Record<string, any> | null => {
-        const { edge, sourceAsset } = ctx;
+        const { edge, sourcePortValue } = ctx;
         const targetHandle = edge.targetHandle;
 
         if (!targetHandle || ['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
             return null;
         }
 
-        if (!sourceAsset?.value) return null;
+        if (!sourcePortValue?.value) return null;
 
-        // Extract value from source - no resolvePort needed!
-        const sourceValue = sourceAsset.value;
+        // Extract value from pre-resolved port output
+        const resolvedValue = sourcePortValue.value;
         let value: any;
 
-        if (Array.isArray(sourceValue) && sourceValue.length > 0) {
-            // Array: extract field from first item
-            const firstItem = sourceValue[0];
+        if (Array.isArray(resolvedValue) && resolvedValue.length > 0) {
+            // Array (e.g., Selector output): extract field from first item
+            const firstItem = resolvedValue[0];
             if (typeof firstItem === 'object' && firstItem !== null) {
                 value = firstItem[targetHandle] ?? firstItem;
             } else {
                 value = firstItem;
             }
-        } else if (typeof sourceValue === 'object' && sourceValue !== null) {
+        } else if (typeof resolvedValue === 'object' && resolvedValue !== null) {
             // Object: extract field or use whole object
-            value = (sourceValue as Record<string, any>)[targetHandle] ?? sourceValue;
+            value = (resolvedValue as Record<string, any>)[targetHandle] ?? resolvedValue;
         } else {
             // Primitive: use directly
-            value = sourceValue;
+            value = resolvedValue;
         }
 
         return value !== undefined ? { [targetHandle]: value } : null;

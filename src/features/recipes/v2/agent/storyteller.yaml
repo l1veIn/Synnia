@@ -3,7 +3,7 @@ version: 2
 
 id: storyteller
 name: 首席叙事官
-description: 根据名称发展完整的角色灵魂档案（视觉DNA和人格矩阵）
+description: 根据名称发展完整的角色灵魂档案（视觉DNA、人格矩阵和色彩基因）
 category: Agent
 icon: BookOpen
 
@@ -73,7 +73,6 @@ prompt:
        - 外貌特征（体型、面部、表情、姿态）
        - 时尚/服装风格（与品牌调性相关的具体服装）
        - 关键配饰（与产品功能相关）
-       - 色彩方案（文字描述）
 
     2. **人格** - 一段文字描述，包括：
        - 原型（如：智者、小丑、看护者）
@@ -84,6 +83,13 @@ prompt:
 
     4. **品牌协同** - 这个角色如何体现特定的产品类型。
 
+    5. **色彩基因 (Color Palette)** - 定义角色的专属配色方案：
+       - primaryColor: 主色（代表角色的核心特质）
+       - secondaryColor: 辅色（补充主色，增加层次）
+       - accentColor: 强调色（用于高亮和互动元素）
+       - backgroundColor: 背景色（舒适的底色环境）
+       所有颜色必须是**有效的 Hex 代码**，如 #FF6B6B。
+
     【输出格式】
     返回一个包含单个JSON对象的数组。
     重要：所有字段必须是简单字符串，不是嵌套对象！
@@ -93,16 +99,21 @@ prompt:
       {
         "name": "角色名称",
         "title": "[头衔]",
-        "visualDNA": "一段综合性描述，涵盖外貌、时尚、配饰和色彩...",
+        "visualDNA": "一段综合性描述，涵盖外貌、时尚、配饰...",
         "personality": "原型：[X]。说话风格：[Y]。特征：[A]、[B]、[C]。",
         "story": "起源故事段落...",
-        "synergy": "角色如何体现产品..."
+        "synergy": "角色如何体现产品...",
+        "primaryColor": "#XXXXXX",
+        "secondaryColor": "#XXXXXX",
+        "accentColor": "#XXXXXX",
+        "backgroundColor": "#XXXXXX"
       }
     ]
 
     【关键要求】
     - 所有值必须是字符串，不是嵌套对象！
     - visualDNA 和 personality 应该是描述性段落，不是带子字段的对象。
+    - 颜色必须是有效的 Hex 代码（如 #4A90D9），不要用颜色名称。
     - 确保角色感觉像品牌调性（如调性是"专业"，不要做成小丑）。
     - 只返回有效的JSON。
 
@@ -117,7 +128,7 @@ prompt:
     - 产品：{{productType}}
     - 调性：{{brandTone}}
 
-    让这个角色活起来。
+    让这个角色活起来，并为其设计专属的品牌配色方案。
 
 # ============================================================================
 # Output Definition
@@ -151,9 +162,26 @@ output:
         label: 品牌协同
         type: string
         widget: textarea
+      - key: primaryColor
+        label: 主色
+        type: string
+        widget: color
+      - key: secondaryColor
+        label: 辅色
+        type: string
+        widget: color
+      - key: accentColor
+        label: 强调色
+        type: string
+        widget: color
+      - key: backgroundColor
+        label: 背景色
+        type: string
+        widget: color
 
 # ============================================================================
 # Advanced Options
 # ============================================================================
 advanced:
   multiTurn: true
+

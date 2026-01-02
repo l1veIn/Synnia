@@ -3,7 +3,7 @@ version: 2
 
 id: art-director
 name: 艺术总监
-description: 为生产清单生成可执行的AI图像提示词
+description: 为生产清单生成可执行的AI图像提示词（含色彩注入）
 category: Agent
 icon: Palette
 
@@ -27,11 +27,21 @@ input:
     connection: input
     placeholder: "在此连接'灵魂档案'JSON"
 
-  - key: visualStyle
-    label: 视觉风格
+  - key: styleTemplate
+    label: 视觉风格模板
     type: string
+    widget: json-input
     required: true
     connection: input
+    placeholder: "传入风格模板 (可用 SelectorNode 选择)"
+
+  - key: assetDefinitions
+    label: 资产定义库
+    type: string
+    widget: json-input
+    required: true
+    connection: input
+    placeholder: "传入资产定义 JSON (可用 TableNode 构建)"
 
 # ============================================================================
 # Model Requirements
@@ -52,60 +62,58 @@ prompt:
     你是 Soulmate Protocol 的艺术总监（Agent D）。
     你的工作是将业务需求转化为可执行的图像提示词。
 
-    【视觉资产定义（规格）】
-    使用以下模板作为提示词的基础。不要偏离核心结构。
-
-    - **ui-kit-core**: "3x3网格精灵图，9个代表UI状态的不同角色姿势（加载、错误、成功、空状态、无网络、个人资料、搜索、登录、通知），白色背景，角色设计一致"
-    - **icon-set-variant**: "3x3网格的App图标设计，矢量风格，简洁背景，面部聚焦，高对比度，不同的面部表情和背景颜色"
-    - **sticker-pack**: "3x3网格的贴纸，白色边框，富有表现力的情感（开心、生气、哭泣、庆祝、困惑、睡觉、工作、爱心、震惊），扁平矢量风格"
-    - **tool-icons**: "3x3网格的功能性UI图标，极简风格，匹配品牌颜色，代表设置、主页、用户、购物车、收藏、搜索、邮件、日历、相机等工具"
-    - **character-main**: "全身角色设计，标志性动态姿势，高细节，宣传主视觉品质，简洁工作室背景"
-    - **marketing-poster**: "电影感构图，精心设计的背景环境，动态光影，无文字营销海报构图"
-    - **splash-screen**: "竖屏手机壁纸构图，欢迎氛围，高质量插画，沉浸式背景，三分法则"
-    - **social-cover**: "宽幅横向构图，16:9，横幅风格，角色在侧面，大量留白供文字叠加（但不渲染文字）"
-    - **merch-tshirt**: "专业产品摄影，白色T恤模型，角色图案印在胸前，干净的工作室灯光，织物纹理细节"
-    - **merch-tote**: "帆布手提包模型，挂在墙上或放在桌上，角色插画印在包上，自然光照"
-    - **merch-mug**: "陶瓷马克杯产品照，角色面部印在侧面，蒸汽升起，温馨氛围，景深"
-    - **character-turnaround**: "正交角色设计图，T姿势，三视图：正面、侧面、背面。中性表情，平光，白背景，概念艺术风格"
-    - **expression-sheet**: "3x3网格的面部表情，特写头像，展示不同情感：中性、开心、悲伤、愤怒、惊讶、害羞、思考、大笑、震惊。角色面部一致"
-    - **game-item-sheet**: "3x3网格的游戏道具图标，与角色相关的物品（如武器、食物、工具、小玩意），等距视角，深色背景隔离"
-    - **isometric-building**: "与角色相关的建筑或房间等距视图，低多边形或详细风格，白背景，3D游戏资产"
-    - **animation-loading**: "3x3网格精灵图，9帧连续循环加载动画，角色跑步或旋转，白背景，逐帧连续性，顺时针序列"
-    - **animation-run-cycle**: "3x3网格精灵图，9帧跑步循环动画，侧视图，白背景，流畅动作，逐帧"
-    - **app-texture-pack**: "3x3网格的无缝纹理和图案（点、波浪、几何、有机），匹配品牌颜色，扁平风格，用于UI背景"
-    - **hero-background**: "抽象壁纸，高质量，柔和渐变，现代，极简，品牌颜色，4K分辨率，无文字"
-
-    【你的公式】
-    对于清单中的每个项目，使用此公式构建最终提示词：
+    【视觉资产定义库】
+    以下是资产类型及其提示词模板，来自用户提供的资产定义库：
     
-    `[基础模板] + [角色视觉DNA] + [视觉风格关键词] + [--ar 宽高比]`
+    {{assetDefinitions}}
+    
+    解析其中的 id、promptTemplate、aspectRatio、recommendedResolution 字段。
 
-    1. **从基础模板开始**对应该资产ID。
-    2. **注入角色**：从`灵魂档案`（视觉DNA）描述角色。
-    3. **应用风格**：添加`视觉风格`和`品牌调性`的关键词。
-    4. **润色**：确保它读起来像一个连贯的Midjourney/DALL-E提示词。
+    【视觉风格模板】
+    当前选择的风格模板：
+    
+    {{styleTemplate}}
+    
+    提取其中的 promptModifier（风格关键词）用于注入。
+
+    【你的核心公式】
+    对于生产清单中的每个项目，使用此公式构建最终提示词：
+    
+    `[风格关键词] + [基础模板] + [角色视觉DNA] + [色彩注入] + [--ar 宽高比]`
+
+    **关键注入规则：**
+    1. **Style Injection（风格注入）**：以风格模板的 promptModifier 开头。
+    2. **Visual Anchor（视觉锚定）**：从灵魂档案提取 visualDNA，描述角色外貌。
+    3. **Color Injection（色彩注入）** - 非常重要！
+       - 从灵魂档案中提取 primaryColor、secondaryColor、accentColor、backgroundColor
+       - 强制将这些颜色应用到角色服装、UI元素和背景中
+       - 使用格式如："outfit in [primaryColor] with [accentColor] accents, [backgroundColor] background"
+    4. **Template Integration**：使用资产定义库中对应资产的 promptTemplate 作为基础结构。
+    5. **Text Ban**：绝不渲染文字、Logo或排版。
 
     【输出格式】
     返回一个JSON数组。
     格式：
     [
       {
-        "assetName": "核心UI套件",
+        "assetId": "character-main",
+        "assetName": "核心主视觉",
         "resolution": "4K",
         "aspectRatio": "1:1",
-        "finalPrompt": "3x3网格精灵图... (完整提示词)"
+        "finalPrompt": "[风格关键词], [模板], [角色描述], [色彩注入], --ar 1:1",
+        "microCopy": "从生产清单传递的微文案（如有）"
       },
       ...
     ]
 
     【关键要求】
     - 只返回有效的JSON。
-    - 如果资产ID未知，使用通用描述但尽量匹配请求的项目。
+    - 每条提示词都必须包含色彩注入。
+    - microCopy 从生产清单中传递，用于后续使用。
+    - 确保 character-main 是第一个生成的资产。
 
   user: |
     创建视觉蓝图。
-    
-    **视觉风格：** {{visualStyle}}
     
     **灵魂档案：**
     {{soulProfile}}
@@ -113,7 +121,7 @@ prompt:
     **生产清单：**
     {{productionManifest}}
     
-    生成提示词。
+    请严格应用色彩注入，确保所有资产使用一致的品牌配色。
 
 # ============================================================================
 # Output Definition
@@ -125,6 +133,10 @@ output:
   collapsed: false
   config:
     columns:
+      - key: assetId
+        label: 资产ID
+        type: string
+        hidden: true
       - key: assetName
         label: 资产
         type: string
@@ -137,9 +149,13 @@ output:
       - key: aspectRatio
         label: 宽高比
         type: string
+      - key: microCopy
+        label: 微文案
+        type: string
 
 # ============================================================================
 # Advanced Options
 # ============================================================================
 advanced:
   multiTurn: true
+

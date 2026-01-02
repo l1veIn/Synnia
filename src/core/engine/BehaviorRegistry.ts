@@ -13,10 +13,22 @@ class BehaviorRegistry {
 
     /**
      * Get the behavior for a node type.
-     * Returns a default empty behavior if not found, to avoid null checks.
+     * Handles virtual types (e.g., 'recipe:storyteller' -> 'recipe').
+     * Returns a default empty behavior if not found.
      */
     public get(type: string): NodeBehavior {
-        return this.behaviors.get(type) || {};
+        // Direct lookup first
+        const direct = this.behaviors.get(type);
+        if (direct) return direct;
+
+        // Handle virtual types: 'recipe:xxx' -> 'recipe'
+        if (type.includes(':')) {
+            const baseType = type.split(':')[0];
+            const baseBehavior = this.behaviors.get(baseType);
+            if (baseBehavior) return baseBehavior;
+        }
+
+        return {};
     }
 
     /**

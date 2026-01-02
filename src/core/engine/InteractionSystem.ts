@@ -222,6 +222,11 @@ export class InteractionSystem {
         const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
         const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
 
+        // Pre-resolve source output for ConnectionContext
+        const sourceBehavior = behaviorRegistry.get(sourceNode.type);
+        const sourcePortId = connection.sourceHandle || 'origin';
+        const sourcePortValue = sourceBehavior.resolveOutput?.(sourceNode, sourceAsset, sourcePortId) || null;
+
         // Build ConnectionContext
         const ctx: ConnectionContext = {
             getNodes: () => this.engine.state.nodes,
@@ -237,6 +242,7 @@ export class InteractionSystem {
             } as SynniaEdge,
             sourceAsset: sourceAsset as any,
             targetAsset: targetAsset as any,
+            sourcePortValue,
         };
 
         // Try behavior.onConnect first (IoC)

@@ -18,6 +18,7 @@ import { definition as formDef } from './FormNode/definition';
 import { definition as textDef } from './TextNode/definition';
 import { definition as imageDef } from './ImageNode/definition';
 import { definition as queueDef } from './QueueNode/definition';
+import { RecipeBehavior } from './RecipeNode/behavior';
 
 // ============================================================================
 // Register Static Nodes
@@ -113,6 +114,9 @@ for (const recipe of recipes) {
             };
         },
     });
+
+    // Register behavior for recipe nodes
+    behaviorRegistry.register(virtualType, RecipeBehavior);
 
     // Register dynamic ports for recipe nodes
     portRegistry.register(virtualType, {

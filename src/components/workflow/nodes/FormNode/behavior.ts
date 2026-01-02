@@ -73,29 +73,15 @@ export const FormBehavior: NodeBehavior = {
      * Validate if this Form can accept the incoming connection.
      */
     canConnect: (ctx: ConnectionContext): string | null => {
-        const { edge, sourceAsset } = ctx;
+        const { edge, sourcePortValue } = ctx;
         const targetHandle = edge.targetHandle;
 
         if (!targetHandle || ['origin', 'output', 'array'].includes(targetHandle)) {
             return null;
         }
 
-        if (!sourceAsset?.value) {
-            return 'Source node has no data';
-        }
-
-        const sourceValue = sourceAsset.value;
-        if (typeof sourceValue === 'object' && sourceValue !== null && !Array.isArray(sourceValue)) {
-            const keys = Object.keys(sourceValue);
-            if (keys.length === 0) {
-                return 'Source object is empty';
-            }
-            if (keys.includes(targetHandle)) {
-                const fieldValue = (sourceValue as Record<string, any>)[targetHandle];
-                if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
-                    return `Field '${targetHandle}' in source is empty`;
-                }
-            }
+        if (!sourcePortValue?.value) {
+            return 'Source node has no output data';
         }
 
         return null;
@@ -105,29 +91,29 @@ export const FormBehavior: NodeBehavior = {
      * Handle connections TO this Form node.
      */
     onConnect: (ctx: ConnectionContext): Record<string, any> | null => {
-        const { edge, sourceAsset } = ctx;
+        const { edge, sourcePortValue } = ctx;
         const targetHandle = edge.targetHandle;
 
         if (!targetHandle || ['origin', 'output', 'array'].includes(targetHandle)) {
             return null;
         }
 
-        if (!sourceAsset?.value) return null;
+        if (!sourcePortValue?.value) return null;
 
-        const sourceValue = sourceAsset.value;
+        const resolvedValue = sourcePortValue.value;
         let value: any;
 
-        if (Array.isArray(sourceValue) && sourceValue.length > 0) {
-            const firstItem = sourceValue[0];
+        if (Array.isArray(resolvedValue) && resolvedValue.length > 0) {
+            const firstItem = resolvedValue[0];
             if (typeof firstItem === 'object' && firstItem !== null) {
                 value = firstItem[targetHandle] ?? firstItem;
             } else {
                 value = firstItem;
             }
-        } else if (typeof sourceValue === 'object' && sourceValue !== null) {
-            value = (sourceValue as Record<string, any>)[targetHandle] ?? sourceValue;
+        } else if (typeof resolvedValue === 'object' && resolvedValue !== null) {
+            value = (resolvedValue as Record<string, any>)[targetHandle] ?? resolvedValue;
         } else {
-            value = sourceValue;
+            value = resolvedValue;
         }
 
         return value !== undefined ? { [targetHandle]: value } : null;

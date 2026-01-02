@@ -69,11 +69,36 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         }
     }, [assetId]);
 
-    // Effect 2: Sync to savedValues when not initialized
+    // Effect 2: Sync to savedValues when:
+    // - Not initialized yet, OR
+    // - savedValues changed externally and we have no local unsaved edits
+    const prevSavedValuesRef = useRef<Record<string, any>>({});
+
     useEffect(() => {
-        if (!isInitialized && savedValues) {
+        if (!isInitialized) {
+            // First initialization
             setDraftValues(savedValues);
             setIsInitialized(true);
+            prevSavedValuesRef.current = savedValues;
+        } else {
+            // Check if savedValues changed externally (e.g., from onConnect)
+            const savedValuesChanged = JSON.stringify(savedValues) !== JSON.stringify(prevSavedValuesRef.current);
+            if (savedValuesChanged) {
+                // Update previous ref
+                prevSavedValuesRef.current = savedValues;
+                // Sync if no local unsaved changes (merge external updates with local drafts)
+                // This merges new values without losing user's unsaved edits
+                setDraftValues(prev => {
+                    const merged = { ...savedValues };
+                    // Keep local edits that differ from old saved values
+                    for (const key of Object.keys(prev)) {
+                        if (prev[key] !== prevSavedValuesRef.current[key]) {
+                            merged[key] = prev[key]; // Keep local edit
+                        }
+                    }
+                    return merged;
+                });
+            }
         }
     }, [savedValues, isInitialized]);
 

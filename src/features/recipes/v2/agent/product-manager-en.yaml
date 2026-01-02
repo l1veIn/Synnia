@@ -32,6 +32,14 @@ input:
     placeholder: "e.g. 3D Blind Box, Flat Vector, Cyberpunk..."
     connection: input
 
+  - key: assetDefinitions
+    label: Asset Definitions
+    type: string
+    widget: json-input
+    required: true
+    connection: input
+    placeholder: "Pass asset definitions JSON (built with TableNode)"
+
 # ============================================================================
 # Model Requirements
 # ============================================================================
@@ -51,34 +59,19 @@ prompt:
     You are the Product Manager (Agent C) of the Soulmate Protocol.
     Your goal is to bridge the "Soul" (Persona) and the "Body" (Visual Assets).
 
-    【ASSET TAXONOMY (The Catalog)】
-    You must select assets ONLY from this list:
-
-    1. **ui-kit-core** (Grid): Essential UI states (Loading, Error, Success, etc.). *Mandatory for Apps.*
-    2. **icon-set-variant** (Grid): App icon variations.
-    3. **sticker-pack** (Grid): 9 emotive stickers for chat/social.
-    4. **tool-icons** (Grid): Functional menu icons.
-    5. **character-main** (Marketing): The definitive Key Visual. *Mandatory for All.*
-    6. **marketing-poster** (Marketing): High-production vertical poster.
-    7. **splash-screen** (Marketing): App opening screen.
-    8. **social-cover** (Marketing): Banner for profiles.
-    9. **merch-tshirt** (Merch): T-shirt mockup.
-    10. **merch-tote** (Merch): Tote bag mockup.
-    11. **merch-mug** (Merch): Mug mockup.
-    12. **character-turnaround** (Game): Front/Side/Back views. *Mandatory for 3D/Game.*
-    13. **expression-sheet** (Game): 9 varied facial expressions.
-    14. **game-item-sheet** (Game): Props/Inventory icons.
-    15. **isometric-building** (Game): Environment asset.
-    16. **animation-loading** (Anim): Looping loading sequence.
-    17. **animation-run-cycle** (Anim): Running animation.
-    18. **app-texture-pack** (Texture): Background patterns.
-    19. **hero-background** (Texture): Website header.
+    【AVAILABLE ASSET TAXONOMY】
+    The following asset types are available from the user-provided asset definitions:
+    
+    {{assetDefinitions}}
+    
+    Parse the id, label, family, and description fields from the JSON array.
 
     【YOUR TASK】
     1. **Analyze Strategy**: Look at the `Product Type` and `Soul Profile`.
     2. **Select Assets**: Choose 5-8 assets that are MOST relevant.
        - e.g., A "Weather App" needs `ui-kit-core` and `icon-set-variant`.
        - e.g., A "RPG Game" needs `character-turnaround` and `game-item-sheet`.
+       - **Mandatory**: `character-main` (Key Visual) is mandatory for all projects.
     3. **Write Micro-Copy**:
        - For each chosen asset, write a short "Context Note" or "Micro-Copy" in the character's voice.
        - e.g., For a Loading State: "Hold tight! Charging up the sun..." (if they are a sun character).
@@ -89,8 +82,9 @@ prompt:
     Format:
     [
       {
-        "assetId": "ui-kit-core",  <-- MUST be exact ID from Taxonomy
+        "assetId": "ui-kit-core",  <-- MUST be exact ID from asset definitions
         "assetName": "Core UI Kit",
+        "family": "grid",         <-- Asset family
         "priority": "High",
         "reason": "Essential for app user experience",
         "microCopy": "Thinking... processing... done!"
@@ -100,7 +94,8 @@ prompt:
 
     【CRITICAL】
     - Return ONLY valid JSON.
-    - `assetId` MUST match the list above EXACTLY.
+    - `assetId` MUST match the asset definitions EXACTLY.
+    - Always include `character-main` as the first asset (priority: Critical).
 
   user: |
     Create a Production Manifest for:
@@ -130,6 +125,9 @@ output:
       - key: assetName
         label: Asset
         type: string
+      - key: family
+        label: Family
+        type: string
       - key: priority
         label: Priority
         type: string
@@ -145,3 +143,4 @@ output:
 # ============================================================================
 advanced:
   multiTurn: true
+

@@ -81,6 +81,11 @@ export function validateConnection(
     const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
     const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
 
+    // Pre-resolve source output
+    const sourceBehavior = behaviorRegistry.get(sourceNode.type);
+    const sourcePortId = connection.sourceHandle || 'origin';
+    const sourcePortValue = sourceBehavior.resolveOutput?.(sourceNode, sourceAsset, sourcePortId) || null;
+
     const ctx: ConnectionContext = {
         sourceNode,
         targetNode,
@@ -93,6 +98,7 @@ export function validateConnection(
         } as SynniaEdge,
         sourceAsset,
         targetAsset,
+        sourcePortValue,
         getNodes: () => nodes,
         getNode: (id: string) => nodes.find(n => n.id === id),
     };

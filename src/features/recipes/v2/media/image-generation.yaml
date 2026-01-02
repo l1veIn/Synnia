@@ -30,7 +30,8 @@ input:
 # ============================================================================
 model:
   category: image-generation
-  capabilities: []
+  capabilities:
+    - vision  # Enable reference image input for img2img consistency
   defaultParams: {}
 
 # ============================================================================

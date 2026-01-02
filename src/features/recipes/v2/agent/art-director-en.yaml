@@ -3,7 +3,7 @@ version: 2
 
 id: art-director-en
 name: Art Director
-description: Generate executable AI image prompts for the production manifest
+description: Generate executable AI image prompts with color injection for the production manifest
 category: Agent
 icon: Palette
 
@@ -27,11 +27,21 @@ input:
     connection: input
     placeholder: "Connect the 'Soul Profile' JSON here"
 
-  - key: visualStyle
-    label: Visual Style
+  - key: styleTemplate
+    label: Visual Style Template
     type: string
+    widget: json-input
     required: true
     connection: input
+    placeholder: "Pass style template (use SelectorNode to choose)"
+
+  - key: assetDefinitions
+    label: Asset Definitions
+    type: string
+    widget: json-input
+    required: true
+    connection: input
+    placeholder: "Pass asset definitions JSON (built with TableNode)"
 
 # ============================================================================
 # Model Requirements
@@ -52,60 +62,58 @@ prompt:
     You are the Art Director (Agent D) of the Soulmate Protocol.
     Your job is to translate business requirements into EXECUTABLE IMAGE PROMPTS.
 
-    【VISUAL ASSET DEFINITIONS (The Specs)】
-    Use these templates as the BASE for your prompts. Do not deviate from the core structure.
-
-    - **ui-kit-core**: "A 3x3 grid sprite sheet, 9 distinct character poses representing UI states (loading, error, success, empty, no wifi, profile, search, login, notification), white background, consistent character design"
-    - **icon-set-variant**: "A 3x3 grid of App Icon designs, vector style, simple background, face focus, high contrast, varying facial expressions and background colors"
-    - **sticker-pack**: "A 3x3 grid of die-cut stickers, white border, expressive emotions (happy, angry, crying, celebrating, confused, sleeping, working, love, shocking), flat vector style"
-    - **tool-icons**: "A 3x3 grid of functional UI icons, minimalist, matching brand colors, representing tools like settings, home, user, cart, favorite, search, mail, calendar, camera"
-    - **character-main**: "Full body character design, signature dynamic pose, high detail, promotional key visual quality, simple studio background"
-    - **marketing-poster**: "Cinematic composition, elaborate background environment, dynamic lighting, text-free marketing poster composition"
-    - **splash-screen**: "Vertical mobile wallpaper composition, welcoming atmosphere, high quality illustration, immersive background, rule of thirds"
-    - **social-cover**: "Wide landscape composition, 16:9, banner style, character on the side, plenty of negative space for text overlay (but do not render text)"
-    - **merch-tshirt**: "Professional product photography, white t-shirt mockup, character graphic printed on chest, clean studio lighting, fabric texture details"
-    - **merch-tote**: "Canvas tote bag mockup, hanging on a wall or placed on a table, character illustration printed on the bag, natural lighting"
-    - **merch-mug**: "Ceramic mug product shot, character face printed on the side, steam rising, cozy atmosphere, depth of field"
-    - **character-turnaround**: "Orthographic character sheet, T-pose, three views: front view, side view, back view. Neutral expression, flat lighting, white background, concept art style"
-    - **expression-sheet**: "A 3x3 grid of facial expressions, close-up headshots, showing distinct emotions: neutral, happy, sad, angry, surprised, shy, thinking, laughing, shocked. Consistent character face"
-    - **game-item-sheet**: "A 3x3 grid of game item icons, props related to the character (e.g., weapons, food, tools, gadgets), isometric view, isolated on dark background"
-    - **isometric-building**: "Isometric view of a building or room related to the character, low poly or detailed style, white background, 3d game asset"
-    - **animation-loading**: "A 3x3 grid sprite sheet, 9 frames of a continuous looping loading animation, character running or spinning, white background, frame-by-frame continuity, clockwise sequence"
-    - **animation-run-cycle**: "A 3x3 grid sprite sheet, 9 frames of a running cycle animation, side view, white background, fluid motion, frame-by-frame"
-    - **app-texture-pack**: "A 3x3 grid of seamless textures and patterns (dots, waves, geometric, organic) matching the brand colors, flat style, for UI backgrounds"
-    - **hero-background**: "Abstract wallpaper, high quality, soft gradients, modern, minimal, brand colors, 4k resolution, no text"
-
-    【YOUR FORMULA】
-    For each item in the Manifest, construct the Final Prompt using this formula:
+    【VISUAL ASSET DEFINITIONS】
+    The following asset types and prompt templates come from the user-provided asset definitions:
     
-    `[Base Template] + [Character Visual DNA] + [Visual Style Keywords] + [--ar AspectRatio]`
+    {{assetDefinitions}}
+    
+    Parse the id, promptTemplate, aspectRatio, and recommendedResolution fields.
 
-    1. **Start with the Base Template** for that Asset ID.
-    2. **Inject the Character**: Describe the character from the `Soul Profile` (Visual DNA).
-    3. **Apply the Style**: Add keywords from the `Visual Style` and `Brand Tone`.
-    4. **Refine**: Ensure it sounds like a coherent Midjourney/DALL-E prompt.
+    【VISUAL STYLE TEMPLATE】
+    Current selected style template:
+    
+    {{styleTemplate}}
+    
+    Extract the promptModifier (style keywords) for injection.
+
+    【YOUR CORE FORMULA】
+    For each item in the Production Manifest, construct the Final Prompt using this formula:
+    
+    `[Style Keywords] + [Base Template] + [Character Visual DNA] + [Color Injection] + [--ar AspectRatio]`
+
+    **KEY INJECTION RULES:**
+    1. **Style Injection**: Start with the style template's promptModifier.
+    2. **Visual Anchor**: Extract visualDNA from Soul Profile to describe the character's appearance.
+    3. **Color Injection** - VERY IMPORTANT!
+       - Extract primaryColor, secondaryColor, accentColor, backgroundColor from Soul Profile
+       - Forcefully apply these colors to character outfit, UI elements, and backgrounds
+       - Use format like: "outfit in [primaryColor] with [accentColor] accents, [backgroundColor] background"
+    4. **Template Integration**: Use the promptTemplate from asset definitions as the base structure.
+    5. **Text Ban**: NEVER render text, logos, or typography.
 
     【OUTPUT FORMAT】
     Return a JSON Array.
     Format:
     [
       {
-        "assetName": "Core UI Kit",
+        "assetId": "character-main",
+        "assetName": "Key Visual",
         "resolution": "4K",
         "aspectRatio": "1:1",
-        "finalPrompt": "A 3x3 grid sprite sheet... (full prompt here)"
+        "finalPrompt": "[style keywords], [template], [character description], [color injection], --ar 1:1",
+        "microCopy": "Micro-copy passed from production manifest (if any)"
       },
       ...
     ]
 
     【CRITICAL】
     - Return ONLY valid JSON.
-    - If an asset ID is unknown, use a generic description but try to match the requested item.
+    - Every prompt MUST include color injection.
+    - Pass through microCopy from the production manifest for downstream use.
+    - Ensure character-main is generated first.
 
   user: |
     Create the Visual Blueprint.
-    
-    **Visual Style:** {{visualStyle}}
     
     **Soul Profile:**
     {{soulProfile}}
@@ -113,7 +121,7 @@ prompt:
     **Production Manifest:**
     {{productionManifest}}
     
-    Generate the prompts.
+    Strictly apply color injection to ensure all assets use consistent brand colors.
 
 # ============================================================================
 # Output Definition
@@ -125,6 +133,10 @@ output:
   collapsed: false
   config:
     columns:
+      - key: assetId
+        label: Asset ID
+        type: string
+        hidden: true
       - key: assetName
         label: Asset
         type: string
@@ -137,9 +149,13 @@ output:
       - key: aspectRatio
         label: AR
         type: string
+      - key: microCopy
+        label: Micro-Copy
+        type: string
 
 # ============================================================================
 # Advanced Options
 # ============================================================================
 advanced:
   multiTurn: true
+

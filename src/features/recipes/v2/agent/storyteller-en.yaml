@@ -3,7 +3,7 @@ version: 2
 
 id: storyteller-en
 name: Chief Storyteller
-description: Develop a complete character Soul Profile (Visual DNA & Personality) from a name
+description: Develop a complete character Soul Profile (Visual DNA, Personality & Color Palette) from a name
 category: Agent
 icon: BookOpen
 
@@ -73,7 +73,6 @@ prompt:
        - Physical appearance (body type, face, expressions, posture)
        - Fashion/Clothing style (specific outfits related to brand tone)
        - Key accessories (that relate to the product function)
-       - Color palette (as text description)
 
     2. **Personality** - A text description including:
        - Archetype (e.g., The Sage, The Jester, The Caregiver)
@@ -84,6 +83,13 @@ prompt:
 
     4. **Brand Synergy** - How this character embodies the specific Product Type.
 
+    5. **Color Palette** - Define the character's signature color scheme:
+       - primaryColor: Main color (represents the character's core essence)
+       - secondaryColor: Supporting color (adds depth and variety)
+       - accentColor: Highlight color (for interactive and emphasis elements)
+       - backgroundColor: Background color (comfortable base environment)
+       All colors must be **valid Hex codes**, e.g., #FF6B6B.
+
     【OUTPUT FORMAT】
     Return a SINGLE JSON object inside an array.
     IMPORTANT: ALL fields must be simple STRINGS, not nested objects.
@@ -93,16 +99,21 @@ prompt:
       {
         "name": "Character Name",
         "title": "The [Title]",
-        "visualDNA": "A comprehensive paragraph describing appearance, fashion, accessories, and colors...",
+        "visualDNA": "A comprehensive paragraph describing appearance, fashion, accessories...",
         "personality": "Archetype: [X]. Voice: [Y]. Traits: [A], [B], [C].",
         "story": "Origin story paragraph...",
-        "synergy": "How the character embodies the product..."
+        "synergy": "How the character embodies the product...",
+        "primaryColor": "#XXXXXX",
+        "secondaryColor": "#XXXXXX",
+        "accentColor": "#XXXXXX",
+        "backgroundColor": "#XXXXXX"
       }
     ]
 
     【CRITICAL】
     - ALL values must be STRINGS, not nested objects!
     - visualDNA and personality should be descriptive paragraphs, NOT objects with sub-fields.
+    - Colors must be valid Hex codes (e.g., #4A90D9), not color names.
     - Ensure the character FEELS like the Brand Tone.
     - Return ONLY valid JSON.
 
@@ -117,7 +128,7 @@ prompt:
     - Product: {{productType}}
     - Tone: {{brandTone}}
 
-    Bring this character to life.
+    Bring this character to life and design its signature brand color palette.
 
 # ============================================================================
 # Output Definition
@@ -151,9 +162,26 @@ output:
         label: Brand Synergy
         type: string
         widget: textarea
+      - key: primaryColor
+        label: Primary Color
+        type: string
+        widget: color
+      - key: secondaryColor
+        label: Secondary Color
+        type: string
+        widget: color
+      - key: accentColor
+        label: Accent Color
+        type: string
+        widget: color
+      - key: backgroundColor
+        label: Background Color
+        type: string
+        widget: color
 
 # ============================================================================
 # Advanced Options
 # ============================================================================
 advanced:
   multiTurn: true
+

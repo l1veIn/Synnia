@@ -32,6 +32,14 @@ input:
     placeholder: "例如：3D盲盒、扁平矢量、赛博朋克..."
     connection: input
 
+  - key: assetDefinitions
+    label: 资产定义库
+    type: string
+    widget: json-input
+    required: true
+    connection: input
+    placeholder: "传入资产定义 JSON (可用 TableNode 构建)"
+
 # ============================================================================
 # Model Requirements
 # ============================================================================
@@ -51,34 +59,19 @@ prompt:
     你是 Soulmate Protocol 的产品经理（Agent C）。
     你的目标是连接"灵魂"（人格）和"躯体"（视觉资产）。
 
-    【资产分类目录（目录）】
-    你必须只从以下列表中选择资产：
-
-    1. **ui-kit-core**（网格）：必要的UI状态（加载、错误、成功等）。*App必选。*
-    2. **icon-set-variant**（网格）：App图标变体。
-    3. **sticker-pack**（网格）：9个用于聊天/社交的表情贴纸。
-    4. **tool-icons**（网格）：功能菜单图标。
-    5. **character-main**（营销）：标志性主视觉。*所有项目必选。*
-    6. **marketing-poster**（营销）：高品质竖版海报。
-    7. **splash-screen**（营销）：App启动画面。
-    8. **social-cover**（营销）：个人资料横幅。
-    9. **merch-tshirt**（周边）：T恤模型。
-    10. **merch-tote**（周边）：手提包模型。
-    11. **merch-mug**（周边）：马克杯模型。
-    12. **character-turnaround**（游戏）：正面/侧面/背面视图。*3D/游戏必选。*
-    13. **expression-sheet**（游戏）：9个不同的面部表情。
-    14. **game-item-sheet**（游戏）：道具/物品图标。
-    15. **isometric-building**（游戏）：环境资产。
-    16. **animation-loading**（动画）：循环加载动画序列。
-    17. **animation-run-cycle**（动画）：跑步动画。
-    18. **app-texture-pack**（纹理）：背景图案。
-    19. **hero-background**（纹理）：网站头部背景。
+    【可用资产分类目录】
+    以下是可选择的资产类型，来自用户提供的资产定义库：
+    
+    {{assetDefinitions}}
+    
+    如果上面是一个JSON数组，请解析其中的 id、label、family、description 字段。
 
     【你的任务】
     1. **分析策略**：查看`产品类型`和`灵魂档案`。
     2. **选择资产**：选择5-8个最相关的资产。
        - 例如，"天气App"需要`ui-kit-core`和`icon-set-variant`。
        - 例如，"RPG游戏"需要`character-turnaround`和`game-item-sheet`。
+       - **必选**：`character-main`（主视觉）是所有项目的必选项。
     3. **撰写微文案**：
        - 对于每个选定的资产，用角色的声音写一段简短的"上下文说明"或"微文案"。
        - 例如，对于加载状态："稍等！正在充能中..."（如果他们是太阳角色）
@@ -89,8 +82,9 @@ prompt:
     格式：
     [
       {
-        "assetId": "ui-kit-core",  <-- 必须是分类目录中的精确ID
+        "assetId": "ui-kit-core",  <-- 必须是资产定义库中的精确ID
         "assetName": "核心UI套件",
+        "family": "grid",         <-- 资产家族
         "priority": "高",
         "reason": "对App用户体验至关重要",
         "microCopy": "思考中...处理中...完成！"
@@ -100,7 +94,8 @@ prompt:
 
     【关键要求】
     - 只返回有效的JSON。
-    - `assetId`必须与上面的列表完全匹配。
+    - `assetId`必须与资产定义库中的ID完全匹配。
+    - 始终包含`character-main`作为第一个资产（优先级：关键）。
 
   user: |
     为以下内容创建生产清单：
@@ -130,6 +125,9 @@ output:
       - key: assetName
         label: 资产
         type: string
+      - key: family
+        label: 家族
+        type: string
       - key: priority
         label: 优先级
         type: string
@@ -145,3 +143,4 @@ output:
 # ============================================================================
 advanced:
   multiTurn: true
+

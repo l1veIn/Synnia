@@ -22,6 +22,7 @@ export interface EngineContext {
 /**
  * Context for connection lifecycle hooks (extends EngineContext).
  * Provides access to source/target nodes, assets, and the edge being created/removed.
+ * sourcePortValue is pre-resolved by the engine - target nodes don't need to resolve it themselves.
  */
 export interface ConnectionContext extends EngineContext {
     sourceNode: SynniaNode;
@@ -29,6 +30,8 @@ export interface ConnectionContext extends EngineContext {
     edge: SynniaEdge;
     sourceAsset: Asset | null;
     targetAsset: Asset | null;
+    /** Pre-resolved output value from source port (via behavior.resolveOutput) */
+    sourcePortValue: PortValue | null;
 }
 
 /**

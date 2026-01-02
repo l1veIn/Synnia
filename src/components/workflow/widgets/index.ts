@@ -3,7 +3,6 @@
 
 export * from './lib/types';
 export * from './lib/registry';
-export * from './lib/WidgetServices';
 export { RecipeFieldRow, RecipeFormRenderer } from './lib/FieldRow';
 
 // ============================================================================

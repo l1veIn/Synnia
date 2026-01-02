@@ -71,6 +71,13 @@ export interface NodeBehavior {
     ) => PortValue | null;
 
     /**
+     * Validate if this node can accept an incoming connection (as target).
+     * Called BEFORE the edge is created.
+     * Return null to allow, or an error message string to reject.
+     */
+    canConnect?: (ctx: ConnectionContext) => string | null;
+
+    /**
      * Handle a new connection to this node (as target).
      * Opportunity to auto-fill target fields based on source data.
      * Return an object of field updates to apply to the target asset, or null.

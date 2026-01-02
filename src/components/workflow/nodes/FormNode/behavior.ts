@@ -1,6 +1,5 @@
 import { NodeBehavior, ConnectionContext } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { resolvePort, resolveInputValue } from '@core/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
 import type { SynniaNode } from '@/types/project';
 import type { Asset } from '@/types/assets';
@@ -28,7 +27,6 @@ export const FormBehavior: NodeBehavior = {
         }
 
         if (portId === 'array') {
-            // Collect values from docked chain
             const store = useWorkflowStore.getState();
             const chain: any[] = [];
 
@@ -55,7 +53,6 @@ export const FormBehavior: NodeBehavior = {
             };
         }
 
-        // Field-level access
         if (portId.startsWith('field:')) {
             const fieldKey = portId.replace('field:', '');
             const values = asset.value as Record<string, any>;
@@ -72,13 +69,67 @@ export const FormBehavior: NodeBehavior = {
         return null;
     },
 
+    /**
+     * Validate if this Form can accept the incoming connection.
+     */
+    canConnect: (ctx: ConnectionContext): string | null => {
+        const { edge, sourceAsset } = ctx;
+        const targetHandle = edge.targetHandle;
+
+        if (!targetHandle || ['origin', 'output', 'array'].includes(targetHandle)) {
+            return null;
+        }
+
+        if (!sourceAsset?.value) {
+            return 'Source node has no data';
+        }
+
+        const sourceValue = sourceAsset.value;
+        if (typeof sourceValue === 'object' && sourceValue !== null && !Array.isArray(sourceValue)) {
+            const keys = Object.keys(sourceValue);
+            if (keys.length === 0) {
+                return 'Source object is empty';
+            }
+            if (keys.includes(targetHandle)) {
+                const fieldValue = (sourceValue as Record<string, any>)[targetHandle];
+                if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+                    return `Field '${targetHandle}' in source is empty`;
+                }
+            }
+        }
+
+        return null;
+    },
+
+    /**
+     * Handle connections TO this Form node.
+     */
     onConnect: (ctx: ConnectionContext): Record<string, any> | null => {
         const { edge, sourceAsset } = ctx;
         const targetHandle = edge.targetHandle;
-        if (!targetHandle || ['origin', 'output', 'array'].includes(targetHandle)) return null;
 
-        const portValue = resolvePort(ctx.sourceNode, sourceAsset, edge.sourceHandle || 'origin');
-        const value = resolveInputValue(portValue, targetHandle);
+        if (!targetHandle || ['origin', 'output', 'array'].includes(targetHandle)) {
+            return null;
+        }
+
+        if (!sourceAsset?.value) return null;
+
+        const sourceValue = sourceAsset.value;
+        let value: any;
+
+        if (Array.isArray(sourceValue) && sourceValue.length > 0) {
+            const firstItem = sourceValue[0];
+            if (typeof firstItem === 'object' && firstItem !== null) {
+                value = firstItem[targetHandle] ?? firstItem;
+            } else {
+                value = firstItem;
+            }
+        } else if (typeof sourceValue === 'object' && sourceValue !== null) {
+            value = (sourceValue as Record<string, any>)[targetHandle] ?? sourceValue;
+        } else {
+            value = sourceValue;
+        }
+
         return value !== undefined ? { [targetHandle]: value } : null;
     },
 };

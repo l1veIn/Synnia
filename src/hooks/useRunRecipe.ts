@@ -1,15 +1,67 @@
 import { getRecipe } from '@features/recipes';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { collectInputValues } from '@core/engine/ports';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
+import type { ConnectionContext } from '@core/engine/types/behavior';
+import type { SynniaEdge } from '@/types/project';
+
+/**
+ * Refresh all connected inputs by re-executing onConnect for each incoming edge.
+ * This ensures asset.value contains the latest data from all connected sources.
+ */
+function refreshConnectedInputs(nodeId: string): void {
+    const { nodes, edges, assets } = useWorkflowStore.getState();
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (!targetNode || !targetNode.data.assetId) return;
+
+    const behavior = behaviorRegistry.get(targetNode.type);
+    if (!behavior.onConnect) return;
+
+    // Find all edges targeting this node
+    const incomingEdges = edges.filter(e => e.target === nodeId);
+    const allUpdates: Record<string, any> = {};
+
+    for (const edge of incomingEdges) {
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        if (!sourceNode) continue;
+
+        // Build ConnectionContext
+        const ctx: ConnectionContext = {
+            sourceNode,
+            targetNode,
+            edge: edge as SynniaEdge,
+            sourceAsset: sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null,
+            targetAsset: targetNode.data.assetId ? assets[targetNode.data.assetId] : null,
+            getNodes: () => nodes,
+            getNode: (id: string) => nodes.find(n => n.id === id),
+        };
+
+        // Call onConnect to get latest values
+        const updates = behavior.onConnect(ctx);
+        if (updates) {
+            Object.assign(allUpdates, updates);
+        }
+    }
+
+    // Apply all updates at once
+    if (Object.keys(allUpdates).length > 0) {
+        const targetAsset = assets[targetNode.data.assetId];
+        if (targetAsset) {
+            const currentValue = (typeof targetAsset.value === 'object' && targetAsset.value !== null)
+                ? targetAsset.value as Record<string, any>
+                : {};
+            const newValue = { ...currentValue, ...allUpdates };
+            graphEngine.assets.update(targetNode.data.assetId, newValue);
+        }
+    }
+}
 
 /**
  * Hook to run a Recipe Definition.
- * Replaces useRunAgent for the new recipe system.
  */
 export function useRunRecipe() {
     const runRecipe = useCallback(async (nodeId: string, recipeId: string) => {
@@ -33,20 +85,22 @@ export function useRunRecipe() {
         });
 
         try {
+            // --- Refresh Connected Inputs ---
+            // Re-execute onConnect for all incoming edges to get latest values
+            refreshConnectedInputs(nodeId);
+
             // --- Resolve Inputs ---
-            // RecordAsset: form values are stored directly in asset.value
+            // Get fresh store after refresh
+            const freshStore = useWorkflowStore.getState();
+            const freshNode = freshStore.nodes.find(n => n.id === nodeId);
             let staticValues: Record<string, any> = {};
 
-            if (node.data.assetId) {
-                const asset = store.assets[node.data.assetId as string];
+            if (freshNode?.data.assetId) {
+                const asset = freshStore.assets[freshNode.data.assetId as string];
                 if (asset?.value && typeof asset.value === 'object') {
-                    // Values are directly in asset.value
                     staticValues = asset.value as Record<string, any>;
                 }
             }
-
-            // Resolve dynamic values from connections using PortResolver
-            const dynamicValues = collectInputValues(nodeId);
 
             // Apply default values from schema
             const defaultValues: Record<string, any> = {};
@@ -56,8 +110,8 @@ export function useRunRecipe() {
                 }
             }
 
-            // Merge: defaults < static < dynamic (later values override earlier)
-            const effectiveValues = { ...defaultValues, ...staticValues, ...dynamicValues };
+            // Merge: defaults < static (static now includes connected values)
+            const effectiveValues = { ...defaultValues, ...staticValues };
 
             // --- Validation ---
             for (const field of recipe.inputSchema) {
@@ -80,7 +134,6 @@ export function useRunRecipe() {
 
 
             // --- Build Context ---
-            // Get recipe-specific config from asset
             const assetConfig = node.data.assetId
                 ? store.assets[node.data.assetId as string]?.config
                 : undefined;
@@ -92,7 +145,6 @@ export function useRunRecipe() {
                 node,
                 engine: graphEngine,
                 manifest: recipe.manifest,
-                // Recipe V2: Include chat history and model config
                 chatContext: recipeConfig?.chatContext?.messages,
                 modelConfig: recipeConfig?.modelConfig,
             };
@@ -111,11 +163,9 @@ export function useRunRecipe() {
             });
 
             // --- Build createNodes from output config if specified in manifest ---
-            // V2 manifest: output is at top level, not nested under executor
             const outputConfig = (recipe.manifest as any).output || (recipe.manifest as any).executor?.output;
 
             if (outputConfig && result.data && !result.createNodes) {
-                // Build nodes using GraphMutator
                 const nodeSpecs = graphEngine.mutator.buildNodesFromConfig(
                     Array.isArray(result.data) ? result.data : [result.data],
                     outputConfig
@@ -125,79 +175,63 @@ export function useRunRecipe() {
 
             // --- Handle createNodes (if recipe wants to create product nodes) ---
             if (result.createNodes && result.createNodes.length > 0) {
-                const freshStore = useWorkflowStore.getState();
-                const freshNode = freshStore.nodes.find(n => n.id === nodeId);
-                if (!freshNode) return;
+                const freshStore2 = useWorkflowStore.getState();
+                const freshNode2 = freshStore2.nodes.find(n => n.id === nodeId);
+                if (!freshNode2) return;
 
-                // Check if there's an existing product node connected via Output Edge
-                const existingOutputEdge = freshStore.edges.find(e =>
+                const existingOutputEdge = freshStore2.edges.find(e =>
                     e.source === nodeId &&
                     e.sourceHandle === 'product' &&
                     e.data?.edgeType === 'output'
                 );
 
                 const existingProductNode = existingOutputEdge
-                    ? freshStore.nodes.find(n => n.id === existingOutputEdge.target)
+                    ? freshStore2.nodes.find(n => n.id === existingOutputEdge.target)
                     : null;
 
-                // If there's an existing product node, update/append instead of creating new
                 if (existingProductNode && result.createNodes.length === 1) {
                     const nodeSpec = result.createNodes[0];
                     const specData = nodeSpec.data as any;
-                    const existingAsset = freshStore.assets[existingProductNode.data.assetId as string];
+                    const existingAsset = freshStore2.assets[existingProductNode.data.assetId as string];
 
-                    // Check if it's a collection type using nodeRegistry
                     const isCollection = nodeRegistry.isCollection(existingProductNode.type);
                     const nodeDef = nodeRegistry.getDefinition(existingProductNode.type);
 
                     if (isCollection && existingAsset?.value && specData.content && nodeDef?.hooks) {
-                        // Use hooks for collection operations
                         const { getItems, mergeItems } = nodeDef.hooks;
 
                         if (getItems && mergeItems) {
-                            // Get existing items using hook
                             const existingItems = getItems(existingAsset);
-
-                            // Get new items from spec content
-                            // For the incoming data, we need to extract items the same way
                             const newItems = Array.isArray(specData.content)
                                 ? specData.content
                                 : getItems({ ...existingAsset, value: specData.content });
-
-                            // Merge using hook (hooks decide prepend/append strategy)
                             const mergedItems = mergeItems(existingItems, newItems);
-
-                            // Update asset with merged items
                             graphEngine.assets.update(existingAsset.id, mergedItems);
                         }
                     } else {
-                        // Non-collection: replace content entirely
                         if (existingAsset && specData.content) {
                             graphEngine.assets.update(existingAsset.id, specData.content);
                         }
                     }
-
-                    // Done - no new nodes needed
                     return;
                 }
 
-                // --- Create new nodes (original logic for first-time execution) ---
+                // --- Create new nodes ---
                 let prevNodeId: string | null = null;
                 const NODE_HEIGHT = 120;
 
                 for (let i = 0; i < result.createNodes.length; i++) {
                     const nodeSpec = result.createNodes[i];
-                    let targetPos = { x: freshNode.position.x, y: freshNode.position.y };
+                    let targetPos = { x: freshNode2.position.x, y: freshNode2.position.y };
 
                     if (nodeSpec.position === 'below') {
-                        targetPos.y += (freshNode.measured?.height || 200) + 100;
+                        targetPos.y += (freshNode2.measured?.height || 200) + 100;
                     } else if (nodeSpec.position === 'right') {
-                        targetPos.x += (freshNode.measured?.width || 250) + 100;
+                        targetPos.x += (freshNode2.measured?.width || 250) + 100;
                     } else if (nodeSpec.position && typeof nodeSpec.position === 'object') {
                         targetPos = nodeSpec.position;
                     }
 
-                    // Handle docking: adjust position for docked nodes
                     let dockedToId: string | undefined;
                     if (nodeSpec.dockedTo === '$prev' && prevNodeId) {
                         dockedToId = prevNodeId;
@@ -212,20 +246,17 @@ export function useRunRecipe() {
                         dockedToId = nodeSpec.dockedTo;
                     }
 
-
-                    // Extract options that addNode expects from data
                     const { content, assetType, assetName, ...restData } = nodeSpec.data as any;
 
                     const newNodeId = graphEngine.mutator.addNode(nodeSpec.type, targetPos, {
                         content,
                         assetType,
                         assetName,
-                        assetConfig: nodeSpec.assetConfig,  // Universal Output Adapter
+                        assetConfig: nodeSpec.assetConfig,
                         ...restData,
                         ...(dockedToId ? { dockedTo: dockedToId } : {})
                     });
 
-                    // Handle connections
                     if (nodeSpec.connectTo) {
                         graphEngine.connect({
                             source: nodeId,
@@ -234,7 +265,6 @@ export function useRunRecipe() {
                             targetHandle: nodeSpec.connectTo.targetHandle
                         });
                     } else if (i === 0) {
-                        // Default: connect first node to recipe's 'product' output with Output Edge
                         graphEngine.updateNode(newNodeId, {
                             data: { hasProductHandle: true }
                         });
@@ -250,7 +280,6 @@ export function useRunRecipe() {
                     prevNodeId = newNodeId;
                 }
 
-                // Fix docking layout after all nodes are created
                 const updatedNodes = graphEngine.layout.fixDockingLayout(useWorkflowStore.getState().nodes);
                 graphEngine.setNodes(updatedNodes);
             }

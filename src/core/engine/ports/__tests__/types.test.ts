@@ -97,19 +97,19 @@ describe('PortValue helpers', () => {
     });
 
     describe('imageValue', () => {
-        it('should create image port value', () => {
+        it('should create image port value as json with url field', () => {
             const url = 'https://example.com/image.png';
             const value = imageValue(url);
 
-            expect(value.type).toBe('image');
-            expect(value.value).toBe(url);
+            expect(value.type).toBe('json');  // Now returns json
+            expect(value.value).toEqual({ url });  // Value is { url }
         });
 
         it('should accept data URLs', () => {
             const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANS...';
             const value = imageValue(dataUrl);
 
-            expect(value.value).toBe(dataUrl);
+            expect(value.value).toEqual({ url: dataUrl });
         });
     });
 });

@@ -1,11 +1,11 @@
 // Edge Validator
-// Connection validation logic extracted from InteractionSystem
+// Connection validation logic - delegates to node behaviors via IoC
 
 import { useWorkflowStore } from '@/store/workflowStore';
-import { resolvePort } from './PortResolver';
-import { isTypeCompatible } from './types';
-import type { ConnectionValidation, PortDefinition } from './types';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
+import type { ConnectionValidation } from './types';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
+import type { ConnectionContext, EngineContext } from '@core/engine/types/behavior';
 
 // ============================================================================
 // Semantic Handle Constants
@@ -14,7 +14,7 @@ import type { SynniaNode, SynniaEdge } from '@/types/project';
 /**
  * Semantic handles that are not field-level inputs
  */
-const SEMANTIC_HANDLES = ['origin', 'product', 'output', 'trigger', 'array'];
+const SEMANTIC_HANDLES = ['origin', 'product', 'output', 'trigger', 'array', 'reference'];
 
 // ============================================================================
 // Validation Functions
@@ -30,22 +30,11 @@ export function isFieldLevelInput(handleId: string | null | undefined): boolean 
     return true;
 }
 
-/**
- * Check if two ports are type-compatible for connection
- */
-export function canConnect(
-    sourcePort: PortDefinition | undefined,
-    targetPort: PortDefinition | undefined
-): boolean {
-    if (!sourcePort || !targetPort) return true;  // Allow if ports not registered
-    if (sourcePort.direction !== 'output') return false;
-    if (targetPort.direction !== 'input') return false;
-
-    return isTypeCompatible(sourcePort.dataType, targetPort.dataType);
-}
 
 /**
- * Validate a connection before creation
+ * Validate a connection before creation.
+ * Engine handles generic checks (cycle, multi-source).
+ * Node-specific validation is delegated to behavior.canConnect.
  */
 export function validateConnection(
     connection: {
@@ -66,12 +55,12 @@ export function validateConnection(
 
     const targetHandle = connection.targetHandle;
 
-    // Only validate field-level DATA_IN handles
+    // Semantic handles always allowed (origin, product, etc.)
     if (!isFieldLevelInput(targetHandle)) {
         return { valid: true };
     }
 
-    // Check for multi-source: prevent connecting if target handle already has an edge
+    // Multi-source check: prevent connecting if target handle already has an edge
     const existingEdge = edges.find(e =>
         e.target === connection.target &&
         e.targetHandle === targetHandle
@@ -80,44 +69,37 @@ export function validateConnection(
         return { valid: false, message: `Field '${targetHandle}' already has a connection` };
     }
 
-    // Get source asset
+    // IoC: Delegate to target node's behavior.canConnect
+    const behavior = behaviorRegistry.get(targetNode.type);
+
+    // Strict mode: if no canConnect implemented, reject field-level connections
+    if (!behavior.canConnect) {
+        return { valid: false, message: `${targetNode.type} does not accept field connections` };
+    }
+
+    // Build ConnectionContext
     const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
+    const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
 
-    // Resolve source port value
-    const sourcePortId = connection.sourceHandle || 'origin';
-    const portValue = resolvePort(sourceNode, sourceAsset, sourcePortId);
+    const ctx: ConnectionContext = {
+        sourceNode,
+        targetNode,
+        edge: {
+            id: `temp-${connection.source}-${connection.target}`,
+            source: connection.source,
+            target: connection.target,
+            sourceHandle: connection.sourceHandle || null,
+            targetHandle: connection.targetHandle || null,
+        } as SynniaEdge,
+        sourceAsset,
+        targetAsset,
+        getNodes: () => nodes,
+        getNode: (id: string) => nodes.find(n => n.id === id),
+    };
 
-    if (!portValue) {
-        return { valid: false, message: 'Source node has no output data' };
-    }
-
-    // For JSON objects, check if we can provide data for the target
-    if (portValue.type === 'json' && typeof portValue.value === 'object' && portValue.value !== null) {
-        const keys = Object.keys(portValue.value);
-
-        // If empty object, reject
-        if (keys.length === 0) {
-            return { valid: false, message: 'Source object is empty' };
-        }
-
-        // If target field exists in source, validate it's not empty
-        if (keys.includes(targetHandle!)) {
-            const fieldValue = portValue.value[targetHandle!];
-            if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
-                return { valid: false, message: `Field '${targetHandle}' in source is empty` };
-            }
-        }
-
-        // Note: requiredKeys validation is now handled in UI (FormRenderer)
-        // Connections are allowed - users see missing keys in the Inspector panel
-
-        // Allow connection - either field exists or whole object will pass
-        return { valid: true };
-    }
-
-    // For non-object types, ensure there's some value
-    if (portValue.value === undefined || portValue.value === null || portValue.value === '') {
-        return { valid: false, message: `Source has no data for field '${targetHandle}'` };
+    const error = behavior.canConnect(ctx);
+    if (error) {
+        return { valid: false, message: error };
     }
 
     return { valid: true };

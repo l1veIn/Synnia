@@ -1,6 +1,5 @@
 import { NodeBehavior, ConnectionContext } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { resolvePort, resolveInputValue } from '@core/engine/ports';
 import type { SynniaNode } from '@/types/project';
 import type { Asset } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
@@ -10,13 +9,8 @@ import type { PortValue } from '@core/engine/ports/types';
  * Extends StandardAssetBehavior with IoC hooks for port resolution and connection handling.
  */
 export const RecipeBehavior: NodeBehavior = {
-    // Inherit collapse behavior from standard
     ...StandardAssetBehavior,
 
-    /**
-     * Resolve output value for Recipe ports.
-     * Form values are stored directly in asset.value (V2 architecture).
-     */
     resolveOutput: (
         node: SynniaNode,
         asset: Asset | null,
@@ -29,7 +23,6 @@ export const RecipeBehavior: NodeBehavior = {
         switch (portId) {
             case 'reference':
             case 'origin':
-                // Return entire form values
                 return {
                     type: 'json',
                     value: values,
@@ -37,7 +30,6 @@ export const RecipeBehavior: NodeBehavior = {
                 };
 
             default:
-                // Field-level access: extract specific field
                 if (portId.startsWith('field:')) {
                     const fieldKey = portId.replace('field:', '');
                     if (values[fieldKey] !== undefined) {
@@ -49,7 +41,6 @@ export const RecipeBehavior: NodeBehavior = {
                         };
                     }
                 }
-                // Direct field access (for dynamic field ports)
                 if (values[portId] !== undefined) {
                     const value = values[portId];
                     return {
@@ -63,22 +54,75 @@ export const RecipeBehavior: NodeBehavior = {
     },
 
     /**
+     * Validate if this Recipe can accept the incoming connection.
+     * Return null to allow, or error message to reject.
+     */
+    canConnect: (ctx: ConnectionContext): string | null => {
+        const { edge, sourceNode, sourceAsset } = ctx;
+        const targetHandle = edge.targetHandle;
+
+        // Semantic handles always allowed
+        if (!targetHandle || ['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
+            return null;
+        }
+
+        // Check source has data
+        if (!sourceAsset?.value) {
+            return 'Source node has no data';
+        }
+
+        // For JSON sources, check if source has the target field or any data
+        const sourceValue = sourceAsset.value;
+        if (typeof sourceValue === 'object' && sourceValue !== null) {
+            const keys = Object.keys(sourceValue);
+            if (keys.length === 0) {
+                return 'Source object is empty';
+            }
+            // If target field exists in source, check it's not empty
+            if (keys.includes(targetHandle)) {
+                const fieldValue = (sourceValue as Record<string, any>)[targetHandle];
+                if (fieldValue === undefined || fieldValue === null || fieldValue === '') {
+                    return `Field '${targetHandle}' in source is empty`;
+                }
+            }
+        }
+
+        return null;  // Allow
+    },
+
+    /**
      * Handle connections TO this Recipe node.
-     * Auto-fill target fields based on incoming data.
+     * Extract data from source and auto-fill target field.
      */
     onConnect: (ctx: ConnectionContext): Record<string, any> | null => {
         const { edge, sourceAsset } = ctx;
         const targetHandle = edge.targetHandle;
-        if (!targetHandle) return null;
 
-        // Skip semantic handles
-        if (['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
+        if (!targetHandle || ['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
             return null;
         }
 
-        // Resolve source value and auto-fill
-        const portValue = resolvePort(ctx.sourceNode, sourceAsset, edge.sourceHandle || 'origin');
-        const value = resolveInputValue(portValue, targetHandle);
+        if (!sourceAsset?.value) return null;
+
+        // Extract value from source - no resolvePort needed!
+        const sourceValue = sourceAsset.value;
+        let value: any;
+
+        if (Array.isArray(sourceValue) && sourceValue.length > 0) {
+            // Array: extract field from first item
+            const firstItem = sourceValue[0];
+            if (typeof firstItem === 'object' && firstItem !== null) {
+                value = firstItem[targetHandle] ?? firstItem;
+            } else {
+                value = firstItem;
+            }
+        } else if (typeof sourceValue === 'object' && sourceValue !== null) {
+            // Object: extract field or use whole object
+            value = (sourceValue as Record<string, any>)[targetHandle] ?? sourceValue;
+        } else {
+            // Primitive: use directly
+            value = sourceValue;
+        }
 
         return value !== undefined ? { [targetHandle]: value } : null;
     },

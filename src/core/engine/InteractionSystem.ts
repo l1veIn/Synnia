@@ -12,9 +12,9 @@ import {
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { sortNodesTopologically } from '@core/utils/graph';
 import { v4 as uuidv4 } from 'uuid';
-import { getDescendants, sanitizeNodeForClipboard, isNodeInsideGroup } from '@core/utils/graph';
+import { getDescendants, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { validateConnection, wouldCreateCycle, resolvePort, resolveInputValue } from '@core/engine/ports';
+import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import type { ConnectionContext } from '@core/engine/types/behavior';

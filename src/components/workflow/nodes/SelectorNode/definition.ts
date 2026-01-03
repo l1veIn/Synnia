@@ -38,7 +38,7 @@ export const definition: NodeDefinition = {
                 })),
                 config: {
                     mode: 'multi' as const,
-                    optionSchema: schemaFields,  // Schema belongs in asset.config
+                    schema: schemaFields,  // Schema belongs in asset.config
                 },
             },
         };

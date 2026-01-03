@@ -41,7 +41,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
             return {
                 mode: config.mode ?? 'multi',
                 showSearch: config.showSearch ?? true,
-                optionSchema: config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
+                schema: config.schema ?? DEFAULT_OPTION_SCHEMA,
                 options: raw.map((item: any, i: number) => ({
                     id: item.id || `opt-${i}`,
                     ...item,
@@ -55,7 +55,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         return {
             mode: contentObj.mode ?? config.mode ?? 'multi',
             showSearch: contentObj.showSearch ?? true,
-            optionSchema: contentObj.optionSchema ?? config.optionSchema ?? DEFAULT_OPTION_SCHEMA,
+            schema: contentObj.schema ?? config.schema ?? DEFAULT_OPTION_SCHEMA,
             options: contentObj.options ?? [],
             selected: contentObj.selected ?? nodeData?.selected ?? [],
         };
@@ -66,7 +66,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 
     // Get display label for an option (first string field in schema, or id)
     const getOptionLabel = useCallback((option: SelectorOption): string => {
-        const schema = content.optionSchema;
+        const schema = content.schema;
         // Find first string field value
         for (const field of schema) {
             if (field.type === 'string' && option[field.key]) {
@@ -74,7 +74,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
             }
         }
         return option.id;
-    }, [content.optionSchema]);
+    }, [content.schema]);
 
     // Filter options by search
     const filteredOptions = useMemo(() => {
@@ -82,7 +82,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         const query = searchQuery.toLowerCase();
         return content.options.filter(opt => {
             // Search in all string fields
-            for (const field of content.optionSchema) {
+            for (const field of content.schema) {
                 const val = opt[field.key];
                 if (typeof val === 'string' && val.toLowerCase().includes(query)) {
                     return true;
@@ -90,7 +90,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
             }
             return opt.id.toLowerCase().includes(query);
         });
-    }, [content.options, content.optionSchema, searchQuery]);
+    }, [content.options, content.schema, searchQuery]);
 
     // Toggle option selection
     const toggleOption = (optionId: string) => {
@@ -124,8 +124,8 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 
     // Check if option has extra data to show
     const hasExtraData = useMemo(() => {
-        return content.optionSchema.length > 1;
-    }, [content.optionSchema]);
+        return content.schema.length > 1;
+    }, [content.schema]);
 
     return (
         <NodeShell
@@ -230,7 +230,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
                                         {/* Expanded details */}
                                         {isExpanded && hasExtraData && (
                                             <div className="px-2 py-1.5 bg-muted/30 border-t space-y-1">
-                                                {content.optionSchema.slice(1).map(field => {
+                                                {content.schema.slice(1).map(field => {
                                                     const val = option[field.key];
                                                     if (val === undefined || val === null || val === '') return null;
 

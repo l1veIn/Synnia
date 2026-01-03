@@ -21,7 +21,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-    // Get saved content - V2 architecture: rows in value, columns in config
+    // Get saved content - V2 architecture: rows in value, schema in config.schema
     const savedContent = useMemo(() => {
         const config = (asset?.config as any) || {};
         const rawValue = asset?.value;
@@ -34,8 +34,21 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             rows = (rawValue as any).rows;
         }
 
+        // Read from schema (new) or columns (legacy)
+        let columns: TableColumn[] = [];
+        if (config.schema && Array.isArray(config.schema)) {
+            columns = config.schema.map((f: any) => ({
+                key: f.key,
+                label: f.label || f.key,
+                type: f.type === 'number' ? 'number' : f.type === 'boolean' ? 'boolean' : 'string',
+                width: f.config?.width,
+            }));
+        } else if (config.columns && Array.isArray(config.columns)) {
+            columns = config.columns;
+        }
+
         return {
-            columns: config.columns ?? [],
+            columns,
             rows,
             showRowNumbers: config.showRowNumbers ?? true,
             allowAddRow: config.allowAddRow ?? true,
@@ -71,10 +84,15 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             draftShowRowNumbers !== savedContent.showRowNumbers;
     }, [draftColumns, draftShowRowNumbers, savedContent, isInitialized]);
 
-    // Save schema to config
+    // Save schema to config (convert TableColumn[] to FieldDefinition[])
     const handleSave = () => {
+        const schemaFields = draftColumns.map(col => ({
+            key: col.key,
+            label: col.label,
+            type: col.type,
+        }));
         updateConfig({
-            columns: draftColumns,
+            schema: schemaFields,
             showRowNumbers: draftShowRowNumbers,
         });
         toast.success('Schema saved');

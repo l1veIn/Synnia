@@ -90,17 +90,10 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     // Get execution result values
     const executionResult = (state.node?.data as any)?.executionResult || {};
 
-    // Merge values: for disabled fields, prefer executionResult
+    // Merge values: prioritize execution results for output values
     const values = useMemo(() => {
         if (!recipe) return assetValues;
-
-        const merged = { ...assetValues };
-        for (const field of recipe.inputSchema) {
-            if (field.disabled && executionResult[field.key] !== undefined) {
-                merged[field.key] = executionResult[field.key];
-            }
-        }
-        return merged;
+        return { ...assetValues, ...executionResult };
     }, [assetValues, executionResult, recipe]);
 
     const handleRun = (e: React.MouseEvent) => {
@@ -165,7 +158,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     // Check if there are fields with handles (to know if we need content area even when collapsed)
     const hasHandleFields = recipe?.inputSchema.some(field => {
         const conn = field.connection;
-        return conn?.input || conn?.output || field.widget === 'json-input' || field.type === 'object';
+        return conn === 'input' || conn === 'output' || conn === 'both' ||
+            field.widget === 'form-input' || field.widget === 'table-input' ||
+            field.type === 'object' || field.type === 'array';
     }) ?? false;
 
     return (

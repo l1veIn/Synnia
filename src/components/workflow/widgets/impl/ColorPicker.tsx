@@ -45,11 +45,9 @@ function WidgetComponent({ value, onChange, disabled, field }: WidgetProps) {
 
 function renderFieldRow({ field, value, isConnected, disabled }: FieldRowProps) {
     const conn = field.connection;
-    const hasInputHandle = conn?.input === true ||
-        (typeof conn?.input === 'object' && conn.input.enabled);
-    const hasOutputHandle = conn?.output === true ||
-        (typeof conn?.output === 'object' && conn.output.enabled);
-    const isMissing = field.rules?.required && !value && !isConnected;
+    const hasInputHandle = conn === 'input' || conn === 'both';
+    const hasOutputHandle = conn === 'output' || conn === 'both';
+    const isMissing = field.required && !value && !isConnected;
 
     const displayColor = value || '#000000';
     const isValidHex = /^#[0-9A-Fa-f]{6}$/.test(displayColor);
@@ -95,7 +93,7 @@ function renderFieldRow({ field, value, isConnected, disabled }: FieldRowProps) 
             </div>
 
             {hasOutputHandle && (
-                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`} />
+                <NodePort.Output id={`field:${field.key}`} />
             )}
         </div>
     );

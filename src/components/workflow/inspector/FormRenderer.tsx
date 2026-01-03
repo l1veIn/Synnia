@@ -35,27 +35,23 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
         <div className="space-y-5">
             {schema.filter(field => !field.hidden).map((field) => {
                 const isLinked = linkedFields?.has(field.key) ?? false;
-                const isDisabled = field.disabled || isLinked;
 
                 return (
-                    <div key={field.id} className="space-y-1.5">
+                    <div key={field.key} className="space-y-1.5">
                         <div className="flex items-center justify-between">
                             <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                                 {field.label || field.key}
-                                {field.rules?.required && <span className="text-destructive">*</span>}
+                                {field.required && <span className="text-destructive">*</span>}
                                 {isLinked && (
                                     <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded-full">
                                         <Link className="h-2.5 w-2.5" />
                                         Linked
                                     </span>
                                 )}
-                                {field.disabled && !isLinked && (
-                                    <span className="text-muted-foreground/50 text-[10px]">(read-only)</span>
-                                )}
                             </Label>
                         </div>
 
-                        {renderWidget(field, values[field.key], (v) => handleChange(field.key, v), isDisabled, isLinked)}
+                        {renderWidget(field, values[field.key], (v) => handleChange(field.key, v), isLinked, isLinked)}
                     </div>
                 );
             })}
@@ -64,7 +60,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
 }
 
 function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void, disabled?: boolean, isConnected?: boolean) {
-    const rules = field.rules || {};
+    const config = field.config || {};
     const isDisabled = disabled || false;
     const safeVal = value ?? field.defaultValue ?? '';
 
@@ -84,9 +80,9 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
     // Fallback to built-in widgets not in registry
     switch (field.widget) {
         case 'slider':
-            const min = rules.min ?? 0;
-            const max = rules.max ?? 100;
-            const step = rules.step ?? 1;
+            const min = config.min ?? 0;
+            const max = config.max ?? 100;
+            const step = config.step ?? 1;
             const valNum = Number(safeVal) || min;
             return (
                 <div className="flex items-center gap-2">
@@ -115,7 +111,7 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                         <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {(rules.options || []).map((opt: string) => (
+                        {(config.options || []).map((opt: string) => (
                             <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
                         ))}
                     </SelectContent>
@@ -153,21 +149,6 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
         );
     }
 
-    if (field.type === 'select') {
-        return (
-            <Select value={String(safeVal)} onValueChange={onChange} disabled={isDisabled}>
-                <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                    {(rules.options || []).map((opt: string) => (
-                        <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        );
-    }
-
     if (field.type === 'number') {
         return (
             <Input
@@ -175,9 +156,9 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
                 value={safeVal}
                 onChange={(e) => onChange(Number(e.target.value))}
                 disabled={isDisabled}
-                min={rules.min}
-                max={rules.max}
-                step={rules.step}
+                min={config.min}
+                max={config.max}
+                step={config.step}
                 className="h-8 text-xs"
             />
         );
@@ -189,7 +170,7 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
             value={safeVal}
             onChange={(e) => onChange(e.target.value)}
             disabled={isDisabled}
-            placeholder={rules.placeholder}
+            placeholder={config.placeholder}
             className="h-8 text-xs"
         />
     );

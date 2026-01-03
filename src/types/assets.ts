@@ -164,9 +164,14 @@ export interface ArrayAssetValueMeta {
 }
 
 export interface ArrayAssetConfig {
-    // Generic array data structure
+    // Unified structure definition (replaces itemSchema, columns, optionSchema)
+    schema?: FieldDefinition[];
+
+    // @deprecated - use schema instead
     itemSchema?: FieldDefinition[];
     columns?: ColumnDef[];
+
+    // Selector-specific
     options?: SelectorOption[];
     mode?: 'single' | 'multi';
 }
@@ -226,52 +231,61 @@ export function fromAssetRef(ref: string): string {
 // Form / Recipe Schema Definitions
 // ==========================================
 
-export type FieldType = 'string' | 'number' | 'boolean' | 'select' | 'object';
+/**
+ * Field types supported by the schema system.
+ * - string, number, boolean: primitive types
+ * - object: nested form (has schema)
+ * - array: collection of items (has schema for item structure)
+ */
+export type FieldType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 
-export interface FieldRule {
-    min?: number;
-    max?: number;
-    step?: number;
-    options?: string[];
-    requiredKeys?: string[];
-    required?: boolean;
-    placeholder?: string;
-    pattern?: string;
-    patternMessage?: string;
-    minLength?: number;
-    maxLength?: number;
-    enum?: (string | number)[];
-    format?: 'email' | 'url' | 'date' | 'datetime' | 'uuid';
-    customValidator?: string;
-    filterRecipeType?: string;
-    filterCapability?: string;
-}
-
-export interface FieldConnection {
-    /** @deprecated Use input.enabled or output.enabled instead */
-    enabled?: boolean;
-    input?: boolean | {
-        enabled: boolean;
-        acceptTypes?: ('text' | 'image' | 'json' | 'any')[];
-    };
-    output?: boolean | {
-        enabled: boolean;
-        handleId?: string;
-    };
-}
-
+/**
+ * Unified field definition for forms, recipes, tables, and selectors.
+ * Supports recursive nesting via `schema` property.
+ */
 export interface FieldDefinition {
-    id?: string;
+    /** Unique field identifier */
     key: string;
-    label?: string;
+
+    /** Data type */
     type: FieldType;
+
+    /** Display label */
+    label?: string;
+
+    /** Widget to render this field */
     widget?: WidgetType;
-    rules?: FieldRule;
-    connection?: FieldConnection;
-    defaultValue?: any;
-    disabled?: boolean;
+
+    /** Whether this field is required */
+    required?: boolean;
+
+    /** Hide this field from UI */
     hidden?: boolean;
-    options?: Record<string, any>;
+
+    /** Default value */
+    defaultValue?: any;
+
+    /**
+     * Widget-specific configuration.
+     * Examples: { min: 0, max: 100 }, { options: ['a', 'b'] }, { placeholder: '...' }
+     */
+    config?: Record<string, any>;
+
+    /**
+     * Connection configuration for canvas nodes.
+     * - 'input': can receive connections
+     * - 'output': can send connections
+     * - 'both': bidirectional
+     * - false: no connections
+     */
+    connection?: 'input' | 'output' | 'both' | false;
+
+    /**
+     * Nested schema for object/array types.
+     * - For type: 'object' → describes the object's fields
+     * - For type: 'array' → describes each array item's fields
+     */
+    schema?: FieldDefinition[];
 }
 
 // ==========================================

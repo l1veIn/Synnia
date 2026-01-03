@@ -16,6 +16,8 @@ import { ImagePickerWidget } from './impl/ImagePicker';
 import { TextInputWidget } from './impl/TextInput';
 import { TextAreaWidget } from './impl/TextArea';
 import { JSONInputWidget } from './impl/JSONInput';
+import { FormInputWidget } from './impl/FormInput';
+import { TableInputWidget } from './impl/TableInput';
 import { AspectRatioSelectorWidget } from './impl/AspectRatioSelector';
 import { ColorPickerWidget } from './impl/ColorPicker';
 
@@ -24,6 +26,8 @@ widgetRegistry.register(ImagePickerWidget);
 widgetRegistry.register(TextInputWidget);
 widgetRegistry.register(TextAreaWidget);
 widgetRegistry.register(JSONInputWidget);
+widgetRegistry.register(FormInputWidget);
+widgetRegistry.register(TableInputWidget);
 widgetRegistry.register(AspectRatioSelectorWidget);
 widgetRegistry.register(ColorPickerWidget);
 

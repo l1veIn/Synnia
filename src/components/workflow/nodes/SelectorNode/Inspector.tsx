@@ -29,7 +29,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         return {
             mode: cfg.mode ?? 'multi' as 'single' | 'multi',
             showSearch: cfg.showSearch ?? true,
-            optionSchema: cfg.optionSchema ?? DEFAULT_OPTION_SCHEMA,
+            schema: cfg.schema ?? DEFAULT_OPTION_SCHEMA,
         };
     }, [asset?.config]);
 
@@ -48,7 +48,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const savedContent: SelectorAssetContent = useMemo(() => ({
         mode: config.mode,
         showSearch: config.showSearch,
-        optionSchema: config.optionSchema,
+        schema: config.schema,
         options,
         selected: [],  // Selected is now in node.data, not asset
     }), [config, options]);
@@ -69,7 +69,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         if (!isInitialized && asset) {
             setDraftMode(savedContent.mode);
             setDraftShowSearch(savedContent.showSearch);
-            setDraftSchema(savedContent.optionSchema);
+            setDraftSchema(savedContent.schema);
             setIsInitialized(true);
         }
     }, [savedContent, isInitialized, asset]);
@@ -78,7 +78,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     useEffect(() => {
         setDraftMode(savedContent.mode);
         setDraftShowSearch(savedContent.showSearch);
-        setDraftSchema(savedContent.optionSchema);
+        setDraftSchema(savedContent.schema);
         setIsInitialized(true);
     }, [assetId]);
 
@@ -87,7 +87,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         if (!isInitialized) return false;
         return draftMode !== savedContent.mode ||
             draftShowSearch !== savedContent.showSearch ||
-            JSON.stringify(draftSchema) !== JSON.stringify(savedContent.optionSchema);
+            JSON.stringify(draftSchema) !== JSON.stringify(savedContent.schema);
     }, [draftMode, draftShowSearch, draftSchema, savedContent, isInitialized]);
 
     // Save settings - uses updateConfig for config values
@@ -95,7 +95,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         updateConfig({
             mode: draftMode,
             showSearch: draftShowSearch,
-            optionSchema: draftSchema,
+            schema: draftSchema,
         });
         toast.success('Settings saved');
     };
@@ -104,7 +104,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const handleDiscardSettings = () => {
         setDraftMode(savedContent.mode);
         setDraftShowSearch(savedContent.showSearch);
-        setDraftSchema(savedContent.optionSchema);
+        setDraftSchema(savedContent.schema);
         toast.info('Changes discarded');
     };
 
@@ -112,7 +112,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const handleAddOption = () => {
         const newOption: SelectorOption = { id: uuidv4() };
         // Set defaults from schema
-        savedContent.optionSchema.forEach(field => {
+        savedContent.schema.forEach(field => {
             newOption[field.key] = field.defaultValue ?? '';
         });
         setEditingOption(newOption);
@@ -161,7 +161,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Get display label for an option
     const getOptionLabel = (option: SelectorOption): string => {
-        for (const field of savedContent.optionSchema) {
+        for (const field of savedContent.schema) {
             if (field.type === 'string' && option[field.key]) {
                 return String(option[field.key]);
             }
@@ -210,7 +210,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                         ...r,
                                     }));
                                     setDraftSchema(newSchema);
-                                    updateConfig({ optionSchema: newSchema });
+                                    updateConfig({ schema: newSchema });
                                     setValue([...options, ...newOptions]);
                                     toast.success(`Added ${newOptions.length} options`);
                                 }}
@@ -351,7 +351,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                     <div className="py-4">
                         <FormRenderer
-                            schema={savedContent.optionSchema}
+                            schema={savedContent.schema}
                             values={draftOptionValues}
                             onChange={setDraftOptionValues}
                         />

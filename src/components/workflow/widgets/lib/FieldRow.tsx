@@ -31,8 +31,8 @@ export function RecipeFieldRow({
         handleId: field.key,
     });
     const isConnected = connections.length > 0;
-    const isMissing = field.rules?.required && (value === undefined || value === '' || value === null);
-    const isDisabled = field.disabled === true;
+    const isMissing = field.required && (value === undefined || value === '' || value === null);
+    const isDisabled = field.hidden === true;
 
     // Check if widget wants to render the entire row
     const widget = field.widget ? getWidget(field.widget) : undefined;
@@ -60,13 +60,10 @@ export function RecipeFieldRow({
     // Default rendering (current RecipeNode logic)
     // Determine if handles should be shown
     const conn = field.connection;
-    const hasInputHandle = conn?.input === true ||
-        (typeof conn?.input === 'object' && conn.input.enabled) ||
-        field.widget === 'json-input' ||
-        field.type === 'object' ||
-        conn?.enabled;
-    const hasOutputHandle = conn?.output === true ||
-        (typeof conn?.output === 'object' && conn.output.enabled);
+    const hasInputHandle = conn === 'input' || conn === 'both' ||
+        field.widget === 'form-input' || field.widget === 'table-input' ||
+        field.type === 'object' || field.type === 'array';
+    const hasOutputHandle = conn === 'output' || conn === 'both';
 
     // Format display value
     const formatValue = (val: any) => {
@@ -159,7 +156,7 @@ export function RecipeFieldRow({
 
             {/* Output Handle (Right) */}
             {hasOutputHandle && (
-                <NodePort.Output id={typeof conn?.output === 'object' && conn.output.handleId ? conn.output.handleId : `field:${field.key}`} />
+                <NodePort.Output id={`field:${field.key}`} />
             )}
         </div>
     );
@@ -188,12 +185,9 @@ export function RecipeFormRenderer({
     const fieldsWithHandles = fields.filter(field => {
         if (field.hidden) return false;
         const conn = field.connection;
-        return conn?.input === true ||
-            (typeof conn?.input === 'object' && conn.input.enabled) ||
-            conn?.output === true ||
-            (typeof conn?.output === 'object' && conn.output.enabled) ||
-            field.widget === 'json-input' ||
-            field.type === 'object';
+        return conn === 'input' || conn === 'output' || conn === 'both' ||
+            field.widget === 'form-input' || field.widget === 'table-input' ||
+            field.type === 'object' || field.type === 'array';
     });
 
     // Filter out hidden fields from visible schema
@@ -210,7 +204,7 @@ export function RecipeFormRenderer({
         <div className={cn("space-y-1.5", isCollapsed && "py-1")}>
             {fieldsToShow.map(field => (
                 <RecipeFieldRow
-                    key={field.id}
+                    key={field.key}
                     field={field}
                     value={values[field.key]}
                     connectedValues={connectedValues}

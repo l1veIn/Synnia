@@ -19,7 +19,7 @@ import type { ModelCapability } from '@features/models/types';
 export interface InputField {
     key: string;
     label?: string;
-    type: 'string' | 'number' | 'boolean' | 'select';
+    type: 'string' | 'number' | 'boolean' | 'select' | 'object' | 'array';
     required?: boolean;
     placeholder?: string;
     default?: any;
@@ -32,6 +32,9 @@ export interface InputField {
 
     // Connection (simplified)
     connection?: 'input' | 'output' | 'both';
+
+    // Nested schema for object/array types
+    schema?: InputField[];
 }
 
 // ----------------------------------------------------------------------------
@@ -269,22 +272,22 @@ export interface RecipeDefinition {
  * Convert InputField to FieldDefinition (for runtime use)
  */
 export function inputFieldToDefinition(field: InputField): FieldDefinition {
+    // Recursively convert nested schema
+    const nestedSchema = field.schema?.map(inputFieldToDefinition);
+
     return {
-        id: field.key,
         key: field.key,
         label: field.label,
-        type: field.type,
-        widget: field.widget as import('./widgets').WidgetType | undefined,
+        type: field.type === 'select' ? 'string' : field.type,  // Convert select to string type
+        widget: field.type === 'select' ? 'select' : (field.widget as import('./widgets').WidgetType | undefined),
+        required: field.required,
         defaultValue: field.default,
-        options: field.options,
-        rules: {
-            required: field.required,
+        config: {
+            options: field.options,
             placeholder: field.placeholder,
         },
-        connection: field.connection ? {
-            input: field.connection === 'input' || field.connection === 'both',
-            output: field.connection === 'output' || field.connection === 'both',
-        } : undefined,
+        connection: field.connection,
+        schema: nestedSchema,
     };
 }
 

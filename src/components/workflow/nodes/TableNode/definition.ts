@@ -35,11 +35,7 @@ export const definition: NodeDefinition = {
                 valueType: 'array' as const,
                 value: items,
                 config: {
-                    columns: schemaFields.map((f: FieldDefinition) => ({
-                        key: f.key,
-                        label: f.label || f.key,
-                        type: f.type === 'number' ? 'number' : 'string',
-                    })),
+                    schema: schemaFields,  // Store as FieldDefinition[]
                 },
             },
         };

@@ -126,15 +126,17 @@ export function useRunRecipe() {
             for (const field of recipe.inputSchema) {
                 const val = effectiveValues[field.key];
 
-                if (field.rules?.required && (val === undefined || val === null || val === '')) {
+                if (field.required && (val === undefined || val === null || val === '')) {
                     throw new Error(`Missing required input: ${field.label || field.key}`);
                 }
 
-                if (field.type === 'object' && field.rules?.requiredKeys && val) {
+                // Validate object type has schema fields
+                if (field.type === 'object' && field.schema && val) {
                     if (typeof val !== 'object') {
                         throw new Error(`Field '${field.key}' expects an object, got ${typeof val}`);
                     }
-                    const missingKeys = field.rules.requiredKeys.filter(k => !(k in val));
+                    const requiredFields = field.schema.filter(f => f.required);
+                    const missingKeys = requiredFields.filter(f => !(f.key in val)).map(f => f.key);
                     if (missingKeys.length > 0) {
                         throw new Error(`Field '${field.key}' missing keys: ${missingKeys.join(', ')}`);
                     }

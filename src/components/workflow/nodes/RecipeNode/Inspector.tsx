@@ -249,9 +249,9 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                                         key: f.key,
                                         label: f.label,
                                         type: f.type,
-                                        placeholder: f.rules?.placeholder,
+                                        placeholder: f.config?.placeholder,
                                         widget: f.widget,
-                                        options: f.rules?.options,
+                                        options: f.config?.options,
                                     }))}
                                     onGenerate={(values) => {
                                         setDraftValues(prev => ({ ...prev, ...values }));

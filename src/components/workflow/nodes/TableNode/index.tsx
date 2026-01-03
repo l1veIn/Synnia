@@ -36,7 +36,7 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
     }, [state.isCollapsed, id, updateNodeInternals]);
 
     // Get content with defaults
-    // V2 architecture: rows in asset.value, columns in asset.config
+    // V2 architecture: rows in asset.value, schema in asset.config.schema
     const content: TableAssetContent = useMemo(() => {
         const config = (state.asset?.config as any) || {};
         const rawValue = state.asset?.value;
@@ -49,8 +49,22 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
             rows = (rawValue as any).rows;
         }
 
+        // Read from schema (new) or columns (legacy)
+        // Convert FieldDefinition[] to TableColumn[] if needed
+        let columns: TableColumn[] = [];
+        if (config.schema && Array.isArray(config.schema)) {
+            columns = config.schema.map((f: any) => ({
+                key: f.key,
+                label: f.label || f.key,
+                type: f.type === 'number' ? 'number' : f.type === 'boolean' ? 'boolean' : 'string',
+                width: f.config?.width,
+            }));
+        } else if (config.columns && Array.isArray(config.columns)) {
+            columns = config.columns;
+        }
+
         return {
-            columns: config.columns ?? [],
+            columns,
             rows,
             showRowNumbers: config.showRowNumbers ?? true,
             allowAddRow: config.allowAddRow ?? true,

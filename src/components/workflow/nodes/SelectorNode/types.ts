@@ -13,14 +13,14 @@ export interface SelectorOption {
  * Default schema fields (used when user doesn't define custom schema)
  */
 export const DEFAULT_OPTION_SCHEMA: FieldDefinition[] = [
-    { id: 'label', key: 'label', label: 'Label', type: 'string', widget: 'text' },
-    { id: 'description', key: 'description', label: 'Description', type: 'string', widget: 'text' },
+    { key: 'label', label: 'Label', type: 'string', widget: 'text' },
+    { key: 'description', label: 'Description', type: 'string', widget: 'text' },
 ];
 
 export interface SelectorAssetContent {
     mode: 'single' | 'multi';
     showSearch: boolean;
-    optionSchema: FieldDefinition[]; // Schema for option fields
+    schema: FieldDefinition[];  // Unified schema (renamed from optionSchema)
     options: SelectorOption[];
     selected: string[]; // array of option IDs
 }

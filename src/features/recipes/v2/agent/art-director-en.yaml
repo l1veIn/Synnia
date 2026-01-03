@@ -13,35 +13,114 @@ icon: Palette
 input:
   - key: productionManifest
     label: Production Manifest
-    type: string
-    widget: json-input
+    type: array
+    widget: table-input
     required: true
     connection: input
     placeholder: "Connect the 'Production Manifest' table here"
+    schema:
+      - key: assetId
+        label: Asset ID
+        type: string
+        widget: text
+        required: true
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        required: true
+      - key: visualStyle
+        label: Visual Style
+        type: string
+        widget: text
 
   - key: soulProfile
     label: Soul Profile
-    type: string
-    widget: json-input
+    type: object
+    widget: form-input
     required: true
     connection: input
     placeholder: "Connect the 'Soul Profile' JSON here"
+    schema:
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        required: true
+      - key: tagline
+        label: Tagline
+        type: string
+        widget: text
+      - key: colorDNA
+        label: Color DNA
+        type: object
+        widget: form-input
+        schema:
+          - key: primary
+            label: Primary
+            type: string
+            widget: color-picker
+          - key: secondary
+            label: Secondary
+            type: string
+            widget: color-picker
+          - key: accent
+            label: Accent
+            type: string
+            widget: color-picker
 
   - key: styleTemplate
     label: Visual Style Template
-    type: string
-    widget: json-input
+    type: object
+    widget: form-input
     required: true
     connection: input
     placeholder: "Pass style template (use SelectorNode to choose)"
+    schema:
+      - key: name
+        label: Style Name
+        type: string
+        widget: text
+        required: true
+      - key: style
+        label: Style Description
+        type: string
+        widget: textarea
+      - key: lighting
+        label: Lighting
+        type: string
+        widget: text
+      - key: mood
+        label: Mood
+        type: string
+        widget: text
 
   - key: assetDefinitions
     label: Asset Definitions
-    type: string
-    widget: json-input
+    type: array
+    widget: table-input
     required: true
     connection: input
     placeholder: "Pass asset definitions JSON (built with TableNode)"
+    schema:
+      - key: id
+        label: ID
+        type: string
+        widget: text
+        required: true
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        required: true
+      - key: description
+        label: Description
+        type: string
+        widget: textarea
+      - key: category
+        label: Category
+        type: string
+        widget: text
 
 # ============================================================================
 # Model Requirements

@@ -35,8 +35,12 @@ export type WidgetType =
     | 'lora-selector'     // LoRA model selector
     | 'llm-configurator'  // LLM model selector + params
 
+    // Connection Inputs (receive data from other nodes)
+    | 'form-input'        // Object connection input (expects single object)
+    | 'table-input'       // Array connection input (expects array of objects)
+    | 'json-input'        // Generic JSON connection (legacy, use form-input/table-input)
+
     // System
-    | 'json-input'        // JSON object connection input (expects structured data)
     | 'none';             // Headless/Hidden
 
 /**

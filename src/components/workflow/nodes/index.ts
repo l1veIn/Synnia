@@ -151,15 +151,10 @@ for (const recipe of recipes) {
                 const fieldKey = field.key;
                 const fieldValue = values[fieldKey];
 
-                const hasOutput = conn?.output === true ||
-                    (typeof conn?.output === 'object' && conn.output.enabled);
+                const hasOutput = conn === 'output' || conn === 'both';
 
                 if (hasOutput) {
-                    const handleId = typeof conn?.output === 'object' && conn.output.handleId
-                        ? conn.output.handleId
-                        : `field:${field.key}`;
-
-                    const isDisabled = field.disabled === true;
+                    const handleId = `field:${field.key}`;
 
                     ports.push({
                         id: handleId,
@@ -167,17 +162,6 @@ for (const recipe of recipes) {
                         dataType: 'json',
                         label: field.label || field.key,
                         resolver: (n: any, a: any) => {
-                            if (isDisabled) {
-                                const execResult = n.data?.executionResult;
-                                if (execResult && typeof execResult === 'object') {
-                                    const value = execResult[fieldKey];
-                                    if (value !== undefined) {
-                                        return { type: 'json', value, meta: { nodeId: n.id, portId: handleId } };
-                                    }
-                                }
-                                return null;
-                            }
-
                             // RecordAsset: values are directly in asset.value
                             if (a?.value && typeof a.value === 'object') {
                                 const value = (a.value as Record<string, any>)[fieldKey];

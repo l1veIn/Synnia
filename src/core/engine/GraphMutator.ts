@@ -47,9 +47,8 @@ export class GraphMutator {
         }
 
         // Get schema from config.config (Universal Output Adapter pattern)
-        // Support both 'schema' and 'optionSchema' (for SelectorNode compatibility)
         const nodeConfig = config.config || {};
-        const schema = nodeConfig.schema || nodeConfig.optionSchema;
+        const schema = nodeConfig.schema;
 
         // Prepare title template resolver
         const resolveTitle = (count: number): string => {
@@ -181,6 +180,76 @@ export class GraphMutator {
         };
 
         const { nodes } = this.engine.state;
+        const newNodes = [...nodes, newNode];
+        this.engine.setNodes(sortNodesTopologically(newNodes));
+
+        return newNode.id;
+    }
+
+    /**
+     * Create a node from a schema definition.
+     * Used by form-input/table-input widgets to create matching nodes.
+     */
+    public createNodeFromSchema(
+        nodeType: 'form' | 'table' | 'selector',
+        schema: import('@/types/assets').FieldDefinition[],
+        options?: {
+            title?: string;
+            sourceNodeId?: string;  // Position below this node
+        }
+    ): string {
+        const { nodes } = this.engine.state;
+
+        // Calculate position
+        let position: XYPosition = { x: 100, y: 100 };
+        if (options?.sourceNodeId) {
+            const sourceNode = nodes.find(n => n.id === options.sourceNodeId);
+            if (sourceNode) {
+                position = {
+                    x: sourceNode.position.x,
+                    y: sourceNode.position.y + (sourceNode.measured?.height || 200) + 50,
+                };
+            }
+        }
+
+        // Resolve node type alias
+        const def = nodeRegistry.get(nodeType) || nodeRegistry.getByAlias(nodeType);
+        if (!def) {
+            console.warn(`[createNodeFromSchema] Unknown node type: ${nodeType}`);
+            return '';
+        }
+
+        // Use node's create factory with schema
+        const createResult = def.create({ schema });
+        const title = options?.title || `New ${def.meta.title}`;
+
+        // Create asset with schema in config
+        const assetId = this.engine.assets.create(
+            createResult?.asset?.valueType || 'record',
+            createResult?.asset?.value || {},
+            {
+                name: title,
+                config: {
+                    schema,
+                    ...(createResult?.asset?.config || {}),
+                },
+            }
+        );
+
+        // Create node
+        const newNode: SynniaNode = {
+            id: uuidv4(),
+            type: def.type,
+            position,
+            data: {
+                title,
+                state: 'idle',
+                assetId,
+                ...(createResult?.data || {}),
+            },
+            style: def.meta?.style || {},
+        };
+
         const newNodes = [...nodes, newNode];
         this.engine.setNodes(sortNodesTopologically(newNodes));
 

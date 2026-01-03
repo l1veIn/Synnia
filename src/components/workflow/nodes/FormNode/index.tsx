@@ -46,12 +46,9 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
         // Filter fields that have handles (for collapsed view)
         const fieldsWithHandles = schema.filter((field: FieldDefinition) => {
             const conn = field.connection;
-            return conn?.input === true ||
-                (typeof conn?.input === 'object' && conn.input.enabled) ||
-                conn?.output === true ||
-                (typeof conn?.output === 'object' && conn.output.enabled) ||
-                field.widget === 'json-input' ||
-                field.type === 'object';
+            return conn === 'input' || conn === 'output' || conn === 'both' ||
+                field.widget === 'form-input' || field.widget === 'table-input' ||
+                field.type === 'object' || field.type === 'array';
         });
 
         // When collapsed, only show fields with handles
@@ -83,7 +80,7 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
                     <div className={cn("space-y-1.5 pb-2 px-5", state.isCollapsed && "py-1")}>
                         {fieldsToShow.map((field: FieldDefinition) => {
                             const val = values?.[field.key];
-                            return <RecipeFieldRow key={field.id} field={field} value={val} />;
+                            return <RecipeFieldRow key={field.key} field={field} value={val} />;
                         })}
                     </div>
                 </div>
@@ -95,7 +92,9 @@ export const FormNode = memo((props: NodeProps<SynniaNode>) => {
     const formSchema = (state.asset && isRecordAsset(state.asset)) ? state.asset.config?.schema : undefined;
     const hasHandleFields = formSchema?.some((field: FieldDefinition) => {
         const conn = field.connection;
-        return conn?.input || conn?.output || field.widget === 'json-input' || field.type === 'object';
+        return conn === 'input' || conn === 'output' || conn === 'both' ||
+            field.widget === 'form-input' || field.widget === 'table-input' ||
+            field.type === 'object' || field.type === 'array';
     }) ?? false;
 
     // Check if this node is being previewed as dock target

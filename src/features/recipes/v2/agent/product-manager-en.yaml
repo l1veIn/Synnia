@@ -13,11 +13,29 @@ icon: Briefcase
 input:
   - key: soulProfile
     label: Soul Profile
-    type: string
-    widget: json-input
+    type: object
+    widget: form-input
     required: true
     connection: input
     placeholder: "Connect the 'Soul Profile' JSON output here"
+    schema:
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        required: true
+      - key: tagline
+        label: Tagline
+        type: string
+        widget: text
+      - key: personality
+        label: Personality
+        type: string
+        widget: textarea
+      - key: colorDNA
+        label: Color DNA
+        type: object
+        widget: form-input
 
   - key: productType
     label: Product Type
@@ -34,11 +52,30 @@ input:
 
   - key: assetDefinitions
     label: Asset Definitions
-    type: string
-    widget: json-input
+    type: array
+    widget: table-input
     required: true
     connection: input
     placeholder: "Pass asset definitions JSON (built with TableNode)"
+    schema:
+      - key: id
+        label: ID
+        type: string
+        widget: text
+        required: true
+      - key: name
+        label: Name
+        type: string
+        widget: text
+        required: true
+      - key: description
+        label: Description
+        type: string
+        widget: textarea
+      - key: category
+        label: Category
+        type: string
+        widget: text
 
 # ============================================================================
 # Model Requirements

@@ -1,0 +1,60 @@
+[
+    {
+        "key": "name",
+        "label": "Name",
+        "type": "string"
+    },
+    {
+        "key": "title",
+        "label": "Title",
+        "type": "string"
+    },
+    {
+        "key": "visualDNA",
+        "label": "Visual DNA",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "personality",
+        "label": "Personality",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "story",
+        "label": "Origin Story",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "synergy",
+        "label": "Brand Synergy",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "primaryColor",
+        "label": "Primary Color",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "secondaryColor",
+        "label": "Secondary Color",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "accentColor",
+        "label": "Accent Color",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "backgroundColor",
+        "label": "Background Color",
+        "type": "string",
+        "widget": "color"
+    }
+]

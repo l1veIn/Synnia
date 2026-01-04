@@ -1,0 +1,23 @@
+[
+    {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "required": true,
+        "config": {
+            "placeholder": "Enter your prompt..."
+        },
+        "connection": "both"
+    },
+    {
+        "key": "systemPrompt",
+        "label": "System Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "Optional system instructions..."
+        },
+        "connection": "input"
+    }
+]

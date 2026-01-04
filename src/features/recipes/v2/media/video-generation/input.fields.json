@@ -1,0 +1,13 @@
+[
+    {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "required": true,
+        "config": {
+            "placeholder": "Describe the video scene..."
+        },
+        "connection": "input"
+    }
+]

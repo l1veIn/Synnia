@@ -21,9 +21,10 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-    // Get saved content - V2 architecture: rows in value, schema in config.schema
+    // Get saved content - V2 architecture: rows in value, schema in config, settings in config.extra
     const savedContent = useMemo(() => {
         const config = (asset?.config as any) || {};
+        const extra = config.extra || {};
         const rawValue = asset?.value;
 
         // Handle value: can be array (rows) or object with rows property
@@ -43,16 +44,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 type: f.type === 'number' ? 'number' : f.type === 'boolean' ? 'boolean' : 'string',
                 width: f.config?.width,
             }));
-        } else if (config.columns && Array.isArray(config.columns)) {
-            columns = config.columns;
         }
 
         return {
             columns,
             rows,
-            showRowNumbers: config.showRowNumbers ?? true,
-            allowAddRow: config.allowAddRow ?? true,
-            allowDeleteRow: config.allowDeleteRow ?? true,
+            showRowNumbers: extra.showRowNumbers ?? true,
+            allowAddRow: extra.allowAddRow ?? true,
+            allowDeleteRow: extra.allowDeleteRow ?? true,
         };
     }, [asset?.value, asset?.config]);
 
@@ -84,16 +83,21 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             draftShowRowNumbers !== savedContent.showRowNumbers;
     }, [draftColumns, draftShowRowNumbers, savedContent, isInitialized]);
 
-    // Save schema to config (convert TableColumn[] to FieldDefinition[])
+    // Save schema to config, settings to config.extra
     const handleSave = () => {
         const schemaFields = draftColumns.map(col => ({
             key: col.key,
             label: col.label,
             type: col.type,
         }));
+        const currentConfig = asset?.config as any || {};
         updateConfig({
+            ...currentConfig,
             schema: schemaFields,
-            showRowNumbers: draftShowRowNumbers,
+            extra: {
+                ...(currentConfig.extra || {}),
+                showRowNumbers: draftShowRowNumbers,
+            },
         });
         toast.success('Schema saved');
     };

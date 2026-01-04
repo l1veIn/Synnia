@@ -16,9 +16,12 @@ export const TextBehavior: NodeBehavior = {
         portId: string
     ): PortValue | null => {
         if (portId === 'output' || portId === 'origin') {
+            // New structure: extract content from value object
+            const value = asset?.value as Record<string, any> | null;
+            const content = value?.content ?? '';
             return {
                 type: 'text',
-                value: asset?.value || '',
+                value: content,
                 meta: { nodeId: node.id, portId }
             };
         }

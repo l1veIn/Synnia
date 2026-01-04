@@ -91,7 +91,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           set({
             nodes: loadedNodes,
             edges: project.graph.edges as unknown as SynniaEdge[],
-            assets: project.assets,
+            assets: project.assets as unknown as Record<string, Asset>,
             projectMeta: project.meta,
             viewport: project.viewport,
           });

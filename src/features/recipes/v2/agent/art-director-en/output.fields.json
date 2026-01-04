@@ -1,0 +1,35 @@
+[
+    {
+        "key": "assetId",
+        "label": "Asset ID",
+        "type": "string",
+        "config": {
+            "hidden": true
+        }
+    },
+    {
+        "key": "assetName",
+        "label": "Asset",
+        "type": "string"
+    },
+    {
+        "key": "finalPrompt",
+        "label": "Prompt",
+        "type": "string"
+    },
+    {
+        "key": "resolution",
+        "label": "Res",
+        "type": "string"
+    },
+    {
+        "key": "aspectRatio",
+        "label": "AR",
+        "type": "string"
+    },
+    {
+        "key": "microCopy",
+        "label": "Micro-Copy",
+        "type": "string"
+    }
+]

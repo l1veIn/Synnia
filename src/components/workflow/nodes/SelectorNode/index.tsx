@@ -30,34 +30,29 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - handle both array and SelectorAssetContent formats
+    // Get content with defaults - normalized: value is options[], config.extra has settings
     const content: SelectorAssetContent = useMemo(() => {
         const raw = state.asset?.value;
         const config = (state.asset?.config as any) || {};
+        const extra = config.extra || {};
         const nodeData = state.node?.data as any;
 
-        // Handle array format (from Recipe output / definition.create)
+        // value is always the options array
+        let options: SelectorOption[] = [];
         if (Array.isArray(raw)) {
-            return {
-                mode: config.mode ?? 'multi',
-                showSearch: config.showSearch ?? true,
-                schema: config.schema ?? DEFAULT_OPTION_SCHEMA,
-                options: raw.map((item: any, i: number) => ({
-                    id: item.id || `opt-${i}`,
-                    ...item,
-                })),
-                selected: nodeData?.selected || [],
-            };
+            options = raw.map((item: any, i: number) => ({
+                id: item.id || `opt-${i}`,
+                ...item,
+            }));
         }
 
-        // Handle SelectorAssetContent format (from Inspector save - legacy)
-        const contentObj = (raw as SelectorAssetContent) || {};
+        // settings from config.extra
         return {
-            mode: contentObj.mode ?? config.mode ?? 'multi',
-            showSearch: contentObj.showSearch ?? true,
-            schema: contentObj.schema ?? config.schema ?? DEFAULT_OPTION_SCHEMA,
-            options: contentObj.options ?? [],
-            selected: contentObj.selected ?? nodeData?.selected ?? [],
+            mode: extra.mode ?? 'multi',
+            showSearch: extra.showSearch ?? true,
+            schema: config.schema ?? DEFAULT_OPTION_SCHEMA,
+            options,
+            selected: nodeData?.selected || [],
         };
     }, [state.asset?.value, state.asset?.config, state.node?.data]);
 

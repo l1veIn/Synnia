@@ -4,6 +4,7 @@ import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry'
 import { GalleryNode } from './index';
 import { Inspector } from './Inspector';
 import { GalleryBehavior } from './behavior';
+import { GALLERY_ITEM_SCHEMA } from './schema';
 
 export const definition: NodeDefinition = {
     type: NodeType.GALLERY,
@@ -24,20 +25,25 @@ export const definition: NodeDefinition = {
     create: ({ data }: CreateContext) => {
         const items = Array.isArray(data) ? data : [];
         return {
-            data: {
-                viewMode: 'grid' as const,
-                columnsPerRow: Math.min(4, items.length || 4),
-                allowStar: true,
-                allowDelete: true,
-            },
             asset: {
                 valueType: 'array' as const,
+                // value: pure data array (images)
                 value: items.map((item: any, i: number) => ({
                     id: item.id || `img-${i}`,
                     src: item.src || item.url || '',
                     starred: item.starred ?? false,
                     caption: item.caption || '',
                 })),
+                // config: schema + node-specific settings in extra
+                config: {
+                    schema: GALLERY_ITEM_SCHEMA,
+                    extra: {
+                        viewMode: 'grid' as const,
+                        columnsPerRow: Math.min(4, items.length || 4),
+                        allowStar: true,
+                        allowDelete: true,
+                    },
+                },
             },
         };
     },
@@ -45,7 +51,6 @@ export const definition: NodeDefinition = {
         getItems: (asset) => {
             const val = asset.value;
             if (Array.isArray(val)) return val;
-            if (val && typeof val === 'object' && 'images' in val) return (val as any).images || [];
             return [];
         },
         mergeItems: (existing, incoming) => [...incoming, ...existing],

@@ -4,6 +4,7 @@ import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry'
 import { TextNode } from './index';
 import { TextNodeInspector } from './Inspector';
 import { TextBehavior } from './behavior';
+import { TEXT_SCHEMA } from './schema';
 
 export const definition: NodeDefinition = {
     type: NodeType.TEXT,
@@ -21,7 +22,11 @@ export const definition: NodeDefinition = {
         collapsible: true,
     },
     create: ({ data }: CreateContext) => ({
-        asset: { valueType: 'text' as const, value: data || '' },
+        asset: {
+            valueType: 'record' as const,
+            value: { content: data || '', format: 'plain' },
+            config: { schema: TEXT_SCHEMA },
+        },
     }),
     behavior: TextBehavior,
     ports: {

@@ -1,0 +1,35 @@
+[
+    {
+        "key": "assetId",
+        "label": "Asset ID",
+        "type": "string",
+        "config": {
+            "hidden": true
+        }
+    },
+    {
+        "key": "assetName",
+        "label": "Asset",
+        "type": "string"
+    },
+    {
+        "key": "family",
+        "label": "Family",
+        "type": "string"
+    },
+    {
+        "key": "priority",
+        "label": "Priority",
+        "type": "string"
+    },
+    {
+        "key": "microCopy",
+        "label": "Copy / Context",
+        "type": "string"
+    },
+    {
+        "key": "reason",
+        "label": "Rationale",
+        "type": "string"
+    }
+]

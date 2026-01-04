@@ -1,10 +1,10 @@
 import { ImageIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { isImageAsset } from '@/types/assets';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { ImageNode } from './index';
 import { Inspector } from './Inspector';
 import { ImageBehavior } from './behavior';
+import { IMAGE_SCHEMA } from './schema';
 
 export const definition: NodeDefinition = {
     type: NodeType.IMAGE,
@@ -23,7 +23,11 @@ export const definition: NodeDefinition = {
         collapsible: true,
     },
     create: ({ data }: CreateContext) => ({
-        asset: { valueType: 'image' as const, value: data || '' },
+        asset: {
+            valueType: 'record' as const,
+            value: { src: data || '', width: undefined, height: undefined },
+            config: { schema: IMAGE_SCHEMA },
+        },
     }),
     behavior: ImageBehavior,
     ports: {

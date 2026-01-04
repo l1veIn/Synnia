@@ -76,12 +76,14 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 : { x: 100, y: 100 };
 
               graphEngine.mutator.addNode(NodeType.IMAGE, position, {
-                content: result.relativePath,
+                content: { src: result.relativePath, width: result.width, height: result.height },
                 assetName: file.name,
-                valueMeta: {
-                  width: result.width,
-                  height: result.height,
-                  preview: result.thumbnailPath || undefined
+                assetConfig: {
+                  meta: {
+                    width: result.width,
+                    height: result.height,
+                    preview: result.thumbnailPath || undefined
+                  }
                 }
               });
               toast.success("Image imported", { id: toastId });

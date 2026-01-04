@@ -1,0 +1,35 @@
+[
+    {
+        "key": "assetId",
+        "label": "资产ID",
+        "type": "string",
+        "config": {
+            "hidden": true
+        }
+    },
+    {
+        "key": "assetName",
+        "label": "资产",
+        "type": "string"
+    },
+    {
+        "key": "finalPrompt",
+        "label": "提示词",
+        "type": "string"
+    },
+    {
+        "key": "resolution",
+        "label": "分辨率",
+        "type": "string"
+    },
+    {
+        "key": "aspectRatio",
+        "label": "宽高比",
+        "type": "string"
+    },
+    {
+        "key": "microCopy",
+        "label": "微文案",
+        "type": "string"
+    }
+]

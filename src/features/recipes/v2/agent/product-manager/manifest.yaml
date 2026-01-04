@@ -1,0 +1,19 @@
+# 产品经理 - Product Manager
+version: 2
+
+id: product-manager
+name: 产品经理
+description: 规划生产清单并为角色撰写微文案
+category: Agent
+icon: Briefcase
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.5
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true

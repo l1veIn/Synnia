@@ -1,0 +1,25 @@
+# 首席叙事官 - Storyteller Agent
+version: 2
+
+id: storyteller
+name: 首席叙事官
+description: 根据名称发展完整的角色灵魂档案（视觉DNA、人格矩阵和色彩基因）
+category: Agent
+icon: BookOpen
+
+# ============================================================================
+# Model Requirements
+# ============================================================================
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.8
+    maxTokens: 4096
+
+# ============================================================================
+# Advanced Options
+# ============================================================================
+advanced:
+  multiTurn: true

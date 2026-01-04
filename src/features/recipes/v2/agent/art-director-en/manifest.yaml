@@ -1,0 +1,19 @@
+# Art Director - English Version
+version: 2
+
+id: art-director-en
+name: Art Director
+description: Generate executable AI image prompts with color injection for the production manifest
+category: Agent
+icon: Palette
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.7
+    maxTokens: 8192
+
+advanced:
+  multiTurn: true

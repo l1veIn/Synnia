@@ -1,0 +1,16 @@
+# Reference to Video - Media Recipe
+version: 2
+
+id: reference-to-video
+name: Reference to Video
+description: Generate video using reference images for style/content
+category: Media
+icon: Images
+
+model:
+  category: video-generation
+  capabilities: []
+  defaultParams: {}
+
+advanced:
+  multiTurn: false

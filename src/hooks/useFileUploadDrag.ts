@@ -48,12 +48,14 @@ export function useFileUploadDrag() {
               x: position.x + offset,
               y: position.y + offset,
             }, {
-              content: result.relativePath,
+              content: { src: result.relativePath, width: result.width, height: result.height },
               assetName: file.name,
-              valueMeta: {
-                width: result.width,
-                height: result.height,
-                preview: result.thumbnailPath || undefined
+              assetConfig: {
+                meta: {
+                  width: result.width,
+                  height: result.height,
+                  preview: result.thumbnailPath || undefined
+                }
               }
             });
 

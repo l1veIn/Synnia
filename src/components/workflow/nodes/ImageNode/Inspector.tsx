@@ -6,7 +6,6 @@ import { Edit2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaImageEditor } from '@/components/ui/synnia-image-editor';
-import { isImageAsset } from '@/types/assets';
 
 export const Inspector = ({ assetId }: { assetId: string }) => {
     const { asset, setValue } = useAsset(assetId);
@@ -16,25 +15,22 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
 
     useEffect(() => {
         if (!asset) return;
-        // New Asset API: value is the image URL/path
-        let raw = asset.value;
+        // New structure: value is { src, width, height, ... }
+        const value = asset.value as Record<string, any>;
+        const src = value?.src || '';
 
-        if (typeof raw === 'object' && raw !== null && 'src' in raw) {
-            raw = (raw as any).src;
-        }
-
-        if (typeof raw !== 'string') {
+        if (typeof src !== 'string') {
             setImageUrl('');
             return;
         }
 
-        if ((raw.startsWith('assets/') || raw.startsWith('assets\\\\')) && serverPort) {
-            const filename = raw.replace(/\\\\/g, '/').split('/').pop();
+        if ((src.startsWith('assets/') || src.startsWith('assets\\\\')) && serverPort) {
+            const filename = src.replace(/\\\\/g, '/').split('/').pop();
             const url = `http://localhost:${serverPort}/assets/${filename}`;
             setImageUrl(url);
         }
-        else if (raw.startsWith('http') || raw.startsWith('data:')) {
-            setImageUrl(raw);
+        else if (src.startsWith('http') || src.startsWith('data:')) {
+            setImageUrl(src);
         } else {
             setImageUrl('');
         }
@@ -50,17 +46,14 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
                 const { apiClient } = await import('@/lib/apiClient');
                 const result = await apiClient.saveProcessedImage(base64data);
 
-                // Update asset value with file path
-                setValue(result.relativePath);
-
-                // Update valueMeta with new dimensions
-                if (asset && isImageAsset(asset) && result.width && result.height) {
-                    const { graphEngine } = await import('@core/engine/GraphEngine');
-                    graphEngine.assets.updateConfig(assetId, {
-                        mimeType: asset.config?.mimeType,
-                    });
-                    // Note: valueMeta updates would need a separate method if needed
-                }
+                // Update asset value with new src and dimensions
+                const currentValue = asset?.value as Record<string, any> || {};
+                setValue({
+                    ...currentValue,
+                    src: result.relativePath,
+                    width: result.width,
+                    height: result.height
+                });
             };
         } catch (e) {
             console.error('Failed to save processed image:', e);
@@ -69,8 +62,12 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
-    const src = typeof asset.value === 'string' ? asset.value : '';
-    const meta = isImageAsset(asset) ? asset.valueMeta : undefined;
+    // New structure: read from value object and config.meta
+    const value = asset.value as Record<string, any>;
+    const meta = (asset.config as any)?.meta || {};
+    const src = value?.src || '';
+    const width = value?.width ?? meta?.width;
+    const height = value?.height ?? meta?.height;
 
     return (
         <div className="p-4 space-y-4">
@@ -89,13 +86,13 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
                 <Input
                     className="text-xs font-mono"
                     value={src}
-                    onChange={(e) => setValue(e.target.value)}
+                    onChange={(e) => setValue({ ...value, src: e.target.value })}
                 />
             </div>
             <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Dimensions</Label>
                 <div className="text-xs bg-muted p-2 rounded">
-                    {meta?.width || '?'} x {meta?.height || '?'} px
+                    {width || '?'} x {height || '?'} px
                 </div>
             </div>
             <Button

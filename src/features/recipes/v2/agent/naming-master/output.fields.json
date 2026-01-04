@@ -1,0 +1,22 @@
+[
+    {
+        "key": "name",
+        "label": "名称",
+        "type": "string"
+    },
+    {
+        "key": "tagline",
+        "label": "口号",
+        "type": "string"
+    },
+    {
+        "key": "rationale",
+        "label": "理由",
+        "type": "string"
+    },
+    {
+        "key": "style",
+        "label": "风格",
+        "type": "string"
+    }
+]

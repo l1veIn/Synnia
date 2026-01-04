@@ -5,11 +5,31 @@
 
 import { parse as parseYaml } from 'yaml';
 import * as LucideIcons from 'lucide-react';
-import type { RecipeDefinition, RecipeManifest, InputField } from '@/types/recipe';
-import { inputFieldToDefinition } from '@/types/recipe';
+import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
+import type { FieldDefinition } from '@/types/assets';
+import type { WidgetType } from '@/types/widgets';
+
+// Conversion function (internal to loader)
+function yamlToFieldDef(field: any): FieldDefinition {
+    const nestedSchema = field.schema?.map(yamlToFieldDef);
+    return {
+        key: field.key,
+        label: field.label,
+        type: field.type === 'select' ? 'string' : field.type,
+        widget: field.type === 'select' ? 'select' : (field.widget as WidgetType | undefined),
+        required: field.required,
+        defaultValue: field.default,
+        config: {
+            options: field.options,
+            placeholder: field.placeholder,
+        },
+        connection: field.connection,
+        schema: nestedSchema,
+    };
+}
 
 // ============================================================================
-// Parse YAML to RecipeManifest
+// Parse YAML to RecipeManifest (from string content)
 // ============================================================================
 
 export function parseManifest(yamlContent: string): RecipeManifest {
@@ -23,12 +43,60 @@ export function parseManifest(yamlContent: string): RecipeManifest {
     // Validate required fields
     if (!raw.id) throw new Error('Recipe V2 manifest missing "id"');
     if (!raw.name) throw new Error('Recipe V2 manifest missing "name"');
-    if (!raw.input) throw new Error('Recipe V2 manifest missing "input"');
     if (!raw.model) throw new Error('Recipe V2 manifest missing "model"');
-    if (!raw.prompt) throw new Error('Recipe V2 manifest missing "prompt"');
-    if (!raw.output) throw new Error('Recipe V2 manifest missing "output"');
+    // output is optional in Package mode (loaded from output.config.yaml)
 
+    // input and prompt are optional in Package mode (loaded from separate files)
     return raw as RecipeManifest;
+}
+
+// ============================================================================
+// Load Recipe Package (from separate files)
+// ============================================================================
+
+export interface PackageFiles {
+    manifest: string;                  // manifest.yaml content
+    inputSchema?: string;              // input.schema.json content
+    outputConfig?: string;             // output.config.yaml content
+    outputSchema?: string;             // output.schema.json content
+    systemPrompt?: string;             // prompts/system.md content
+    userPrompt?: string;               // prompts/user.md content
+}
+
+export function loadRecipePackage(files: PackageFiles): RecipeManifest {
+    const manifest = parseManifest(files.manifest);
+
+    // Load input schema from separate file
+    if (files.inputSchema) {
+        const inputFields = JSON.parse(files.inputSchema);
+        manifest.input = inputFields;
+    }
+
+    // Load prompts from separate files
+    if (files.systemPrompt || files.userPrompt) {
+        manifest.prompt = {
+            system: files.systemPrompt || '',
+            user: files.userPrompt || '',
+        };
+    }
+
+    // Load output config from separate file
+    if (files.outputConfig) {
+        const outputConfig = parseYaml(files.outputConfig);
+        manifest.output = {
+            ...manifest.output,
+            ...outputConfig,
+        };
+    }
+
+    // Load output schema from separate file
+    if (files.outputSchema) {
+        const outputFields = JSON.parse(files.outputSchema);
+        manifest.output = manifest.output || {} as any;
+        manifest.output.schema = outputFields;
+    }
+
+    return manifest;
 }
 
 // ============================================================================
@@ -47,7 +115,7 @@ function getIcon(iconName?: string): LucideIcons.LucideIcon | undefined {
 
 export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefinition {
     // Convert input fields to FieldDefinitions
-    const inputSchema = manifest.input.map(inputFieldToDefinition);
+    const inputSchema = manifest.input?.map(yamlToFieldDef) || [];
 
     // Create executor function
     const execute = createExecutor(manifest);
@@ -108,18 +176,22 @@ async function executeLLM(
     const { inputs, modelConfig, chatContext } = ctx;
 
     // Build system prompt (supports {{variables}})
-    const systemPrompt = interpolate(manifest.prompt.system, inputs);
+    const systemPrompt = interpolate(manifest.prompt?.system || '', inputs);
 
     // Build user prompt (first turn only if no chat context)
     let userPrompt: string;
     if (chatContext && chatContext.length > 0) {
         // Multi-turn: use last user message or inputs
         const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
-        userPrompt = lastUserMsg?.content || interpolate(manifest.prompt.user, inputs);
+        userPrompt = lastUserMsg?.content || interpolate(manifest.prompt?.user || '', inputs);
     } else {
         // First turn: use template
-        userPrompt = interpolate(manifest.prompt.user, inputs);
+        userPrompt = interpolate(manifest.prompt?.user || '', inputs);
     }
+
+    // Call LLM
+    // JSON mode: all nodes except 'text' expect JSON output
+    const isTextOutput = manifest.output.node === 'text';
 
     // Call LLM
     const llmResult = await callLLM({
@@ -128,7 +200,7 @@ async function executeLLM(
         systemPrompt,
         temperature: modelConfig?.params?.temperature ?? manifest.model.defaultParams?.temperature,
         maxTokens: modelConfig?.params?.maxTokens ?? manifest.model.defaultParams?.maxTokens,
-        jsonMode: manifest.output.format === 'json' && (modelConfig?.params?.jsonMode !== false),
+        jsonMode: !isTextOutput && (modelConfig?.params?.jsonMode !== false),
     });
 
     if (!llmResult.success) {
@@ -137,14 +209,15 @@ async function executeLLM(
 
     // Parse output
     let data: any;
-    if (manifest.output.format === 'json') {
+    if (!isTextOutput) {
+        // All non-text nodes expect JSON
         const parsed = extractJson(llmResult.text || '');
         if (!parsed.success) {
             return { success: false, error: 'Failed to parse JSON response' };
         }
         data = parsed.data;
     } else {
-        // Text/markdown: use raw text
+        // Text node: use raw text
         data = llmResult.text || '';
     }
 

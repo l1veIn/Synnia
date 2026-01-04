@@ -37,36 +37,32 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - handle both array and GalleryAssetContent formats
+    // Get content with defaults - normalized: value is images[], config.extra has settings
     const content: GalleryAssetContent = useMemo(() => {
         const raw = state.asset?.value;
+        const config = state.asset?.config as any || {};
+        const extra = config.extra || {};
 
-        // Handle array format (from Recipe output or direct array)
+        // value is always the images array
+        let images: GalleryImage[] = [];
         if (Array.isArray(raw)) {
-            return {
-                viewMode: 'grid' as const,
-                columnsPerRow: Math.min(4, raw.length || 4),
-                allowStar: true,
-                allowDelete: true,
-                images: raw.map((item: any, i: number) => ({
-                    id: item.id || `img-${i}`,
-                    src: item.src || item.url || '',
-                    starred: item.starred ?? false,
-                    caption: item.caption || '',
-                })),
-            };
+            images = raw.map((item: any, i: number) => ({
+                id: item.id || `img-${i}`,
+                src: item.src || item.url || '',
+                starred: item.starred ?? false,
+                caption: item.caption || '',
+            }));
         }
 
-        // Handle GalleryAssetContent format (from Inspector)
-        const contentObj = (raw as GalleryAssetContent) || {};
+        // settings from config.extra
         return {
-            viewMode: contentObj.viewMode ?? 'grid',
-            columnsPerRow: contentObj.columnsPerRow ?? 4,
-            allowStar: contentObj.allowStar ?? true,
-            allowDelete: contentObj.allowDelete ?? true,
-            images: contentObj.images ?? [],
+            viewMode: extra.viewMode ?? 'grid',
+            columnsPerRow: extra.columnsPerRow ?? 4,
+            allowStar: extra.allowStar ?? true,
+            allowDelete: extra.allowDelete ?? true,
+            images,
         };
-    }, [state.asset?.value]);
+    }, [state.asset?.value, state.asset?.config]);
 
     // Resolve image URLs
     const resolveUrl = (src: string): string => {
@@ -78,24 +74,20 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
         return src;
     };
 
-    // Toggle star
+    // Toggle star - only update value (images array)
     const toggleStar = (imageId: string) => {
         if (state.isReference) return;
-        actions.updateContent({
-            ...content,
-            images: content.images.map(img =>
-                img.id === imageId ? { ...img, starred: !img.starred } : img
-            )
-        });
+        const newImages = content.images.map(img =>
+            img.id === imageId ? { ...img, starred: !img.starred } : img
+        );
+        actions.updateContent(newImages);
     };
 
-    // Delete image
+    // Delete image - only update value (images array)
     const deleteImage = (imageId: string) => {
         if (state.isReference) return;
-        actions.updateContent({
-            ...content,
-            images: content.images.filter(img => img.id !== imageId)
-        });
+        const newImages = content.images.filter(img => img.id !== imageId);
+        actions.updateContent(newImages);
     };
 
     const starredCount = content.images.filter(img => img.starred).length;

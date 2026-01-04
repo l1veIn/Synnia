@@ -1,0 +1,19 @@
+# Product Manager - English Version
+version: 2
+
+id: product-manager-en
+name: Product Manager
+description: Plan the production manifest and write micro-copy for the character
+category: Agent
+icon: Briefcase
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.5
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true

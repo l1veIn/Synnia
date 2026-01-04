@@ -1,0 +1,19 @@
+# 艺术总监 - Art Director
+version: 2
+
+id: art-director
+name: 艺术总监
+description: 为生产清单生成可执行的AI图像提示词（含色彩注入）
+category: Agent
+icon: Palette
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.7
+    maxTokens: 8192
+
+advanced:
+  multiTurn: true

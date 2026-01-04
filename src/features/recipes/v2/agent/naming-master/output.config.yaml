@@ -1,0 +1,5 @@
+node: selector
+title: "命名方案 ({{count}}项)"
+collapsed: false
+extra:
+  mode: single

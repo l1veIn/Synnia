@@ -1,0 +1,45 @@
+[
+    {
+        "key": "selectedName",
+        "label": "Selected Name",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "e.g., Kiko"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "tagline",
+        "label": "Tagline (Optional)",
+        "type": "string",
+        "config": {
+            "placeholder": "The catchphrase associated with the name"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "rationale",
+        "label": "Name Rationale (Optional)",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "Why this name was chosen"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "productType",
+        "label": "Product Type",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    },
+    {
+        "key": "brandTone",
+        "label": "Brand Tone",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    }
+]

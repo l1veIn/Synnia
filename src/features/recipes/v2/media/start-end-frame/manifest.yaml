@@ -1,0 +1,16 @@
+# Start-End Frame Video - Media Recipe
+version: 2
+
+id: start-end-frame
+name: Start-End Frame Video
+description: Generate video transitions between two images
+category: Media
+icon: SplitSquareVertical
+
+model:
+  category: video-generation
+  capabilities: []
+  defaultParams: {}
+
+advanced:
+  multiTurn: false

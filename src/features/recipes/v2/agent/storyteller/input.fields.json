@@ -1,0 +1,45 @@
+[
+    {
+        "key": "name",
+        "label": "选定名称",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "例如：小可"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "tagline",
+        "label": "标语（可选）",
+        "type": "string",
+        "config": {
+            "placeholder": "与名称相关的口号"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "rationale",
+        "label": "命名理由（可选）",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "为什么选择这个名字"
+        },
+        "connection": "input"
+    },
+    {
+        "key": "productType",
+        "label": "产品类型",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    },
+    {
+        "key": "brandTone",
+        "label": "品牌调性",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    }
+]

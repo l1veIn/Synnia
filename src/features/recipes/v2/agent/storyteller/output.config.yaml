@@ -1,0 +1,3 @@
+node: form
+title: "灵魂档案: {{name}}"
+collapsed: false

@@ -25,10 +25,10 @@ export const ImageNode = memo((props: NodeProps<SynniaNode>) => {
     useEffect(() => {
         if (!state.asset) return;
         // New Asset API: value is the image URL/path string
-        let raw = state.asset.value;
+        let raw: any = state.asset.value;
 
         if (typeof raw === 'object' && raw !== null && 'src' in raw) {
-            raw = (raw as any).src;
+            raw = raw.src;
         }
 
         if (typeof raw !== 'string') {

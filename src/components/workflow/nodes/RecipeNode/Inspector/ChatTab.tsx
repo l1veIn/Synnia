@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils'
-import type { ChatMessage } from '@/types/assets';
+import type { ChatMessage } from '@/features/recipes/types';
 import { ChatBoxDialog } from './ChatBoxDialog';
 
 export interface ChatTabProps {

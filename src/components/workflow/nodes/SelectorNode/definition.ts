@@ -32,13 +32,18 @@ export const definition: NodeDefinition = {
             },
             asset: {
                 valueType: 'array' as const,
+                // value: pure data array (options)
                 value: items.map((item: any, i: number) => ({
                     id: item.id || `opt-${i}`,
                     ...item,
                 })),
+                // config: schema + node-specific settings in extra
                 config: {
-                    mode: 'multi' as const,
-                    schema: schemaFields,  // Schema belongs in asset.config
+                    schema: schemaFields,
+                    extra: {
+                        mode: 'multi' as const,
+                        showSearch: true,
+                    },
                 },
             },
         };
@@ -47,7 +52,6 @@ export const definition: NodeDefinition = {
         getItems: (asset) => {
             const val = asset.value;
             if (Array.isArray(val)) return val;
-            if (val && typeof val === 'object' && 'options' in val) return (val as any).options || [];
             return [];
         },
         mergeItems: (existing, incoming) => [...existing, ...incoming],

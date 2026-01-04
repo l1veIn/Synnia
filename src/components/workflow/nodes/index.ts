@@ -1,5 +1,4 @@
 import { nodeRegistry, NodeCategory } from '@core/registry/NodeRegistry';
-import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { portRegistry } from '@core/engine/ports';
 import { getAllRecipes } from '@features/recipes';
 import { RecipeNode } from './RecipeNode';
@@ -8,7 +7,7 @@ import { FileText } from 'lucide-react';
 import { getWidgetInputHandles } from '@/components/workflow/widgets';
 import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
 import { modelRegistry } from '@features/models';
-import type { ModelConfig } from '@/types/assets';
+import type { ModelConfig } from '@/features/recipes/types';
 
 // Import node definitions directly to avoid circular dependency
 import { definition as selectorDef } from './SelectorNode/definition';
@@ -21,7 +20,7 @@ import { definition as queueDef } from './QueueNode/definition';
 import { RecipeBehavior } from './RecipeNode/behavior';
 
 // ============================================================================
-// Register Static Nodes
+// Register Static Nodes (auto-cascades behavior + ports)
 // ============================================================================
 
 const staticDefinitions = [
@@ -36,12 +35,6 @@ const staticDefinitions = [
 
 for (const def of staticDefinitions) {
     nodeRegistry.register(def);
-    if (def.behavior) {
-        behaviorRegistry.register(def.type, def.behavior);
-    }
-    if (def.ports) {
-        portRegistry.register(def.type, def.ports);
-    }
 }
 
 // ============================================================================
@@ -106,17 +99,18 @@ for (const recipe of recipes) {
                     valueType: 'record' as const,
                     value: defaultValues,
                     config: {
-                        recipeId: recipe.id,
-                        schemaSnapshot: recipe.inputSchema,  // Freeze schema at creation time
-                        modelConfig
-                    } as any,
+                        schema: recipe.inputSchema,
+                        extra: {
+                            recipeId: recipe.id,
+                            modelConfig,
+                        },
+                    },
                 },
             };
         },
     });
 
-    // Register behavior for recipe nodes
-    behaviorRegistry.register(virtualType, RecipeBehavior);
+    // Behavior registered via definition (nodeRegistry auto-cascades)
 
     // Register dynamic ports for recipe nodes
     portRegistry.register(virtualType, {

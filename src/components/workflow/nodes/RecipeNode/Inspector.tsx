@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 import { FormRenderer } from '../../inspector/FormRenderer';
-import type { RecipeAssetConfig, ModelConfig, ChatMessage } from '@/types/assets';
+import type { RecipeAssetConfig, ModelConfig, ChatMessage, RecipeExtra } from '@/features/recipes/types';
 
 // Tab Components
 import { ModelTab } from './Inspector/ModelTab';
@@ -33,9 +33,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Get asset for values storage
     const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // Get recipeId from asset.config (V2 architecture)
+    // Get recipeId from asset.config.extra (V2 architecture with extra pattern)
     const assetConfig = asset?.config as RecipeAssetConfig | undefined;
-    const recipeId = assetConfig?.recipeId;
+    const extra = (assetConfig?.extra as RecipeExtra | undefined) ?? {};
+    const recipeId = extra.recipeId;
 
     // Get recipe definition (schema comes from here)
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
@@ -48,10 +49,8 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         return {};
     }, [asset?.value]);
 
-    // Get recipe-specific config
-    const recipeConfig = useMemo((): RecipeAssetConfig => {
-        return (assetConfig || { recipeId: recipeId || '' }) as RecipeAssetConfig;
-    }, [assetConfig, recipeId]);
+    // Get recipe-specific config from extra
+    const recipeConfig = useMemo(() => extra, [extra]);
 
     // Draft state - local edits before save
     const [draftValues, setDraftValues] = useState<Record<string, any>>({});
@@ -162,7 +161,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     // Model config change handler
     const handleModelConfigChange = (modelConfig: ModelConfig) => {
         if (assetId && updateConfig) {
-            updateConfig({ ...recipeConfig, modelConfig });
+            updateConfig({
+                ...assetConfig,
+                extra: { ...extra, modelConfig },
+            });
             // toast.success('Model configuration updated');
         }
     };
@@ -171,7 +173,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
     const handleSendMessage = (content: string) => {
         if (!assetId || !updateConfig) return;
 
-        const currentMessages = recipeConfig.chatContext?.messages || [];
+        const currentMessages = extra.chatContext?.messages || [];
         const newMessage: ChatMessage = {
             id: crypto.randomUUID(),
             role: 'user',
@@ -180,9 +182,12 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         };
 
         updateConfig({
-            ...recipeConfig,
-            chatContext: {
-                messages: [...currentMessages, newMessage],
+            ...assetConfig,
+            extra: {
+                ...extra,
+                chatContext: {
+                    messages: [...currentMessages, newMessage],
+                },
             },
         });
 
@@ -305,7 +310,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                 {/* Model Tab */}
                 <TabsContent value="model" className="flex-1 overflow-y-auto mt-0">
                     <ModelTab
-                        modelConfig={recipeConfig.modelConfig}
+                        modelConfig={extra.modelConfig}
                         onModelConfigChange={handleModelConfigChange}
                         filterCategory={(recipe?.manifest as any)?.model?.category || 'llm'}
                         requiredCapabilities={(recipe?.manifest as any)?.model?.capabilities || []}
@@ -315,9 +320,9 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                 {/* Chat Tab */}
                 <TabsContent value="chat" className="flex-1 overflow-hidden mt-0">
                     <ChatTab
-                        messages={recipeConfig.chatContext?.messages || []}
+                        messages={extra.chatContext?.messages || []}
                         onSendMessage={handleSendMessage}
-                        disabled={!hasChatCapability || (recipeConfig.chatContext?.messages?.length ?? 0) === 0}
+                        disabled={!hasChatCapability || (extra.chatContext?.messages?.length ?? 0) === 0}
                     />
                 </TabsContent>
 

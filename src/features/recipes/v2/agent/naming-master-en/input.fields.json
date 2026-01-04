@@ -1,0 +1,49 @@
+[
+    {
+        "key": "productType",
+        "label": "Product Type",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "e.g., Weather App, E-commerce Platform, Fitness Tracker..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "targetAudience",
+        "label": "Target Audience",
+        "type": "string",
+        "config": {
+            "placeholder": "e.g., Young professionals, Gen-Z gamers, Health-conscious millennials..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "brandTone",
+        "label": "Brand Tone",
+        "type": "string",
+        "config": {
+            "placeholder": "e.g., Playful, Professional, Techy, Minimalist..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "culturalBackground",
+        "label": "Cultural Background",
+        "type": "string",
+        "config": {
+            "placeholder": "e.g., Western, East Asian, Global/Universal..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "specialRequirements",
+        "label": "Special Requirements",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "e.g., Must start with 'Z', Avoid puns, Need bilingual names..."
+        },
+        "connection": "input"
+    }
+]

@@ -31,7 +31,6 @@ export class AssetSystem {
         options: {
             name?: string;
             config?: any;
-            valueMeta?: any;
             source?: 'user' | 'ai' | 'import';
         } = {}
     ): string {
@@ -50,7 +49,6 @@ export class AssetSystem {
             id,
             valueType,
             value,
-            valueMeta: options.valueMeta,
             config: options.config,
             sys,
         } as Asset;
@@ -75,7 +73,6 @@ export class AssetSystem {
             id,
             valueType: partial.valueType,
             value: partial.value,
-            valueMeta: partial.valueMeta,
             config: partial.config,
             sys: partial.sys || {
                 name: name || 'New Asset',
@@ -144,6 +141,18 @@ export class AssetSystem {
             ...assets,
             [id]: updatedAsset
         });
+    }
+
+    /**
+     * Update metadata stored in config.meta.
+     */
+    public updateMeta(id: string, meta: Record<string, any>) {
+        const { assets } = this.store;
+        const asset = assets[id];
+        if (!asset) return;
+
+        const existingMeta = (asset.config as any)?.meta || {};
+        this.updateConfig(id, { meta: { ...existingMeta, ...meta } });
     }
 
     /**

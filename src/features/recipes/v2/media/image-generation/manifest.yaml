@@ -1,0 +1,17 @@
+# Image Generation - Media Recipe
+version: 2
+
+id: image-generation
+name: Image Generation
+description: Generate images from text prompts
+category: Media
+icon: Image
+
+model:
+  category: image-generation
+  capabilities:
+    - vision
+  defaultParams: {}
+
+advanced:
+  multiTurn: false

@@ -1,0 +1,49 @@
+[
+    {
+        "key": "productType",
+        "label": "产品类型",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "例如：天气App、电商平台、健身应用..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "targetAudience",
+        "label": "目标用户",
+        "type": "string",
+        "config": {
+            "placeholder": "例如：年轻白领、Z世代游戏玩家、宝妈群体..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "brandTone",
+        "label": "品牌调性",
+        "type": "string",
+        "config": {
+            "placeholder": "例如：活泼可爱、专业稳重、科技感、国潮..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "culturalBackground",
+        "label": "文化背景",
+        "type": "string",
+        "config": {
+            "placeholder": "例如：中国传统文化、日系萌文化、欧美极简..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "specialRequirements",
+        "label": "特殊要求",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "例如：名字需要包含『小』字、避免谐音梗、需要中英双语名..."
+        },
+        "connection": "input"
+    }
+]

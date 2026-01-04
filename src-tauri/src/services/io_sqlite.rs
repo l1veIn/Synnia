@@ -453,7 +453,7 @@ fn load_assets(conn: &Connection) -> Result<HashMap<String, Asset>, AppError> {
         let sys_json: String = row.get(5)?;
         
         let value_type: ValueType = serde_json::from_str(&value_type_str)
-            .unwrap_or(ValueType::Text);
+            .unwrap_or(ValueType::Record);
         let value: serde_json::Value = serde_json::from_str(&value_json)
             .unwrap_or(serde_json::Value::Null);
         let value_meta: Option<serde_json::Value> = value_meta_json
@@ -623,7 +623,7 @@ mod tests {
         
         project.assets.insert("asset-1".to_string(), Asset {
             id: "asset-1".to_string(),
-            value_type: ValueType::Text,
+            value_type: ValueType::Record,
             value: serde_json::json!("Hello World"),
             value_meta: Some(serde_json::json!({"length": 11})),
             config: Some(serde_json::json!({"format": "plain"})),

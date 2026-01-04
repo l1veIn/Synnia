@@ -263,19 +263,13 @@ export function useRunRecipe() {
                         content,
                         assetType,
                         assetName,
-                        assetConfig: nodeSpec.assetConfig,
+                        assetConfig: nodeSpec.config ? { schema: nodeSpec.config.schema, ...nodeSpec.config.extra } : undefined,
                         ...restData,
                         ...(dockedToId ? { dockedTo: dockedToId } : {})
                     });
 
-                    if (nodeSpec.connectTo) {
-                        graphEngine.connect({
-                            source: nodeId,
-                            sourceHandle: nodeSpec.connectTo.sourceHandle,
-                            target: newNodeId,
-                            targetHandle: nodeSpec.connectTo.targetHandle
-                        });
-                    } else if (i === 0) {
+                    // First node gets product edge
+                    if (i === 0) {
                         graphEngine.updateNode(newNodeId, {
                             data: { hasProductHandle: true }
                         });

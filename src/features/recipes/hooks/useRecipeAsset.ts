@@ -5,13 +5,8 @@
 
 import { useCallback, useMemo } from 'react';
 import { useAsset } from '@/hooks/useAsset';
-import type {
-    RecordAsset,
-    RecipeAssetConfig,
-    ModelConfig,
-    ChatContext,
-    ChatMessage
-} from '@/types/assets';
+import type { RecordAsset, RecordAssetConfig, FieldDefinition } from '@/types/assets';
+import type { ModelConfig, ChatContext, ChatMessage, RecipeExtra } from '@/features/recipes/types';
 
 export interface UseRecipeAssetResult {
     // The raw asset
@@ -19,7 +14,7 @@ export interface UseRecipeAssetResult {
 
     // Convenience accessors for config
     recipeId: string | undefined;
-    schema: RecipeAssetConfig['schema'] | undefined;
+    schema: FieldDefinition[] | undefined;
     modelConfig: ModelConfig | undefined;
     chatContext: ChatContext | undefined;
     messages: ChatMessage[];
@@ -38,11 +33,13 @@ export function useRecipeAsset(assetId: string | undefined): UseRecipeAssetResul
     const { asset, updateConfig } = useAsset(assetId);
     const recordAsset = asset as RecordAsset | undefined;
 
-    // Type-safe config access
-    const config = useMemo(() => {
+    // Type-safe access to extra as RecipeExtra
+    const extra = useMemo(() => {
         if (!recordAsset || recordAsset.valueType !== 'record') return undefined;
-        return recordAsset.config as RecipeAssetConfig | undefined;
+        return (recordAsset.config?.extra as RecipeExtra) ?? undefined;
     }, [recordAsset]);
+
+    const schema = recordAsset?.config?.schema;
 
     // Model Config updater
     const updateModelConfig = useCallback((modelConfig: ModelConfig) => {
@@ -50,7 +47,10 @@ export function useRecipeAsset(assetId: string | undefined): UseRecipeAssetResul
 
         updateConfig({
             ...recordAsset.config,
-            modelConfig,
+            extra: {
+                ...(recordAsset.config?.extra as RecipeExtra),
+                modelConfig,
+            },
         });
     }, [assetId, recordAsset, updateConfig]);
 
@@ -60,15 +60,18 @@ export function useRecipeAsset(assetId: string | undefined): UseRecipeAssetResul
 
         updateConfig({
             ...recordAsset.config,
-            chatContext,
+            extra: {
+                ...(recordAsset.config?.extra as RecipeExtra),
+                chatContext,
+            },
         });
     }, [assetId, recordAsset, updateConfig]);
 
-    // Add a new message to chat context
+    // Add a message to chatContext
     const addMessage = useCallback((message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
         if (!assetId || !recordAsset) return;
 
-        const currentContext = (recordAsset.config as RecipeAssetConfig)?.chatContext ?? { messages: [] };
+        const currentContext = extra?.chatContext ?? { messages: [] };
         const newMessage: ChatMessage = {
             ...message,
             id: crypto.randomUUID(),
@@ -77,11 +80,14 @@ export function useRecipeAsset(assetId: string | undefined): UseRecipeAssetResul
 
         updateConfig({
             ...recordAsset.config,
-            chatContext: {
-                messages: [...currentContext.messages, newMessage],
+            extra: {
+                ...(recordAsset.config?.extra as RecipeExtra),
+                chatContext: {
+                    messages: [...currentContext.messages, newMessage],
+                },
             },
         });
-    }, [assetId, recordAsset, updateConfig]);
+    }, [assetId, recordAsset, extra, updateConfig]);
 
     // Clear all messages
     const clearMessages = useCallback(() => {
@@ -89,17 +95,20 @@ export function useRecipeAsset(assetId: string | undefined): UseRecipeAssetResul
 
         updateConfig({
             ...recordAsset.config,
-            chatContext: { messages: [] },
+            extra: {
+                ...(recordAsset.config?.extra as RecipeExtra),
+                chatContext: { messages: [] },
+            },
         });
     }, [assetId, recordAsset, updateConfig]);
 
     return {
         asset: recordAsset ?? null,
-        recipeId: config?.recipeId,
-        schema: config?.schema,
-        modelConfig: config?.modelConfig,
-        chatContext: config?.chatContext,
-        messages: config?.chatContext?.messages ?? [],
+        recipeId: extra?.recipeId,
+        schema,
+        modelConfig: extra?.modelConfig,
+        chatContext: extra?.chatContext,
+        messages: extra?.chatContext?.messages ?? [],
         updateModelConfig,
         updateChatContext,
         addMessage,

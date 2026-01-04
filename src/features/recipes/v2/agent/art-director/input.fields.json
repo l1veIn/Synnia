@@ -1,0 +1,152 @@
+[
+    {
+        "key": "productionManifest",
+        "label": "生产清单",
+        "type": "array",
+        "widget": "table-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "在此连接'生产清单'表格"
+        },
+        "schema": [
+            {
+                "key": "assetId",
+                "label": "资产ID",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "name",
+                "label": "名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "visualStyle",
+                "label": "视觉风格",
+                "type": "string"
+            }
+        ]
+    },
+    {
+        "key": "soulProfile",
+        "label": "灵魂档案",
+        "type": "object",
+        "widget": "form-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "在此连接'灵魂档案'JSON"
+        },
+        "schema": [
+            {
+                "key": "name",
+                "label": "名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "tagline",
+                "label": "标语",
+                "type": "string"
+            },
+            {
+                "key": "colorDNA",
+                "label": "色彩DNA",
+                "type": "object",
+                "schema": [
+                    {
+                        "key": "primary",
+                        "label": "主色",
+                        "type": "string",
+                        "widget": "color"
+                    },
+                    {
+                        "key": "secondary",
+                        "label": "辅助色",
+                        "type": "string",
+                        "widget": "color"
+                    },
+                    {
+                        "key": "accent",
+                        "label": "强调色",
+                        "type": "string",
+                        "widget": "color"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "key": "styleTemplate",
+        "label": "视觉风格模板",
+        "type": "object",
+        "widget": "form-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "传入风格模板"
+        },
+        "schema": [
+            {
+                "key": "name",
+                "label": "风格名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "style",
+                "label": "风格描述",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "lighting",
+                "label": "光照",
+                "type": "string"
+            },
+            {
+                "key": "mood",
+                "label": "氛围",
+                "type": "string"
+            }
+        ]
+    },
+    {
+        "key": "assetDefinitions",
+        "label": "资产定义库",
+        "type": "array",
+        "widget": "table-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "传入资产定义 JSON"
+        },
+        "schema": [
+            {
+                "key": "id",
+                "label": "ID",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "name",
+                "label": "名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "description",
+                "label": "描述",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "category",
+                "label": "类别",
+                "type": "string"
+            }
+        ]
+    }
+]

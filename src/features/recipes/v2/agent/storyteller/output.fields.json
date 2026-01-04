@@ -1,0 +1,60 @@
+[
+    {
+        "key": "name",
+        "label": "名称",
+        "type": "string"
+    },
+    {
+        "key": "title",
+        "label": "头衔",
+        "type": "string"
+    },
+    {
+        "key": "visualDNA",
+        "label": "视觉DNA",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "personality",
+        "label": "人格",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "story",
+        "label": "起源故事",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "synergy",
+        "label": "品牌协同",
+        "type": "string",
+        "widget": "textarea"
+    },
+    {
+        "key": "primaryColor",
+        "label": "主色",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "secondaryColor",
+        "label": "辅色",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "accentColor",
+        "label": "强调色",
+        "type": "string",
+        "widget": "color"
+    },
+    {
+        "key": "backgroundColor",
+        "label": "背景色",
+        "type": "string",
+        "widget": "color"
+    }
+]

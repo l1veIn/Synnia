@@ -1,0 +1,90 @@
+[
+    {
+        "key": "soulProfile",
+        "label": "Soul Profile",
+        "type": "object",
+        "widget": "form-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "Connect the 'Soul Profile' JSON output here"
+        },
+        "schema": [
+            {
+                "key": "name",
+                "label": "Name",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "tagline",
+                "label": "Tagline",
+                "type": "string"
+            },
+            {
+                "key": "personality",
+                "label": "Personality",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "colorDNA",
+                "label": "Color DNA",
+                "type": "object"
+            }
+        ]
+    },
+    {
+        "key": "productType",
+        "label": "Product Type",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    },
+    {
+        "key": "visualStyle",
+        "label": "Visual Style",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "e.g. 3D Blind Box, Flat Vector, Cyberpunk..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "assetDefinitions",
+        "label": "Asset Definitions",
+        "type": "array",
+        "widget": "table-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "Pass asset definitions JSON"
+        },
+        "schema": [
+            {
+                "key": "id",
+                "label": "ID",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "name",
+                "label": "Name",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "description",
+                "label": "Description",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "category",
+                "label": "Category",
+                "type": "string"
+            }
+        ]
+    }
+]

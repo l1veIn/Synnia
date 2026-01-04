@@ -23,17 +23,21 @@ export const TextNode = memo((props: NodeProps<SynniaNode>) => {
 
   useEffect(() => {
     if (state.asset) {
-      const val =
-        typeof state.asset.value === 'object'
-          ? JSON.stringify(state.asset.value, null, 2)
-          : String(state.asset.value || '');
-      setLocalContent(val);
+      // New structure: value is { content, format }
+      const value = state.asset.value as Record<string, any> | null;
+      const val = value?.content ?? '';
+      setLocalContent(String(val));
     }
   }, [state.asset?.value]);
 
   const handleBlur = () => {
-    if (!state.isReference && state.asset && localContent !== state.asset.value) {
-      actions.updateContent(localContent);
+    if (!state.isReference && state.asset) {
+      const value = state.asset.value as Record<string, any> | null;
+      const currentContent = value?.content ?? '';
+      if (localContent !== currentContent) {
+        // Preserve other fields (format) while updating content
+        actions.updateContent({ ...value, content: localContent });
+      }
     }
   };
 

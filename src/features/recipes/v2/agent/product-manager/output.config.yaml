@@ -1,0 +1,3 @@
+node: table
+title: "生产清单 ({{count}} 项)"
+collapsed: false

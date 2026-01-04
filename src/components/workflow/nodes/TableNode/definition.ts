@@ -26,16 +26,18 @@ export const definition: NodeDefinition = {
         const items = Array.isArray(data) ? data : [];
         const schemaFields = schema || [];
         return {
-            data: {
-                showRowNumbers: true,
-                allowAddRow: true,
-                allowDeleteRow: true,
-            },
             asset: {
                 valueType: 'array' as const,
+                // value: pure data array (rows)
                 value: items,
+                // config: schema + node-specific settings in extra
                 config: {
-                    schema: schemaFields,  // Store as FieldDefinition[]
+                    schema: schemaFields,
+                    extra: {
+                        showRowNumbers: true,
+                        allowAddRow: true,
+                        allowDeleteRow: true,
+                    },
                 },
             },
         };
@@ -44,7 +46,6 @@ export const definition: NodeDefinition = {
         getItems: (asset) => {
             const val = asset.value;
             if (Array.isArray(val)) return val;
-            if (val && typeof val === 'object' && 'rows' in val) return (val as any).rows || [];
             return [];
         },
         mergeItems: (existing, incoming) => [...existing, ...incoming],

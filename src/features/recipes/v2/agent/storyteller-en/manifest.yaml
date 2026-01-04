@@ -1,0 +1,19 @@
+# Chief Storyteller - English Version
+version: 2
+
+id: storyteller-en
+name: Chief Storyteller
+description: Develop a complete character Soul Profile (Visual DNA, Personality & Color Palette) from a name
+category: Agent
+icon: BookOpen
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.8
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true

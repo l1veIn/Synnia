@@ -1,0 +1,3 @@
+node: gallery
+title: "Generated: {{prompt}}"
+collapsed: false

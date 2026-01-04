@@ -1,8 +1,7 @@
 import { NodeBehavior } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
-import { isImageAsset } from '@/types/assets';
 import type { SynniaNode } from '@/types/project';
-import type { Asset } from '@/types/assets';
+import type { Asset, isRecordAsset } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
 
 /**
@@ -17,12 +16,18 @@ export const ImageBehavior: NodeBehavior = {
         portId: string
     ): PortValue | null => {
         if (portId === 'output' || portId === 'origin') {
-            if (!asset || !isImageAsset(asset)) return null;
-            const meta = asset.valueMeta || {};
-            const url = typeof asset.value === 'string' ? asset.value : '';
+            if (!asset || asset.valueType !== 'record') return null;
+            // New structure: value is { src, width, height, ... }
+            const value = asset.value as Record<string, any>;
+            const meta = (asset.config as any)?.meta || {};
             return {
                 type: 'json',  // Unified: image is just json with url field
-                value: { url, width: meta.width, height: meta.height, mimeType: asset.config?.mimeType },
+                value: {
+                    url: value.src || '',
+                    width: value.width ?? meta.width,
+                    height: value.height ?? meta.height,
+                    mimeType: value.mimeType
+                },
                 meta: { nodeId: node.id, portId }
             };
         }

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Send, MessageSquare, User, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ChatMessage } from '@/types/assets';
+import type { ChatMessage } from '@/features/recipes/types';
 
 export interface ChatBoxDialogProps {
     open: boolean;

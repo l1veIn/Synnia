@@ -20,42 +20,36 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
-    const { asset, setValue } = useAsset(assetId);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-    // Get saved content - handle both array and GalleryAssetContent formats
-    const savedContent: GalleryAssetContent = useMemo(() => {
+    // Get images from value (pure array) and settings from config.extra
+    const images: GalleryImage[] = useMemo(() => {
         const raw = asset?.value;
-
-        // Handle array format (from Recipe output or direct array)
         if (Array.isArray(raw)) {
-            return {
-                viewMode: 'grid' as const,
-                columnsPerRow: Math.min(4, raw.length || 4),
-                allowStar: true,
-                allowDelete: true,
-                images: raw.map((item: any, i: number) => ({
-                    id: item.id || `img-${i}`,
-                    src: item.src || item.url || '',
-                    starred: item.starred ?? false,
-                    caption: item.caption || '',
-                })),
-            };
+            return raw.map((item: any, i: number) => ({
+                id: item.id || `img-${i}`,
+                src: item.src || item.url || '',
+                starred: item.starred ?? false,
+                caption: item.caption || '',
+            }));
         }
-
-        // Handle GalleryAssetContent format (from Inspector)
-        const contentObj = (raw as GalleryAssetContent) || {};
-        return {
-            viewMode: contentObj.viewMode ?? 'grid',
-            columnsPerRow: contentObj.columnsPerRow ?? 4,
-            allowStar: contentObj.allowStar ?? true,
-            allowDelete: contentObj.allowDelete ?? true,
-            images: contentObj.images ?? [],
-        };
+        return [];
     }, [asset?.value]);
 
-    // Draft state
+    const savedSettings = useMemo(() => {
+        const config = asset?.config as any || {};
+        const extra = config.extra || {};
+        return {
+            viewMode: extra.viewMode ?? 'grid' as 'grid' | 'list' | 'single',
+            columnsPerRow: extra.columnsPerRow ?? 4,
+            allowStar: extra.allowStar ?? true,
+            allowDelete: extra.allowDelete ?? true,
+        };
+    }, [asset?.config]);
+
+    // Draft state for settings
     const [draftViewMode, setDraftViewMode] = useState<'grid' | 'list' | 'single'>('grid');
     const [draftColumns, setDraftColumns] = useState(4);
     const [draftAllowStar, setDraftAllowStar] = useState(true);
@@ -65,50 +59,53 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     // Initialize draft from saved
     useEffect(() => {
         if (!isInitialized && asset) {
-            setDraftViewMode(savedContent.viewMode);
-            setDraftColumns(savedContent.columnsPerRow);
-            setDraftAllowStar(savedContent.allowStar);
-            setDraftAllowDelete(savedContent.allowDelete);
+            setDraftViewMode(savedSettings.viewMode);
+            setDraftColumns(savedSettings.columnsPerRow);
+            setDraftAllowStar(savedSettings.allowStar);
+            setDraftAllowDelete(savedSettings.allowDelete);
             setIsInitialized(true);
         }
-    }, [savedContent, isInitialized, asset]);
+    }, [savedSettings, isInitialized, asset]);
 
     // Reset on asset change
     useEffect(() => {
-        setDraftViewMode(savedContent.viewMode);
-        setDraftColumns(savedContent.columnsPerRow);
-        setDraftAllowStar(savedContent.allowStar);
-        setDraftAllowDelete(savedContent.allowDelete);
+        setDraftViewMode(savedSettings.viewMode);
+        setDraftColumns(savedSettings.columnsPerRow);
+        setDraftAllowStar(savedSettings.allowStar);
+        setDraftAllowDelete(savedSettings.allowDelete);
         setIsInitialized(true);
     }, [assetId]);
 
     // Check for changes
     const hasChanges = useMemo(() => {
         if (!isInitialized) return false;
-        return draftViewMode !== savedContent.viewMode ||
-            draftColumns !== savedContent.columnsPerRow ||
-            draftAllowStar !== savedContent.allowStar ||
-            draftAllowDelete !== savedContent.allowDelete;
-    }, [draftViewMode, draftColumns, draftAllowStar, draftAllowDelete, savedContent, isInitialized]);
+        return draftViewMode !== savedSettings.viewMode ||
+            draftColumns !== savedSettings.columnsPerRow ||
+            draftAllowStar !== savedSettings.allowStar ||
+            draftAllowDelete !== savedSettings.allowDelete;
+    }, [draftViewMode, draftColumns, draftAllowStar, draftAllowDelete, savedSettings, isInitialized]);
 
-    // Save
+    // Save settings to config.extra via updateConfig
     const handleSave = () => {
-        setValue({
-            ...savedContent,
-            viewMode: draftViewMode,
-            columnsPerRow: draftColumns,
-            allowStar: draftAllowStar,
-            allowDelete: draftAllowDelete,
+        const currentConfig = asset?.config as any || {};
+        updateConfig({
+            ...currentConfig,
+            extra: {
+                viewMode: draftViewMode,
+                columnsPerRow: draftColumns,
+                allowStar: draftAllowStar,
+                allowDelete: draftAllowDelete,
+            },
         });
-        toast.success('Changes saved');
+        toast.success('Settings saved');
     };
 
     // Discard
     const handleDiscard = () => {
-        setDraftViewMode(savedContent.viewMode);
-        setDraftColumns(savedContent.columnsPerRow);
-        setDraftAllowStar(savedContent.allowStar);
-        setDraftAllowDelete(savedContent.allowDelete);
+        setDraftViewMode(savedSettings.viewMode);
+        setDraftColumns(savedSettings.columnsPerRow);
+        setDraftAllowStar(savedSettings.allowStar);
+        setDraftAllowDelete(savedSettings.allowDelete);
         toast.info('Changes discarded');
     };
 
@@ -130,31 +127,25 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             };
         });
 
-        setValue({
-            ...savedContent,
-            images: [...savedContent.images, ...newImages]
-        });
+        setValue([...images, ...newImages]);
         toast.success(`Added ${selectedAssets.length} image(s)`);
     };
 
     // Clear all images
     const clearAllImages = () => {
-        setValue({ ...savedContent, images: [] });
+        setValue([]);
         toast.success('All images cleared');
     };
 
     // Clear all stars
     const clearAllStars = () => {
-        setValue({
-            ...savedContent,
-            images: savedContent.images.map(img => ({ ...img, starred: false }))
-        });
+        setValue(images.map((img: GalleryImage) => ({ ...img, starred: false })));
         toast.success('All stars cleared');
     };
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
-    const starredCount = savedContent.images.filter(img => img.starred).length;
+    const starredCount = images.filter((img: GalleryImage) => img.starred).length;
 
     return (
         <div className="flex flex-col h-full">
@@ -199,10 +190,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 });
 
                                 if (newImages.length > 0) {
-                                    setValue({
-                                        ...savedContent,
-                                        images: [...savedContent.images, ...newImages]
-                                    });
+                                    setValue([...images, ...newImages]);
                                 }
 
                                 if (failed > 0) {
@@ -223,9 +211,8 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                 <div className="border-t" />
 
-                {/* Image Stats */}
                 <div className="flex items-center justify-between text-xs">
-                    <span>Images: {savedContent.images.length}</span>
+                    <span>Images: {images.length}</span>
                     {starredCount > 0 && (
                         <span className="text-yellow-500">⭐ {starredCount}</span>
                     )}
@@ -247,7 +234,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         size="sm"
                         className="flex-1 h-7 text-xs text-destructive hover:text-destructive"
                         onClick={clearAllImages}
-                        disabled={savedContent.images.length === 0}
+                        disabled={images.length === 0}
                     >
                         Clear All
                     </Button>

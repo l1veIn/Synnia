@@ -1,0 +1,16 @@
+# Video Generation - Media Recipe
+version: 2
+
+id: video-generation
+name: Video Generation
+description: Generate videos from text prompts
+category: Media
+icon: Film
+
+model:
+  category: video-generation
+  capabilities: []
+  defaultParams: {}
+
+advanced:
+  multiTurn: false

@@ -45,13 +45,13 @@ pub struct ProjectMeta {
 // New unified structure with discriminated union
 // ========================================== 
 
-/// ValueType enum for Asset discrimination
+/// ValueType enum for Asset discrimination (Form-Centric Model)
+/// - Record: Single structured form (TextNode, ImageNode, FormNode, RecipeNode)
+/// - Array: Collection of records (TableNode, GalleryNode, SelectorNode)
 #[derive(Debug, Clone, Serialize, Deserialize, TS, PartialEq)]
 #[ts(export)]
 #[serde(rename_all = "lowercase")]
 pub enum ValueType {
-    Text,
-    Image,
     Record,
     Array,
 }
@@ -69,73 +69,40 @@ pub struct AssetSysMetadata {
     pub source: String, // "user", "ai", "import"
 }
 
-/// Value metadata for text assets
+/// Unified Asset Metadata (replaces valueMeta)
+/// Stored in config.meta
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub struct TextValueMeta {
+pub struct AssetMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub length: Option<u64>,
-}
-
-/// Config for text assets
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct TextAssetConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<String>, // "markdown" | "plain" | "json"
-}
-
-/// Value metadata for image assets
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct ImageValueMeta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub preview: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
 }
 
-/// Config for image assets
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct ImageAssetConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mime_type: Option<String>,
-}
-
-/// Value metadata for record assets
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct RecordValueMeta {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub preview: Option<String>,
-}
-
-/// Config for record assets (forms)
+/// Config for record assets (forms, text, image)
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordAssetConfig {
     #[ts(type = "any[]")]
     pub schema: serde_json::Value, // FieldDefinition[]
-}
-
-/// Value metadata for array assets
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct ArrayValueMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub length: Option<u64>,
+    pub meta: Option<AssetMeta>,
+    // Recipe-specific extensions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recipe_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any")]
+    pub model_config: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any")]
+    pub chat_context: Option<serde_json::Value>,
 }
 
 /// Config for array assets (tables, selectors, galleries)
@@ -143,6 +110,12 @@ pub struct ArrayValueMeta {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ArrayAssetConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(type = "any[]")]
+    pub schema: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub meta: Option<AssetMeta>,
+    // @deprecated - use schema instead
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(type = "any[]")]
     pub item_schema: Option<serde_json::Value>,
@@ -156,7 +129,7 @@ pub struct ArrayAssetConfig {
     pub mode: Option<String>, // "single" | "multi"
 }
 
-/// Unified Asset structure with discriminated union
+/// Unified Asset structure (Form-Centric Model)
 /// Frontend uses valueType to determine the asset variant
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -168,12 +141,13 @@ pub struct Asset {
     #[ts(type = "any")]
     pub value: serde_json::Value,
     
+    /// Backend-generated metadata (dimensions, preview, length)
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(type = "any")]
+    #[ts(optional, type = "any")]
     pub value_meta: Option<serde_json::Value>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(type = "any")]
+    #[ts(optional, type = "any")]
     pub config: Option<serde_json::Value>,
     
     pub sys: AssetSysMetadata,

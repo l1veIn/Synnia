@@ -42,13 +42,18 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const { state, actions } = useNode(id);
     const { runRecipe } = useRunRecipe();
 
-    // Get recipeId and schemaSnapshot from asset.config (V2 architecture)
+    // Get recipeId from asset.config.extra or fallback to node type
     const assetConfig = state.asset?.config as {
-        recipeId?: string;
-        schemaSnapshot?: any[];
+        schema?: any[];
+        extra?: { recipeId?: string };
     } | undefined;
-    const recipeId = assetConfig?.recipeId;
-    const schemaSnapshot = assetConfig?.schemaSnapshot;
+
+    // Fallback: extract recipeId from node type (e.g., "recipe:storyteller" -> "storyteller")
+    const nodeType = state.node?.type;
+    const typeBasedRecipeId = nodeType?.startsWith('recipe:') ? nodeType.slice(7) : undefined;
+
+    const recipeId = assetConfig?.extra?.recipeId || typeBasedRecipeId;
+    const schemaSnapshot = assetConfig?.schema;
     const recipe = useMemo(() => recipeId ? getResolvedRecipe(recipeId) : null, [recipeId]);
 
     // Check schema compatibility

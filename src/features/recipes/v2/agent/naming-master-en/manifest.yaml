@@ -1,0 +1,19 @@
+# Naming Master - English Version
+version: 2
+
+id: naming-master-en
+name: Naming Master
+description: Generate 9 brand IP character names using the Relevance Spectrum strategy
+category: Agent
+icon: Wand2
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.9
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true

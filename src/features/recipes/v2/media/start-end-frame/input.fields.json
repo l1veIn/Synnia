@@ -1,0 +1,29 @@
+[
+    {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "required": true,
+        "config": {
+            "placeholder": "Describe the transition motion..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "startImage",
+        "label": "Start Frame",
+        "type": "string",
+        "widget": "image-picker",
+        "required": true,
+        "connection": "input"
+    },
+    {
+        "key": "endImage",
+        "label": "End Frame",
+        "type": "string",
+        "widget": "image-picker",
+        "required": true,
+        "connection": "input"
+    }
+]

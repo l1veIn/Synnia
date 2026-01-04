@@ -1,0 +1,22 @@
+[
+    {
+        "key": "prompt",
+        "label": "Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "required": true,
+        "config": {
+            "placeholder": "Describe the image you want to generate..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "negativePrompt",
+        "label": "Negative Prompt",
+        "type": "string",
+        "widget": "textarea",
+        "config": {
+            "placeholder": "What to avoid in the image..."
+        }
+    }
+]

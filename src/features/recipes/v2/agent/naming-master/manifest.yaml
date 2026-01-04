@@ -1,0 +1,19 @@
+# 命名大师 - Naming Master
+version: 2
+
+id: naming-master
+name: 命名大师
+description: 使用"相关度光谱"策略，为品牌生成9个虚拟IP角色名称
+category: Agent
+icon: Wand2
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.9
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true

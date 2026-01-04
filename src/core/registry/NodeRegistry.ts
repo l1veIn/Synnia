@@ -6,6 +6,8 @@ import type { SynniaNode, BaseNodeData, NodeType } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
 import type { GraphEngine } from '@core/engine/GraphEngine';
 import type { ExecutionResult } from '@/types/recipe';
+import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
+import { portRegistry } from '@core/engine/ports';
 
 // ============================================================================
 // Node Meta - Static metadata for a node type
@@ -138,6 +140,13 @@ class NodeRegistry {
         this.nodes.set(definition.type, definition);
         if (definition.meta.alias) {
             this.aliasMap.set(definition.meta.alias, definition.type);
+        }
+        // Auto-cascade registration
+        if (definition.behavior) {
+            behaviorRegistry.register(definition.type, definition.behavior);
+        }
+        if (definition.ports) {
+            portRegistry.register(definition.type, definition.ports);
         }
     }
 

@@ -23,12 +23,13 @@ interface InspectorProps {
 export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // Get config and options from the new clean data model
+    // Get config from normalized structure: schema at top level, settings in extra
     const config = useMemo(() => {
         const cfg = (asset?.config as any) || {};
+        const extra = cfg.extra || {};
         return {
-            mode: cfg.mode ?? 'multi' as 'single' | 'multi',
-            showSearch: cfg.showSearch ?? true,
+            mode: extra.mode ?? 'multi' as 'single' | 'multi',
+            showSearch: extra.showSearch ?? true,
             schema: cfg.schema ?? DEFAULT_OPTION_SCHEMA,
         };
     }, [asset?.config]);
@@ -90,12 +91,16 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             JSON.stringify(draftSchema) !== JSON.stringify(savedContent.schema);
     }, [draftMode, draftShowSearch, draftSchema, savedContent, isInitialized]);
 
-    // Save settings - uses updateConfig for config values
+    // Save settings - schema at top level, mode/showSearch in extra
     const handleSaveSettings = () => {
+        const currentConfig = asset?.config as any || {};
         updateConfig({
-            mode: draftMode,
-            showSearch: draftShowSearch,
+            ...currentConfig,
             schema: draftSchema,
+            extra: {
+                mode: draftMode,
+                showSearch: draftShowSearch,
+            },
         });
         toast.success('Settings saved');
     };

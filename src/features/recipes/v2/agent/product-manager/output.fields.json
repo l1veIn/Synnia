@@ -1,0 +1,35 @@
+[
+    {
+        "key": "assetId",
+        "label": "资产ID",
+        "type": "string",
+        "config": {
+            "hidden": true
+        }
+    },
+    {
+        "key": "assetName",
+        "label": "资产",
+        "type": "string"
+    },
+    {
+        "key": "family",
+        "label": "家族",
+        "type": "string"
+    },
+    {
+        "key": "priority",
+        "label": "优先级",
+        "type": "string"
+    },
+    {
+        "key": "microCopy",
+        "label": "文案/上下文",
+        "type": "string"
+    },
+    {
+        "key": "reason",
+        "label": "理由",
+        "type": "string"
+    }
+]

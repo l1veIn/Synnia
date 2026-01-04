@@ -1,0 +1,90 @@
+[
+    {
+        "key": "soulProfile",
+        "label": "灵魂档案",
+        "type": "object",
+        "widget": "form-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "在此连接'灵魂档案'JSON输出"
+        },
+        "schema": [
+            {
+                "key": "name",
+                "label": "名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "tagline",
+                "label": "标语",
+                "type": "string"
+            },
+            {
+                "key": "personality",
+                "label": "性格",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "colorDNA",
+                "label": "色彩DNA",
+                "type": "object"
+            }
+        ]
+    },
+    {
+        "key": "productType",
+        "label": "产品类型",
+        "type": "string",
+        "required": true,
+        "connection": "input"
+    },
+    {
+        "key": "visualStyle",
+        "label": "视觉风格",
+        "type": "string",
+        "required": true,
+        "config": {
+            "placeholder": "例如：3D盲盒、扁平矢量、赛博朋克..."
+        },
+        "connection": "input"
+    },
+    {
+        "key": "assetDefinitions",
+        "label": "资产定义库",
+        "type": "array",
+        "widget": "table-input",
+        "required": true,
+        "connection": "input",
+        "config": {
+            "placeholder": "传入资产定义 JSON"
+        },
+        "schema": [
+            {
+                "key": "id",
+                "label": "ID",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "name",
+                "label": "名称",
+                "type": "string",
+                "required": true
+            },
+            {
+                "key": "description",
+                "label": "描述",
+                "type": "string",
+                "widget": "textarea"
+            },
+            {
+                "key": "category",
+                "label": "类别",
+                "type": "string"
+            }
+        ]
+    }
+]

@@ -95,12 +95,14 @@ export function useCanvasLogic() {
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
         graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
-          content: result.relativePath,
+          content: { src: result.relativePath, width: result.width, height: result.height },
           assetName: filePath.split(/[/\\]/).pop(),
-          valueMeta: {
-            width: result.width,
-            height: result.height,
-            preview: result.thumbnailPath || undefined
+          assetConfig: {
+            meta: {
+              width: result.width,
+              height: result.height,
+              preview: result.thumbnailPath || undefined
+            }
           },
           style: { width: STD_WIDTH, height: STD_HEIGHT }
         });

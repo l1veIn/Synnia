@@ -5,7 +5,6 @@ import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
-import { OutputConfig } from '@/types/recipe';
 
 // NOTE: Node-specific logic (default content, build from data, etc.)
 // is defined in each node's config via factory methods.
@@ -25,13 +24,13 @@ export class GraphMutator {
      */
     public buildNodesFromConfig(
         data: any,
-        config: OutputConfig
+        config: import('@/types/recipe').OutputDefinition
     ): {
         type: NodeType | string;
         data: any;
         position?: 'below' | 'right' | XYPosition;
         dockedTo?: string | '$prev';
-        assetConfig?: Record<string, any>;  // Universal Output Adapter: passed to asset.config
+        config?: { schema?: import('@/types/assets').FieldDefinition[]; extra?: Record<string, any> };
     }[] {
         if (!Array.isArray(data) || data.length === 0) {
             return [];
@@ -46,9 +45,9 @@ export class GraphMutator {
             return [];
         }
 
-        // Get schema from config.config (Universal Output Adapter pattern)
-        const nodeConfig = config.config || {};
-        const schema = nodeConfig.schema;
+        // Get schema and extra from OutputDefinition (Form-Centric pattern)
+        const schema = config.schema;
+        const extra = config.extra || {};
 
         // Prepare title template resolver
         const resolveTitle = (count: number): string => {
@@ -70,8 +69,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
-                // Pass all node config transparently to asset.config
-                assetConfig: nodeConfig,
+                // Pass config as { schema, extra } pattern
+                config: { schema, extra },
                 position: 'below' as const,
             }];
         }
@@ -96,8 +95,8 @@ export class GraphMutator {
                     content: createResult.asset?.value,
                     assetType: 'json' as const,
                 },
-                // Pass all node config transparently to asset.config
-                assetConfig: nodeConfig,
+                // Pass config as { schema, extra } pattern
+                config: { schema, extra },
                 position: index === 0 ? 'below' as const : undefined,
                 dockedTo: index > 0 ? '$prev' as const : undefined,
             };
@@ -107,11 +106,9 @@ export class GraphMutator {
 
 
     public addNode(type: NodeType | string, position: XYPosition, options: {
-        valueType?: ValueType,
         content?: any,
         assetId?: string,
         assetName?: string,
-        valueMeta?: any,
         style?: any,
         assetConfig?: Record<string, any>  // Universal Output Adapter: passed to asset.config
     } = {}) {
@@ -150,7 +147,6 @@ export class GraphMutator {
             // Use AssetSystem
             assetId = this.engine.assets.create(valueType, content, {
                 name,
-                valueMeta: options.valueMeta,
                 config
             });
         }
@@ -286,12 +282,13 @@ export class GraphMutator {
             const originalAsset = assets[newAssetId];
             const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
 
-            // Use AssetSystem
+            // Use AssetSystem - preserve config
             newAssetId = this.engine.assets.create(
                 originalAsset.valueType,
                 valueClone,
                 {
-                    name: `${originalAsset.sys.name} (Copy)`
+                    name: `${originalAsset.sys.name} (Copy)`,
+                    config: originalAsset.config
                 }
             );
         }
@@ -371,17 +368,18 @@ export class GraphMutator {
                     const originalAsset = assets[newAssetId];
                     const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
 
-                    // Use AssetSystem
+                    // Use AssetSystem - preserve config
                     newAssetId = this.engine.assets.create(
                         originalAsset.valueType,
                         valueClone,
-                        { name: `${originalAsset.sys.name} (Copy)` }
+                        { name: `${originalAsset.sys.name} (Copy)`, config: originalAsset.config }
                     );
                 } else {
+                    // Fallback for missing asset - use record type
                     newAssetId = this.engine.assets.create(
-                        'text',
-                        'Content unavailable (Source asset missing)',
-                        { name: 'Missing Asset' }
+                        'record',
+                        { content: 'Content unavailable (Source asset missing)' },
+                        { name: 'Missing Asset', config: { schema: [] } }
                     );
                 }
             }

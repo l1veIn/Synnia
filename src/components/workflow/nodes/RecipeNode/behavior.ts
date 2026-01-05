@@ -1,6 +1,8 @@
 import { NodeBehavior, ConnectionContext } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { getResolvedRecipe } from '@features/recipes';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { getConnectedFieldValues } from '@/hooks/useInspector';
 import type { SynniaNode } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
@@ -86,24 +88,32 @@ export const RecipeBehavior: NodeBehavior = {
         asset: Asset | null,
         portId: string
     ): PortValue | null => {
-        if (!asset?.value || typeof asset.value !== 'object') return null;
+        const store = useWorkflowStore.getState();
 
-        const values = asset.value as Record<string, any>;
+        // Get merged values: own asset values + connected field values
+        const ownValue = (asset?.value as Record<string, any>) || {};
+        const connectedValue = getConnectedFieldValues(
+            node.id,
+            store.nodes,
+            store.edges,
+            store.assets
+        );
+        const mergedValue = { ...ownValue, ...connectedValue };
 
         switch (portId) {
             case 'reference':
             case 'origin':
                 return {
                     type: 'json',
-                    value: values,
+                    value: mergedValue,
                     meta: { nodeId: node.id, portId }
                 };
 
             default:
                 if (portId.startsWith('field:')) {
                     const fieldKey = portId.replace('field:', '');
-                    if (values[fieldKey] !== undefined) {
-                        const value = values[fieldKey];
+                    if (mergedValue[fieldKey] !== undefined) {
+                        const value = mergedValue[fieldKey];
                         return {
                             type: typeof value === 'object' ? 'json' : 'text',
                             value,
@@ -111,8 +121,8 @@ export const RecipeBehavior: NodeBehavior = {
                         };
                     }
                 }
-                if (values[portId] !== undefined) {
-                    const value = values[portId];
+                if (mergedValue[portId] !== undefined) {
+                    const value = mergedValue[portId];
                     return {
                         type: typeof value === 'object' ? 'json' : 'text',
                         value,
@@ -160,55 +170,12 @@ export const RecipeBehavior: NodeBehavior = {
 
     /**
      * Handle connections TO this Recipe node.
-     * Performs implicit type conversion (array↔object) based on target field type.
+     * 
+     * NEW: No longer copies data to node storage.
+     * Data is resolved dynamically via resolveOutput + useInspector.
      */
-    onConnect: (ctx: ConnectionContext): Record<string, any> | null => {
-        const { edge, sourcePortValue, targetAsset } = ctx;
-        const targetHandle = edge.targetHandle;
-
-        if (!targetHandle || ['origin', 'product', 'output', 'trigger', 'reference'].includes(targetHandle)) {
-            return null;
-        }
-
-        if (!sourcePortValue?.value) return null;
-
-        const resolvedValue = sourcePortValue.value;
-
-        // Get recipe schema for target field
-        const recipeId = (targetAsset?.config as any)?.recipeId;
-        if (recipeId) {
-            const recipe = getResolvedRecipe(recipeId);
-            if (recipe) {
-                const targetField = recipe.inputSchema.find(f => f.key === targetHandle);
-                if (targetField && (targetField.type === 'object' || targetField.type === 'array')) {
-                    const { convertedValue } = checkSchemaCompatibility(resolvedValue, targetField);
-                    if (convertedValue !== null) {
-                        return { [targetHandle]: convertedValue };
-                    }
-                }
-            }
-        }
-
-        // Fallback: legacy extraction logic for non-typed fields
-        let value: any;
-
-        if (Array.isArray(resolvedValue) && resolvedValue.length > 0) {
-            // Array (e.g., Selector output): extract field from first item
-            const firstItem = resolvedValue[0];
-            if (typeof firstItem === 'object' && firstItem !== null) {
-                value = firstItem[targetHandle] ?? firstItem;
-            } else {
-                value = firstItem;
-            }
-        } else if (typeof resolvedValue === 'object' && resolvedValue !== null) {
-            // Object: extract field or use whole object
-            value = (resolvedValue as Record<string, any>)[targetHandle] ?? resolvedValue;
-        } else {
-            // Primitive: use directly
-            value = resolvedValue;
-        }
-
-        return value !== undefined ? { [targetHandle]: value } : null;
+    onConnect: (_ctx: ConnectionContext): Record<string, any> | null => {
+        // No data copying - Inspector reads connected data dynamically
+        return null;
     },
 };
-

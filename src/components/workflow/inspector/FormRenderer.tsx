@@ -7,14 +7,20 @@ import { Input } from '@/components/ui/input';
 import { Link } from 'lucide-react';
 import { getWidget } from '@/components/workflow/widgets';
 
+interface LinkedFieldInfo {
+    sourceTitle: string;
+    value: any;
+}
+
 interface RendererProps {
     schema: FieldDefinition[];
     values: Record<string, any>;
     onChange: (values: Record<string, any>) => void;
-    linkedFields?: Set<string>; // Field keys that are linked (have incoming connections)
+    linkedFields?: Set<string>;
+    linkedFieldsInfo?: Record<string, LinkedFieldInfo>;
 }
 
-export function FormRenderer({ schema, values, onChange, linkedFields }: RendererProps) {
+export function FormRenderer({ schema, values, onChange, linkedFields, linkedFieldsInfo }: RendererProps) {
 
     const handleChange = (key: string, val: any) => {
         onChange({
@@ -35,6 +41,9 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
         <div className="space-y-5">
             {schema.filter(field => !field.hidden).map((field) => {
                 const isLinked = linkedFields?.has(field.key) ?? false;
+                const linkInfo = linkedFieldsInfo?.[field.key];
+                // For linked fields, use the connected value for display
+                const displayValue = isLinked && linkInfo ? linkInfo.value : values[field.key];
 
                 return (
                     <div key={field.key} className="space-y-1.5">
@@ -42,16 +51,16 @@ export function FormRenderer({ schema, values, onChange, linkedFields }: Rendere
                             <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                                 {field.label || field.key}
                                 {field.required && <span className="text-destructive">*</span>}
-                                {isLinked && (
+                                {isLinked && linkInfo && (
                                     <span className="inline-flex items-center gap-0.5 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded-full">
                                         <Link className="h-2.5 w-2.5" />
-                                        Linked
+                                        ← {linkInfo.sourceTitle}
                                     </span>
                                 )}
                             </Label>
                         </div>
 
-                        {renderWidget(field, values[field.key], (v) => handleChange(field.key, v), isLinked, isLinked)}
+                        {renderWidget(field, displayValue, (v) => handleChange(field.key, v), isLinked, isLinked)}
                     </div>
                 );
             })}

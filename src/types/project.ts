@@ -10,7 +10,7 @@
  * │  BaseNodeData                                                   │
  * │  ├── title, icon, label          // UI properties               │
  * │  ├── state, errorMessage         // Execution state             │
- * │  ├── collapsed, handlePosition   // UI state                    │
+ * │  ├── collapsed                   // UI state                    │
  * │  ├── assetId                     // Link to Asset Store         │
  * │  └── dockedTo, layoutMode        // Container/Docking           │
  * │                                                                 │
@@ -68,7 +68,6 @@ export interface BaseNodeData extends Record<string, unknown> {
   collapsed?: boolean;
   expandedWidth?: number;
   expandedHeight?: number;
-  handlePosition?: 'top-bottom' | 'left-right';
   originalPosition?: XYPosition;
 
   // --- Asset Linkage ---
@@ -97,3 +96,16 @@ export type SynniaNode<T extends BaseNodeData = BaseNodeData> = Node<T, string>;
  * Synnia edge type - extends React Flow Edge
  */
 export type SynniaEdge = Edge<{ edgeType?: EdgeType }>;
+
+// ==========================================
+// 📦 Project State
+// ==========================================
+
+/**
+ * Complete project state for persistence
+ */
+export interface ProjectState {
+  nodes: SynniaNode[];
+  edges: SynniaEdge[];
+  viewport: { x: number; y: number; zoom: number };
+}

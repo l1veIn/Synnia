@@ -1,32 +1,12 @@
 /**
- * Recipe Loader - Loads YAML manifests
- * Self-contained recipes, no mixin inheritance
+ * Recipe Loader - Loads Recipe Package files (manifest.yaml + JSON files)
+ * V2 Architecture: Self-contained recipes, no mixin inheritance
  */
 
 import { parse as parseYaml } from 'yaml';
 import * as LucideIcons from 'lucide-react';
 import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
 import type { FieldDefinition } from '@/types/assets';
-import type { WidgetType } from '@/types/widgets';
-
-// Conversion function (internal to loader)
-function yamlToFieldDef(field: any): FieldDefinition {
-    const nestedSchema = field.schema?.map(yamlToFieldDef);
-    return {
-        key: field.key,
-        label: field.label,
-        type: field.type === 'select' ? 'string' : field.type,
-        widget: field.type === 'select' ? 'select' : (field.widget as WidgetType | undefined),
-        required: field.required,
-        defaultValue: field.default,
-        config: {
-            options: field.options,
-            placeholder: field.placeholder,
-        },
-        connection: field.connection,
-        schema: nestedSchema,
-    };
-}
 
 // ============================================================================
 // Parse YAML to RecipeManifest (from string content)
@@ -114,8 +94,8 @@ function getIcon(iconName?: string): LucideIcons.LucideIcon | undefined {
 // ============================================================================
 
 export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefinition {
-    // Convert input fields to FieldDefinitions
-    const inputSchema = manifest.input?.map(yamlToFieldDef) || [];
+    // Input schema is already in FieldDefinition format from JSON Package files
+    const inputSchema: FieldDefinition[] = (manifest.input as FieldDefinition[]) || [];
 
     // Create executor function
     const execute = createExecutor(manifest);

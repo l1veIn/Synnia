@@ -3,70 +3,30 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
-import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
-import type { ConnectionContext } from '@core/engine/types/behavior';
-import type { SynniaEdge } from '@/types/project';
+import { getConnectedFieldValues } from '@/hooks/useInspector';
 
 /**
- * Refresh all connected inputs by re-executing onConnect for each incoming edge.
- * This ensures asset.value contains the latest data from all connected sources.
+ * Get merged input values for a node: own asset values + connected field values.
+ * This replaces the old refreshConnectedInputs pattern that relied on onConnect.
  */
-function refreshConnectedInputs(nodeId: string): void {
+function getMergedInputValues(nodeId: string): Record<string, any> {
     const { nodes, edges, assets } = useWorkflowStore.getState();
-    const targetNode = nodes.find(n => n.id === nodeId);
-    if (!targetNode || !targetNode.data.assetId) return;
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || !node.data.assetId) return {};
 
-    const behavior = behaviorRegistry.get(targetNode.type);
-    if (!behavior.onConnect) return;
+    // Get own asset values
+    const asset = assets[node.data.assetId];
+    const ownValue = (asset?.value && typeof asset.value === 'object')
+        ? asset.value as Record<string, any>
+        : {};
 
-    // Find all edges targeting this node
-    const incomingEdges = edges.filter(e => e.target === nodeId);
-    const allUpdates: Record<string, any> = {};
+    // Get connected field values (dynamically resolved from source nodes)
+    const connectedValue = getConnectedFieldValues(nodeId, nodes, edges, assets);
 
-    for (const edge of incomingEdges) {
-        const sourceNode = nodes.find(n => n.id === edge.source);
-        if (!sourceNode) continue;
-
-        const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
-        const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
-
-        // Pre-resolve source output
-        const sourceBehavior = behaviorRegistry.get(sourceNode.type);
-        const sourcePortId = edge.sourceHandle || 'origin';
-        const sourcePortValue = sourceBehavior.resolveOutput?.(sourceNode, sourceAsset, sourcePortId) || null;
-
-        // Build ConnectionContext
-        const ctx: ConnectionContext = {
-            sourceNode,
-            targetNode,
-            edge: edge as SynniaEdge,
-            sourceAsset,
-            targetAsset,
-            sourcePortValue,
-            getNodes: () => nodes,
-            getNode: (id: string) => nodes.find(n => n.id === id),
-        };
-
-        // Call onConnect to get latest values
-        const updates = behavior.onConnect(ctx);
-        if (updates) {
-            Object.assign(allUpdates, updates);
-        }
-    }
-
-    // Apply all updates at once
-    if (Object.keys(allUpdates).length > 0) {
-        const targetAsset = assets[targetNode.data.assetId];
-        if (targetAsset) {
-            const currentValue = (typeof targetAsset.value === 'object' && targetAsset.value !== null)
-                ? targetAsset.value as Record<string, any>
-                : {};
-            const newValue = { ...currentValue, ...allUpdates };
-            graphEngine.assets.update(targetNode.data.assetId, newValue);
-        }
-    }
+    // Merge: connected values override own values
+    return { ...ownValue, ...connectedValue };
 }
 
 /**
@@ -94,22 +54,9 @@ export function useRunRecipe() {
         });
 
         try {
-            // --- Refresh Connected Inputs ---
-            // Re-execute onConnect for all incoming edges to get latest values
-            refreshConnectedInputs(nodeId);
-
-            // --- Resolve Inputs ---
-            // Get fresh store after refresh
-            const freshStore = useWorkflowStore.getState();
-            const freshNode = freshStore.nodes.find(n => n.id === nodeId);
-            let staticValues: Record<string, any> = {};
-
-            if (freshNode?.data.assetId) {
-                const asset = freshStore.assets[freshNode.data.assetId as string];
-                if (asset?.value && typeof asset.value === 'object') {
-                    staticValues = asset.value as Record<string, any>;
-                }
-            }
+            // --- Get Merged Input Values ---
+            // Combines own asset values + connected field values (dynamically resolved)
+            const staticValues = getMergedInputValues(nodeId);
 
             // Apply default values from schema
             const defaultValues: Record<string, any> = {};

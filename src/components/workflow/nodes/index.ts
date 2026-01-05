@@ -50,6 +50,7 @@ for (const recipe of recipes) {
         type: virtualType,
         component: RecipeNode,
         inspector: RecipeNodeInspector,
+        behavior: RecipeBehavior,  // Register behavior for canConnect/onConnect
         meta: {
             title: recipe.name,
             icon: recipe.icon || FileText,

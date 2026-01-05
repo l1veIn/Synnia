@@ -3,11 +3,9 @@ import { LayoutSystem } from './LayoutSystem';
 import { InteractionSystem } from './InteractionSystem';
 import { GraphMutator } from './GraphMutator';
 import { AssetSystem } from './AssetSystem';
-import { SynniaNode, SynniaEdge, NodeType } from '@/types/project';
+import { SynniaNode, SynniaEdge } from '@/types/project';
 import { addEdge, getConnectedEdges, Connection, Edge } from '@xyflow/react';
-import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
-import { EngineContext, NodePatch } from '@core/engine/types/behavior';
-import { sortNodesTopologically } from '@core/utils/graph';
+import { NodePatch } from '@core/engine/types/behavior';
 
 export class GraphEngine {
     public layout: LayoutSystem;

@@ -3,7 +3,7 @@ import { SynniaNode, NodeType } from '@/types/project';
 import { ValueType } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
-import { sortNodesTopologically, sanitizeNodeForClipboard } from '@core/utils/graph';
+import { sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
 
 // NOTE: Node-specific logic (default content, build from data, etc.)
@@ -176,8 +176,7 @@ export class GraphMutator {
         };
 
         const { nodes } = this.engine.state;
-        const newNodes = [...nodes, newNode];
-        this.engine.setNodes(sortNodesTopologically(newNodes));
+        this.engine.setNodes([...nodes, newNode]);
 
         return newNode.id;
     }
@@ -246,29 +245,14 @@ export class GraphMutator {
             style: def.meta?.style || {},
         };
 
-        const newNodes = [...nodes, newNode];
-        this.engine.setNodes(sortNodesTopologically(newNodes));
+        this.engine.setNodes([...nodes, newNode]);
 
         return newNode.id;
     }
 
     public removeNode(id: string) {
-        const { nodes } = this.engine.state;
-
-        const nodesToDelete = new Set<string>();
-        const queue = [id];
-
-        // Determine all descendants
-        while (queue.length > 0) {
-            const currentId = queue.pop()!;
-            nodesToDelete.add(currentId);
-
-            const children = nodes.filter(n => n.parentId === currentId);
-            children.forEach(child => queue.push(child.id));
-        }
-
-        // Use Engine Batch Primitive
-        this.engine.deleteNodes(Array.from(nodesToDelete));
+        // Use Engine Batch Primitive (no children traversal needed)
+        this.engine.deleteNodes([id]);
     }
 
     public duplicateNode(node: SynniaNode, position?: XYPosition) {
@@ -307,9 +291,7 @@ export class GraphMutator {
         };
 
         this.engine.deselectAll();
-
-        const finalNodes = sortNodesTopologically([...this.engine.state.nodes, newNode]);
-        this.engine.setNodes(finalNodes);
+        this.engine.setNodes([...this.engine.state.nodes, newNode]);
     }
 
     public createShortcut(nodeId: string) {
@@ -340,8 +322,7 @@ export class GraphMutator {
         };
 
         this.engine.deselectAll();
-        const finalNodes = sortNodesTopologically([...this.engine.state.nodes, newNode]);
-        this.engine.setNodes(finalNodes);
+        this.engine.setNodes([...this.engine.state.nodes, newNode]);
     }
 
     public pasteNodes(copiedNodes: SynniaNode[]) {
@@ -402,7 +383,6 @@ export class GraphMutator {
         });
 
         this.engine.deselectAll();
-        const finalNodes = sortNodesTopologically([...this.engine.state.nodes, ...newNodes]);
-        this.engine.setNodes(finalNodes);
+        this.engine.setNodes([...this.engine.state.nodes, ...newNodes]);
     }
 }

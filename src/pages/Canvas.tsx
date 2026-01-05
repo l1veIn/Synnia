@@ -15,7 +15,7 @@ import { InspectorPanel } from '@/components/workflow/InspectorPanel';
 import DeletableEdge from '@/components/workflow/edges/DeletableEdge';
 import OutputEdge from '@/components/workflow/edges/OutputEdge';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
-import { saveProjectToFile } from '@core/utils/project';
+
 import { SynniaProject } from '@/bindings';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
@@ -120,24 +120,25 @@ function CanvasFlow() {
   const handleSave = async () => {
     const { nodes, edges, assets, projectMeta, viewport } = useWorkflowStore.getState();
 
-    if (projectMeta) {
-      try {
-        const project: SynniaProject = {
-          version: "2.0.0",
-          meta: projectMeta,
-          viewport,
-          graph: { nodes: nodes as any, edges: edges as any },
-          assets,
-          settings: {}
-        };
-        await apiClient.invoke('save_project', { project });
-        toast.success("Project saved");
-      } catch (e) {
-        toast.error("Save failed: " + String(e));
-        console.error(e);
-      }
-    } else {
-      saveProjectToFile(nodes, edges);
+    if (!projectMeta) {
+      toast.warning("No project open. Use File > New Project first.");
+      return;
+    }
+
+    try {
+      const project: SynniaProject = {
+        version: "2.0.0",
+        meta: projectMeta,
+        viewport,
+        graph: { nodes: nodes as any, edges: edges as any },
+        assets,
+        settings: {}
+      };
+      await apiClient.invoke('save_project', { project });
+      toast.success("Project saved");
+    } catch (e) {
+      toast.error("Save failed: " + String(e));
+      console.error(e);
     }
   };
 

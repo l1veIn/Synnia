@@ -1,5 +1,6 @@
 import { FieldDefinition, isRecordAsset } from '@/types/assets';
 import { useAsset } from '@/hooks/useAsset';
+import { useInspector } from '@/hooks/useInspector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SchemaBuilder } from '../../inspector/SchemaBuilder';
 import { FormRenderer } from '../../inspector/FormRenderer';
@@ -12,7 +13,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 
 export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
     const { asset, setValue, updateConfig } = useAsset(assetId);
-    const edges = useWorkflowStore(s => s.edges);
+    const { connectedFields } = useInspector(nodeId);
     const nodes = useWorkflowStore(s => s.nodes);
     const [activeTab, setActiveTab] = useState('values');
 
@@ -68,24 +69,21 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
             JSON.stringify(draftValues) !== JSON.stringify(savedValues);
     }, [draftSchema, draftValues, savedSchema, savedValues, isInitialized]);
 
-    // Get linked field keys (fields with incoming connections)
-    const linkedFields = useMemo(() => {
-        if (!nodeId) return new Set<string>();
+    // Get linked field info from useInspector
+    const linkedFieldsInfo = useMemo(() => {
+        const info: Record<string, { sourceTitle: string; value: any }> = {};
+        connectedFields.forEach((fieldInfo, key) => {
+            info[key] = {
+                sourceTitle: fieldInfo.sourceNodeTitle,
+                value: fieldInfo.value,
+            };
+        });
+        return info;
+    }, [connectedFields]);
 
-        // Find all incoming edges to this node
-        const linkedKeys = edges
-            .filter(e => e.target === nodeId && e.targetHandle)
-            .map(e => {
-                // targetHandle format: "field:fieldKey" → extract fieldKey
-                const handle = e.targetHandle!;
-                if (handle.startsWith('field:')) {
-                    return handle.slice(6); // Remove 'field:' prefix
-                }
-                return handle;
-            });
-
-        return new Set(linkedKeys);
-    }, [edges, nodeId]);
+    const linkedFieldKeys = useMemo(() => {
+        return new Set(connectedFields.keys());
+    }, [connectedFields]);
 
     // Init Logic: Ensure RecordAsset structure exists
     useEffect(() => {
@@ -145,7 +143,8 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                         schema={draftSchema}
                         values={draftValues}
                         onChange={handleValuesChange}
-                        linkedFields={linkedFields}
+                        linkedFields={linkedFieldKeys}
+                        linkedFieldsInfo={linkedFieldsInfo}
                     />
                 </TabsContent>
 

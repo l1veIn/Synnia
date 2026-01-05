@@ -10,9 +10,9 @@ import {
     Connection
 } from '@xyflow/react';
 import { SynniaNode, SynniaEdge } from '@/types/project';
-import { sortNodesTopologically } from '@core/utils/graph';
+
 import { v4 as uuidv4 } from 'uuid';
-import { getDescendants, sanitizeNodeForClipboard } from '@core/utils/graph';
+import { sanitizeNodeForClipboard } from '@core/utils/graph';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
@@ -32,71 +32,33 @@ export class InteractionSystem {
         const node = nodes.find(n => n.id === nodeId);
         if (!node) return "";
 
-        // 1. Identify Tree to Clone (Root + Descendants)
-        const nodesToClone = [node, ...getDescendants(nodes, node.id)];
-        const idMap = new Map<string, string>();
-        nodesToClone.forEach(n => idMap.set(n.id, uuidv4()));
+        // Create stationary clone (left behind)
+        const cloneId = uuidv4();
+        const stationaryNode: SynniaNode = {
+            ...node,
+            id: cloneId,
+            selected: false,
+            data: JSON.parse(JSON.stringify(node.data))
+        };
 
-        // 2. Create Stationary Clones (Left behind) - Preserve State (e.g. inside Rack)
-        const stationaryNodes = nodesToClone.map(original => {
-            const newId = idMap.get(original.id)!;
-
-            let newParentId = original.parentId;
-            if (original.parentId && idMap.has(original.parentId)) {
-                newParentId = idMap.get(original.parentId);
-            }
-
-            return {
-                ...original,
-                id: newId,
-                parentId: newParentId,
-                selected: false,
-                data: JSON.parse(JSON.stringify(original.data))
-            } as SynniaNode;
-        });
-
-        // 3. Clone Edges for Stationary Nodes
+        // Clone edges connected to this node
         const newEdges: SynniaEdge[] = [];
         edges.forEach(edge => {
-            const sourceIsCloned = idMap.has(edge.source);
-            const targetIsCloned = idMap.has(edge.target);
-
-            if (sourceIsCloned || targetIsCloned) {
-                const newEdge = {
+            if (edge.source === nodeId || edge.target === nodeId) {
+                newEdges.push({
                     ...edge,
                     id: uuidv4(),
-                    source: sourceIsCloned ? idMap.get(edge.source)! : edge.source,
-                    target: targetIsCloned ? idMap.get(edge.target)! : edge.target,
+                    source: edge.source === nodeId ? cloneId : edge.source,
+                    target: edge.target === nodeId ? cloneId : edge.target,
                     selected: false
-                };
-                newEdges.push(newEdge);
+                });
             }
         });
 
-        // 4. Detach Moving Root Node - Sanitize State (Dragging out)
-        let newPosition = node.position;
-        let newParentId = node.parentId;
-        let newExtent = node.extent;
-
-        if (node.parentId) {
-            const parentNode = nodes.find(n => n.id === node.parentId);
-            if (parentNode) {
-                newPosition = {
-                    x: parentNode.position.x + node.position.x,
-                    y: parentNode.position.y + node.position.y
-                };
-                newParentId = undefined;
-                newExtent = undefined;
-            }
-        }
-
+        // Sanitize moving node (being dragged)
         const sanitizedNode = sanitizeNodeForClipboard(node);
-
         const updatedMovingNode = {
             ...sanitizedNode,
-            parentId: newParentId,
-            position: newPosition,
-            extent: newExtent,
             style: { ...sanitizedNode.style, opacity: 0.5 },
             data: {
                 ...sanitizedNode.data,
@@ -104,13 +66,13 @@ export class InteractionSystem {
             }
         } as SynniaNode;
 
-        // 5. Apply Changes
-        const finalNodes = nodes.map(n => n.id === nodeId ? updatedMovingNode : n).concat(stationaryNodes);
+        // Apply changes
+        const finalNodes = nodes.map(n => n.id === nodeId ? updatedMovingNode : n).concat([stationaryNode]);
 
-        this.engine.setNodes(sortNodesTopologically(finalNodes));
+        this.engine.setNodes(finalNodes);
         this.engine.setEdges([...edges, ...newEdges]);
 
-        return idMap.get(node.id)!;
+        return cloneId;
     }
 
     public handleDragStopOpacity(nodeId: string) {

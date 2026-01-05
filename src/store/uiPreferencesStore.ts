@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const MAX_RECENT_NODES = 3;
+const MAX_RECENT_NODES = 5;
 
 interface UIPreferencesState {
     // Recent nodes for NodePicker

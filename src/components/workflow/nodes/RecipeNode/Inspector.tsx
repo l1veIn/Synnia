@@ -7,6 +7,7 @@ import { useMemo, useEffect, useState, useRef } from 'react';
 import { getResolvedRecipe } from '@features/recipes';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useAsset } from '@/hooks/useAsset';
+import { useInspector } from '@/hooks/useInspector';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save, AlertCircle, FileText, Bot, MessageSquare, Code } from 'lucide-react';
@@ -28,7 +29,7 @@ interface RecipeNodeInspectorProps {
 
 export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProps) => {
     const node = useWorkflowStore(s => nodeId ? s.nodes.find(n => n.id === nodeId) : undefined);
-    const edges = useWorkflowStore(s => s.edges);
+    const { connectedFields } = useInspector(nodeId);
 
     // Get asset for values storage
     const { asset, setValue, updateConfig } = useAsset(assetId);
@@ -107,22 +108,21 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         return JSON.stringify(draftValues) !== JSON.stringify(savedValues);
     }, [draftValues, savedValues, isInitialized]);
 
-    // Get linked field keys (fields with incoming connections)
-    const linkedFields = useMemo(() => {
-        if (!nodeId) return new Set<string>();
+    // Get linked field info from useInspector
+    const linkedFieldsInfo = useMemo(() => {
+        const info: Record<string, { sourceTitle: string; value: any }> = {};
+        connectedFields.forEach((fieldInfo, key) => {
+            info[key] = {
+                sourceTitle: fieldInfo.sourceNodeTitle,
+                value: fieldInfo.value,
+            };
+        });
+        return info;
+    }, [connectedFields]);
 
-        const linkedKeys = edges
-            .filter(e => e.target === nodeId && e.targetHandle)
-            .map(e => {
-                const handle = e.targetHandle!;
-                if (handle.startsWith('field:')) {
-                    return handle.slice(6);
-                }
-                return handle;
-            });
-
-        return new Set(linkedKeys);
-    }, [edges, nodeId]);
+    const linkedFieldKeys = useMemo(() => {
+        return new Set(connectedFields.keys());
+    }, [connectedFields]);
 
     // Check model capabilities for Chat tab
     const hasChatCapability = useMemo(() => {
@@ -272,7 +272,8 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                                     schema={recipe.inputSchema}
                                     values={draftValues}
                                     onChange={handleDraftChange}
-                                    linkedFields={linkedFields}
+                                    linkedFields={linkedFieldKeys}
+                                    linkedFieldsInfo={linkedFieldsInfo}
                                 />
                             </div>
                             {/* Fixed footer */}

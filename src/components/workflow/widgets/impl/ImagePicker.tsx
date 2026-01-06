@@ -192,6 +192,15 @@ function InspectorComponent({ value, onChange, disabled }: WidgetProps) {
 export const ImagePickerWidget: WidgetDefinition = {
     id: 'image-picker',
     render: (props) => <InspectorComponent {...props} />,
+    meta: {
+        label: 'Image',
+        description: 'Upload or URL image input',
+        category: 'media',
+        outputType: 'object',
+        icon: ImageIcon,
+        supportsInput: true,
+        supportsOutput: true,
+    },
 };
 
 // Backward compatibility export

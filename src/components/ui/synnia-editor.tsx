@@ -19,6 +19,8 @@ interface SynniaEditorProps {
     title?: string;
     className?: string;
     onSave?: (val: string) => void; // Optional explicit save for fullscreen
+    hideToolbar?: boolean;
+    hideBorder?: boolean;
 }
 
 interface WrapperProps {
@@ -31,51 +33,60 @@ interface WrapperProps {
     onSave?: (val: string) => void;
     onMaximize?: () => void;
     className?: string;
+    hideToolbar?: boolean;
+    hideBorder?: boolean;
 }
 
 // Extracted component to prevent re-mounting issues
-const CodeMirrorWrapper = ({ 
-    value, 
-    onChange, 
-    extensions, 
-    theme, 
-    readOnly, 
-    isFull = false, 
-    onSave, 
+const CodeMirrorWrapper = ({
+    value,
+    onChange,
+    extensions,
+    theme,
+    readOnly,
+    isFull = false,
+    onSave,
     onMaximize,
-    className
+    className,
+    hideToolbar,
+    hideBorder
 }: WrapperProps) => {
     return (
         <div className={cn("relative flex flex-col min-h-0", isFull ? "h-full" : "h-full", className)}>
-            <div className="absolute top-2 right-2 z-10 flex gap-1">
-                {!isFull && onSave && (
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 bg-background/50 hover:bg-background border shadow-sm backdrop-blur-sm"
-                        onClick={() => onSave(value)}
-                        title="Save"
-                    >
-                        <Save className="h-3 w-3" />
-                    </Button>
-                )}
-                {!isFull && onMaximize && (
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 bg-background/50 hover:bg-background border shadow-sm backdrop-blur-sm"
-                        onClick={onMaximize}
-                        title="Maximize"
-                    >
-                        <Maximize2 className="h-3 w-3" />
-                    </Button>
-                )}
-            </div>
+            {!hideToolbar && (
+                <div className="absolute top-2 right-2 z-10 flex gap-1">
+                    {!isFull && onSave && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 bg-background/50 hover:bg-background border shadow-sm backdrop-blur-sm"
+                            onClick={() => onSave(value)}
+                            title="Save"
+                        >
+                            <Save className="h-3 w-3" />
+                        </Button>
+                    )}
+                    {!isFull && onMaximize && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 bg-background/50 hover:bg-background border shadow-sm backdrop-blur-sm"
+                            onClick={onMaximize}
+                            title="Maximize"
+                        >
+                            <Maximize2 className="h-3 w-3" />
+                        </Button>
+                    )}
+                </div>
+            )}
 
             <CodeMirror
                 value={value}
                 height="100%"
-                className="text-xs h-full border rounded-md overflow-hidden"
+                className={cn(
+                    "text-xs h-full overflow-hidden",
+                    !hideBorder && "border rounded-md"
+                )}
                 extensions={extensions}
                 theme={theme}
                 onChange={onChange}
@@ -90,14 +101,16 @@ const CodeMirrorWrapper = ({
     );
 };
 
-export const SynniaEditor = ({ 
-    value, 
-    onChange, 
-    mode, 
-    readOnly, 
-    title = 'Editor', 
+export const SynniaEditor = ({
+    value,
+    onChange,
+    mode,
+    readOnly,
+    title = 'Editor',
     className,
-    onSave
+    onSave,
+    hideToolbar,
+    hideBorder
 }: SynniaEditorProps) => {
     const { theme } = useTheme();
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -128,7 +141,7 @@ export const SynniaEditor = ({
 
     return (
         <>
-            <CodeMirrorWrapper 
+            <CodeMirrorWrapper
                 value={value}
                 onChange={onChange}
                 extensions={getExtensions()}
@@ -138,6 +151,8 @@ export const SynniaEditor = ({
                 onSave={onSave}
                 onMaximize={() => setIsFullScreen(true)}
                 className={className}
+                hideToolbar={hideToolbar}
+                hideBorder={hideBorder}
             />
 
             <Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
@@ -149,9 +164,9 @@ export const SynniaEditor = ({
                         </div>
                         <div className="flex items-center gap-2">
                             {isMarkdown && (
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => setShowPreview(!showPreview)}
                                     className="h-7 text-xs mr-10"
                                 >
@@ -161,12 +176,12 @@ export const SynniaEditor = ({
                             )}
                         </div>
                     </DialogHeader>
-                    
+
                     <div className="flex-1 min-h-0 bg-muted/10 overflow-hidden">
                         {enableSplit ? (
                             <div className="grid grid-cols-2 h-full w-full divide-x">
                                 <div className="h-full min-h-0 p-4">
-                                    <CodeMirrorWrapper 
+                                    <CodeMirrorWrapper
                                         value={localValue}
                                         onChange={setLocalValue}
                                         extensions={getExtensions()}
@@ -185,7 +200,7 @@ export const SynniaEditor = ({
                             </div>
                         ) : (
                             <div className="h-full w-full p-4">
-                                <CodeMirrorWrapper 
+                                <CodeMirrorWrapper
                                     value={localValue}
                                     onChange={setLocalValue}
                                     extensions={getExtensions()}

@@ -6,19 +6,27 @@ import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
 import { Table as TableIcon, Trash2, ChevronDown, ChevronUp, Edit } from 'lucide-react';
-import { TableEditor } from './TableEditor';
+import { DataEditorDialog } from '@/components/data-editor/DataEditorDialog';
+import { toast } from 'sonner';
+import { getWidget } from '@/components/workflow/widgets';
+import { cn } from '@/lib/utils';
+
+import { FieldDefinition } from '@/types/assets';
 
 // --- Asset Content Type ---
 export interface TableColumn {
     key: string;
     label: string;
-    type: 'string' | 'number' | 'boolean';
+    type: string;
     width?: number;
+    widget?: string;
+    config?: any;
 }
 
 export interface TableAssetContent {
     columns: TableColumn[];
     rows: Record<string, any>[];
+    schema?: FieldDefinition[]; // Add schema support
     showRowNumbers: boolean;
     allowAddRow: boolean;
     allowDeleteRow: boolean;
@@ -56,8 +64,10 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
             columns = config.schema.map((f: any) => ({
                 key: f.key,
                 label: f.label || f.key,
-                type: f.type === 'number' ? 'number' : f.type === 'boolean' ? 'boolean' : 'string',
+                type: f.type,
                 width: f.config?.width,
+                widget: f.widget,
+                config: f.config,
             }));
         } else if (config.columns && Array.isArray(config.columns)) {
             columns = config.columns;
@@ -66,6 +76,7 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
         return {
             columns,
             rows,
+            schema: config.schema,
             showRowNumbers: config.showRowNumbers ?? true,
             allowAddRow: config.allowAddRow ?? true,
             allowDeleteRow: config.allowDeleteRow ?? true,
@@ -157,9 +168,7 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
                                                 )}
                                                 {content.columns.map(col => (
                                                     <td key={col.key} className="px-2 py-1">
-                                                        <span className="truncate block max-w-[100px]">
-                                                            {row[col.key] ?? '-'}
-                                                        </span>
+                                                        <TableCellValue field={col} value={row[col.key]} />
                                                     </td>
                                                 ))}
                                             </tr>
@@ -182,17 +191,75 @@ export const TableNode = memo((props: NodeProps<SynniaNode>) => {
             <NodePort.Output disabled={state.isDockedBottom} />
 
             {/* Editor Dialog */}
-            <TableEditor
+            <DataEditorDialog
                 open={isEditorOpen}
                 onOpenChange={setIsEditorOpen}
-                assetId={state.asset?.id}
+                data={content.rows}
+                schema={content.schema || []}
+                onSave={(newData) => {
+                    actions.updateContent(newData);
+                    toast.success('Table updated');
+                }}
+                title={`Edit ${state.title}`}
             />
         </NodeShell>
     );
 });
 TableNode.displayName = 'TableNode';
 
-// Re-export from separate files
+// --- Internal Cell Renderer ---
+// Uses widget's renderFieldContent for consistent value display
+function TableCellValue({ field, value }: { field: TableColumn, value: any }) {
+    // 1. Try Widget's renderFieldContent (preferred)
+    if (field.widget) {
+        const widgetDef = getWidget(field.widget);
+        if (widgetDef?.renderFieldContent) {
+            // Create a minimal FieldContentProps for table cell context
+            const contentProps = {
+                field: field as FieldDefinition,
+                value,
+                onChange: () => { }, // Read-only
+                disabled: true,
+                isConnected: false, // Table cells are never "connected"
+                connectedValues: {},
+            };
+            return (
+                <div className="flex items-center gap-1">
+                    {widgetDef.renderFieldContent(contentProps)}
+                </div>
+            );
+        }
+    }
+
+    // 2. Smart Formatting (Fallback)
+    if (value === undefined || value === null) {
+        return <span className="text-muted-foreground/30">-</span>;
+    }
+
+    if (field.type === 'boolean') {
+        return value ? (
+            <span className="text-green-600 font-bold text-[10px]">TRUE</span>
+        ) : (
+            <span className="text-muted-foreground font-bold text-[10px]">FALSE</span>
+        );
+    }
+
+    if (typeof value === 'object') {
+        const label = Array.isArray(value) ? `Array[${value.length}]` : 'Object';
+        return (
+            <span className="text-[10px] bg-muted px-1 rounded text-muted-foreground whitespace-nowrap">
+                {label}
+            </span>
+        );
+    }
+
+    return (
+        <span className="truncate block max-w-[150px]" title={String(value)}>
+            {String(value)}
+        </span>
+    );
+}
+
 export { Inspector } from './Inspector';
 export { definition } from './definition';
 export { TableNode as Node };

@@ -4,7 +4,6 @@ import { getAllRecipes } from '@features/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { FileText } from 'lucide-react';
-import { getWidgetInputHandles } from '@/components/workflow/widgets';
 import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
 import { modelRegistry } from '@features/models';
 import type { ModelConfig } from '@/features/recipes/types';
@@ -169,18 +168,6 @@ for (const recipe of recipes) {
                     });
                 }
 
-                if (field.widget) {
-                    const extraHandles = getWidgetInputHandles(field.widget, fieldValue);
-                    for (const h of extraHandles) {
-                        const extraHandleId = `${fieldKey}:${h.id}`;
-                        ports.push({
-                            id: extraHandleId,
-                            direction: 'input',
-                            dataType: h.dataType || 'json',
-                            label: h.label || h.id,
-                        });
-                    }
-                }
             }
 
             return ports;

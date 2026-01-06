@@ -1,8 +1,6 @@
 import { FieldDefinition } from '@/types/assets';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Link } from 'lucide-react';
 import { getWidget } from '@/components/workflow/widgets';
@@ -60,7 +58,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields, linkedFie
                             </Label>
                         </div>
 
-                        {renderWidget(field, displayValue, (v) => handleChange(field.key, v), isLinked, isLinked)}
+                        {renderWidget(field, displayValue, (v) => handleChange(field.key, v), isLinked)}
                     </div>
                 );
             })}
@@ -68,7 +66,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields, linkedFie
     );
 }
 
-function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void, disabled?: boolean, isConnected?: boolean) {
+function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => void, disabled?: boolean) {
     const config = field.config || {};
     const isDisabled = disabled || false;
     const safeVal = value ?? field.defaultValue ?? '';
@@ -86,69 +84,7 @@ function renderWidget(field: FieldDefinition, value: any, onChange: (v: any) => 
         }
     }
 
-    // Fallback to built-in widgets not in registry
-    switch (field.widget) {
-        case 'slider':
-            const min = config.min ?? 0;
-            const max = config.max ?? 100;
-            const step = config.step ?? 1;
-            const valNum = Number(safeVal) || min;
-            return (
-                <div className="flex items-center gap-2">
-                    <Slider
-                        value={[valNum]}
-                        min={min} max={max} step={step}
-                        onValueChange={(vals) => onChange(vals[0])}
-                        className="flex-1"
-                        disabled={isDisabled}
-                    />
-                </div>
-            );
-
-        case 'switch':
-            return (
-                <div className="flex items-center h-8">
-                    <Switch checked={!!value} onCheckedChange={onChange} disabled={isDisabled} />
-                    <span className="ml-2 text-xs text-muted-foreground">{value ? 'True' : 'False'}</span>
-                </div>
-            );
-
-        case 'select':
-            return (
-                <Select value={String(safeVal)} onValueChange={onChange} disabled={isDisabled}>
-                    <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {(config.options || []).map((opt: string) => (
-                            <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            );
-
-        case 'color':
-            return (
-                <div className="flex items-center gap-2 h-8">
-                    <input
-                        type="color"
-                        className="h-7 w-10 rounded border cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                        value={safeVal || '#000000'}
-                        onChange={e => onChange(e.target.value)}
-                        disabled={isDisabled}
-                    />
-                    <Input
-                        value={safeVal}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder="#000000"
-                        disabled={isDisabled}
-                        className="flex-1 h-8 text-xs"
-                    />
-                </div>
-            );
-    }
-
-    // Type-based fallback
+    // Type-based fallback (when no widget specified)
     if (field.type === 'boolean') {
         return (
             <div className="flex items-center h-8">

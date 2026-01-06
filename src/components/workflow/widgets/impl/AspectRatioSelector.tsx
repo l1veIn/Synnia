@@ -9,6 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Ratio } from 'lucide-react';
 import { WidgetDefinition, WidgetProps } from '../lib/types';
 
 // Visual representation of ratios
@@ -79,6 +80,14 @@ function InspectorComponent({ value, onChange, disabled }: WidgetProps) {
 export const AspectRatioSelectorWidget: WidgetDefinition = {
     id: 'aspect-ratio',
     render: (props) => <InspectorComponent {...props} />,
+    meta: {
+        label: 'Aspect Ratio',
+        description: 'Visual ratio picker',
+        category: 'media',
+        outputType: 'string',
+        icon: Ratio,
+    },
+    getCapability: () => ({ hasInputPort: false, hasOutputPort: false }),
 };
 
 // Backward compatibility export

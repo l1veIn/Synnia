@@ -5,8 +5,8 @@
 /**
  * All supported widget types in the system.
  * - Basic: Standard HTML inputs
- * - Advanced: Rich UI components
- * - System: Internal system components
+ * - Advanced: Rich UI components  
+ * - Connection: Data input from other nodes
  */
 export type WidgetType =
     // Basic Text
@@ -16,39 +16,31 @@ export type WidgetType =
 
     // Numeric
     | 'number'            // Standard number input
-    | 'slider'            // Slider with input
+    | 'slider'            // Slider with value display
 
     // Selection / Boolean
     | 'switch'            // Boolean toggle
     | 'select'            // Dropdown select
+    | 'segmented'         // Horizontal toggle group
     | 'color'             // Color picker
+    | 'tags'              // Multi-tag input
 
-    // Visual / Media (New)
-    | 'media-model-selector'  // Media model dropdown with filtering (simple)
-    | 'model-configurator'    // Model selector + dynamic model-specific params (compound)
+    // Visual / Media
     | 'aspect-ratio-selector' // Visual aspect ratio picker
     | 'image-picker'          // Image upload/URL/asset selection
-
-    // Advanced (Proposed/Future)
-    | 'code-editor'       // Monaco/CodeMirror editor
-    | 'file-upload'       // Drag-and-drop file upload
-    | 'lora-selector'     // LoRA model selector
-    | 'llm-configurator'  // LLM model selector + params
 
     // Connection Inputs (receive data from other nodes)
     | 'form-input'        // Object connection input (expects single object)
     | 'table-input'       // Array connection input (expects array of objects)
-    | 'json-input'        // Generic JSON connection (legacy, use form-input/table-input)
+
+    // Reserved (future)
+    // | 'code-editor'     // Monaco/CodeMirror editor
+    // | 'file-upload'     // Drag-and-drop file upload
+    // | 'lora-selector'   // LoRA model selector
 
     // System
     | 'none';             // Headless/Hidden
 
-/**
- * Configuration options interface for widgets that strictly need them.
- * Note: Most widget config currently lives in FieldRule (min, max, options etc.)
- * This interface is for future expansion of widget-specific config.
- */
-export interface WidgetConfig {
-    placeholder?: string;
-    // ... specialized config
-}
+// Note: Widget-specific config is defined within each Widget implementation.
+// FieldDefinition.config uses Record<string, any> and each Widget casts it
+// to its own strongly-typed config interface internally.

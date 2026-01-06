@@ -4,8 +4,7 @@
 
 import { Link2, Check, AlertCircle, Table2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { WidgetDefinition, WidgetProps, FieldRowProps } from '../lib/types';
-import { NodePort } from '@/components/workflow/nodes/primitives/NodePort';
+import { WidgetDefinition, WidgetProps, FieldContentProps } from '../lib/types';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -172,46 +171,42 @@ function InspectorComponent({ value, field }: WidgetProps) {
 }
 
 // ============================================================================
-// FieldRow Renderer (for Node Body)
+// FieldContent Renderer - Custom content for array fields (icon + row count)
 // ============================================================================
 
-function renderFieldRow({ field, value, isConnected }: FieldRowProps) {
+function renderFieldContent({ field, value, isConnected }: FieldContentProps) {
     const schema = field.schema || [];
     const connectedValue = isConnected && Array.isArray(value) ? value : null;
     const rowCount = connectedValue?.length || 0;
 
+    if (isConnected) {
+        return (
+            <>
+                <Table2 className="h-3 w-3 text-green-500" />
+                <span className="inline-flex items-center gap-1 text-[10px] text-green-500 font-medium bg-green-500/10 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    {rowCount} rows
+                </span>
+            </>
+        );
+    }
+
+    if (schema.length > 0) {
+        return (
+            <>
+                <Table2 className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground/50 italic">
+                    {schema.length} columns
+                </span>
+            </>
+        );
+    }
+
     return (
-        <div className={cn(
-            "relative flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors",
-            "bg-background/50 hover:bg-background/80 border border-transparent",
-            isConnected && "border-green-500/30 bg-green-500/5"
-        )}>
-            <NodePort.Input id={field.key} connected={isConnected} />
-
-            <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <Table2 className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[11px] font-medium truncate max-w-[70px] text-muted-foreground">
-                        {field.label || field.key}
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                    {isConnected ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-green-500 font-medium bg-green-500/10 px-2 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            {rowCount} rows
-                        </span>
-                    ) : schema.length > 0 ? (
-                        <span className="text-[10px] text-muted-foreground/50 italic">
-                            {schema.length} columns
-                        </span>
-                    ) : (
-                        <span className="text-[10px] text-muted-foreground/50 italic">array</span>
-                    )}
-                </div>
-            </div>
-        </div>
+        <>
+            <Table2 className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground/50 italic">array</span>
+        </>
     );
 }
 
@@ -222,6 +217,19 @@ function renderFieldRow({ field, value, isConnected }: FieldRowProps) {
 export const TableInputWidget: WidgetDefinition = {
     id: 'table-input',
     render: (props) => <InspectorComponent {...props} />,
-    renderFieldRow,
-    getInputHandles: () => [{ id: 'data', dataType: 'json', label: 'Array Data' }],
+    meta: {
+        label: 'Array',
+        description: 'Structured array input',
+        category: 'data',
+        outputType: 'array',
+        icon: Table2,
+        supportsInput: true,
+        supportsOutput: true,
+    },
+    renderFieldContent,
+    getCapability: (field) => ({
+        hasInputPort: true,
+        hasOutputPort: field?.connection === 'output' || field?.connection === 'both',
+    }),
 };
+

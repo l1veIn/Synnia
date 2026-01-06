@@ -4,7 +4,7 @@
 import { useState, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, Maximize2 } from 'lucide-react';
+import { Wand2, Loader2, Maximize2, AlignLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { callLLM } from '@features/models';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
@@ -15,8 +15,16 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { WidgetDefinition, WidgetProps, FieldRowProps } from '../lib/types';
-import { NodePort } from '@/components/workflow/nodes/primitives/NodePort';
+import { WidgetDefinition, WidgetProps } from '../lib/types';
+
+/** TextArea widget configuration */
+interface TextAreaConfig {
+    placeholder?: string;
+    showEnhance?: boolean;
+    enhancePrompt?: string;
+    showEditor?: boolean;
+    editorMode?: 'plain' | 'markdown';
+}
 
 const DEFAULT_ENHANCE_PROMPT = `You are an expert prompt engineer for AI image and video generation.
 Your task is to enhance the user's prompt to be more detailed, evocative, and effective for AI generation.
@@ -33,8 +41,14 @@ Rules:
 // ============================================================================
 
 function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
-    const options = (field as any)?.options || {};
-    const { placeholder, showEnhance = true, enhancePrompt = DEFAULT_ENHANCE_PROMPT, showEditor = true, editorMode = 'plain' } = options;
+    const config = (field?.config || {}) as TextAreaConfig;
+    const {
+        placeholder,
+        showEnhance = true,
+        enhancePrompt = DEFAULT_ENHANCE_PROMPT,
+        showEditor = true,
+        editorMode = 'plain'
+    } = config;
 
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -176,70 +190,28 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
 }
 
 // ============================================================================
-// FieldRow Renderer (for Node Body)
-// ============================================================================
-
-function renderFieldRow({ field, value, isConnected, disabled }: FieldRowProps) {
-    const conn = field.connection;
-    const hasInputHandle = conn === 'input' || conn === 'both';
-    const hasOutputHandle = conn === 'output' || conn === 'both';
-    const isMissing = field.required && !value && !isConnected;
-
-    // Truncate multiline text for preview
-    const displayValue = value
-        ? String(value).split('\n')[0].slice(0, 25) + (String(value).length > 25 ? '...' : '')
-        : null;
-
-    return (
-        <div className={cn(
-            "relative flex items-center gap-3 py-1.5 px-2 rounded-md transition-colors",
-            "bg-background/50 hover:bg-background/80 border border-transparent",
-            isConnected && "border-blue-500/30 bg-blue-500/5",
-            disabled && "bg-muted/30 opacity-70",
-            isMissing && "border-destructive/40 bg-destructive/5"
-        )}>
-            {hasInputHandle && <NodePort.Input id={field.key} connected={isConnected} />}
-
-            <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
-                <span className={cn(
-                    "text-[11px] font-medium truncate max-w-[70px]",
-                    isMissing ? "text-destructive" : "text-muted-foreground"
-                )}>
-                    {field.label || field.key}
-                </span>
-
-                <div className="flex items-center gap-1.5">
-                    {isConnected ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-500 font-medium bg-blue-500/10 px-2 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                            linked
-                        </span>
-                    ) : displayValue ? (
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-muted/80 text-foreground truncate max-w-[100px]">
-                            {displayValue}
-                        </span>
-                    ) : (
-                        <span className="text-[10px] text-muted-foreground/50 italic">empty</span>
-                    )}
-                </div>
-            </div>
-
-            {hasOutputHandle && (
-                <NodePort.Output id={`field:${field.key}`} />
-            )}
-        </div>
-    );
-}
-
-// ============================================================================
 // Widget Definition Export
+// Note: No renderFieldContent needed - default preview in RecipeFieldRow is sufficient
 // ============================================================================
 
 export const TextAreaWidget: WidgetDefinition = {
     id: 'textarea',
     render: (props) => <InspectorComponent {...props} />,
-    renderFieldRow,
+    meta: {
+        label: 'Text Area',
+        description: 'Multi-line text with AI enhance',
+        category: 'text',
+        outputType: 'string',
+        icon: AlignLeft,
+        supportsInput: true,
+        supportsOutput: true,
+    },
+    configSchema: [
+        { key: 'placeholder', type: 'string', label: 'Placeholder' },
+        { key: 'showEnhance', type: 'boolean', label: 'Show AI Enhance' },
+    ],
 };
 
 // Backward compatibility export
 export { InspectorComponent as TextArea };
+

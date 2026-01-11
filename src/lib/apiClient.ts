@@ -39,7 +39,7 @@ export interface SaveImageResult {
 /** Media asset info for asset library */
 export interface MediaAssetInfo {
     id: string;
-    assetType: string;
+    mediaType: string;  // Semantic type: image, video, audio, pdf, file
     name: string;
     content: string;
     thumbnailPath: string | null;

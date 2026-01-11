@@ -3,4 +3,5 @@ pub mod agent;
 pub mod asset;
 pub mod history;
 pub mod http_proxy;
-// pub mod graph; // Removed
+pub mod ops_chat;
+pub mod ops_logs;

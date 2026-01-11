@@ -3,4 +3,8 @@
 /**
  * System metadata - tracks asset lifecycle
  */
-export type AssetSysMetadata = { name: string, createdAt: number, updatedAt: number, source: string, };
+export type AssetSysMetadata = { name: string, createdAt: number, updatedAt: number, source: string, 
+/**
+ * If true, asset is shown in Asset Library and preserved when node is deleted
+ */
+isLibraryAsset: boolean | null, };

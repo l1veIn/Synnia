@@ -56,6 +56,15 @@ pub enum ValueType {
     Array,
 }
 
+impl ValueType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ValueType::Record => "record",
+            ValueType::Array => "array",
+        }
+    }
+}
+
 /// System metadata - tracks asset lifecycle
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -67,6 +76,9 @@ pub struct AssetSysMetadata {
     #[ts(type = "number")]
     pub updated_at: i64,
     pub source: String, // "user", "ai", "import"
+    /// If true, asset is shown in Asset Library and preserved when node is deleted
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_library_asset: Option<bool>,
 }
 
 /// Unified Asset Metadata (replaces valueMeta)

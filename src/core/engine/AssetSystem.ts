@@ -32,16 +32,19 @@ export class AssetSystem {
             name?: string;
             config?: any;
             source?: 'user' | 'ai' | 'import';
+            sys?: Partial<AssetSysMetadata>;  // Partial sys to merge (e.g., isLibraryAsset)
         } = {}
     ): string {
         const id = uuidv4();
         const now = Date.now();
 
+        // Merge partial sys from options
         const sys: AssetSysMetadata = {
             name: options.name || 'New Asset',
             createdAt: now,
             updatedAt: now,
             source: options.source || 'user',
+            ...options.sys,  // Merge partial sys (e.g., isLibraryAsset: true)
         };
 
         // Build the asset based on valueType
@@ -69,17 +72,20 @@ export class AssetSystem {
         const id = uuidv4();
         const now = Date.now();
 
+        // Merge partial sys with defaults (allows passing partial sys like {isLibraryAsset: true})
+        const defaultSys = {
+            name: name || 'New Asset',
+            createdAt: now,
+            updatedAt: now,
+            source: 'user' as const,
+        };
+
         const newAsset: Asset = {
             id,
             valueType: partial.valueType,
             value: partial.value,
             config: partial.config,
-            sys: partial.sys || {
-                name: name || 'New Asset',
-                createdAt: now,
-                updatedAt: now,
-                source: 'user',
-            },
+            sys: { ...defaultSys, ...partial.sys },
         } as Asset;
 
         const { assets } = this.store;

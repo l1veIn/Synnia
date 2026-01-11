@@ -124,6 +124,19 @@ pub fn run() {
 
             // HTTP Proxy
             commands::http_proxy::proxy_request,
+
+            // Ops: Chat Context
+            commands::ops_chat::get_chat_messages,
+            commands::ops_chat::add_chat_message,
+            commands::ops_chat::clear_chat_messages,
+
+            // Ops: Execution Logs
+            commands::ops_logs::get_execution_runs,
+            commands::ops_logs::create_execution_run,
+            commands::ops_logs::update_execution_run,
+            commands::ops_logs::append_log_entry,
+            commands::ops_logs::get_log_entries,
+            commands::ops_logs::clear_execution_logs,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

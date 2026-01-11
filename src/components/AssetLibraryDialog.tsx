@@ -62,7 +62,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
         const term = searchTerm.toLowerCase();
         return assets.filter(a =>
             a.name.toLowerCase().includes(term) ||
-            a.assetType.toLowerCase().includes(term)
+            a.mediaType.toLowerCase().includes(term)
         );
     }, [assets, searchTerm]);
 
@@ -276,7 +276,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     <div className="grid grid-cols-2 gap-3 text-xs">
                                         <div className="bg-muted/50 p-2 rounded">
                                             <span className="text-muted-foreground">Type</span>
-                                            <p className="font-medium">{selectedAsset.assetType}</p>
+                                            <p className="font-medium">{selectedAsset.mediaType}</p>
                                         </div>
                                         {selectedAsset.width && selectedAsset.height && (
                                             <div className="bg-muted/50 p-2 rounded">

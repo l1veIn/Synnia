@@ -62,7 +62,8 @@ pub fn save_asset_with_history(
     let value_meta_json = asset.value_meta.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
     let config_json = asset.config.as_ref().map(|v| serde_json::to_string(v)).transpose()?;
     let now = chrono::Utc::now().timestamp_millis();
-    let value_type_str = serde_json::to_string(&asset.value_type)?;
+    // Note: value_type should be plain string, not JSON-serialized (e.g., "record" not "\"record\"")
+    let value_type_str = asset.value_type.as_str();
     
     conn.execute(
         "INSERT INTO assets (id, value_type, value_hash, value_json, value_meta_json, config_json, sys_json, updated_at)

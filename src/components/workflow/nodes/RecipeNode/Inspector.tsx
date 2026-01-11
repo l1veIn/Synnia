@@ -1,5 +1,5 @@
 /**
- * RecipeNode Inspector - 4-Tab Layout (Form, Model, Chat, Advanced)
+ * RecipeNode Inspector - 5-Tab Layout (Form, Model, Chat, Logs, Advanced)
  * Recipe V2 Architecture: Multi-turn AI Agent Container
  */
 
@@ -10,7 +10,7 @@ import { useAsset } from '@/hooks/useAsset';
 import { useInspector } from '@/hooks/useInspector';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, AlertCircle, FileText, Bot, MessageSquare, Code } from 'lucide-react';
+import { Save, AlertCircle, FileText, Bot, MessageSquare, ScrollText, Code } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
@@ -21,6 +21,7 @@ import type { RecipeAssetConfig, ModelConfig, ChatMessage, RecipeExtra } from '@
 import { ModelTab } from './Inspector/ModelTab';
 import { ChatTab } from './Inspector/ChatTab';
 import { AdvancedTab } from './Inspector/AdvancedTab';
+import { LogTab } from './Inspector/LogTab';
 
 interface RecipeNodeInspectorProps {
     assetId?: string;
@@ -169,30 +170,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
         }
     };
 
-    // Chat message handler
-    const handleSendMessage = (content: string) => {
-        if (!assetId || !updateConfig) return;
-
-        const currentMessages = extra.chatContext?.messages || [];
-        const newMessage: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: 'user',
-            content,
-            timestamp: Date.now(),
-        };
-
-        updateConfig({
-            ...assetConfig,
-            extra: {
-                ...extra,
-                chatContext: {
-                    messages: [...currentMessages, newMessage],
-                },
-            },
-        });
-
-        toast.success('Message sent');
-    };
+    // handleSendMessage removed - ChatTab now uses useChatContext internally
 
     return (
         <div className="flex flex-col h-full">
@@ -218,7 +196,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                 )}
             </div>
 
-            {/* 4-Tab Layout */}
+            {/* 5-Tab Layout */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                 <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4 h-9">
                     <TabsTrigger value="form" className="gap-1.5 text-xs">
@@ -235,6 +213,10 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                     >
                         <MessageSquare className="h-3.5 w-3.5" />
                         Chat
+                    </TabsTrigger>
+                    <TabsTrigger value="logs" className="gap-1.5 text-xs">
+                        <ScrollText className="h-3.5 w-3.5" />
+                        Logs
                     </TabsTrigger>
                     <TabsTrigger value="advanced" className="gap-1.5 text-xs">
                         <Code className="h-3.5 w-3.5" />
@@ -321,10 +303,15 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                 {/* Chat Tab */}
                 <TabsContent value="chat" className="flex-1 overflow-hidden mt-0">
                     <ChatTab
-                        messages={extra.chatContext?.messages || []}
-                        onSendMessage={handleSendMessage}
-                        disabled={!hasChatCapability || (extra.chatContext?.messages?.length ?? 0) === 0}
+                        nodeId={nodeId}
+                        recipeId={recipeId}
+                        disabled={!hasChatCapability}
                     />
+                </TabsContent>
+
+                {/* Logs Tab */}
+                <TabsContent value="logs" className="flex-1 overflow-hidden mt-0">
+                    <LogTab nodeId={nodeId} />
                 </TabsContent>
 
                 {/* Advanced Tab */}

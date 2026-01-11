@@ -49,7 +49,7 @@ export const AssetPicker = ({
             // Filter by type if specified
             const filtered = assetType === 'all'
                 ? data
-                : data.filter(a => a.assetType === assetType);
+                : data.filter(a => a.mediaType === assetType);
             setAssets(filtered);
         } catch (e) {
             console.error('Failed to load media assets:', e);

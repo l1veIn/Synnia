@@ -144,10 +144,14 @@ export class GraphMutator {
                 ...(options.assetConfig || {})
             };
 
+            // Pass sys from createResult (e.g., isLibraryAsset: true for ImageNode)
+            const sys = createResult?.asset?.sys as any;
+
             // Use AssetSystem
             assetId = this.engine.assets.create(valueType, content, {
                 name,
-                config
+                config,
+                sys,  // Merge partial sys from node definition
             });
         }
 

@@ -466,6 +466,7 @@ fn load_assets(conn: &Connection) -> Result<HashMap<String, Asset>, AppError> {
                 created_at: 0,
                 updated_at: 0,
                 source: "user".to_string(),
+                is_library_asset: None,
             });
         
         Ok(Asset { id, value_type, value, value_meta, config, sys })
@@ -632,6 +633,7 @@ mod tests {
                 created_at: 12345,
                 updated_at: 12345,
                 source: "user".to_string(),
+                is_library_asset: None,
             },
         });
         

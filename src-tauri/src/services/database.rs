@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 /// Database schema version for migrations
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 4;
 
 /// Initialize the database at the given path.
 /// Creates all tables if they don't exist and enables WAL mode.
@@ -30,9 +30,37 @@ pub fn init_db(db_path: &Path) -> SqliteResult<Connection> {
 }
 
 /// Open an existing database connection.
+/// Automatically migrates older schema versions to the current version.
 pub fn open_db(db_path: &Path) -> SqliteResult<Connection> {
     let conn = Connection::open(db_path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
+    
+    // Check and migrate schema version
+    let current_version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    
+    if current_version < SCHEMA_VERSION {
+        // Migration v2 -> v3: drop old operational tables that had foreign keys
+        if current_version == 2 {
+            conn.execute_batch(r#"
+                DROP TABLE IF EXISTS log_entries;
+                DROP TABLE IF EXISTS execution_runs;
+                DROP TABLE IF EXISTS chat_messages;
+            "#)?;
+        }
+        
+        // Migration v3 -> v4: add content_type column to chat_messages
+        if current_version == 3 {
+            // Add content_type column with default 'text'
+            conn.execute_batch(r#"
+                ALTER TABLE chat_messages ADD COLUMN content_type TEXT DEFAULT 'text';
+            "#)?;
+        }
+        
+        // Re-run schema to create any missing tables (IF NOT EXISTS is safe)
+        conn.execute_batch(SCHEMA_SQL)?;
+        conn.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+    }
+    
     Ok(conn)
 }
 
@@ -153,6 +181,51 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL
 );
+
+-- ============================================
+-- Operational Layer (TEP #001: Asset Ontology)
+-- Chat and Logs separated from Asset
+-- ============================================
+
+-- Chat messages for Recipe nodes
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    node_id TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant')),
+    content TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'json')),
+    timestamp INTEGER NOT NULL,
+    attachments_json TEXT,
+    output_asset_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_chat_node_time ON chat_messages(node_id, timestamp ASC);
+
+-- Execution runs for Recipe nodes
+CREATE TABLE IF NOT EXISTS execution_runs (
+    id TEXT PRIMARY KEY,
+    node_id TEXT NOT NULL,
+    recipe_id TEXT,
+    started_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    status TEXT NOT NULL CHECK (status IN ('running', 'success', 'error')),
+    model_id TEXT,
+    duration_ms INTEGER,
+    token_input INTEGER,
+    token_output INTEGER,
+    error_message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_runs_node ON execution_runs(node_id, started_at DESC);
+
+-- Log entries for execution runs
+CREATE TABLE IF NOT EXISTS log_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    level TEXT NOT NULL CHECK (level IN ('debug', 'info', 'warn', 'error')),
+    message TEXT NOT NULL,
+    data_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_entries_run ON log_entries(run_id, timestamp ASC);
 "#;
 
 #[cfg(test)]

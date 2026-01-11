@@ -86,6 +86,8 @@ export interface AssetSysMetadata {
     createdAt: number;
     updatedAt: number;
     source: string;
+    /** If true, asset is shown in Asset Library and preserved when node is deleted */
+    isLibraryAsset?: boolean;
 }
 
 export interface AssetMeta {

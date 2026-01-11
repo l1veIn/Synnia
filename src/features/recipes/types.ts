@@ -59,11 +59,13 @@ export interface ChatContext {
 /**
  * Recipe-specific extensions stored in asset.config.extra
  * Provides strong typing for Recipe nodes
+ * 
+ * TEP #001: chatContext moved to operational layer (SQLite chat_messages table)
  */
 export interface RecipeExtra {
     recipeId?: string;
     modelConfig?: ModelConfig;
-    chatContext?: ChatContext;
+    // chatContext removed - now stored in SQLite chat_messages table
 }
 
 /**
@@ -81,5 +83,5 @@ export interface RecipeAssetConfig extends RecordAssetConfig {
 export function hasRecipeExtra(config: RecordAssetConfig | undefined): config is RecipeAssetConfig {
     if (!config?.extra) return false;
     const extra = config.extra as RecipeExtra;
-    return 'recipeId' in extra || 'modelConfig' in extra || 'chatContext' in extra;
+    return 'recipeId' in extra || 'modelConfig' in extra;
 }

@@ -1,11 +1,132 @@
 import { getRecipe } from '@features/recipes';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
+import { invoke } from '@tauri-apps/api/core';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
+
+// ============================================
+// Execution Logging (TEP #001: Operational Layer)
+// ============================================
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+interface ExecutionLogger {
+    log: (level: LogLevel, message: string, data?: Record<string, unknown>) => Promise<void>;
+    complete: (status: 'success' | 'error', summary?: {
+        tokenInput?: number;
+        tokenOutput?: number;
+        errorMessage?: string;
+    }) => Promise<void>;
+}
+
+async function createExecutionLogger(nodeId: string, recipeId: string, modelId?: string): Promise<ExecutionLogger | null> {
+    const projectRoot = useWorkflowStore.getState().projectRoot;
+    if (!projectRoot) return null;
+
+    const runId = crypto.randomUUID();
+    const startedAt = Date.now();
+
+    try {
+        await invoke('create_execution_run', {
+            projectPath: projectRoot,
+            run: {
+                id: runId,
+                nodeId,
+                recipeId,
+                startedAt,
+                status: 'running',
+                modelId,
+            }
+        });
+    } catch (e) {
+        console.warn('[ExecutionLogger] Failed to create run:', e);
+        return null;
+    }
+
+    return {
+        log: async (level: LogLevel, message: string, data?: Record<string, unknown>) => {
+            try {
+                await invoke('append_log_entry', {
+                    projectPath: projectRoot,
+                    entry: {
+                        runId,
+                        timestamp: Date.now(),
+                        level,
+                        message,
+                        dataJson: data ? JSON.stringify(data) : undefined,
+                    }
+                });
+            } catch (e) {
+                console.warn('[ExecutionLogger] Failed to append entry:', e);
+            }
+        },
+        complete: async (status: 'success' | 'error', summary?: {
+            tokenInput?: number;
+            tokenOutput?: number;
+            errorMessage?: string;
+        }) => {
+            try {
+                await invoke('update_execution_run', {
+                    projectPath: projectRoot,
+                    runId,
+                    updates: {
+                        completedAt: Date.now(),
+                        status,
+                        durationMs: Date.now() - startedAt,
+                        tokenInput: summary?.tokenInput,
+                        tokenOutput: summary?.tokenOutput,
+                        errorMessage: summary?.errorMessage,
+                    }
+                });
+            } catch (e) {
+                console.warn('[ExecutionLogger] Failed to update run:', e);
+            }
+        }
+    };
+}
+
+// ============================================
+// Chat Message Saving (TEP #001: Operational Layer)
+// ============================================
+
+type ContentType = 'text' | 'json';
+
+/**
+ * Save a chat message to the operational layer.
+ * Called during recipe execution to persist user inputs and AI responses.
+ */
+async function saveChatMessage(
+    nodeId: string,
+    role: 'user' | 'assistant',
+    content: any,
+    contentType: ContentType
+): Promise<void> {
+    const projectRoot = useWorkflowStore.getState().projectRoot;
+    if (!projectRoot) return;
+
+    // Serialize content if it's an object
+    const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+
+    try {
+        await invoke('add_chat_message', {
+            projectPath: projectRoot,
+            message: {
+                id: crypto.randomUUID(),
+                nodeId,
+                role,
+                content: contentStr,
+                contentType,
+                timestamp: Date.now(),
+            }
+        });
+    } catch (e) {
+        console.warn('[ChatMessage] Failed to save:', e);
+    }
+}
 
 /**
  * Get merged input values for a node: own asset values + connected field values.
@@ -54,6 +175,11 @@ export function useRunRecipe() {
         });
 
         try {
+            // --- Create Execution Logger (TEP #001: Operational Layer) ---
+            const modelId = (store.assets[node.data.assetId as string]?.config as any)?.extra?.modelConfig?.modelId;
+            const logger = await createExecutionLogger(nodeId, recipeId, modelId);
+            await logger?.log('info', 'Starting recipe execution', { recipeId, nodeId });
+
             // --- Get Merged Input Values ---
             // Combines own asset values + connected field values (dynamically resolved)
             const staticValues = getMergedInputValues(nodeId);
@@ -103,16 +229,32 @@ export function useRunRecipe() {
                 node,
                 engine: graphEngine,
                 manifest: recipe.manifest,
-                chatContext: recipeConfig?.chatContext?.messages,
-                modelConfig: recipeConfig?.modelConfig,
+                chatContext: undefined, // Now handled by useChatContext in operational layer
+                modelConfig: recipeConfig?.extra?.modelConfig,
             };
 
+            await logger?.log('info', 'Executing recipe', {
+                inputCount: Object.keys(effectiveValues).length,
+                hasModelConfig: !!recipeConfig?.extra?.modelConfig,
+            });
+
+            // --- Save User Message (inputs as JSON) ---
+            await saveChatMessage(nodeId, 'user', effectiveValues, 'json');
 
             // --- Execute ---
             const result = await recipe.execute(ctx);
 
             if (!result.success) {
+                await logger?.complete('error', { errorMessage: result.error });
                 throw new Error(result.error || 'Execution failed');
+            }
+
+            await logger?.log('info', 'Recipe completed successfully');
+
+            // --- Save Assistant Message (result data) ---
+            if (result.data !== undefined) {
+                const contentType = typeof result.data === 'object' ? 'json' : 'text';
+                await saveChatMessage(nodeId, 'assistant', result.data, contentType);
             }
 
             // --- Store Result in Node Data ---
@@ -236,6 +378,12 @@ export function useRunRecipe() {
                 graphEngine.setNodes(updatedNodes);
             }
 
+            // --- Complete Logger ---
+            await logger?.complete('success', {
+                tokenInput: (result as any).usage?.input,
+                tokenOutput: (result as any).usage?.output,
+            });
+
             toast.success(`${recipe.name} completed`);
             graphEngine.updateNode(nodeId, { data: { state: 'success' } });
             setTimeout(() => graphEngine.updateNode(nodeId, { data: { state: 'idle' } }), 2000);
@@ -249,5 +397,143 @@ export function useRunRecipe() {
         }
     }, []);
 
-    return { runRecipe };
+    /**
+     * Run a Recipe with chat context (multi-turn conversation).
+     * Called from ChatTab when user sends a follow-up message.
+     */
+    const runRecipeWithChat = useCallback(async (
+        nodeId: string,
+        recipeId: string,
+        userMessage: string
+    ) => {
+        const store = useWorkflowStore.getState();
+        const node = store.nodes.find(n => n.id === nodeId);
+
+        if (!node) {
+            toast.error('Node not found');
+            return;
+        }
+
+        const recipe = getRecipe(recipeId);
+        if (!recipe) {
+            toast.error(`Recipe not found: ${recipeId}`);
+            return;
+        }
+
+        // Set Node State to Running
+        graphEngine.updateNode(nodeId, {
+            data: { state: 'running', errorMessage: undefined }
+        });
+
+        try {
+            // --- Create Execution Logger ---
+            const modelId = (store.assets[node.data.assetId as string]?.config as any)?.extra?.modelConfig?.modelId;
+            const logger = await createExecutionLogger(nodeId, recipeId, modelId);
+            await logger?.log('info', 'Starting multi-turn execution', { recipeId, nodeId });
+
+            // --- Save User Message ---
+            await saveChatMessage(nodeId, 'user', userMessage, 'text');
+
+            // --- Load Chat History ---
+            const projectRoot = store.projectRoot;
+            let chatMessages: { role: string; content: string }[] = [];
+            if (projectRoot) {
+                try {
+                    const messages = await invoke<any[]>('get_chat_messages', {
+                        projectPath: projectRoot,
+                        nodeId,
+                    });
+                    // Convert to simple format for LLM
+                    chatMessages = messages.map(m => ({
+                        role: m.role,
+                        content: m.content,
+                    }));
+                } catch (e) {
+                    console.warn('[RunRecipeWithChat] Failed to load chat history:', e);
+                }
+            }
+
+            // --- Get Input Values (from original form) ---
+            const staticValues = getMergedInputValues(nodeId);
+
+            // --- Build Context with Chat History ---
+            const assetConfig = node.data.assetId
+                ? store.assets[node.data.assetId as string]?.config
+                : undefined;
+            const recipeConfig = assetConfig as any;
+
+            const ctx: ExecutionContext = {
+                inputs: staticValues,
+                nodeId,
+                node,
+                engine: graphEngine,
+                manifest: recipe.manifest,
+                chatContext: chatMessages as any, // Pass chat history
+                modelConfig: recipeConfig?.extra?.modelConfig,
+            };
+
+            await logger?.log('info', 'Executing with chat context', {
+                messageCount: chatMessages.length,
+            });
+
+            // --- Execute ---
+            const result = await recipe.execute(ctx);
+
+            if (!result.success) {
+                await logger?.complete('error', { errorMessage: result.error });
+                throw new Error(result.error || 'Execution failed');
+            }
+
+            await logger?.log('info', 'Recipe completed successfully');
+
+            // --- Save Assistant Message ---
+            if (result.data !== undefined) {
+                const contentType = typeof result.data === 'object' ? 'json' : 'text';
+                await saveChatMessage(nodeId, 'assistant', result.data, contentType);
+            }
+
+            // --- Update Existing Product Node (instead of creating new) ---
+            const freshStore = useWorkflowStore.getState();
+            // Find product edge: source is this node, sourceHandle is 'product'
+            const existingOutputEdge = freshStore.edges.find(e =>
+                e.source === nodeId &&
+                e.sourceHandle === 'product'
+            );
+
+            if (existingOutputEdge) {
+                const existingProductNode = freshStore.nodes.find(n => n.id === existingOutputEdge.target);
+                if (existingProductNode && existingProductNode.data.assetId) {
+                    const existingAsset = freshStore.assets[existingProductNode.data.assetId as string];
+                    if (existingAsset && result.data) {
+                        graphEngine.assets.update(existingAsset.id, result.data);
+                        await logger?.log('info', 'Updated existing product node', {
+                            productNodeId: existingProductNode.id,
+                            assetId: existingAsset.id
+                        });
+                    }
+                }
+            } else {
+                await logger?.log('warn', 'No existing product node found, run recipe first to create one');
+            }
+
+            // --- Complete Logger ---
+            await logger?.complete('success', {
+                tokenInput: (result as any).usage?.input,
+                tokenOutput: (result as any).usage?.output,
+            });
+
+            toast.success('Response generated');
+            graphEngine.updateNode(nodeId, { data: { state: 'success' } });
+            setTimeout(() => graphEngine.updateNode(nodeId, { data: { state: 'idle' } }), 2000);
+
+        } catch (e: any) {
+            console.error('[RunRecipeWithChat] Error:', e);
+            toast.error(e.message || String(e));
+            graphEngine.updateNode(nodeId, {
+                data: { state: 'error', errorMessage: e.message || String(e) }
+            });
+        }
+    }, []);
+
+    return { runRecipe, runRecipeWithChat };
 }

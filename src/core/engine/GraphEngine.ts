@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { useWorkflowStore, WorkflowState } from '@/store/workflowStore';
 import { LayoutSystem } from './LayoutSystem';
 import { InteractionSystem } from './InteractionSystem';
@@ -190,18 +191,11 @@ export class GraphEngine {
         const { nodes, edges } = this.state;
         const idsToDelete = new Set(nodeIds);
 
-        // 0. Lifecycle: onDelete
-        // We should trigger onDelete for each node to allow cleanup
-        // (Not implemented fully yet, but placeholder is here)
-        /*
-        nodeIds.forEach(id => {
-            const node = nodes.find(n => n.id === id);
-            if (node) {
-                const behavior = behaviorRegistry.getByType(node.type as NodeType);
-                behavior.onDelete?.(node, context);
-            }
-        });
-        */
+        // 0. Lifecycle: Clean up associated data
+        // - Operational data (chat messages, execution logs) in SQLite
+        // - Assets linked to nodes
+        this.cleanupOperationalData(nodeIds);
+        this.cleanupNodeAssets(nodeIds, nodes);
 
         // 1. Clean up edges first (find edges connected to ANY of the deleted nodes)
         // Note: We can filter edges directly, it's faster than getConnectedEdges loop for batch
@@ -216,6 +210,38 @@ export class GraphEngine {
 
         this.setNodes(fixedNodes);
         this.setEdges(remainingEdges);
+    }
+
+    /**
+     * Clean up assets associated with deleted nodes.
+     * Library assets (isLibraryAsset: true) are preserved.
+     */
+    private cleanupNodeAssets(nodeIds: string[], nodes: SynniaNode[]) {
+        nodeIds.forEach(nodeId => {
+            const node = nodes.find(n => n.id === nodeId);
+            if (node?.data?.assetId) {
+                const asset = this.assets.get(node.data.assetId as string);
+                // Preserve library assets (media, etc.)
+                if (asset && !asset.sys.isLibraryAsset) {
+                    this.assets.delete(node.data.assetId as string);
+                }
+            }
+        });
+    }
+
+    /**
+     * Clean up operational data (chat messages, execution logs) for deleted nodes.
+     * TEP #001: Operational data is stored in SQLite, not cascaded automatically.
+     */
+    private cleanupOperationalData(nodeIds: string[]) {
+        const projectRoot = useWorkflowStore.getState().projectRoot;
+        if (!projectRoot) return;
+
+        // Fire and forget - don't block node deletion on cleanup
+        nodeIds.forEach(nodeId => {
+            invoke('clear_chat_messages', { projectPath: projectRoot, nodeId }).catch(() => { });
+            invoke('clear_execution_logs', { projectPath: projectRoot, nodeId }).catch(() => { });
+        });
     }
 
     // =========================================================================

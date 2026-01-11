@@ -14,7 +14,7 @@ use image::ImageReader;
 #[serde(rename_all = "camelCase")]
 pub struct MediaAssetInfo {
     pub id: String,
-    pub asset_type: String,
+    pub media_type: String,  // Semantic type: image, video, audio, pdf, file
     pub name: String,
     pub content: String, // File path or URL
     pub thumbnail_path: Option<String>,
@@ -182,7 +182,7 @@ pub async fn download_and_save_image(
 }
 
 /// Get all media assets (images, videos, audio) for the asset library.
-/// Excludes text and json types.
+/// Only returns assets where sys.isLibraryAsset is true.
 #[tauri::command]
 pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, AppError> {
     let project_path = {
@@ -197,11 +197,10 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
     let conn = database::open_db(&db_path)
         .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
     
-    // Query all assets that are not text or record (form)
+    // Query all assets, filter by isLibraryAsset in code (since it's in JSON)
     let mut stmt = conn.prepare(
-        "SELECT id, value_type, value_json, value_meta_json, sys_json, updated_at 
+        "SELECT id, value_type, value_json, value_meta_json, config_json, sys_json, updated_at 
          FROM assets 
-         WHERE value_type NOT IN ('text', 'record')
          ORDER BY updated_at DESC"
     ).map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
     
@@ -210,24 +209,41 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
         let asset_type: String = row.get(1)?;
         let value_json: String = row.get(2)?;
         let value_meta_json: Option<String> = row.get(3)?;
-        let sys_json: String = row.get(4)?;
-        let updated_at: i64 = row.get(5)?;
-        Ok((id, asset_type, value_json, value_meta_json, sys_json, updated_at))
+        let config_json: Option<String> = row.get(4)?;
+        let sys_json: String = row.get(5)?;
+        let updated_at: i64 = row.get(6)?;
+        Ok((id, asset_type, value_json, value_meta_json, config_json, sys_json, updated_at))
     }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
     
     let mut result = Vec::new();
     
     for asset in assets {
-        let (id, asset_type, value_json, value_meta_json, sys_json, updated_at) = 
+        let (id, asset_type, value_json, value_meta_json, config_json, sys_json, updated_at) = 
             asset.map_err(|e| AppError::Io(format!("Failed to read asset: {}", e)))?;
         
-        // Parse value (could be string path or object with src)
-        let content: String = serde_json::from_str(&value_json)
-            .unwrap_or_else(|_| value_json.trim_matches('"').to_string());
-        
-        // Parse sys metadata for name and createdAt
+        // Parse sys metadata
         let sys: serde_json::Value = serde_json::from_str(&sys_json)
             .unwrap_or_else(|_| serde_json::json!({}));
+        
+        // Only include assets where isLibraryAsset is true
+        let is_library_asset = sys.get("isLibraryAsset")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        
+        if !is_library_asset {
+            continue;
+        }
+        
+        // Parse value (could be string path or object with src field)
+        let value: serde_json::Value = serde_json::from_str(&value_json)
+            .unwrap_or(serde_json::Value::Null);
+        
+        // Try to get image src from value.src (ImageNode format) or use raw value
+        let content: String = value.get("src")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| value.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| value_json.trim_matches('"').to_string());
         
         let name = sys.get("name")
             .and_then(|v| v.as_str())
@@ -238,29 +254,39 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
             .and_then(|v| v.as_i64())
             .unwrap_or(updated_at);
         
-        // Parse valueMeta for image metadata
+        // Try to get image metadata from config.meta first, then fall back to value_meta
+        let config: serde_json::Value = config_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_else(|| serde_json::json!({}));
+        
+        let config_meta = config.get("meta").cloned().unwrap_or_else(|| serde_json::json!({}));
+        
         let value_meta: serde_json::Value = value_meta_json
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_else(|| serde_json::json!({}));
         
-        let thumbnail_path = value_meta
-            .get("preview")
+        // Prefer config.meta over value_meta
+        let thumbnail_path = config_meta.get("preview")
+            .or_else(|| value_meta.get("preview"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
         
-        let width = value_meta
-            .get("width")
+        let width = config_meta.get("width")
+            .or_else(|| value_meta.get("width"))
             .and_then(|v| v.as_u64())
             .map(|v| v as u32);
         
-        let height = value_meta
-            .get("height")
+        let height = config_meta.get("height")
+            .or_else(|| value_meta.get("height"))
             .and_then(|v| v.as_u64())
             .map(|v| v as u32);
+        
+        // Infer media type from file extension
+        let media_type = infer_media_type(&content);
         
         result.push(MediaAssetInfo {
             id,
-            asset_type,
+            media_type,
             name,
             content,
             thumbnail_path,
@@ -277,6 +303,18 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
 // ============================================
 // Helper Functions
 // ============================================
+
+/// Infer semantic media type from file path or extension
+fn infer_media_type(path: &str) -> String {
+    let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp" | "svg" | "ico" => "image".to_string(),
+        "mp4" | "webm" | "mov" | "avi" | "mkv" | "m4v" => "video".to_string(),
+        "mp3" | "wav" | "ogg" | "m4a" | "flac" | "aac" => "audio".to_string(),
+        "pdf" => "pdf".to_string(),
+        _ => "file".to_string(),
+    }
+}
 
 fn get_project_root(state: &State<AppState>) -> Result<PathBuf, AppError> {
     let project_path_str = {

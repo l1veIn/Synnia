@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { DataEditor } from './DataEditor';
 import { FieldDefinition } from '@/types/assets';
+import { useTranslation } from 'react-i18next';
 
 interface DataEditorDialogProps {
     open: boolean;
@@ -21,6 +22,7 @@ export function DataEditorDialog({
     onSave,
     title = "Edit Data"
 }: DataEditorDialogProps) {
+    const { t } = useTranslation('inspector');
     const [draftData, setDraftData] = useState<any>(null);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -53,7 +55,7 @@ export function DataEditorDialog({
                         {title}
                         {hasChanges && (
                             <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded">
-                                Unsaved
+                                {t('dataEditor.unsaved')}
                             </span>
                         )}
                     </DialogTitle>
@@ -68,13 +70,12 @@ export function DataEditorDialog({
                     />
                 </div>
 
-                {/* Footer with action buttons */}
                 <div className="px-4 py-3 border-t bg-background shrink-0 flex items-center justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="h-8">
-                        Cancel
+                        {t('actions.cancel', { ns: 'common' })}
                     </Button>
                     <Button size="sm" onClick={handleSave} className="h-8">
-                        Save Changes
+                        {t('dataEditor.saveChanges')}
                     </Button>
                 </div>
             </DialogContent>

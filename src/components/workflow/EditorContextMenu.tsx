@@ -21,12 +21,14 @@ import { Home } from "lucide-react";
 import { toast } from "sonner";
 import { graphEngine } from "@core/engine/GraphEngine";
 import { NodePicker, NodePickerItem } from "./NodePicker";
+import { useTranslation } from "react-i18next";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
 }
 
 export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
+  const { t } = useTranslation('canvas');
   const navigate = useNavigate();
   const contextMenuTarget = useWorkflowStore((state) => state.contextMenuTarget);
   const nodes = useWorkflowStore((state) => state.nodes);
@@ -214,52 +216,46 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
         <ContextMenuContent className="w-64">
           {contextMenuTarget?.type === 'canvas' && (
             <>
-              <ContextMenuLabel>Canvas Actions</ContextMenuLabel>
+              <ContextMenuLabel>{t('contextMenu.canvasActions')}</ContextMenuLabel>
               <ContextMenuSeparator />
               <ContextMenuItem onSelect={() => setNodePickerOpen(true)}>
-                Add Node...
+                {t('contextMenu.addNode')}
               </ContextMenuItem>
-              <ContextMenuItem onSelect={handlePaste}>Paste</ContextMenuItem>
+              <ContextMenuItem onSelect={handlePaste}>{t('contextMenu.paste')}</ContextMenuItem>
             </>
           )}
 
           {contextMenuTarget?.type === 'selection' && (
             <>
-              <ContextMenuLabel>Selection Actions</ContextMenuLabel>
+              <ContextMenuLabel>{t('contextMenu.selectionActions')}</ContextMenuLabel>
               <ContextMenuSeparator />
-              <ContextMenuItem disabled>Create Group (Deprecated)</ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
-              <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
+              <ContextMenuItem onSelect={handleDuplicate}>{t('contextMenu.duplicate')}</ContextMenuItem>
+              <ContextMenuItem onSelect={handleCopy}>{t('contextMenu.copy')}</ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 onSelect={handleDelete}
                 className="text-red-600 focus:text-red-600"
               >
-                Delete
+                {t('contextMenu.delete')}
               </ContextMenuItem>
             </>
           )}
 
-          {(contextMenuTarget?.type === 'node' || contextMenuTarget?.type === 'group') && (
+          {contextMenuTarget?.type === 'node' && (
             <>
-              <ContextMenuLabel>
-                {contextMenuTarget.type === 'group' ? 'Group Actions' : 'Node Actions'}
-              </ContextMenuLabel>
+              <ContextMenuLabel>{t('contextMenu.nodeActions')}</ContextMenuLabel>
               <ContextMenuSeparator />
-
-              <ContextMenuItem onSelect={handleDuplicate}>Duplicate</ContextMenuItem>
-              {/* Only Asset Nodes can be shortcutted */}
+              <ContextMenuItem onSelect={handleDuplicate}>{t('contextMenu.duplicate')}</ContextMenuItem>
               {isShortcuttable && (
-                <ContextMenuItem onSelect={handleCreateShortcut}>Create Shortcut</ContextMenuItem>
+                <ContextMenuItem onSelect={handleCreateShortcut}>{t('contextMenu.createShortcut')}</ContextMenuItem>
               )}
-              <ContextMenuItem onSelect={handleCopy}>Copy</ContextMenuItem>
+              <ContextMenuItem onSelect={handleCopy}>{t('contextMenu.copy')}</ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
                 onSelect={handleDelete}
                 className="text-red-600 focus:text-red-600"
               >
-                Delete
+                {t('contextMenu.delete')}
               </ContextMenuItem>
             </>
           )}
@@ -267,7 +263,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => navigate('/')}>
             <Home className="w-4 h-4 mr-2" />
-            Back to Home
+            {t('contextMenu.backToHome')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -276,7 +272,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
       <Dialog open={nodePickerOpen} onOpenChange={setNodePickerOpen}>
         <DialogContent className="max-w-md p-0">
           <VisuallyHidden>
-            <DialogTitle>Add Node</DialogTitle>
+            <DialogTitle>{t('nodePicker.title')}</DialogTitle>
           </VisuallyHidden>
           <NodePicker
             onSelect={handleNodePickerSelect}

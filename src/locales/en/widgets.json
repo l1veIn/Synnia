@@ -1,0 +1,65 @@
+{
+    "textInput": {
+        "placeholder": "Enter text..."
+    },
+    "textArea": {
+        "placeholder": "Enter content...",
+        "enhance": "Enhance with AI",
+        "expand": "Expand to Editor",
+        "charCount": "{{count}} characters"
+    },
+    "select": {
+        "placeholder": "Select an option...",
+        "noOptions": "No options available",
+        "search": "Search..."
+    },
+    "slider": {
+        "min": "Min",
+        "max": "Max"
+    },
+    "switch": {
+        "on": "On",
+        "off": "Off"
+    },
+    "colorPicker": {
+        "pick": "Pick Color",
+        "hex": "HEX",
+        "rgb": "RGB",
+        "hsl": "HSL"
+    },
+    "filePicker": {
+        "browse": "Browse...",
+        "dragDrop": "Drag & drop files here",
+        "selected": "{{count}} file(s) selected"
+    },
+    "datePicker": {
+        "selectDate": "Select date",
+        "today": "Today",
+        "clear": "Clear"
+    },
+    "modelConfigurator": {
+        "selectModel": "Select Model",
+        "provider": "Provider",
+        "model": "Model",
+        "temperature": "Temperature",
+        "maxTokens": "Max Tokens",
+        "topP": "Top P"
+    },
+    "formInput": {
+        "addItem": "Add Item",
+        "removeItem": "Remove Item",
+        "expand": "Expand",
+        "collapse": "Collapse"
+    },
+    "tableInput": {
+        "addRow": "Add Row",
+        "deleteRow": "Delete Row",
+        "editRow": "Edit Row",
+        "noData": "No data"
+    },
+    "imageUpload": {
+        "upload": "Upload Image",
+        "remove": "Remove",
+        "preview": "Preview"
+    }
+}

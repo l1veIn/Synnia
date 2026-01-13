@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, Home } from 'lucide-react';
 import { FieldDefinition } from '@/types/assets';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export function DataEditor({ data, schema, onChange, className }: DataEditorProps) {
+    const { t } = useTranslation('inspector');
     // Navigation Stack
     // Each item represents a context we are viewing.
     // Root is implicit.
@@ -128,7 +130,7 @@ export function DataEditor({ data, schema, onChange, className }: DataEditorProp
                         >
                             {/* Make label friendlier if it's an index */}
                             {typeof item.path[item.path.length - 1] === 'number'
-                                ? `Item ${item.path[item.path.length - 1]}`
+                                ? t('dataEditor.item', { index: item.path[item.path.length - 1] })
                                 : item.label}
                         </Button>
                     </div>

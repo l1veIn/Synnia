@@ -100,7 +100,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
                 : [...content.selected, optionId];
         }
 
-        actions.updateContent({ ...content, selected: newSelected });
+        actions.updateData({ selected: newSelected });
     };
 
     // Toggle option expansion

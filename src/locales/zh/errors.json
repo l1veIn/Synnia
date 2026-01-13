@@ -1,0 +1,42 @@
+{
+    "recipe": {
+        "execution_failed": "配方执行失败：{{reason}}",
+        "model_not_configured": "请先配置 AI 模型",
+        "input_missing": "缺少必填输入：'{{field}}'",
+        "invalid_schema": "结构定义无效",
+        "timeout": "执行超时（超过 {{seconds}} 秒）",
+        "cancelled": "执行已取消"
+    },
+    "engine": {
+        "connection_invalid": "无法连接：端口类型不兼容",
+        "asset_not_found": "资产 '{{id}}' 未找到",
+        "node_not_found": "节点 '{{id}}' 未找到",
+        "cycle_detected": "无法创建连接：会产生循环依赖",
+        "invalid_operation": "无效操作：{{reason}}"
+    },
+    "api": {
+        "network_error": "网络错误：请检查连接",
+        "auth_failed": "认证失败：API 密钥无效",
+        "rate_limited": "请求过于频繁，请稍后重试",
+        "server_error": "服务器错误：{{message}}",
+        "timeout": "请求超时"
+    },
+    "file": {
+        "not_found": "文件未找到：{{path}}",
+        "read_error": "读取文件失败：{{reason}}",
+        "write_error": "写入文件失败：{{reason}}",
+        "invalid_format": "文件格式无效"
+    },
+    "validation": {
+        "required": "此字段为必填项",
+        "invalid_type": "类型无效：期望 {{expected}}，实际 {{actual}}",
+        "min_length": "最少需要 {{min}} 个字符",
+        "max_length": "最多允许 {{max}} 个字符",
+        "pattern": "值不符合要求的格式"
+    },
+    "generic": {
+        "unknown": "发生未知错误",
+        "retry": "请重试",
+        "contact_support": "如问题持续，请联系支持"
+    }
+}

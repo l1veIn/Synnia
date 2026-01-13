@@ -1,0 +1,65 @@
+{
+    "textInput": {
+        "placeholder": "请输入文本..."
+    },
+    "textArea": {
+        "placeholder": "请输入内容...",
+        "enhance": "AI 优化",
+        "expand": "展开编辑器",
+        "charCount": "{{count}} 字符"
+    },
+    "select": {
+        "placeholder": "请选择...",
+        "noOptions": "暂无选项",
+        "search": "搜索..."
+    },
+    "slider": {
+        "min": "最小值",
+        "max": "最大值"
+    },
+    "switch": {
+        "on": "开",
+        "off": "关"
+    },
+    "colorPicker": {
+        "pick": "选择颜色",
+        "hex": "HEX",
+        "rgb": "RGB",
+        "hsl": "HSL"
+    },
+    "filePicker": {
+        "browse": "浏览...",
+        "dragDrop": "拖放文件到此处",
+        "selected": "已选择 {{count}} 个文件"
+    },
+    "datePicker": {
+        "selectDate": "选择日期",
+        "today": "今天",
+        "clear": "清除"
+    },
+    "modelConfigurator": {
+        "selectModel": "选择模型",
+        "provider": "服务商",
+        "model": "模型",
+        "temperature": "温度",
+        "maxTokens": "最大 Token",
+        "topP": "Top P"
+    },
+    "formInput": {
+        "addItem": "添加项目",
+        "removeItem": "移除项目",
+        "expand": "展开",
+        "collapse": "折叠"
+    },
+    "tableInput": {
+        "addRow": "添加行",
+        "deleteRow": "删除行",
+        "editRow": "编辑行",
+        "noData": "暂无数据"
+    },
+    "imageUpload": {
+        "upload": "上传图片",
+        "remove": "移除",
+        "preview": "预览"
+    }
+}

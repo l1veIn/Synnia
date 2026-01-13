@@ -1,0 +1,29 @@
+{
+  "description": "Configure application settings",
+  "general": {
+    "configureProvider": "Configure a provider in Models first",
+    "defaultLLM": "Default LLM",
+    "description": "Configure global preferences for Synnia.",
+    "language": "Language",
+    "languageChanged": "Language changed successfully",
+    "languageHelp": "Choose your preferred interface language.",
+    "llmHelp": "Used for utility functions like Prompt Enhancer and Autofill.",
+    "llmUpdated": "Default LLM updated",
+    "title": "General"
+  },
+  "models": {
+    "cloudHint": "🔒 Keys are stored locally on your device.",
+    "cloudProviders": "Cloud Providers",
+    "configured": "configured",
+    "description": "Configure API keys and endpoints for AI models.",
+    "localHint": "💡 Ensure local services (like Ollama) are running.",
+    "localProviders": "Local Providers",
+    "refresh": "Refresh",
+    "title": "Models & Providers"
+  },
+  "sections": {
+    "ai": "Models",
+    "general": "General"
+  },
+  "title": "Settings"
+}

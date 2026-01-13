@@ -1,0 +1,68 @@
+{
+    "types": {
+        "RecipeNode": {
+            "name": "Recipe",
+            "description": "AI generation task container with multi-turn chat support"
+        },
+        "FormNode": {
+            "name": "Form",
+            "description": "Structured data input with dynamic schema"
+        },
+        "TextNode": {
+            "name": "Text",
+            "description": "Plain text content block"
+        },
+        "ImageNode": {
+            "name": "Image",
+            "description": "Single image asset display"
+        },
+        "GalleryNode": {
+            "name": "Gallery",
+            "description": "Image collection viewer with grid layout"
+        },
+        "TableNode": {
+            "name": "Table",
+            "description": "Tabular data with rows and columns"
+        },
+        "SelectorNode": {
+            "name": "Selector",
+            "description": "Pick single item from a collection"
+        },
+        "QueueNode": {
+            "name": "Queue",
+            "description": "Ordered task queue for batch processing"
+        },
+        "JSONNode": {
+            "name": "JSON",
+            "description": "Raw JSON data viewer and editor"
+        },
+        "NoteNode": {
+            "name": "Note",
+            "description": "Markdown note for documentation"
+        },
+        "VideoNode": {
+            "name": "Video",
+            "description": "Video playback and preview"
+        },
+        "AudioNode": {
+            "name": "Audio",
+            "description": "Audio playback and waveform view"
+        }
+    },
+    "actions": {
+        "addToLibrary": "Add to Library",
+        "removeFromLibrary": "Remove from Library",
+        "export": "Export",
+        "preview": "Preview",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "dock": "Dock",
+        "undock": "Undock"
+    },
+    "status": {
+        "draft": "Draft",
+        "ready": "Ready",
+        "processing": "Processing",
+        "complete": "Complete"
+    }
+}

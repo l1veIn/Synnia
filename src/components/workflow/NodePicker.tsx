@@ -33,6 +33,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUIPreferencesStore } from '@/store/uiPreferencesStore';
+import { useTranslation } from 'react-i18next';
 
 // Category icon mapping for base nodes
 const categoryIcons: Record<string, LucideIcon> = {
@@ -43,9 +44,6 @@ const categoryIcons: Record<string, LucideIcon> = {
     'Text': FileText,
     'Math': Hash,
 };
-
-// Virtual folder name for base nodes
-const BASE_NODES_FOLDER = 'Basic Nodes';
 
 export interface NodePickerItem {
     id: string;
@@ -65,8 +63,12 @@ export interface NodePickerProps {
 }
 
 export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
+    const { t } = useTranslation('canvas');
     const [search, setSearch] = useState('');
     const [currentPath, setCurrentPath] = useState<string[]>([]);
+
+    // Virtual folder name for base nodes (translated)
+    const BASE_NODES_FOLDER = t('nodePicker.basicNodes');
 
     // UI Preferences store for recent nodes
     const recentNodeIds = useUIPreferencesStore((s) => s.recentNodeIds);
@@ -206,7 +208,7 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
     return (
         <Command className={cn("flex flex-col", className)}>
             <CommandInput
-                placeholder="Search nodes and recipes..."
+                placeholder={t('nodePicker.search_placeholder')}
                 value={search}
                 onValueChange={(val) => {
                     setSearch(val);
@@ -241,11 +243,11 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
             )}
 
             <CommandList className="max-h-[320px]">
-                <CommandEmpty>No nodes found.</CommandEmpty>
+                <CommandEmpty>{t('nodePicker.noResults')}</CommandEmpty>
 
                 {/* Search Results */}
                 {isSearching && filteredItems && (
-                    <CommandGroup heading="Search Results">
+                    <CommandGroup heading={t('nodePicker.searchResults')}>
                         {filteredItems.map(item => {
                             const ItemIcon = item.icon || categoryIcons[item.category] || Box;
                             return (
@@ -279,7 +281,7 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
                         {/* Recent Nodes (only at root level, when there are recent items) */}
                         {isAtRoot && recentNodeItems.length > 0 && (
                             <>
-                                <CommandGroup heading="Recent">
+                                <CommandGroup heading={t('nodePicker.recent')}>
                                     {recentNodeItems.map(item => {
                                         const ItemIcon = item.icon || categoryIcons[item.category] || Box;
                                         return (
@@ -302,7 +304,7 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
 
                         {/* Folder navigation at root level */}
                         {isAtRoot && (
-                            <CommandGroup heading="Categories">
+                            <CommandGroup heading={t('nodePicker.categoriesLabel')}>
                                 {/* Basic Nodes Folder */}
                                 <CommandItem
                                     value={BASE_NODES_FOLDER}

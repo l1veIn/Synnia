@@ -1,0 +1,47 @@
+{
+    "dataEditor": {
+        "addRow": "Add Row",
+        "empty": "Empty",
+        "false": "False",
+        "item": "Item {{index}}",
+        "items_one": "{{count}} item",
+        "items_other": "{{count}} items",
+        "noRows": "No rows added yet.",
+        "object": "Object",
+        "saveChanges": "Save Changes",
+        "true": "True",
+        "unsaved": "Unsaved"
+    },
+    "empty": {
+        "noInspector": "No inspector available for this node"
+    },
+    "header": {
+        "propertiesFor": "Properties for",
+        "title": "Inspector",
+        "type": "Type"
+    },
+    "labels": {
+        "inputs": "Inputs",
+        "label": "Label",
+        "nodeLabel": "Node Label",
+        "outputs": "Outputs",
+        "transform": "Transform"
+    },
+    "panelTabs": {
+        "debug": "Debug",
+        "history": "History",
+        "props": "Props"
+    },
+    "schemaEditor": {
+        "clickToEdit": "Click \"Edit Schema\" to configure",
+        "done": "Done",
+        "editSchema": "Edit Schema",
+        "fieldsDefined_one": "{{count}} field defined",
+        "fieldsDefined_other": "{{count}} fields defined",
+        "json": "JSON",
+        "noFields": "No fields defined",
+        "required": "Req",
+        "split": "Split",
+        "visual": "Visual"
+    }
+}

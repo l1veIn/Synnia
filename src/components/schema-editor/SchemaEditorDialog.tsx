@@ -9,6 +9,7 @@ import { Maximize2, Minimize2, PanelLeftClose, PanelLeft, Code2 } from 'lucide-r
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { useTranslation } from 'react-i18next';
 
 interface DialogProps extends SchemaEditorProps {
     open: boolean;
@@ -22,6 +23,7 @@ export function SchemaEditorDialog({
     onOpenChange,
     title = "Schema Editor"
 }: DialogProps) {
+    const { t } = useTranslation('inspector');
     const [layout, setLayout] = useState<'split' | 'visual' | 'json'>('split');
 
     return (
@@ -40,7 +42,7 @@ export function SchemaEditorDialog({
                                 onClick={() => setLayout('visual')}
                                 className={cn("h-6 px-2 text-[10px] gap-1.5", layout === 'visual' && "bg-background shadow-sm")}
                             >
-                                <PanelLeft className="h-3 w-3" /> Visual
+                                <PanelLeft className="h-3 w-3" /> {t('schemaEditor.visual')}
                             </Button>
                             <Button
                                 variant="ghost"
@@ -48,7 +50,7 @@ export function SchemaEditorDialog({
                                 onClick={() => setLayout('split')}
                                 className={cn("h-6 px-2 text-[10px] gap-1.5", layout === 'split' && "bg-background shadow-sm")}
                             >
-                                <PanelLeftClose className="h-3 w-3 rotate-180" /> Split
+                                <PanelLeftClose className="h-3 w-3 rotate-180" /> {t('schemaEditor.split')}
                             </Button>
                             <Button
                                 variant="ghost"
@@ -56,7 +58,7 @@ export function SchemaEditorDialog({
                                 onClick={() => setLayout('json')}
                                 className={cn("h-6 px-2 text-[10px] gap-1.5", layout === 'json' && "bg-background shadow-sm")}
                             >
-                                <Code2 className="h-3 w-3" /> JSON
+                                <Code2 className="h-3 w-3" /> {t('schemaEditor.json')}
                             </Button>
                         </div>
                     </div>
@@ -82,10 +84,10 @@ export function SchemaEditorDialog({
 
                 <div className="h-10 border-t bg-muted/40 shrink-0 flex items-center justify-between px-4">
                     <span className="text-[10px] text-muted-foreground font-medium">
-                        {schema.length} fields defined
+                        {t('schemaEditor.fieldsDefined', { count: schema.length })}
                     </span>
                     <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="h-7 text-xs">
-                        Done
+                        {t('schemaEditor.done')}
                     </Button>
                 </div>
             </DialogContent>

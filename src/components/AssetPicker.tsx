@@ -16,6 +16,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Image, Search, Loader2, FolderOpen, Check, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface AssetPickerProps {
     open: boolean;
@@ -34,6 +35,7 @@ export const AssetPicker = ({
     title = 'Select Images',
     assetType = 'image'
 }: AssetPickerProps) => {
+    const { t } = useTranslation('common');
     const [assets, setAssets] = useState<MediaAssetInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -53,7 +55,7 @@ export const AssetPicker = ({
             setAssets(filtered);
         } catch (e) {
             console.error('Failed to load media assets:', e);
-            toast.error('Failed to load assets');
+            toast.error(t('dialogs.assetLibrary.loadFailed'));
         } finally {
             setLoading(false);
         }
@@ -126,7 +128,7 @@ export const AssetPicker = ({
                         <div className="relative flex-1">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search assets..."
+                                placeholder={t('dialogs.assetPicker.search')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-9 h-9"
@@ -160,7 +162,7 @@ export const AssetPicker = ({
                             }}
                         >
                             <Upload className="w-3.5 h-3.5 mr-1" />
-                            Import
+                            {t('dialogs.assetLibrary.import')}
                         </Button>
                     </div>
 
@@ -173,7 +175,7 @@ export const AssetPicker = ({
                         ) : filteredAssets.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                                 <Image className="h-8 w-8 mb-2 opacity-50" />
-                                <p className="text-sm">No {assetType} assets found</p>
+                                <p className="text-sm">{t('dialogs.assetPicker.noAssets', { type: assetType })}</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-4 gap-2 p-3">
@@ -223,13 +225,13 @@ export const AssetPicker = ({
 
                 <DialogFooter className="px-6 py-3 border-t shrink-0">
                     <div className="flex-1 text-xs text-muted-foreground">
-                        {selectedIds.size} selected
+                        {t('dialogs.assetPicker.selected', { count: selectedIds.size })}
                     </div>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {t('actions.cancel')}
                     </Button>
                     <Button onClick={handleConfirm} disabled={selectedIds.size === 0}>
-                        Add Selected
+                        {t('dialogs.assetPicker.addSelected')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -1,0 +1,23 @@
+{
+  "contextMenu": {
+    "addNode": "添加节点...",
+    "backToHome": "返回首页",
+    "canvasActions": "画布操作",
+    "copy": "复制",
+    "createShortcut": "创建快捷方式",
+    "delete": "删除",
+    "duplicate": "创建副本",
+    "nodeActions": "节点操作",
+    "paste": "粘贴",
+    "selectionActions": "选区操作"
+  },
+  "nodePicker": {
+    "basicNodes": "基础节点",
+    "categoriesLabel": "分类",
+    "noResults": "未找到节点",
+    "recent": "最近使用",
+    "search_placeholder": "搜索节点和 Recipe...",
+    "searchResults": "搜索结果",
+    "title": "添加节点"
+  }
+}

@@ -1,0 +1,68 @@
+{
+    "types": {
+        "RecipeNode": {
+            "name": "配方",
+            "description": "支持多轮对话的 AI 生成任务容器"
+        },
+        "FormNode": {
+            "name": "表单",
+            "description": "支持动态结构的结构化数据输入"
+        },
+        "TextNode": {
+            "name": "文本",
+            "description": "纯文本内容块"
+        },
+        "ImageNode": {
+            "name": "图片",
+            "description": "单张图片资产展示"
+        },
+        "GalleryNode": {
+            "name": "画廊",
+            "description": "图片集合查看器，网格布局"
+        },
+        "TableNode": {
+            "name": "表格",
+            "description": "行列式表格数据"
+        },
+        "SelectorNode": {
+            "name": "选择器",
+            "description": "从集合中选择单个项目"
+        },
+        "QueueNode": {
+            "name": "队列",
+            "description": "用于批量处理的有序任务队列"
+        },
+        "JSONNode": {
+            "name": "JSON",
+            "description": "原始 JSON 数据查看和编辑"
+        },
+        "NoteNode": {
+            "name": "备注",
+            "description": "用于文档说明的 Markdown 笔记"
+        },
+        "VideoNode": {
+            "name": "视频",
+            "description": "视频播放和预览"
+        },
+        "AudioNode": {
+            "name": "音频",
+            "description": "音频播放和波形视图"
+        }
+    },
+    "actions": {
+        "addToLibrary": "添加到素材库",
+        "removeFromLibrary": "从素材库移除",
+        "export": "导出",
+        "preview": "预览",
+        "edit": "编辑",
+        "duplicate": "创建副本",
+        "dock": "吸附",
+        "undock": "取消吸附"
+    },
+    "status": {
+        "draft": "草稿",
+        "ready": "就绪",
+        "processing": "处理中",
+        "complete": "完成"
+    }
+}

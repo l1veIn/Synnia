@@ -1,0 +1,41 @@
+{
+    "categories": {
+        "llm-chat": "LLM 对话",
+        "image-generation": "图像生成",
+        "video-generation": "视频生成",
+        "audio-generation": "音频生成"
+    },
+    "providers": {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "google": "Google AI",
+        "openrouter": "OpenRouter",
+        "local": "本地模型"
+    },
+    "config": {
+        "apiKey": "API 密钥",
+        "baseUrl": "接口地址",
+        "modelId": "模型 ID",
+        "temperature": "温度",
+        "maxTokens": "最大 Token",
+        "topP": "Top P",
+        "frequencyPenalty": "频率惩罚",
+        "presencePenalty": "存在惩罚"
+    },
+    "status": {
+        "connected": "已连接",
+        "disconnected": "未连接",
+        "testing": "测试连接中...",
+        "error": "连接失败"
+    },
+    "actions": {
+        "test": "测试连接",
+        "save": "保存配置",
+        "setDefault": "设为默认"
+    },
+    "hints": {
+        "apiKeyRequired": "需要 API 密钥",
+        "selectProvider": "选择服务商进行配置",
+        "noModels": "此服务商暂无可用模型"
+    }
+}

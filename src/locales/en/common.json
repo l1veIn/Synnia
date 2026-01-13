@@ -1,0 +1,69 @@
+{
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "app": {
+    "title": "Synnia"
+  },
+  "demo": {
+    "desc": "A second page to prove router wiring works. Add your own routes here.",
+    "tabs": {
+      "content_one": "This is tab one content.",
+      "content_two": "This is tab two content.",
+      "content_three": "This is tab three content.",
+      "desc": "Shadcn tabs wired to i18n.",
+      "one": "Tab One",
+      "three": "Tab Three",
+      "title": "Tabs example",
+      "two": "Tab Two"
+    },
+    "title": "Routing demonstration"
+  },
+  "dialogs": {
+    "assetLibrary": {
+      "assets": "assets",
+      "cannotDelete": "Cannot delete: asset is in use",
+      "deleteAsset": "Delete asset",
+      "dimensions": "Dimensions",
+      "import": "Import...",
+      "loadFailed": "Failed to load assets",
+      "locate": "Locate",
+      "name": "Name",
+      "noAssets": "No media assets found",
+      "notUsed": "Not used by any nodes",
+      "referencingNodes": "Referencing Nodes",
+      "refresh": "Refresh",
+      "search": "Search assets...",
+      "title": "Asset Library",
+      "type": "Type",
+      "updated": "Updated"
+    },
+    "assetPicker": {
+      "addSelected": "Add Selected",
+      "noAssets": "No {{type}} assets found",
+      "search": "Search assets...",
+      "selected_one": "dialogs.assetPicker.selected",
+      "selected_other": "dialogs.assetPicker.selected"
+    },
+    "newProject": {
+      "changeLocation": "Change Location",
+      "created": "Project created!",
+      "createFailed": "Failed to create",
+      "createProject": "Create Project",
+      "description": "Start a new creative journey. Your assets will be stored locally.",
+      "loading": "Loading...",
+      "location": "Location",
+      "locationRequired": "Please select a location",
+      "nameRequired": "Please enter a project name",
+      "placeholder": "e.g. Neon Tokyo",
+      "projectName": "Project Name",
+      "projectPath": "Project will be created at:",
+      "title": "Create New Universe"
+    }
+  },
+  "nav": {
+    "demo": "Routing Demo"
+  }
+}

@@ -13,6 +13,7 @@ import {
 import { Settings, Brain, Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GeneralSettingsPage, ModelSettingsPage } from "./pages";
+import { useTranslation } from "react-i18next";
 
 // Global event to open settings dialog
 export const openSettingsDialog = (tab?: 'general' | 'models') => {
@@ -26,6 +27,7 @@ export const openSettingsDialog = (tab?: 'general' | 'models') => {
 type ActiveTab = "general" | "models";
 
 export function SettingsDialog() {
+  const { t } = useTranslation('settings');
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
 
@@ -51,13 +53,13 @@ export function SettingsDialog() {
 
       <DialogContent className="max-w-4xl h-[600px] p-0 overflow-hidden gap-0 flex">
         {/* Visually hidden title/description for accessibility */}
-        <DialogTitle className="sr-only">Settings</DialogTitle>
-        <DialogDescription className="sr-only">Configure application settings</DialogDescription>
+        <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('description')}</DialogDescription>
 
         {/* Sidebar */}
         <div className="w-64 bg-muted/30 border-r flex flex-col p-2 space-y-1">
           <div className="p-4 mb-2">
-            <div className="font-semibold text-lg tracking-tight">Settings</div>
+            <div className="font-semibold text-lg tracking-tight">{t('title')}</div>
           </div>
 
           <SidebarButton
@@ -65,7 +67,7 @@ export function SettingsDialog() {
             onClick={() => setActiveTab("general")}
             icon={<Sliders className="w-4 h-4" />}
           >
-            General
+            {t('sections.general')}
           </SidebarButton>
 
           <SidebarButton
@@ -73,7 +75,7 @@ export function SettingsDialog() {
             onClick={() => setActiveTab("models")}
             icon={<Brain className="w-4 h-4" />}
           >
-            Models
+            {t('sections.ai')}
           </SidebarButton>
         </div>
 

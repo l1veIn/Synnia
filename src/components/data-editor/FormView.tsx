@@ -8,8 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowRight, ChevronRight, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getWidget } from '@/components/workflow/widgets';
+import { useTranslation } from 'react-i18next';
 
 export function FormView({ data, schema, onChange, onNavigate }: ViewProps) {
+    const { t } = useTranslation('inspector');
     const values = data || {};
 
     const handleChange = (key: string, val: any) => {
@@ -42,8 +44,8 @@ export function FormView({ data, schema, onChange, onNavigate }: ViewProps) {
                             >
                                 <span className="text-muted-foreground text-xs">
                                     {Array.isArray(value)
-                                        ? `${value.length} items`
-                                        : (value && typeof value === 'object') ? 'Object' : 'Empty'}
+                                        ? t('dataEditor.items', { count: value.length })
+                                        : (value && typeof value === 'object') ? t('dataEditor.object') : t('dataEditor.empty')}
                                 </span>
                                 <ChevronRight className="h-4 w-4 opacity-50" />
                             </Button>
@@ -62,7 +64,7 @@ export function FormView({ data, schema, onChange, onNavigate }: ViewProps) {
                                 ) : field.type === 'boolean' ? (
                                     <div className="flex items-center h-9">
                                         <Switch checked={!!value} onCheckedChange={(c) => handleChange(field.key, c)} />
-                                        <span className="ml-2 text-xs text-muted-foreground">{value ? 'True' : 'False'}</span>
+                                        <span className="ml-2 text-xs text-muted-foreground">{value ? t('dataEditor.true') : t('dataEditor.false')}</span>
                                     </div>
                                 ) : (
                                     <Input

@@ -7,8 +7,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Edit2, Plus, Trash2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export function TableView({ data, schema, onChange, onNavigate, path }: ViewProps) {
+    const { t } = useTranslation('inspector');
     const rows = Array.isArray(data) ? data : [];
 
     const handleAddRow = () => {
@@ -83,7 +85,7 @@ export function TableView({ data, schema, onChange, onNavigate, path }: ViewProp
                         {rows.length === 0 && (
                             <tr>
                                 <td colSpan={schema.length + 2} className="p-8 text-center text-muted-foreground">
-                                    No rows added yet.
+                                    {t('dataEditor.noRows')}
                                 </td>
                             </tr>
                         )}
@@ -92,7 +94,7 @@ export function TableView({ data, schema, onChange, onNavigate, path }: ViewProp
             </div>
             <div className="p-2 border-t bg-muted/10">
                 <Button variant="outline" size="sm" onClick={handleAddRow} className="gap-2">
-                    <Plus className="h-3 w-3" /> Add Row
+                    <Plus className="h-3 w-3" /> {t('dataEditor.addRow')}
                 </Button>
             </div>
         </div>
@@ -106,13 +108,14 @@ function DataCell({ field, value, onChange, onNavigateCell }: {
     onChange: (val: any) => void,
     onNavigateCell: () => void
 }) {
+    const { t } = useTranslation('inspector');
     // 1. Structural Types -> Drill Down Button
     const isStructural = field.type === 'object' || field.type === 'array' || field.widget === 'form-input' || field.widget === 'table-input';
 
     if (isStructural) {
         const label = Array.isArray(value)
-            ? `${value.length} items`
-            : (value && typeof value === 'object') ? 'Object' : 'Empty';
+            ? t('dataEditor.items', { count: value.length })
+            : (value && typeof value === 'object') ? t('dataEditor.object') : t('dataEditor.empty');
 
         return (
             <Button

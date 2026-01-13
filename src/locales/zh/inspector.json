@@ -1,0 +1,45 @@
+{
+    "dataEditor": {
+        "addRow": "添加行",
+        "empty": "空",
+        "false": "否",
+        "item": "项目 {{index}}",
+        "items_other": "{{count}} 项",
+        "noRows": "暂无数据行",
+        "object": "对象",
+        "saveChanges": "保存更改",
+        "true": "是",
+        "unsaved": "未保存"
+    },
+    "empty": {
+        "noInspector": "此节点暂无检查器"
+    },
+    "header": {
+        "propertiesFor": "属性：",
+        "title": "检查器",
+        "type": "类型"
+    },
+    "labels": {
+        "inputs": "输入",
+        "label": "标签",
+        "nodeLabel": "节点标签",
+        "outputs": "输出",
+        "transform": "变换"
+    },
+    "panelTabs": {
+        "debug": "调试",
+        "history": "历史",
+        "props": "属性"
+    },
+    "schemaEditor": {
+        "clickToEdit": "点击「编辑结构」进行配置",
+        "done": "完成",
+        "editSchema": "编辑结构",
+        "fieldsDefined_other": "{{count}} 个字段",
+        "json": "JSON",
+        "noFields": "暂无字段定义",
+        "required": "必填",
+        "split": "分屏",
+        "visual": "可视化"
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "recipe": {
+        "execution_failed": "Recipe execution failed: {{reason}}",
+        "model_not_configured": "Please configure an AI model first",
+        "input_missing": "Required input '{{field}}' is missing",
+        "invalid_schema": "Invalid schema definition",
+        "timeout": "Execution timed out after {{seconds}} seconds",
+        "cancelled": "Execution was cancelled"
+    },
+    "engine": {
+        "connection_invalid": "Cannot connect: incompatible port types",
+        "asset_not_found": "Asset '{{id}}' not found",
+        "node_not_found": "Node '{{id}}' not found",
+        "cycle_detected": "Cannot create connection: would create a cycle",
+        "invalid_operation": "Invalid operation: {{reason}}"
+    },
+    "api": {
+        "network_error": "Network error: please check your connection",
+        "auth_failed": "Authentication failed: invalid API key",
+        "rate_limited": "Rate limited: please try again later",
+        "server_error": "Server error: {{message}}",
+        "timeout": "Request timed out"
+    },
+    "file": {
+        "not_found": "File not found: {{path}}",
+        "read_error": "Failed to read file: {{reason}}",
+        "write_error": "Failed to write file: {{reason}}",
+        "invalid_format": "Invalid file format"
+    },
+    "validation": {
+        "required": "This field is required",
+        "invalid_type": "Invalid type: expected {{expected}}, got {{actual}}",
+        "min_length": "Minimum length is {{min}} characters",
+        "max_length": "Maximum length is {{max}} characters",
+        "pattern": "Value does not match required pattern"
+    },
+    "generic": {
+        "unknown": "An unknown error occurred",
+        "retry": "Please try again",
+        "contact_support": "If the problem persists, contact support"
+    }
+}

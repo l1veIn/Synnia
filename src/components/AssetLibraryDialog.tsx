@@ -18,6 +18,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { Image, FileImage, Search, ArrowLeft, MapPin, Trash2, Loader2, FolderOpen, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface AssetLibraryDialogProps {
     open: boolean;
@@ -26,6 +27,7 @@ interface AssetLibraryDialogProps {
 }
 
 export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLibraryDialogProps) => {
+    const { t } = useTranslation('common');
     const [assets, setAssets] = useState<MediaAssetInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<MediaAssetInfo | null>(null);
@@ -43,7 +45,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
             setAssets(data);
         } catch (e) {
             console.error('Failed to load media assets:', e);
-            toast.error('Failed to load assets');
+            toast.error(t('dialogs.assetLibrary.loadFailed'));
         } finally {
             setLoading(false);
         }
@@ -119,7 +121,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                 <DialogHeader className="px-6 py-4 border-b shrink-0">
                     <DialogTitle className="flex items-center gap-2">
                         <FolderOpen className="h-5 w-5 text-primary" />
-                        Asset Library
+                        {t('dialogs.assetLibrary.title')}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -134,7 +136,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Search assets..."
+                                    placeholder={t('dialogs.assetLibrary.search')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-9 h-9"
@@ -151,7 +153,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                             ) : filteredAssets.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                                     <FileImage className="h-8 w-8 mb-2 opacity-50" />
-                                    <p className="text-sm">No media assets found</p>
+                                    <p className="text-sm">{t('dialogs.assetLibrary.noAssets')}</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-3 gap-2 p-3">
@@ -192,7 +194,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                         {/* Footer */}
                         <div className="p-3 border-t shrink-0 flex items-center justify-between">
                             <span className="text-xs text-muted-foreground">
-                                {filteredAssets.length} assets
+                                {filteredAssets.length} {t('dialogs.assetLibrary.assets')}
                             </span>
                             <div className="flex gap-2">
                                 <Button
@@ -223,10 +225,10 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     }}
                                 >
                                     <Upload className="w-3.5 h-3.5 mr-1" />
-                                    Import...
+                                    {t('dialogs.assetLibrary.import')}
                                 </Button>
                                 <Button size="sm" variant="outline" onClick={loadAssets}>
-                                    Refresh
+                                    {t('dialogs.assetLibrary.refresh')}
                                 </Button>
                             </div>
                         </div>
@@ -243,7 +245,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     onClick={() => setSelectedAsset(null)}
                                 >
                                     <ArrowLeft className="h-4 w-4 mr-1" />
-                                    Back
+                                    {t('actions.back')}
                                 </Button>
                             </div>
 
@@ -264,7 +266,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
 
                                     {/* Name */}
                                     <div className="space-y-1.5">
-                                        <Label className="text-xs text-muted-foreground">Name</Label>
+                                        <Label className="text-xs text-muted-foreground">{t('dialogs.assetLibrary.name')}</Label>
                                         <Input
                                             value={editingName}
                                             onChange={(e) => setEditingName(e.target.value)}
@@ -275,17 +277,17 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     {/* Metadata */}
                                     <div className="grid grid-cols-2 gap-3 text-xs">
                                         <div className="bg-muted/50 p-2 rounded">
-                                            <span className="text-muted-foreground">Type</span>
+                                            <span className="text-muted-foreground">{t('dialogs.assetLibrary.type')}</span>
                                             <p className="font-medium">{selectedAsset.mediaType}</p>
                                         </div>
                                         {selectedAsset.width && selectedAsset.height && (
                                             <div className="bg-muted/50 p-2 rounded">
-                                                <span className="text-muted-foreground">Dimensions</span>
+                                                <span className="text-muted-foreground">{t('dialogs.assetLibrary.dimensions')}</span>
                                                 <p className="font-medium">{selectedAsset.width} × {selectedAsset.height}</p>
                                             </div>
                                         )}
                                         <div className="bg-muted/50 p-2 rounded col-span-2">
-                                            <span className="text-muted-foreground">Updated</span>
+                                            <span className="text-muted-foreground">{t('dialogs.assetLibrary.updated')}</span>
                                             <p className="font-medium">{formatDate(selectedAsset.updatedAt)}</p>
                                         </div>
                                     </div>
@@ -296,11 +298,11 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground flex items-center gap-1">
                                             <MapPin className="h-3 w-3" />
-                                            Referencing Nodes ({referencingNodes.length})
+                                            {t('dialogs.assetLibrary.referencingNodes')} ({referencingNodes.length})
                                         </Label>
                                         {referencingNodes.length === 0 ? (
                                             <p className="text-xs text-muted-foreground italic">
-                                                Not used by any nodes
+                                                {t('dialogs.assetLibrary.notUsed')}
                                             </p>
                                         ) : (
                                             <div className="space-y-1">
@@ -316,7 +318,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                                             className="h-6 px-2 text-[10px]"
                                                             onClick={() => handleLocateNode(node.id)}
                                                         >
-                                                            Locate
+                                                            {t('dialogs.assetLibrary.locate')}
                                                         </Button>
                                                     </div>
                                                 ))}
@@ -332,10 +334,10 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                     size="sm"
                                     variant="destructive"
                                     disabled={referencingNodes.length > 0}
-                                    title={referencingNodes.length > 0 ? "Cannot delete: asset is in use" : "Delete asset"}
+                                    title={referencingNodes.length > 0 ? t('dialogs.assetLibrary.cannotDelete') : t('dialogs.assetLibrary.deleteAsset')}
                                 >
                                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                    Delete
+                                    {t('actions.delete')}
                                 </Button>
                             </div>
                         </div>

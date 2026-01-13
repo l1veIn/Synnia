@@ -1,0 +1,41 @@
+{
+    "categories": {
+        "llm-chat": "LLM Chat",
+        "image-generation": "Image Generation",
+        "video-generation": "Video Generation",
+        "audio-generation": "Audio Generation"
+    },
+    "providers": {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "google": "Google AI",
+        "openrouter": "OpenRouter",
+        "local": "Local Model"
+    },
+    "config": {
+        "apiKey": "API Key",
+        "baseUrl": "Base URL",
+        "modelId": "Model ID",
+        "temperature": "Temperature",
+        "maxTokens": "Max Tokens",
+        "topP": "Top P",
+        "frequencyPenalty": "Frequency Penalty",
+        "presencePenalty": "Presence Penalty"
+    },
+    "status": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "testing": "Testing connection...",
+        "error": "Connection failed"
+    },
+    "actions": {
+        "test": "Test Connection",
+        "save": "Save Configuration",
+        "setDefault": "Set as Default"
+    },
+    "hints": {
+        "apiKeyRequired": "API key is required",
+        "selectProvider": "Select a provider to configure",
+        "noModels": "No models available for this provider"
+    }
+}

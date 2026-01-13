@@ -13,6 +13,7 @@ import { widgetRegistry } from '@/components/workflow/widgets';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { FieldDefinition } from '@/types/assets';
+import { useTranslation } from 'react-i18next';
 
 export * from './SchemaEditorDialog'; // Export Dialog for standalone use
 export * from './SchemaVisualPanel';  // Export Panel for standalone use
@@ -24,6 +25,7 @@ interface SchemaEditorExtendedProps extends SchemaEditorProps {
 }
 
 export function SchemaEditor(props: SchemaEditorExtendedProps) {
+    const { t } = useTranslation('inspector');
     const { schema, onChange, title = "Fields Config", readOnly, open: controlledOpen, onOpenChange: controlledOnOpenChange } = props;
     const [internalOpen, setInternalOpen] = useState(false);
 
@@ -47,15 +49,15 @@ export function SchemaEditor(props: SchemaEditorExtendedProps) {
                     disabled={readOnly}
                 >
                     <Edit2 className="h-3 w-3" />
-                    Edit Schema
+                    {t('schemaEditor.editSchema')}
                 </Button>
             </div>
 
             <div className="rounded-md border bg-muted/20 divide-y overflow-hidden max-h-[300px] overflow-y-auto">
                 {schema.length === 0 ? (
                     <div className="p-8 flex flex-col items-center justify-center text-muted-foreground gap-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => !readOnly && setIsOpen(true)}>
-                        <p className="text-sm font-medium">No fields defined</p>
-                        <p className="text-xs opacity-60">Click "Edit Schema" to configure</p>
+                        <p className="text-sm font-medium">{t('schemaEditor.noFields')}</p>
+                        <p className="text-xs opacity-60">{t('schemaEditor.clickToEdit')}</p>
                     </div>
                 ) : (
                     schema.map((field, idx) => (
@@ -74,6 +76,7 @@ export function SchemaEditor(props: SchemaEditorExtendedProps) {
 }
 
 function InlineFieldRow({ field }: { field: FieldDefinition }) {
+    const { t } = useTranslation('inspector');
     const widgetDef = widgetRegistry.get(field.widget || 'text');
     const Icon = widgetDef?.meta?.icon;
 
@@ -95,7 +98,7 @@ function InlineFieldRow({ field }: { field: FieldDefinition }) {
                 <div className="flex items-center gap-1 ml-auto">
                     {field.required && (
                         <span className="text-[9px] text-destructive border border-destructive/20 bg-destructive/5 px-1 rounded uppercase font-medium">
-                            Req
+                            {t('schemaEditor.required')}
                         </span>
                     )}
 

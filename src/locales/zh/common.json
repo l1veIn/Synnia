@@ -1,0 +1,68 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "delete": "删除"
+  },
+  "app": {
+    "title": "Synnia"
+  },
+  "demo": {
+    "desc": "第二个页面用于验证路由正常，可在此扩展你的功能。",
+    "tabs": {
+      "content_one": "这里是标签一的内容。",
+      "content_two": "这里是标签二的内容。",
+      "content_three": "这里是标签三的内容。",
+      "desc": "基于 Shadcn 的标签页 + i18n。",
+      "one": "标签一",
+      "three": "标签三",
+      "title": "Tabs 示例",
+      "two": "标签二"
+    },
+    "title": "路由示例页面"
+  },
+  "dialogs": {
+    "assetLibrary": {
+      "assets": "个资源",
+      "cannotDelete": "无法删除：资源正在使用中",
+      "deleteAsset": "删除资源",
+      "dimensions": "尺寸",
+      "import": "导入...",
+      "loadFailed": "加载资源失败",
+      "locate": "定位",
+      "name": "名称",
+      "noAssets": "未找到媒体资源",
+      "notUsed": "未被任何节点使用",
+      "referencingNodes": "引用节点",
+      "refresh": "刷新",
+      "search": "搜索资源...",
+      "title": "资源库",
+      "type": "类型",
+      "updated": "更新时间"
+    },
+    "assetPicker": {
+      "addSelected": "添加所选",
+      "noAssets": "未找到 {{type}} 类型的资源",
+      "search": "搜索资源...",
+      "selected_other": "dialogs.assetPicker.selected"
+    },
+    "newProject": {
+      "changeLocation": "更改位置",
+      "created": "项目已创建！",
+      "createFailed": "创建失败",
+      "createProject": "创建项目",
+      "description": "开启新的创作之旅。资源将存储在本地。",
+      "loading": "加载中...",
+      "location": "位置",
+      "locationRequired": "请选择位置",
+      "nameRequired": "请输入项目名称",
+      "placeholder": "例如：霓虹东京",
+      "projectName": "项目名称",
+      "projectPath": "项目将创建于：",
+      "title": "创建新世界"
+    }
+  },
+  "nav": {
+    "demo": "路由示例"
+  }
+}

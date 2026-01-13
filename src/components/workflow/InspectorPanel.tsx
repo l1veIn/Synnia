@@ -12,9 +12,11 @@ import { AssetHistoryPanel } from "./inspector/AssetHistoryPanel";
 import { Bug, Settings2, GripHorizontal, History } from "lucide-react";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { graphEngine } from "@core/engine/GraphEngine";
+import { useTranslation } from "react-i18next";
 
 // Helper Component for Asset/Recipe Editing
 const NodeInspector = ({ node }: { node: SynniaNode }) => {
+    const { t } = useTranslation('inspector');
     const assetId = node.data.assetId as string | undefined;
     const recipeId = (node.data as any).recipeId as string | undefined;
 
@@ -28,13 +30,13 @@ const NodeInspector = ({ node }: { node: SynniaNode }) => {
 
     // Fallback for nodes without custom inspector
     if (!assetId && !recipeId) {
-        return <div className="p-4 text-xs text-muted-foreground">No inspector available for this node</div>;
+        return <div className="p-4 text-xs text-muted-foreground">{t('empty.noInspector')}</div>;
     }
 
     return (
         <div className="p-4 space-y-4">
             <div className="text-xs text-muted-foreground">
-                Properties for <span className="font-bold uppercase">{node.type}</span>
+                {t('header.propertiesFor')} <span className="font-bold uppercase">{node.type}</span>
             </div>
             {assetId && (
                 <div className="text-[10px] text-muted-foreground font-mono">
@@ -51,6 +53,7 @@ const NodeInspector = ({ node }: { node: SynniaNode }) => {
 };
 
 export const InspectorPanel = () => {
+    const { t } = useTranslation('inspector');
     const nodes = useWorkflowStore((state) => state.nodes);
     const edges = useWorkflowStore((state) => state.edges);
     const inspectorPosition = useWorkflowStore((state) => state.inspectorPosition);
@@ -119,7 +122,7 @@ export const InspectorPanel = () => {
             >
                 <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
                     <GripHorizontal className="h-3 w-3" />
-                    Inspector
+                    {t('header.title')}
                 </span>
             </div>
 
@@ -127,13 +130,13 @@ export const InspectorPanel = () => {
                 <div className="px-3 py-3 shrink-0 border-b bg-card">
                     <TabsList className="grid w-full grid-cols-3 h-9">
                         <TabsTrigger value="properties" className="text-xs h-full">
-                            <Settings2 className="h-3 w-3 mr-1" /> Props
+                            <Settings2 className="h-3 w-3 mr-1" />{t('panelTabs.props')}
                         </TabsTrigger>
                         <TabsTrigger value="history" className="text-xs h-full">
-                            <History className="h-3 w-3 mr-1" /> History
+                            <History className="h-3 w-3 mr-1" />{t('panelTabs.history')}
                         </TabsTrigger>
                         <TabsTrigger value="debug" className="text-xs h-full">
-                            <Bug className="h-3 w-3 mr-1" /> Debug
+                            <Bug className="h-3 w-3 mr-1" />{t('panelTabs.debug')}
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -146,7 +149,7 @@ export const InspectorPanel = () => {
                             {/* Common Header for Asset Nodes */}
                             <div className="px-4 py-3 space-y-3 border-b shrink-0 bg-card z-10">
                                 <div className="grid w-full items-center gap-1.5">
-                                    <Label htmlFor="node-title" className="text-xs text-muted-foreground">Node Label</Label>
+                                    <Label htmlFor="node-title" className="text-xs text-muted-foreground">{t('labels.nodeLabel')}</Label>
                                     <Input
                                         id="node-title"
                                         value={title}
@@ -167,7 +170,7 @@ export const InspectorPanel = () => {
                             <div className="space-y-6">
                                 <div className="space-y-4">
                                     <div className="grid w-full max-w-sm items-center gap-1.5">
-                                        <Label htmlFor="node-title">Label</Label>
+                                        <Label htmlFor="node-title">{t('labels.label')}</Label>
                                         <Input
                                             id="node-title"
                                             value={title}
@@ -178,17 +181,17 @@ export const InspectorPanel = () => {
 
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="bg-muted/30 rounded p-2 flex flex-col items-center border border-border/50">
-                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Inputs</span>
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('labels.inputs')}</span>
                                             <span className="text-lg font-mono font-medium text-primary">{inDegree}</span>
                                         </div>
                                         <div className="bg-muted/30 rounded p-2 flex flex-col items-center border border-border/50">
-                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Outputs</span>
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('labels.outputs')}</span>
                                             <span className="text-lg font-mono font-medium text-primary">{outDegree}</span>
                                         </div>
                                     </div>
 
                                     <div className="grid w-full max-w-sm items-center gap-1.5">
-                                        <Label>Type</Label>
+                                        <Label>{t('header.type')}</Label>
                                         <div className="px-3 py-1 rounded-md bg-muted text-sm font-medium capitalize">
                                             {selectedNode.type}
                                         </div>
@@ -198,7 +201,7 @@ export const InspectorPanel = () => {
                                 <Separator />
 
                                 <div className="space-y-2">
-                                    <Label className="text-xs uppercase text-muted-foreground font-bold">Transform</Label>
+                                    <Label className="text-xs uppercase text-muted-foreground font-bold">{t('labels.transform')}</Label>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <Label className="text-xs">X</Label>

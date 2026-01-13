@@ -1,0 +1,23 @@
+{
+  "contextMenu": {
+    "addNode": "Add Node...",
+    "backToHome": "Back to Home",
+    "canvasActions": "Canvas Actions",
+    "copy": "Copy",
+    "createShortcut": "Create Shortcut",
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "nodeActions": "Node Actions",
+    "paste": "Paste",
+    "selectionActions": "Selection Actions"
+  },
+  "nodePicker": {
+    "basicNodes": "Basic Nodes",
+    "categoriesLabel": "Categories",
+    "noResults": "No nodes found.",
+    "recent": "Recent",
+    "search_placeholder": "Search nodes and recipes...",
+    "searchResults": "Search Results",
+    "title": "Add Node"
+  }
+}

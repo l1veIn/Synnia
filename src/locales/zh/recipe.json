@@ -1,0 +1,60 @@
+{
+    "execution": {
+        "starting": "正在启动...",
+        "running": "正在执行配方...",
+        "completed": "执行完成",
+        "failed": "执行失败",
+        "cancelled": "执行已取消",
+        "timeout": "执行超时"
+    },
+    "status": {
+        "idle": "就绪",
+        "pending": "等待中",
+        "success": "成功",
+        "error": "错误",
+        "streaming": "流式输出中..."
+    },
+    "prompts": {
+        "confirmRun": "确认运行此配方？",
+        "confirmStop": "确认停止当前执行？",
+        "noModel": "请先选择 AI 模型",
+        "noInput": "请提供必填输入"
+    },
+    "builtin": {
+        "storyteller": {
+            "title": "故事大师",
+            "description": "生成角色背景故事和性格特征"
+        },
+        "naming_guru": {
+            "title": "命名大师",
+            "description": "为角色创造独特且令人难忘的名字"
+        },
+        "product_manager": {
+            "title": "产品经理",
+            "description": "定义产品需求和规格说明"
+        },
+        "art_director": {
+            "title": "艺术总监",
+            "description": "创建视觉风格指南和艺术方向"
+        },
+        "lead_illustrator": {
+            "title": "首席插画师",
+            "description": "生成高质量角色插画"
+        },
+        "template": {
+            "title": "模板",
+            "description": "使用模板字符串转换数据"
+        },
+        "http": {
+            "title": "HTTP 请求",
+            "description": "向外部 API 发起 HTTP 请求"
+        }
+    },
+    "chat": {
+        "placeholder": "输入消息来优化结果...",
+        "send": "发送",
+        "clear": "清空历史",
+        "regenerate": "重新生成",
+        "thinking": "思考中..."
+    }
+}

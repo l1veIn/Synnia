@@ -1,0 +1,60 @@
+{
+    "execution": {
+        "starting": "Starting execution...",
+        "running": "Executing recipe...",
+        "completed": "Execution completed",
+        "failed": "Execution failed",
+        "cancelled": "Execution cancelled",
+        "timeout": "Execution timed out"
+    },
+    "status": {
+        "idle": "Ready",
+        "pending": "Pending",
+        "success": "Success",
+        "error": "Error",
+        "streaming": "Streaming..."
+    },
+    "prompts": {
+        "confirmRun": "Run this recipe?",
+        "confirmStop": "Stop current execution?",
+        "noModel": "Please select an AI model first",
+        "noInput": "Please provide required inputs"
+    },
+    "builtin": {
+        "storyteller": {
+            "title": "Storyteller",
+            "description": "Generate character backstory and personality traits"
+        },
+        "naming_guru": {
+            "title": "Naming Guru",
+            "description": "Create unique and memorable names for your characters"
+        },
+        "product_manager": {
+            "title": "Product Manager",
+            "description": "Define product requirements and specifications"
+        },
+        "art_director": {
+            "title": "Art Director",
+            "description": "Create visual style guidelines and art direction"
+        },
+        "lead_illustrator": {
+            "title": "Lead Illustrator",
+            "description": "Generate high-quality character illustrations"
+        },
+        "template": {
+            "title": "Template",
+            "description": "Transform data using template strings"
+        },
+        "http": {
+            "title": "HTTP Request",
+            "description": "Make HTTP requests to external APIs"
+        }
+    },
+    "chat": {
+        "placeholder": "Type a message to refine the result...",
+        "send": "Send",
+        "clear": "Clear History",
+        "regenerate": "Regenerate",
+        "thinking": "Thinking..."
+    }
+}

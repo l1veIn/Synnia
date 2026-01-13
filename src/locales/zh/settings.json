@@ -1,0 +1,29 @@
+{
+  "description": "配置应用程序设置",
+  "general": {
+    "configureProvider": "请先在模型设置中配置服务商",
+    "defaultLLM": "默认 LLM",
+    "description": "配置 Synnia 的全局偏好设置。",
+    "language": "语言",
+    "languageChanged": "语言已切换",
+    "languageHelp": "选择您偏好的界面语言。",
+    "llmHelp": "用于 Prompt 增强和自动填充等功能。",
+    "llmUpdated": "默认 LLM 已更新",
+    "title": "通用"
+  },
+  "models": {
+    "cloudHint": "🔒 密钥仅存储在本地设备上。",
+    "cloudProviders": "云端服务商",
+    "configured": "已配置",
+    "description": "配置 AI 模型的 API 密钥和端点。",
+    "localHint": "💡 请确保本地服务（如 Ollama）正在运行。",
+    "localProviders": "本地服务商",
+    "refresh": "刷新",
+    "title": "模型与服务商"
+  },
+  "sections": {
+    "ai": "模型",
+    "general": "通用"
+  },
+  "title": "设置"
+}

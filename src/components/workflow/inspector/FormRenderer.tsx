@@ -4,6 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Link } from 'lucide-react';
 import { getWidget } from '@/components/workflow/widgets';
+import { useTranslation } from 'react-i18next';
 
 interface LinkedFieldInfo {
     sourceTitle: string;
@@ -19,6 +20,7 @@ interface RendererProps {
 }
 
 export function FormRenderer({ schema, values, onChange, linkedFields, linkedFieldsInfo }: RendererProps) {
+    const { t } = useTranslation('inspector');
 
     const handleChange = (key: string, val: any) => {
         onChange({
@@ -30,7 +32,7 @@ export function FormRenderer({ schema, values, onChange, linkedFields, linkedFie
     if (!schema || schema.length === 0) {
         return (
             <div className="text-center py-8 text-muted-foreground text-xs">
-                No fields defined. <br />Switch to <b>Schema</b> tab to build your form.
+                {t('formRenderer.noFields')}
             </div>
         );
     }

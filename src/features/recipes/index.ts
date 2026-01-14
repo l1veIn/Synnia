@@ -17,20 +17,14 @@ const manifestModules = import.meta.glob('./v2/**/manifest.yaml', {
     import: 'default'
 }) as Record<string, string>;
 
-// Import all schema/prompt files
-const inputSchemaModules = import.meta.glob('./v2/**/input.fields.json', {
+// Import input/output JSON files (new unified format)
+const inputModules = import.meta.glob('./v2/**/input.json', {
     eager: true,
     query: '?raw',
     import: 'default'
 }) as Record<string, string>;
 
-const outputConfigModules = import.meta.glob('./v2/**/output.config.yaml', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-const outputSchemaModules = import.meta.glob('./v2/**/output.fields.json', {
+const outputModules = import.meta.glob('./v2/**/output.json', {
     eager: true,
     query: '?raw',
     import: 'default'
@@ -63,9 +57,8 @@ for (const [manifestPath, manifestContent] of Object.entries(manifestModules)) {
         // Gather all package files
         const files: PackageFiles = {
             manifest: manifestContent,
-            inputSchema: inputSchemaModules[`${packageDir}/input.fields.json`],
-            outputConfig: outputConfigModules[`${packageDir}/output.config.yaml`],
-            outputSchema: outputSchemaModules[`${packageDir}/output.fields.json`],
+            input: inputModules[`${packageDir}/input.json`],
+            output: outputModules[`${packageDir}/output.json`],
             systemPrompt: systemPromptModules[`${packageDir}/prompts/system.md`],
             userPrompt: userPromptModules[`${packageDir}/prompts/user.md`],
         };

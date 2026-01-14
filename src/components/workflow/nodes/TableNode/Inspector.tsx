@@ -116,7 +116,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     {schema.length > 0 ? (
                         <AutoGenerateButton
                             mode="table-rows"
-                            schema={schema}
+                            schema={schema.map(f => ({ key: f.key, label: f.label || f.key, type: f.type }))}
                             count={10}
                             onGenerate={(generatedRows) => {
                                 setValue([...rows, ...generatedRows]);

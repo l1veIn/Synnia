@@ -131,7 +131,7 @@ async function execute(input: ModelExecutionInput): Promise<ModelExecutionResult
 
         return {
             success: true,
-            data: { type: 'images', images },
+            images,
         };
     } catch (error: any) {
         return {

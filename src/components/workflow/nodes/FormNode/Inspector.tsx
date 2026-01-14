@@ -10,8 +10,10 @@ import { Save, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useTranslation } from 'react-i18next';
 
 export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId?: string }) => {
+    const { t } = useTranslation('inspector');
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const { connectedFields } = useInspector(nodeId);
     const nodes = useWorkflowStore(s => s.nodes);
@@ -95,7 +97,7 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
         }
     }, [asset, setValue, updateConfig]);
 
-    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs">{t('assetNotFound')}</div>;
 
     // Handle draft changes (local only)
     const handleSchemaChange = (newSchema: FieldDefinition[]) => {
@@ -110,14 +112,14 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
     const handleSave = () => {
         setValue(draftValues);          // Values go to asset.value
         updateConfig({ schema: draftSchema }); // Schema goes to asset.config
-        toast.success('Changes saved');
+        toast.success(t('changesSaved'));
     };
 
     // Discard changes
     const handleDiscard = () => {
         setDraftSchema(savedSchema);
         setDraftValues(savedValues);
-        toast.info('Changes discarded');
+        toast.info(t('changesDiscarded'));
     };
 
     return (
@@ -125,15 +127,15 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
                 <div className="px-4 pt-3 shrink-0 flex items-center gap-2">
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="values">Values</TabsTrigger>
+                        <TabsTrigger value="values">{t('form.values')}</TabsTrigger>
                         <TabsTrigger value="schema" className={cn(isDocked && "opacity-60")}>
-                            Schema {isDocked && '🔒'}
+                            {t('form.schema')} {isDocked && '🔒'}
                         </TabsTrigger>
                     </TabsList>
                     {hasChanges && (
                         <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
                             <AlertCircle className="h-3 w-3" />
-                            Unsaved
+                            {t('form.unsaved')}
                         </span>
                     )}
                 </div>
@@ -151,9 +153,9 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                 <TabsContent value="schema" className="flex-1 p-4 min-h-0 overflow-y-auto">
                     {isDocked ? (
                         <div className="text-xs text-muted-foreground text-center py-8">
-                            <p className="font-medium mb-2">Schema Locked</p>
-                            <p>This node is part of a docked chain.</p>
-                            <p>Undock to edit schema.</p>
+                            <p className="font-medium mb-2">{t('form.schemaLocked')}</p>
+                            <p>{t('form.dockedChain')}</p>
+                            <p>{t('form.undockToEdit')}</p>
                         </div>
                     ) : (
                         <SchemaBuilder
@@ -171,7 +173,7 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                 <div className="flex items-center gap-2">
                     {hasChanges && (
                         <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
-                            Discard
+                            {t('form.discard')}
                         </Button>
                     )}
                     <Button
@@ -182,7 +184,7 @@ export const FormNodeInspector = ({ assetId, nodeId }: { assetId: string; nodeId
                         disabled={!hasChanges}
                     >
                         <Save className="h-3.5 w-3.5" />
-                        Save
+                        {t('form.save')}
                     </Button>
                 </div>
             </div>

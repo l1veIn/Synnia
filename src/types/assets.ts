@@ -87,7 +87,7 @@ export interface AssetSysMetadata {
     updatedAt: number;
     source: string;
     /** If true, asset is shown in Asset Library and preserved when node is deleted */
-    isLibraryAsset?: boolean;
+    isLibraryAsset: boolean | null;
 }
 
 export interface AssetMeta {
@@ -152,7 +152,7 @@ export function fromAssetRef(ref: string): string {
 
 export function createSysMetadata(name: string): AssetSysMetadata {
     const now = Date.now();
-    return { name, createdAt: now, updatedAt: now, source: 'user' };
+    return { name, createdAt: now, updatedAt: now, source: 'user', isLibraryAsset: null };
 }
 
 export function createRecordAsset(

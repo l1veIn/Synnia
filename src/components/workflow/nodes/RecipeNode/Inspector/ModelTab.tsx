@@ -31,6 +31,7 @@ import type { ModelConfig } from '@/features/recipes/types';
 import type { ModelCapability } from '@features/models/types';
 import { hasAllCapabilities } from '@features/models/utils';
 import { openSettingsDialog } from '@/components/settings/SettingsDialog';
+import { useTranslation } from 'react-i18next';
 
 export interface ModelTabProps {
     modelConfig?: ModelConfig;
@@ -61,6 +62,7 @@ function DefaultLLMSettings({
     maxOutputTokens = 4096,
     capabilities = []
 }: LLMSettingsProps) {
+    const { t } = useTranslation('recipe');
     const config = value || {
         temperature: defaultTemperature,
         maxTokens: Math.min(2048, maxOutputTokens),
@@ -80,7 +82,7 @@ function DefaultLLMSettings({
                 <div className="flex items-center justify-between">
                     <Label className="text-xs flex items-center gap-1.5">
                         <Thermometer className="h-3 w-3 text-muted-foreground" />
-                        Temperature
+                        {t('model.temperature')}
                     </Label>
                     <span className="text-xs text-muted-foreground">{config.temperature?.toFixed(2)}</span>
                 </div>
@@ -99,7 +101,7 @@ function DefaultLLMSettings({
                 <div className="flex items-center justify-between">
                     <Label className="text-xs flex items-center gap-1.5">
                         <Hash className="h-3 w-3 text-muted-foreground" />
-                        Max Tokens
+                        {t('model.maxTokens')}
                     </Label>
                     <span className="text-xs text-muted-foreground">{config.maxTokens}</span>
                 </div>
@@ -118,7 +120,7 @@ function DefaultLLMSettings({
                 <div className="flex items-center justify-between">
                     <Label className="text-xs flex items-center gap-1.5">
                         <FileJson className="h-3 w-3 text-muted-foreground" />
-                        JSON Mode
+                        {t('model.jsonMode')}
                     </Label>
                     <Switch
                         checked={config.jsonMode ?? false}
@@ -136,6 +138,7 @@ function DefaultLLMSettings({
 // ============================================================================
 
 export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'llm', requiredCapabilities = [] }: ModelTabProps) {
+    const { t } = useTranslation('recipe');
     const [open, setOpen] = useState(false);
     const { settings, setDefaultModel } = useSettings();
 
@@ -248,16 +251,16 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                     <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                         <Key className="h-6 w-6 text-muted-foreground" />
                     </div>
-                    <h3 className="text-sm font-medium mb-1">No API Keys Configured</h3>
+                    <h3 className="text-sm font-medium mb-1">{t('model.noApiKeys')}</h3>
                     <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
-                        Add your API keys for AI providers like OpenAI, Google, or Anthropic to get started.
+                        {t('model.addKeysDesc')}
                     </p>
                     <Button
                         size="sm"
                         onClick={() => openSettingsDialog('models')}
                     >
                         <Settings className="h-4 w-4 mr-2" />
-                        Open Settings
+                        {t('model.openSettings')}
                     </Button>
                 </div>
             )}
@@ -284,17 +287,17 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                         <span className="truncate">{selectedModel.name}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-muted-foreground">Select model...</span>
+                                    <span className="text-muted-foreground">{t('model.selectModel')}</span>
                                 )}
                                 <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[280px] p-0" align="start">
                             <Command>
-                                <CommandInput placeholder="Search models..." className="h-8 text-xs" />
+                                <CommandInput placeholder={t('model.searchModels')} className="h-8 text-xs" />
                                 <CommandList>
-                                    <CommandEmpty>No models found.</CommandEmpty>
-                                    <CommandGroup heading="Available Models">
+                                    <CommandEmpty>{t('model.noModelsFound')}</CommandEmpty>
+                                    <CommandGroup heading={t('model.availableModels')}>
                                         {models.map((model) => {
                                             const hasProvider = (model.supportedProviders || [model.provider]).some(p =>
                                                 configuredProviders.includes(p)

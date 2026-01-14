@@ -63,13 +63,8 @@ export function useCanvasLogic() {
   );
 
   const handleAddNode = useCallback((type: NodeType, pos?: XYPosition) => {
-    if (pos) {
-      graphEngine.mutator.addNode(type, pos);
-    } else {
-      const x = 100 + Math.random() * 50;
-      const y = 100 + Math.random() * 50;
-      graphEngine.mutator.addNode(type, { x, y });
-    }
+    const position = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
+    graphEngine.mutator.createSmart({ value: {}, node: type, position });
   }, []);
 
   const handleAddImage = useCallback(async (pos?: XYPosition) => {
@@ -94,10 +89,12 @@ export function useCanvasLogic() {
         const STD_HEIGHT = 240;
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
-        graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
-          content: { src: result.relativePath, width: result.width, height: result.height },
-          assetName: filePath.split(/[/\\]/).pop(),
-          assetConfig: {
+        graphEngine.mutator.createSmart({
+          value: { src: result.relativePath, width: result.width, height: result.height },
+          node: 'image',
+          name: filePath.split(/[/\\]/).pop(),
+          position: targetPos,
+          config: {
             meta: {
               width: result.width,
               height: result.height,
@@ -126,9 +123,11 @@ export function useCanvasLogic() {
             const base64 = ev.target?.result;
             if (base64) {
               const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
-              graphEngine.mutator.addNode(NodeType.IMAGE, targetPos, {
-                content: base64 as string,
-                assetName: file.name
+              graphEngine.mutator.createSmart({
+                value: base64 as string,
+                node: 'image',
+                name: file.name,
+                position: targetPos
               });
               toast.success("Image added (Base64)", { id: toastId });
             } else {

@@ -6,8 +6,10 @@ import { Edit2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaImageEditor } from '@/components/ui/synnia-image-editor';
+import { useTranslation } from 'react-i18next';
 
 export const Inspector = ({ assetId }: { assetId: string }) => {
+    const { t } = useTranslation('inspector');
     const { asset, setValue } = useAsset(assetId);
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [imageUrl, setImageUrl] = useState('');
@@ -60,7 +62,7 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
         }
     };
 
-    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs">{t('assetNotFound')}</div>;
 
     // New structure: read from value object and config.meta
     const value = asset.value as Record<string, any>;

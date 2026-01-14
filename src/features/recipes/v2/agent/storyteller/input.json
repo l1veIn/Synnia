@@ -1,0 +1,47 @@
+{
+    "schema": [
+        {
+            "key": "name",
+            "label": "\u9009\u5b9a\u540d\u79f0",
+            "type": "string",
+            "required": true,
+            "config": {
+                "placeholder": "\u4f8b\u5982\uff1a\u5c0f\u53ef"
+            },
+            "connection": "input"
+        },
+        {
+            "key": "tagline",
+            "label": "\u6807\u8bed\uff08\u53ef\u9009\uff09",
+            "type": "string",
+            "config": {
+                "placeholder": "\u4e0e\u540d\u79f0\u76f8\u5173\u7684\u53e3\u53f7"
+            },
+            "connection": "input"
+        },
+        {
+            "key": "rationale",
+            "label": "\u547d\u540d\u7406\u7531\uff08\u53ef\u9009\uff09",
+            "type": "string",
+            "widget": "textarea",
+            "config": {
+                "placeholder": "\u4e3a\u4ec0\u4e48\u9009\u62e9\u8fd9\u4e2a\u540d\u5b57"
+            },
+            "connection": "input"
+        },
+        {
+            "key": "productType",
+            "label": "\u4ea7\u54c1\u7c7b\u578b",
+            "type": "string",
+            "required": true,
+            "connection": "input"
+        },
+        {
+            "key": "brandTone",
+            "label": "\u54c1\u724c\u8c03\u6027",
+            "type": "string",
+            "required": true,
+            "connection": "input"
+        }
+    ]
+}

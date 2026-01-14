@@ -1,45 +1,169 @@
 {
-    "dataEditor": {
-        "addRow": "添加行",
-        "empty": "空",
-        "false": "否",
-        "item": "项目 {{index}}",
-        "items_other": "{{count}} 项",
-        "noRows": "暂无数据行",
-        "object": "对象",
-        "saveChanges": "保存更改",
-        "true": "是",
-        "unsaved": "未保存"
-    },
-    "empty": {
-        "noInspector": "此节点暂无检查器"
-    },
-    "header": {
-        "propertiesFor": "属性：",
-        "title": "检查器",
-        "type": "类型"
-    },
-    "labels": {
-        "inputs": "输入",
-        "label": "标签",
-        "nodeLabel": "节点标签",
-        "outputs": "输出",
-        "transform": "变换"
-    },
-    "panelTabs": {
-        "debug": "调试",
-        "history": "历史",
-        "props": "属性"
-    },
-    "schemaEditor": {
-        "clickToEdit": "点击「编辑结构」进行配置",
-        "done": "完成",
-        "editSchema": "编辑结构",
-        "fieldsDefined_other": "{{count}} 个字段",
-        "json": "JSON",
-        "noFields": "暂无字段定义",
-        "required": "必填",
-        "split": "分屏",
-        "visual": "可视化"
-    }
+  "assetNotFound": "未找到资源",
+  "changesDiscarded": "更改已丢弃",
+  "changesSaved": "更改已保存",
+  "dataEditor": {
+    "addRow": "添加行",
+    "empty": "空",
+    "false": "否",
+    "item": "项目 {{index}}",
+    "items_other": "{{count}} 项",
+    "noRows": "暂无数据行",
+    "object": "对象",
+    "saveChanges": "保存更改",
+    "true": "是",
+    "unsaved": "未保存"
+  },
+  "debug": {
+    "apply": "应用",
+    "cannotChangeId": "无法通过调试器更改节点 ID",
+    "copied": "已复制到剪贴板",
+    "copyJson": "复制 JSON",
+    "invalidJson": "{{title}} 的 JSON 格式无效",
+    "noNode": "未选择节点",
+    "resetChanges": "重置更改",
+    "updated": "{{title}} 已更新"
+  },
+  "empty": {
+    "noInspector": "此节点暂无检查器"
+  },
+  "form": {
+    "discard": "丢弃",
+    "dockedChain": "已锁定",
+    "save": "保存",
+    "schema": "结构",
+    "schemaLocked": "结构已锁定",
+    "undockToEdit": "解除锁定以编辑结构",
+    "unsaved": "未保存",
+    "values": "数值"
+  },
+  "formRenderer": {
+    "noFields": "暂无字段定义。切换到结构标签页创建表单。"
+  },
+  "header": {
+    "propertiesFor": "属性：",
+    "title": "检查器",
+    "type": "类型"
+  },
+  "history": {
+    "current": "当前",
+    "justNow": "刚刚",
+    "loadError": "加载版本历史失败",
+    "loading": "加载历史记录...",
+    "noAsset": "未选择资源",
+    "noHistory": "暂无版本历史",
+    "refresh": "刷新",
+    "restoreError": "恢复版本失败",
+    "restoreSuccess": "版本恢复成功",
+    "saveToCreate": "保存更改以创建历史记录",
+    "title": "版本历史",
+    "versions_other": "{{count}} 个版本"
+  },
+  "labels": {
+    "inputs": "输入",
+    "label": "标签",
+    "nodeLabel": "节点标签",
+    "outputs": "输出",
+    "transform": "变换"
+  },
+  "panelTabs": {
+    "debug": "调试",
+    "history": "历史",
+    "props": "属性"
+  },
+  "queue": {
+    "add": "添加",
+    "autoStart": "自动开始",
+    "concurrency": "并发数",
+    "continueOnError": "出错时继续",
+    "done": "完成",
+    "failed": "失败",
+    "noTasks": "队列中暂无任务",
+    "retryCount": "重试次数",
+    "retryOnError": "出错时重试",
+    "tasks_other": "{{count}} 个任务",
+    "total": "总计"
+  },
+  "schemaEditor": {
+    "clickToEdit": "点击「编辑结构」进行配置",
+    "done": "完成",
+    "editSchema": "编辑结构",
+    "fieldsDefined_other": "{{count}} 个字段",
+    "json": "JSON",
+    "noFields": "暂无字段定义",
+    "required": "必填",
+    "split": "分屏",
+    "visual": "可视化"
+  },
+  "schemaVisual": {
+    "addField": "添加字段",
+    "both": "双向",
+    "bothNotSupported": "不支持双向端口",
+    "bothPorts": "双向端口",
+    "clickAddField": "点击「添加字段」开始",
+    "configuration": "配置",
+    "connectionPorts": "连接端口",
+    "containerConfig": "容器配置",
+    "displayLabel": "显示标签",
+    "editNestedFields": "编辑嵌套字段",
+    "fieldBehavior": "字段行为",
+    "input": "输入",
+    "inputNotSupported": "此组件不支持输入端口",
+    "inputPort": "输入端口",
+    "nestedEmpty": "此嵌套结构为空",
+    "nestedFields": "嵌套字段",
+    "no": "否",
+    "none": "无",
+    "noPorts": "无端口",
+    "output": "输出",
+    "outputNotSupported": "此组件不支持输出端口",
+    "outputPort": "输出端口",
+    "requiredField": "必填字段",
+    "root": "根",
+    "rootFields": "根字段",
+    "validation": "验证",
+    "variableKey": "变量键",
+    "widgetType": "组件类型",
+    "yes": "是"
+  },
+  "selector": {
+    "addedOptions_other": "已添加 {{count}} 个选项",
+    "addOption": "添加选项",
+    "editOption": "编辑选项",
+    "multiple": "多选",
+    "noOptions": "暂无选项",
+    "optionAdded": "选项已添加",
+    "optionDeleted": "选项已删除",
+    "options": "选项",
+    "optionUpdated": "选项已更新",
+    "selectedOf": "已选择 {{selected}}/{{total}}",
+    "selectionMode": "选择模式",
+    "settings": "设置",
+    "showSearch": "显示搜索",
+    "single": "单选"
+  },
+  "text": {
+    "content": "内容",
+    "invalidJson": "JSON 格式无效",
+    "jsonFormatted": "已格式化 JSON",
+    "plain": "纯文本"
+  },
+  "widget": {
+    "andMore_other": "...及其他 {{count}} 项",
+    "arrayConnected": "数组已连接",
+    "arrayInput": "数组输入",
+    "connectFormNode": "连接表单/JSON 节点",
+    "connectTableNode": "连接表格/选择器节点",
+    "createFormNode": "创建表单节点",
+    "createTableNode": "创建表格节点",
+    "expectedFields": "预期字段",
+    "formNodeCreated": "表单节点已创建",
+    "itemSchema": "项目结构",
+    "keysCount_other": "{{count}} 个键",
+    "objectConnected": "对象已连接",
+    "objectInput": "对象输入",
+    "preview": "预览",
+    "rowsCount_other": "{{count}} 行",
+    "tableNodeCreated": "表格节点已创建"
+  }
 }

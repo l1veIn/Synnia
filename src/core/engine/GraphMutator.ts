@@ -1,14 +1,108 @@
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode, NodeType } from '@/types/project';
-import { ValueType } from '@/types/assets';
+import { ValueType, FieldDefinition } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
-import { sanitizeNodeForClipboard } from '@core/utils/graph';
 import { XYPosition } from '@xyflow/react';
 
+// ============================================================================
+// Smart Node Creation API (TEP Crystallized)
+// ============================================================================
+
+/**
+ * Unified specification for creating nodes.
+ * Either `assetId` (reuse) or `value` (create new) must be provided.
+ */
+export interface SmartNodeSpec {
+    // ═══════════════════════════════════════════
+    // ASSET LAYER - Provide assetId OR value
+    // ═══════════════════════════════════════════
+    assetId?: string;              // Reuse existing Asset (skip creation)
+    value?: any;                   // Create new Asset with this data
+    valueType?: ValueType;         // 'record' | 'array' | 'string' (inferred)
+    schema?: FieldDefinition[];    // Asset.config.schema (inferred)
+    config?: Record<string, any>;  // Asset.config.extra
+
+    // ═══════════════════════════════════════════
+    // NODE LAYER
+    // ═══════════════════════════════════════════
+    node?: string;                 // Node type (inferred from valueType)
+    name?: string;                 // Asset.sys.name & Node.data.title
+    collapsed?: boolean;           // Node.data.collapsed (default: false)
+    style?: Record<string, any>;   // Node.style overrides
+
+    // ═══════════════════════════════════════════
+    // LAYOUT LAYER
+    // ═══════════════════════════════════════════
+    position?: XYPosition | 'auto';
+    anchor?: string;               // Node ID to position relative to
+    offset?: 'below' | 'right' | XYPosition;
+
+    // ═══════════════════════════════════════════
+    // CONNECTION LAYER
+    // ═══════════════════════════════════════════
+    connectFrom?: { nodeId: string; handle: string };
+    outputEdgeFrom?: string;       // Shorthand: create output edge from this node
+
+    // ═══════════════════════════════════════════
+    // SPECIAL MODES
+    // ═══════════════════════════════════════════
+    mode?: 'create' | 'reference';
+    referenceOf?: string;          // Required when mode='reference'
+    dockedTo?: string;             // Dock to this node
+}
+
+// ============================================================================
+// Inference Utilities
+// ============================================================================
+
+/**
+ * Infer ValueType from value
+ */
+function inferValueType(value: any): ValueType {
+    if (Array.isArray(value)) return 'array';
+    // Everything else is 'record' (even primitives will be wrapped)
+    return 'record';
+}
+
+/**
+ * Infer schema from value structure
+ */
+function inferSchema(value: any): FieldDefinition[] {
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object') {
+        // Infer from first array item
+        return Object.keys(value[0]).map(key => ({
+            key,
+            label: key,
+            type: typeof value[0][key] === 'number' ? 'number' : 'string',
+        }));
+    }
+    if (typeof value === 'object' && value !== null) {
+        return Object.keys(value).map(key => ({
+            key,
+            label: key,
+            type: typeof value[key] === 'number' ? 'number' : 'string',
+        }));
+    }
+    return [];
+}
+
+/**
+ * Map valueType to default node type
+ */
+function valueTypeToNode(valueType: ValueType): string {
+    switch (valueType) {
+        case 'array': return 'table';
+        case 'record': return 'form';
+        default: return 'form';
+    }
+}
+
+// ============================================================================
 // NOTE: Node-specific logic (default content, build from data, etc.)
 // is defined in each node's config via factory methods.
 // See: src/lib/engine/引擎设计原则.md
+// ============================================================================
 
 
 export class GraphMutator {
@@ -18,241 +112,6 @@ export class GraphMutator {
         this.engine = engine;
     }
 
-    /**
-     * Build node specs from data using the node's create factory
-     * Unified approach: delegates to NodeDefinition.create()
-     */
-    public buildNodesFromConfig(
-        data: any,
-        config: import('@/types/recipe').OutputDefinition
-    ): {
-        type: NodeType | string;
-        data: any;
-        position?: 'below' | 'right' | XYPosition;
-        dockedTo?: string | '$prev';
-        config?: { schema?: import('@/types/assets').FieldDefinition[]; extra?: Record<string, any> };
-    }[] {
-        if (!Array.isArray(data) || data.length === 0) {
-            return [];
-        }
-
-        const nodeTypeStr = String(config.node || 'form');
-
-        // Resolve node type (handle aliases)
-        const def = nodeRegistry.get(nodeTypeStr) || nodeRegistry.getByAlias(nodeTypeStr);
-        if (!def) {
-            console.warn(`[buildNodesFromConfig] Unknown node type: ${nodeTypeStr}`);
-            return [];
-        }
-
-        // Get schema and extra from OutputDefinition (Form-Centric pattern)
-        const schema = config.schema;
-        const extra = config.extra || {};
-
-        // Prepare title template resolver
-        const resolveTitle = (count: number): string => {
-            if (config.title) {
-                return config.title.replace(/\{\{count\}\}/g, String(count));
-            }
-            return `${def.meta.title} (${count})`;
-        };
-
-        // For collection nodes (Gallery, Table, Selector, Queue): create single node with all data
-        if (def.capabilities?.isCollection) {
-            const createResult = def.create({ data, schema });
-            return [{
-                type: def.type,
-                data: {
-                    title: resolveTitle(data.length),
-                    collapsed: config.collapsed ?? false,
-                    ...createResult.data,
-                    content: createResult.asset?.value,
-                    assetType: 'json' as const,
-                },
-                // Pass config as { schema, extra } pattern
-                config: { schema, extra },
-                position: 'below' as const,
-            }];
-        }
-
-        // For non-collection nodes (Form): create one node per data item (docked chain)
-        return data.map((item: any, index: number) => {
-            const createResult = def.create({ data: item, schema });
-
-            // Resolve title with item fields
-            const title = config.title
-                ? config.title
-                    .replace(/\{\{index\}\}/g, String(index + 1))
-                    .replace(/\{\{(\w+)\}\}/g, (_: string, k: string) => item[k] ?? '')
-                : `#${index + 1}`;
-
-            return {
-                type: def.type,
-                data: {
-                    title,
-                    collapsed: config.collapsed ?? true,
-                    ...createResult.data,
-                    content: createResult.asset?.value,
-                    assetType: 'json' as const,
-                },
-                // Pass config as { schema, extra } pattern
-                config: { schema, extra },
-                position: index === 0 ? 'below' as const : undefined,
-                dockedTo: index > 0 ? '$prev' as const : undefined,
-            };
-        });
-    }
-
-
-
-    public addNode(type: NodeType | string, position: XYPosition, options: {
-        content?: any,
-        assetId?: string,
-        assetName?: string,
-        style?: any,
-        assetConfig?: Record<string, any>  // Universal Output Adapter: passed to asset.config
-    } = {}) {
-        // Get meta and definition from registry
-        const meta = nodeRegistry.getMeta(type) || nodeRegistry.getMeta(NodeType.FORM);
-        const def = nodeRegistry.getDefinition(type);
-
-        // Node type is used directly
-        const finalType: string = type as string;
-
-        // Asset creation logic - use node's create factory
-        let assetId = options.assetId;
-
-        const hasCreate = def?.create !== undefined;
-        if (hasCreate && !assetId) {
-            const createResult = def!.create({});
-            const valueType: ValueType = (createResult?.asset?.valueType as ValueType) || 'record';
-            let content = options.content;
-            const name = options.assetName || meta?.title || 'Node';
-
-            // Use default content from create result
-            if (!content && createResult?.asset?.value !== undefined) {
-                content = createResult.asset.value;
-            }
-            if (!content) {
-                content = ''; // Fallback
-            }
-
-            // Merge config from createResult and options.assetConfig
-            // options.assetConfig takes precedence (from recipe output config)
-            const config = {
-                ...(createResult?.asset?.config || {}),
-                ...(options.assetConfig || {})
-            };
-
-            // Pass sys from createResult (e.g., isLibraryAsset: true for ImageNode)
-            const sys = createResult?.asset?.sys as any;
-
-            // Use AssetSystem
-            assetId = this.engine.assets.create(valueType, content, {
-                name,
-                config,
-                sys,  // Merge partial sys from node definition
-            });
-        }
-
-        const nodeTitle = (options as any).title || options.assetName || meta?.title || 'Node';
-
-        // Build node data
-        const dockedTo = (options as any).dockedTo;
-
-        const nodeData: any = {
-            title: nodeTitle,
-            state: 'idle',
-            assetId,
-            ...(dockedTo ? { dockedTo } : {}),
-        };
-
-        const newNode: SynniaNode = {
-            id: uuidv4(),
-            type: finalType,
-            position,
-            data: nodeData,
-            style: {
-                // Use style from node meta
-                ...(meta?.style || {}),
-                ...(options.style || {}),
-            },
-        };
-
-        const { nodes } = this.engine.state;
-        this.engine.setNodes([...nodes, newNode]);
-
-        return newNode.id;
-    }
-
-    /**
-     * Create a node from a schema definition.
-     * Used by form-input/table-input widgets to create matching nodes.
-     */
-    public createNodeFromSchema(
-        nodeType: 'form' | 'table' | 'selector',
-        schema: import('@/types/assets').FieldDefinition[],
-        options?: {
-            title?: string;
-            sourceNodeId?: string;  // Position below this node
-        }
-    ): string {
-        const { nodes } = this.engine.state;
-
-        // Calculate position
-        let position: XYPosition = { x: 100, y: 100 };
-        if (options?.sourceNodeId) {
-            const sourceNode = nodes.find(n => n.id === options.sourceNodeId);
-            if (sourceNode) {
-                position = {
-                    x: sourceNode.position.x,
-                    y: sourceNode.position.y + (sourceNode.measured?.height || 200) + 50,
-                };
-            }
-        }
-
-        // Resolve node type alias
-        const def = nodeRegistry.get(nodeType) || nodeRegistry.getByAlias(nodeType);
-        if (!def) {
-            console.warn(`[createNodeFromSchema] Unknown node type: ${nodeType}`);
-            return '';
-        }
-
-        // Use node's create factory with schema
-        const createResult = def.create({ schema });
-        const title = options?.title || `New ${def.meta.title}`;
-
-        // Create asset with schema in config
-        const assetId = this.engine.assets.create(
-            createResult?.asset?.valueType || 'record',
-            createResult?.asset?.value || {},
-            {
-                name: title,
-                config: {
-                    schema,
-                    ...(createResult?.asset?.config || {}),
-                },
-            }
-        );
-
-        // Create node
-        const newNode: SynniaNode = {
-            id: uuidv4(),
-            type: def.type,
-            position,
-            data: {
-                title,
-                state: 'idle',
-                assetId,
-                ...(createResult?.data || {}),
-            },
-            style: def.meta?.style || {},
-        };
-
-        this.engine.setNodes([...nodes, newNode]);
-
-        return newNode.id;
-    }
 
     public removeNode(id: string) {
         // Use Engine Batch Primitive (no children traversal needed)
@@ -260,133 +119,283 @@ export class GraphMutator {
     }
 
     public duplicateNode(node: SynniaNode, position?: XYPosition) {
-        const { nodes, assets } = this.engine.state;
-        const newId = uuidv4();
+        const { assets } = this.engine.state;
+        const assetId = node.data.assetId;
+        const originalAsset = assetId ? assets[assetId] : null;
 
-        const sanitizedNode = sanitizeNodeForClipboard(node);
-
-        let newAssetId = sanitizedNode.data.assetId;
-        if (newAssetId && assets[newAssetId]) {
-            const originalAsset = assets[newAssetId];
-            const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
-
-            // Use AssetSystem - preserve config
-            newAssetId = this.engine.assets.create(
-                originalAsset.valueType,
-                valueClone,
-                {
-                    name: `${originalAsset.sys.name} (Copy)`,
-                    config: originalAsset.config
-                }
-            );
+        if (!originalAsset) {
+            // No asset to clone, just create a basic node
+            const newId = this.createSmart({
+                value: {},
+                node: node.type,
+                name: `${node.data.title || 'Node'} (Copy)`,
+                position: position || { x: node.position.x + 20, y: node.position.y + 20 },
+                style: node.style,
+            });
+            if (newId) {
+                this.engine.deselectAll();
+                this.engine.setNodes(this.engine.state.nodes.map(n =>
+                    n.id === newId ? { ...n, selected: true } : n
+                ));
+            }
+            return;
         }
 
-        const newNode: SynniaNode = {
-            ...sanitizedNode,
-            id: newId,
+        // Clone asset value
+        const valueClone = originalAsset.value
+            ? JSON.parse(JSON.stringify(originalAsset.value))
+            : originalAsset.value;
+
+        const newId = this.createSmart({
+            value: valueClone,
+            valueType: originalAsset.valueType,
+            node: node.type,
+            name: `${originalAsset.sys.name} (Copy)`,
             position: position || { x: node.position.x + 20, y: node.position.y + 20 },
-            selected: true,
-            parentId: node.parentId,
-            extent: node.extent,
-            data: {
-                ...sanitizedNode.data,
-                assetId: newAssetId
-            }
-        };
+            config: originalAsset.config,
+            style: node.style,
+        });
 
-        this.engine.deselectAll();
-        this.engine.setNodes([...this.engine.state.nodes, newNode]);
-    }
-
-    public createShortcut(nodeId: string) {
-        const { nodes } = this.engine.state;
-        const node = nodes.find(n => n.id === nodeId);
-        if (!node) return;
-
-        // Only nodes with create factory can have shortcuts
-        const def = nodeRegistry.getDefinition(node.type);
-        const canShortcut = def?.create !== undefined;
-        if (!canShortcut) return;
-
-        const newId = uuidv4();
-        const sanitizedNode = sanitizeNodeForClipboard(node);
-
-        const newNode: SynniaNode = {
-            ...sanitizedNode,
-            id: newId,
-            position: { x: node.position.x + 20, y: node.position.y + 20 },
-            selected: true,
-            parentId: node.parentId,
-            extent: node.extent,
-            data: {
-                ...sanitizedNode.data,
-                isReference: true,
-                originalNodeId: node.id
-            }
-        };
-
-        this.engine.deselectAll();
-        this.engine.setNodes([...this.engine.state.nodes, newNode]);
+        if (newId) {
+            this.engine.deselectAll();
+            this.engine.setNodes(this.engine.state.nodes.map(n =>
+                n.id === newId ? { ...n, selected: true } : n
+            ));
+        }
     }
 
     public pasteNodes(copiedNodes: SynniaNode[]) {
         const { assets } = this.engine.state;
+        const newIds: string[] = [];
 
-        const idMap = new Map<string, string>();
-        copiedNodes.forEach(n => idMap.set(n.id, uuidv4()));
+        for (const node of copiedNodes) {
+            const assetId = node.data.assetId;
+            const originalAsset = assetId ? assets[assetId] : null;
 
-        const newNodes = copiedNodes.map(node => {
-            const newId = idMap.get(node.id)!;
+            let newId: string | undefined;
 
-            let newParentId = node.parentId;
-            if (node.parentId && idMap.has(node.parentId)) {
-                newParentId = idMap.get(node.parentId);
+            if (originalAsset) {
+                // Clone asset value
+                const valueClone = originalAsset.value
+                    ? JSON.parse(JSON.stringify(originalAsset.value))
+                    : originalAsset.value;
+
+                newId = this.createSmart({
+                    value: valueClone,
+                    valueType: originalAsset.valueType,
+                    node: node.type,
+                    name: `${originalAsset.sys.name} (Copy)`,
+                    position: { x: node.position.x + 50, y: node.position.y + 50 },
+                    config: originalAsset.config,
+                    style: node.style,
+                });
             } else {
-                newParentId = undefined;
+                // No asset, create with fallback
+                newId = this.createSmart({
+                    value: { content: 'Content unavailable (Source asset missing)' },
+                    node: node.type,
+                    name: 'Missing Asset',
+                    position: { x: node.position.x + 50, y: node.position.y + 50 },
+                    style: node.style,
+                });
             }
 
-            const sanitizedNode = sanitizeNodeForClipboard(node);
+            if (newId) newIds.push(newId);
+        }
 
-            let newAssetId = sanitizedNode.data.assetId;
-            if (newAssetId) {
-                if (assets[newAssetId]) {
-                    const originalAsset = assets[newAssetId];
-                    const valueClone = originalAsset.value ? JSON.parse(JSON.stringify(originalAsset.value)) : originalAsset.value;
-
-                    // Use AssetSystem - preserve config
-                    newAssetId = this.engine.assets.create(
-                        originalAsset.valueType,
-                        valueClone,
-                        { name: `${originalAsset.sys.name} (Copy)`, config: originalAsset.config }
-                    );
-                } else {
-                    // Fallback for missing asset - use record type
-                    newAssetId = this.engine.assets.create(
-                        'record',
-                        { content: 'Content unavailable (Source asset missing)' },
-                        { name: 'Missing Asset', config: { schema: [] } }
-                    );
-                }
-            }
-
-            return {
-                ...sanitizedNode,
-                id: newId,
-                parentId: newParentId,
-                extent: newParentId ? 'parent' : undefined,
-                selected: true,
-                position: {
-                    x: node.position.x + 50,
-                    y: node.position.y + 50
-                },
-                data: {
-                    ...sanitizedNode.data,
-                    assetId: newAssetId
-                }
-            } as SynniaNode;
-        });
-
+        // Select all pasted nodes
         this.engine.deselectAll();
-        this.engine.setNodes([...this.engine.state.nodes, ...newNodes]);
+        this.engine.setNodes(this.engine.state.nodes.map(n =>
+            newIds.includes(n.id) ? { ...n, selected: true } : n
+        ));
+    }
+
+
+    // ========================================================================
+    // Smart Node Creation API (TEP Crystallized)
+    // ========================================================================
+
+    /**
+     * Create a node using the unified Smart API.
+     * Either `assetId` (reuse) or `value` (create new) must be provided.
+     * All other fields are inferred or use sensible defaults.
+     *
+     * @returns The created node ID
+     */
+    public createSmart(spec: SmartNodeSpec): string {
+        const { nodes } = this.engine.state;
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 1: Validate input - require assetId, value, OR schema
+        // ─────────────────────────────────────────────────────────────────────
+        if (spec.assetId === undefined && spec.value === undefined && spec.schema === undefined) {
+            throw new Error('[createSmart] Either assetId, value, or schema must be provided');
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 2: Resolve/Infer all spec fields
+        // ─────────────────────────────────────────────────────────────────────
+        // Determine if this is an empty node creation (schema-only)
+        const isEmptyCreate = spec.assetId === undefined && spec.value === undefined;
+        const valueType = spec.valueType ?? (isEmptyCreate ? 'record' : inferValueType(spec.value));
+        const schema = spec.schema ?? (spec.value !== undefined ? inferSchema(spec.value) : []);
+        const nodeType = spec.node ?? valueTypeToNode(valueType);
+        const name = spec.name ?? `New ${nodeRegistry.getMeta(nodeType)?.title || nodeType}`;
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 3: Calculate position
+        // ─────────────────────────────────────────────────────────────────────
+        let position: XYPosition = { x: 100, y: 100 };
+
+        if (spec.position && spec.position !== 'auto') {
+            position = spec.position;
+        } else if (spec.anchor) {
+            const anchorNode = nodes.find(n => n.id === spec.anchor);
+            if (anchorNode) {
+                const offset = spec.offset ?? 'below';
+                if (offset === 'below') {
+                    position = {
+                        x: anchorNode.position.x,
+                        y: anchorNode.position.y + (anchorNode.measured?.height || 200) + 50,
+                    };
+                } else if (offset === 'right') {
+                    position = {
+                        x: anchorNode.position.x + (anchorNode.measured?.width || 250) + 50,
+                        y: anchorNode.position.y,
+                    };
+                } else {
+                    // XYPosition offset
+                    position = {
+                        x: anchorNode.position.x + offset.x,
+                        y: anchorNode.position.y + offset.y,
+                    };
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 4: Get or Create Asset
+        // ─────────────────────────────────────────────────────────────────────
+        let assetId = spec.assetId;
+
+        if (!assetId) {
+            // Get node definition for create factory
+            const def = nodeRegistry.get(nodeType) || nodeRegistry.getByAlias(nodeType);
+            let createResult: any = null;
+
+            // Use create factory if available
+            if (def?.create) {
+                createResult = def.create({ data: spec.value, schema });
+            }
+
+            // Build asset config
+            const assetConfig = {
+                schema,
+                ...(spec.config || {}),
+                ...(createResult?.asset?.config || {}),
+            };
+
+            // Determine value to store (empty object for schema-only creation)
+            const assetValue = createResult?.asset?.value ?? spec.value ?? (valueType === 'array' ? [] : {});
+
+            // Create asset
+            assetId = this.engine.assets.create(
+                valueType,
+                assetValue,
+                {
+                    name,
+                    config: assetConfig,
+                    sys: createResult?.asset?.sys,
+                }
+            );
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 5: Create Node
+        // ─────────────────────────────────────────────────────────────────────
+        const meta = nodeRegistry.getMeta(nodeType);
+
+        const newNode: SynniaNode = {
+            id: uuidv4(),
+            type: nodeType,
+            position,
+            data: {
+                title: name,
+                state: 'idle',
+                assetId,
+                collapsed: spec.collapsed ?? false,
+                ...(spec.dockedTo ? { dockedTo: spec.dockedTo } : {}),
+                ...(spec.mode === 'reference' ? { isReference: true, originalNodeId: spec.referenceOf } : {}),
+            },
+            style: {
+                ...(meta?.style || {}),
+                ...(spec.style || {}),
+            },
+        };
+
+        this.engine.setNodes([...nodes, newNode]);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Step 6: Create connections if specified
+        // ─────────────────────────────────────────────────────────────────────
+        if (spec.outputEdgeFrom) {
+            this.engine.updateNode(newNode.id, {
+                data: { hasProductHandle: true }
+            });
+
+            this.engine.connectOutputEdge({
+                source: spec.outputEdgeFrom,
+                sourceHandle: 'product',
+                target: newNode.id,
+                targetHandle: 'origin',
+            });
+        }
+
+        if (spec.connectFrom) {
+            this.engine.updateNode(newNode.id, {
+                data: { hasProductHandle: true }
+            });
+
+            this.engine.connectOutputEdge({
+                source: spec.connectFrom.nodeId,
+                sourceHandle: spec.connectFrom.handle,
+                target: newNode.id,
+                targetHandle: 'origin',
+            });
+        }
+
+        return newNode.id;
+    }
+
+    /**
+     * Create multiple nodes in batch.
+     * Handles docking chain automatically when specs don't specify position.
+     *
+     * @returns Array of created node IDs
+     */
+    public createSmartBatch(specs: SmartNodeSpec[]): string[] {
+        const nodeIds: string[] = [];
+        let prevNodeId: string | null = null;
+
+        for (let i = 0; i < specs.length; i++) {
+            const spec = { ...specs[i] };
+
+            // Auto-dock to previous node if no position specified
+            if (i > 0 && !spec.position && !spec.anchor && prevNodeId) {
+                spec.anchor = prevNodeId;
+                spec.offset = 'below';
+                spec.dockedTo = prevNodeId;
+            }
+
+            const nodeId = this.createSmart(spec);
+            nodeIds.push(nodeId);
+            prevNodeId = nodeId;
+        }
+
+        // Fix docking layout
+        const updatedNodes = this.engine.layout.fixDockingLayout(this.engine.state.nodes);
+        this.engine.setNodes(updatedNodes);
+
+        return nodeIds;
     }
 }

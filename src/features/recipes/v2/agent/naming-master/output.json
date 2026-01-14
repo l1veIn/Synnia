@@ -1,0 +1,27 @@
+{
+    "node": "selector",
+    "title": "\u547d\u540d\u65b9\u6848 ({{count}}\u9879)",
+    "collapsed": false,
+    "schema": [
+        {
+            "key": "name",
+            "label": "\u540d\u79f0",
+            "type": "string"
+        },
+        {
+            "key": "tagline",
+            "label": "\u53e3\u53f7",
+            "type": "string"
+        },
+        {
+            "key": "rationale",
+            "label": "\u7406\u7531",
+            "type": "string"
+        },
+        {
+            "key": "style",
+            "label": "\u98ce\u683c",
+            "type": "string"
+        }
+    ]
+}

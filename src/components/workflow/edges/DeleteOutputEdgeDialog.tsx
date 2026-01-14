@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from 'react-i18next';
 
 interface DeleteOutputEdgeDialogProps {
     open: boolean;
@@ -29,6 +30,7 @@ export function DeleteOutputEdgeDialog({
     onConfirm,
     onCancel,
 }: DeleteOutputEdgeDialogProps) {
+    const { t } = useTranslation('common');
     const [dontAskAgain, setDontAskAgain] = useState(false);
 
     // Reset checkbox when dialog opens
@@ -42,12 +44,12 @@ export function DeleteOutputEdgeDialog({
         <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>解除产出关联</AlertDialogTitle>
+                    <AlertDialogTitle>{t('dialogs.deleteOutputEdge.title')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        确定要解除该节点与配方的产出关联吗？
+                        {t('dialogs.deleteOutputEdge.description')}
                         <br />
                         <span className="text-muted-foreground text-xs">
-                            节点本身不会被删除，仅移除产出连线。
+                            {t('dialogs.deleteOutputEdge.note')}
                         </span>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -62,17 +64,17 @@ export function DeleteOutputEdgeDialog({
                         htmlFor="dont-ask-again"
                         className="text-sm text-muted-foreground cursor-pointer"
                     >
-                        不再提示
+                        {t('dialogs.dontAskAgain')}
                     </Label>
                 </div>
 
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={onCancel}>取消</AlertDialogCancel>
+                    <AlertDialogCancel onClick={onCancel}>{t('actions.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                         onClick={() => onConfirm(dontAskAgain)}
                         className="bg-violet-600 hover:bg-violet-700"
                     >
-                        确定
+                        {t('actions.confirm')}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

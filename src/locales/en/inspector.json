@@ -1,47 +1,177 @@
 {
-    "dataEditor": {
-        "addRow": "Add Row",
-        "empty": "Empty",
-        "false": "False",
-        "item": "Item {{index}}",
-        "items_one": "{{count}} item",
-        "items_other": "{{count}} items",
-        "noRows": "No rows added yet.",
-        "object": "Object",
-        "saveChanges": "Save Changes",
-        "true": "True",
-        "unsaved": "Unsaved"
-    },
-    "empty": {
-        "noInspector": "No inspector available for this node"
-    },
-    "header": {
-        "propertiesFor": "Properties for",
-        "title": "Inspector",
-        "type": "Type"
-    },
-    "labels": {
-        "inputs": "Inputs",
-        "label": "Label",
-        "nodeLabel": "Node Label",
-        "outputs": "Outputs",
-        "transform": "Transform"
-    },
-    "panelTabs": {
-        "debug": "Debug",
-        "history": "History",
-        "props": "Props"
-    },
-    "schemaEditor": {
-        "clickToEdit": "Click \"Edit Schema\" to configure",
-        "done": "Done",
-        "editSchema": "Edit Schema",
-        "fieldsDefined_one": "{{count}} field defined",
-        "fieldsDefined_other": "{{count}} fields defined",
-        "json": "JSON",
-        "noFields": "No fields defined",
-        "required": "Req",
-        "split": "Split",
-        "visual": "Visual"
-    }
+  "assetNotFound": "Asset not found",
+  "changesDiscarded": "Changes discarded",
+  "changesSaved": "Changes saved",
+  "dataEditor": {
+    "addRow": "Add Row",
+    "empty": "Empty",
+    "false": "False",
+    "item": "Item {{index}}",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "noRows": "No rows added yet.",
+    "object": "Object",
+    "saveChanges": "Save Changes",
+    "true": "True",
+    "unsaved": "Unsaved"
+  },
+  "debug": {
+    "apply": "Apply",
+    "cannotChangeId": "Cannot change Node ID via Debugger",
+    "copied": "Copied to clipboard",
+    "copyJson": "Copy JSON",
+    "invalidJson": "Invalid JSON in {{title}}",
+    "noNode": "No node selected",
+    "resetChanges": "Reset Changes",
+    "updated": "{{title}} updated"
+  },
+  "empty": {
+    "noInspector": "No inspector available for this node"
+  },
+  "form": {
+    "discard": "Discard",
+    "dockedChain": "Docked",
+    "save": "Save",
+    "schema": "Schema",
+    "schemaLocked": "Schema locked",
+    "undockToEdit": "Undock to edit schema",
+    "unsaved": "Unsaved",
+    "values": "Values"
+  },
+  "formRenderer": {
+    "noFields": "No fields defined. Switch to Schema tab to build your form."
+  },
+  "header": {
+    "propertiesFor": "Properties for",
+    "title": "Inspector",
+    "type": "Type"
+  },
+  "history": {
+    "current": "Current",
+    "justNow": "Just now",
+    "loadError": "Failed to load version history",
+    "loading": "Loading history...",
+    "noAsset": "No asset selected",
+    "noHistory": "No version history yet",
+    "refresh": "Refresh",
+    "restoreError": "Failed to restore version",
+    "restoreSuccess": "Version restored successfully",
+    "saveToCreate": "Save changes to create history entries",
+    "title": "Version History",
+    "versions_one": "{{count}} version",
+    "versions_other": "{{count}} versions"
+  },
+  "labels": {
+    "inputs": "Inputs",
+    "label": "Label",
+    "nodeLabel": "Node Label",
+    "outputs": "Outputs",
+    "transform": "Transform"
+  },
+  "panelTabs": {
+    "debug": "Debug",
+    "history": "History",
+    "props": "Props"
+  },
+  "queue": {
+    "add": "Add",
+    "autoStart": "Auto Start",
+    "concurrency": "Concurrency",
+    "continueOnError": "Continue on Error",
+    "done": "Done",
+    "failed": "Failed",
+    "noTasks": "No tasks in queue",
+    "retryCount": "Retry Count",
+    "retryOnError": "Retry on Error",
+    "tasks_one": "{{count}} task",
+    "tasks_other": "{{count}} tasks",
+    "total": "Total"
+  },
+  "schemaEditor": {
+    "clickToEdit": "Click \"Edit Schema\" to configure",
+    "done": "Done",
+    "editSchema": "Edit Schema",
+    "fieldsDefined_one": "{{count}} field defined",
+    "fieldsDefined_other": "{{count}} fields defined",
+    "json": "JSON",
+    "noFields": "No fields defined",
+    "required": "Req",
+    "split": "Split",
+    "visual": "Visual"
+  },
+  "schemaVisual": {
+    "addField": "Add Field",
+    "both": "Both",
+    "bothNotSupported": "Both ports not supported",
+    "bothPorts": "Both Ports",
+    "clickAddField": "Click \"Add Field\" to start",
+    "configuration": "Configuration",
+    "connectionPorts": "Connection Ports",
+    "containerConfig": "Container Config",
+    "displayLabel": "Display Label",
+    "editNestedFields": "Edit Nested Fields",
+    "fieldBehavior": "Field Behavior",
+    "input": "Input",
+    "inputNotSupported": "Input not supported by this widget",
+    "inputPort": "Input Port",
+    "nestedEmpty": "This nested schema is empty",
+    "nestedFields": "Nested Fields",
+    "no": "No",
+    "none": "None",
+    "noPorts": "No Ports",
+    "output": "Output",
+    "outputNotSupported": "Output not supported by this widget",
+    "outputPort": "Output Port",
+    "requiredField": "Required Field",
+    "root": "Root",
+    "rootFields": "Root Fields",
+    "validation": "Validation",
+    "variableKey": "Variable Key",
+    "widgetType": "Widget Type",
+    "yes": "Yes"
+  },
+  "selector": {
+    "addedOptions_one": "{{count}} option added",
+    "addedOptions_other": "{{count}} options added",
+    "addOption": "Add Option",
+    "editOption": "Edit Option",
+    "multiple": "Multiple",
+    "noOptions": "No options defined",
+    "optionAdded": "Option added",
+    "optionDeleted": "Option deleted",
+    "options": "Options",
+    "optionUpdated": "Option updated",
+    "selectedOf": "{{selected}} of {{total}} selected",
+    "selectionMode": "Selection Mode",
+    "settings": "Settings",
+    "showSearch": "Show Search",
+    "single": "Single"
+  },
+  "text": {
+    "content": "Content",
+    "invalidJson": "Invalid JSON format",
+    "jsonFormatted": "JSON formatted",
+    "plain": "Plain"
+  },
+  "widget": {
+    "andMore_one": "...and {{count}} more",
+    "andMore_other": "...and {{count}} more",
+    "arrayConnected": "Array Connected",
+    "arrayInput": "Array Input",
+    "connectFormNode": "Connect a Form/JSON node",
+    "connectTableNode": "Connect a Table/Selector node",
+    "createFormNode": "Create Form Node",
+    "createTableNode": "Create Table Node",
+    "expectedFields": "Expected Fields",
+    "formNodeCreated": "Form node created",
+    "itemSchema": "Item Schema",
+    "keysCount_one": "{{count}} key",
+    "keysCount_other": "{{count}} keys",
+    "objectConnected": "Object Connected",
+    "objectInput": "Object Input",
+    "preview": "Preview",
+    "rowsCount_one": "{{count}} row",
+    "rowsCount_other": "{{count}} rows",
+    "tableNodeCreated": "Table node created"
+  }
 }

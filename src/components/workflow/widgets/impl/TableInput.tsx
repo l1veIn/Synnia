@@ -8,12 +8,14 @@ import { WidgetDefinition, WidgetProps, FieldContentProps } from '../lib/types';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 // ============================================================================
 // Inspector Component (render)
 // ============================================================================
 
 function InspectorComponent({ value, field }: WidgetProps) {
+    const { t } = useTranslation('inspector');
     // Get schema from field definition (describes array item structure)
     const schema = field?.schema || [];
     const isConnected = value !== undefined && value !== null;
@@ -38,11 +40,14 @@ function InspectorComponent({ value, field }: WidgetProps) {
     // Create node handler
     const handleCreateNode = () => {
         if (!schema || schema.length === 0) return;
-        const newNodeId = graphEngine.mutator.createNodeFromSchema('table', schema, {
-            title: field?.label || 'New Table',
+        const newNodeId = graphEngine.mutator.createSmart({
+            value: [],
+            schema,
+            node: 'table',
+            name: field?.label || 'New Table',
         });
         if (newNodeId) {
-            toast.success('Table node created');
+            toast.success(t('widget.tableNodeCreated'));
         }
     };
 
@@ -67,10 +72,10 @@ function InspectorComponent({ value, field }: WidgetProps) {
                             "text-xs font-medium",
                             allValid ? "text-green-600" : "text-yellow-600"
                         )}>
-                            Array Connected
+                            {t('widget.arrayConnected')}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                            {rowCount} row{rowCount !== 1 ? 's' : ''}
+                            {t('widget.rowsCount', { count: rowCount })}
                         </p>
                     </div>
                 </div>
@@ -98,7 +103,7 @@ function InspectorComponent({ value, field }: WidgetProps) {
                 {/* Data Preview */}
                 {rowCount > 0 && rowCount <= 5 && (
                     <div className="space-y-1 pt-1 border-t border-border/50">
-                        <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Preview</p>
+                        <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{t('widget.preview')}</p>
                         <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground max-h-20 overflow-y-auto">
                             {connectedValue.slice(0, 3).map((item, i) => (
                                 <div key={i} className="truncate bg-muted/50 px-1.5 py-0.5 rounded">
@@ -107,7 +112,7 @@ function InspectorComponent({ value, field }: WidgetProps) {
                             ))}
                             {rowCount > 3 && (
                                 <div className="text-muted-foreground/50 italic">
-                                    ...and {rowCount - 3} more
+                                    {t('widget.andMore', { count: rowCount - 3 })}
                                 </div>
                             )}
                         </div>
@@ -126,8 +131,8 @@ function InspectorComponent({ value, field }: WidgetProps) {
                     <Table2 className="h-3.5 w-3.5 text-green-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Array Input</p>
-                    <p className="text-[10px] text-muted-foreground/60">Connect a Table/Selector node</p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('widget.arrayInput')}</p>
+                    <p className="text-[10px] text-muted-foreground/60">{t('widget.connectTableNode')}</p>
                 </div>
             </div>
 
@@ -140,14 +145,14 @@ function InspectorComponent({ value, field }: WidgetProps) {
                     onClick={handleCreateNode}
                 >
                     <Plus className="h-3 w-3 mr-1" />
-                    Create Table Node
+                    {t('widget.createTableNode')}
                 </Button>
             )}
 
             {/* Expected Schema Preview */}
             {schema.length > 0 && (
                 <div className="space-y-1">
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Item Schema</p>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{t('widget.itemSchema')}</p>
                     <div className="flex flex-wrap gap-1">
                         {schema.map((f) => (
                             <span

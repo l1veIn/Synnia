@@ -44,7 +44,8 @@ export class AssetSystem {
             createdAt: now,
             updatedAt: now,
             source: options.source || 'user',
-            ...options.sys,  // Merge partial sys (e.g., isLibraryAsset: true)
+            isLibraryAsset: null,
+            ...options.sys,
         };
 
         // Build the asset based on valueType
@@ -73,11 +74,12 @@ export class AssetSystem {
         const now = Date.now();
 
         // Merge partial sys with defaults (allows passing partial sys like {isLibraryAsset: true})
-        const defaultSys = {
+        const defaultSys: AssetSysMetadata = {
             name: name || 'New Asset',
             createdAt: now,
             updatedAt: now,
             source: 'user' as const,
+            isLibraryAsset: null,
         };
 
         const newAsset: Asset = {

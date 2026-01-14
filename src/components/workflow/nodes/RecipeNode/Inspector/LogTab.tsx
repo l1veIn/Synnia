@@ -19,12 +19,14 @@ import {
     Clock,
     Zap,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface LogTabProps {
     nodeId?: string;
 }
 
 export function LogTab({ nodeId }: LogTabProps) {
+    const { t } = useTranslation('recipe');
     const { runs, isLoading, clearLogs, getLogEntries } = useRecipeLogs(nodeId);
     const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
     const [entries, setEntries] = useState<Record<string, LogEntry[]>>({});
@@ -109,8 +111,8 @@ export function LogTab({ nodeId }: LogTabProps) {
         return (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
                 <Clock className="h-8 w-8 mb-2 opacity-50" />
-                <p className="text-sm">No execution history</p>
-                <p className="text-xs">Run the recipe to see logs here</p>
+                <p className="text-sm">{t('log.noHistory')}</p>
+                <p className="text-xs">{t('log.runToSee')}</p>
             </div>
         );
     }
@@ -120,7 +122,7 @@ export function LogTab({ nodeId }: LogTabProps) {
             {/* Header */}
             <div className="px-4 py-2 border-b flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                    {runs.length} execution{runs.length > 1 ? 's' : ''}
+                    {t('log.executions', { count: runs.length })}
                 </span>
                 <Button
                     variant="ghost"
@@ -129,7 +131,7 @@ export function LogTab({ nodeId }: LogTabProps) {
                     onClick={() => clearLogs()}
                 >
                     <Trash2 className="h-3 w-3 mr-1" />
-                    Clear
+                    {t('log.clear')}
                 </Button>
             </div>
 
@@ -208,7 +210,7 @@ export function LogTab({ nodeId }: LogTabProps) {
                                     </div>
                                 ) : (
                                     <div className="p-4 text-xs text-muted-foreground text-center">
-                                        No detailed logs
+                                        {t('log.noDetailedLogs')}
                                     </div>
                                 )}
                             </div>

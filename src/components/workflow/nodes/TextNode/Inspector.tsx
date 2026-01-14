@@ -7,23 +7,31 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
+import { useTranslation } from 'react-i18next';
 
 export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
+    const { t } = useTranslation('inspector');
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const [localContent, setLocalContent] = useState('');
 
-    // Sync content when asset changes - now from asset.value
+    // Sync content when asset changes - read from asset.value.content
     useEffect(() => {
         if (asset) {
-            // Always treat content as string for local editing
-            const content = typeof asset.value === 'object'
-                ? JSON.stringify(asset.value, null, 2)
-                : String(asset.value || '');
+            // TextNode stores value as { content, format } - extract content field
+            const rawValue = asset.value;
+            let content = '';
+            if (rawValue && typeof rawValue === 'object' && 'content' in rawValue) {
+                content = String((rawValue as { content: unknown }).content || '');
+            } else if (typeof rawValue === 'string') {
+                content = rawValue;
+            } else if (rawValue !== null && rawValue !== undefined) {
+                content = JSON.stringify(rawValue, null, 2);
+            }
             setLocalContent(content);
         }
     }, [asset?.value]);
 
-    if (!asset) return <div className="p-4 text-xs text-muted-foreground">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs text-muted-foreground">{t('assetNotFound')}</div>;
 
     // Read editorMode from asset config
     const editorMode = ((asset.config as any)?.editorMode as string) || 'plain';
@@ -43,9 +51,9 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
             const formatted = JSON.stringify(parsed, null, 2);
             setLocalContent(formatted);
             // Format does not auto-save, user must click save
-            toast.success("JSON Formatted");
+            toast.success(t('text.jsonFormatted'));
         } catch (e) {
-            toast.error("Invalid JSON");
+            toast.error(t('text.invalidJson'));
         }
     };
 
@@ -55,7 +63,7 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
                 <Tabs value={editorMode} onValueChange={handleModeChange} className="w-full">
                     <TabsList className="grid w-full grid-cols-3 h-9">
                         <TabsTrigger value="plain" className="text-xs h-7">
-                            <FileText className="h-3 w-3 mr-2" /> Plain
+                            <FileText className="h-3 w-3 mr-2" /> {t('text.plain')}
                         </TabsTrigger>
                         <TabsTrigger value="markdown" className="text-xs h-7">
                             <FileType2 className="h-3 w-3 mr-2" /> MD
@@ -70,7 +78,7 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
             <div className="flex-1 p-4 min-h-0 flex flex-col space-y-4">
                 <div className="space-y-2 flex-1 flex flex-col min-h-0 relative">
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs text-muted-foreground">Content</Label>
+                        <Label className="text-xs text-muted-foreground">{t('text.content')}</Label>
                         <div className="flex items-center gap-1">
                             <AutoGenerateButton
                                 mode={editorMode === 'json' ? 'json-complete' : 'text'}
@@ -96,8 +104,12 @@ export const TextNodeInspector = ({ assetId }: { assetId: string }) => {
                         className="flex-1 border-0"
                         title={asset.sys?.name || 'Text Asset'}
                         onSave={(val) => {
-                            setValue(val);
-                            toast.success("Saved");
+                            // Preserve the { content, format } structure
+                            const currentValue = asset.value && typeof asset.value === 'object'
+                                ? asset.value as Record<string, unknown>
+                                : {};
+                            setValue({ ...currentValue, content: val });
+                            toast.success(t('changesSaved'));
                         }}
                     />
                 </div>

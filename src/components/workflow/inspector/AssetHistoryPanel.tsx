@@ -12,6 +12,7 @@ import { History, RotateCcw, Clock, Hash, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { useTranslation } from 'react-i18next';
 
 interface AssetHistoryPanelProps {
     assetId?: string;
@@ -19,6 +20,7 @@ interface AssetHistoryPanelProps {
 }
 
 export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) => {
+    const { t } = useTranslation('inspector');
     const [history, setHistory] = useState<AssetHistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [restoring, setRestoring] = useState<number | null>(null);
@@ -34,7 +36,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
             setHistory(entries);
         } catch (e) {
             console.error('Failed to load history:', e);
-            toast.error('Failed to load version history');
+            toast.error(t('history.loadError'));
         } finally {
             setLoading(false);
         }
@@ -55,13 +57,13 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
             // Update local store
             graphEngine.assets.update(assetId, restoredContent);
 
-            toast.success('Version restored successfully');
+            toast.success(t('history.restoreSuccess'));
 
             // Reload history
             await loadHistory();
         } catch (e) {
             console.error('Failed to restore version:', e);
-            toast.error('Failed to restore version');
+            toast.error(t('history.restoreError'));
         } finally {
             setRestoring(null);
         }
@@ -74,7 +76,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
         const diff = now.getTime() - timestamp;
 
         // Less than 1 minute
-        if (diff < 60000) return 'Just now';
+        if (diff < 60000) return t('history.justNow');
         // Less than 1 hour
         if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
         // Less than 24 hours
@@ -91,7 +93,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
         return (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
                 <History className="h-8 w-8 mb-3 opacity-50" />
-                <p className="text-xs text-center">No asset selected</p>
+                <p className="text-xs text-center">{t('history.noAsset')}</p>
             </div>
         );
     }
@@ -100,7 +102,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
         return (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin mb-2" />
-                <p className="text-xs">Loading history...</p>
+                <p className="text-xs">{t('history.loading')}</p>
             </div>
         );
     }
@@ -109,9 +111,9 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
         return (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
                 <History className="h-8 w-8 mb-3 opacity-50" />
-                <p className="text-xs text-center">No version history yet</p>
+                <p className="text-xs text-center">{t('history.noHistory')}</p>
                 <p className="text-[10px] text-center mt-1 opacity-70">
-                    Save changes to create history entries
+                    {t('history.saveToCreate')}
                 </p>
             </div>
         );
@@ -124,10 +126,10 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <History className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Version History</span>
+                        <span className="text-sm font-medium">{t('history.title')}</span>
                     </div>
                     <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full">
-                        {history.length} versions
+                        {t('history.versions', { count: history.length })}
                     </span>
                 </div>
             </div>
@@ -154,7 +156,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
                                         <span>{formatTime(entry.createdAt)}</span>
                                         {index === 0 && (
                                             <span className="text-[9px] bg-primary/20 text-primary px-1.5 py-0.5 rounded">
-                                                Current
+                                                {t('history.current')}
                                             </span>
                                         )}
                                     </div>
@@ -214,7 +216,7 @@ export const AssetHistoryPanel = ({ assetId, nodeId }: AssetHistoryPanelProps) =
                         className="h-6 text-[10px] px-2"
                         onClick={loadHistory}
                     >
-                        Refresh
+                        {t('history.refresh')}
                     </Button>
                 </div>
             </div>

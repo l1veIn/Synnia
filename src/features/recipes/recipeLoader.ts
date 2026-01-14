@@ -36,9 +36,8 @@ export function parseManifest(yamlContent: string): RecipeManifest {
 
 export interface PackageFiles {
     manifest: string;                  // manifest.yaml content
-    inputSchema?: string;              // input.schema.json content
-    outputConfig?: string;             // output.config.yaml content
-    outputSchema?: string;             // output.schema.json content
+    input?: string;                    // input.json content { schema: FieldDefinition[] }
+    output?: string;                   // output.json content { node, title, collapsed, schema }
     systemPrompt?: string;             // prompts/system.md content
     userPrompt?: string;               // prompts/user.md content
 }
@@ -46,10 +45,11 @@ export interface PackageFiles {
 export function loadRecipePackage(files: PackageFiles): RecipeManifest {
     const manifest = parseManifest(files.manifest);
 
-    // Load input schema from separate file
-    if (files.inputSchema) {
-        const inputFields = JSON.parse(files.inputSchema);
-        manifest.input = inputFields;
+    // Load input from unified input.json
+    if (files.input) {
+        const inputData = JSON.parse(files.input);
+        // Support both formats: { schema: [...] } or legacy [...]
+        manifest.input = Array.isArray(inputData) ? inputData : inputData.schema;
     }
 
     // Load prompts from separate files
@@ -60,20 +60,14 @@ export function loadRecipePackage(files: PackageFiles): RecipeManifest {
         };
     }
 
-    // Load output config from separate file
-    if (files.outputConfig) {
-        const outputConfig = parseYaml(files.outputConfig);
+    // Load output from unified output.json
+    if (files.output) {
+        const outputData = JSON.parse(files.output);
+        // Merge all output properties
         manifest.output = {
             ...manifest.output,
-            ...outputConfig,
+            ...outputData,
         };
-    }
-
-    // Load output schema from separate file
-    if (files.outputSchema) {
-        const outputFields = JSON.parse(files.outputSchema);
-        manifest.output = manifest.output || {} as any;
-        manifest.output.schema = outputFields;
     }
 
     return manifest;
@@ -113,186 +107,19 @@ export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefini
 }
 
 // ============================================================================
-// V2 Executor - Uses V2 manifest directly
+// V2 Executor - Uses new Executor Plugin System
 // ============================================================================
 
 import { ExecutionContext, ExecutionResult } from '@/types/recipe';
-import { callLLM } from '@features/models';
-import { interpolate } from './executors/utils';
-import { extractJson } from '@features/models/utils';
+import { ModelExecutor } from './executors/ModelExecutor';
 
 function createExecutor(manifest: RecipeManifest) {
     return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
-        const { inputs, modelConfig } = ctx;
-
-        // Determine model to use
-        const modelId = modelConfig?.modelId;
-        if (!modelId) {
-            return { success: false, error: 'No model selected' };
-        }
-
-        // Route by model category
-        const category = manifest.model.category;
-
-        if (category === 'image-generation' || category === 'video-generation') {
-            // Media execution path
-            return executeMedia(manifest, ctx, modelId);
-        } else {
-            // LLM execution path (default)
-            return executeLLM(manifest, ctx, modelId);
-        }
+        // Delegate to ModelExecutor (future: route based on manifest.executor?.type)
+        return ModelExecutor.execute(ctx);
     };
 }
 
-// ============================================================================
-// LLM Execution
-// ============================================================================
-
-async function executeLLM(
-    manifest: RecipeManifest,
-    ctx: ExecutionContext,
-    modelId: string
-): Promise<ExecutionResult> {
-    const { inputs, modelConfig, chatContext } = ctx;
-
-    // Build system prompt (supports {{variables}})
-    const systemPrompt = interpolate(manifest.prompt?.system || '', inputs);
-
-    // Build user prompt (first turn only if no chat context)
-    let userPrompt: string;
-    if (chatContext && chatContext.length > 0) {
-        // Multi-turn: use last user message or inputs
-        const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
-        userPrompt = lastUserMsg?.content || interpolate(manifest.prompt?.user || '', inputs);
-    } else {
-        // First turn: use template
-        userPrompt = interpolate(manifest.prompt?.user || '', inputs);
-    }
-
-    // Call LLM
-    // JSON mode: all nodes except 'text' expect JSON output
-    const isTextOutput = manifest.output.node === 'text';
-
-    // Call LLM
-    const llmResult = await callLLM({
-        modelId,
-        userPrompt,
-        systemPrompt,
-        temperature: modelConfig?.params?.temperature ?? manifest.model.defaultParams?.temperature,
-        maxTokens: modelConfig?.params?.maxTokens ?? manifest.model.defaultParams?.maxTokens,
-        jsonMode: !isTextOutput && (modelConfig?.params?.jsonMode !== false),
-    });
-
-    if (!llmResult.success) {
-        return { success: false, error: llmResult.error };
-    }
-
-    // Parse output
-    let data: any;
-    if (!isTextOutput) {
-        // All non-text nodes expect JSON
-        const parsed = extractJson(llmResult.text || '');
-        if (!parsed.success) {
-            return { success: false, error: 'Failed to parse JSON response' };
-        }
-        data = parsed.data;
-    } else {
-        // Text node: use raw text
-        data = llmResult.text || '';
-    }
-
-    return { success: true, data };
-}
-
-// ============================================================================
-// Media Execution (Image/Video Generation)
-// ============================================================================
-
-async function executeMedia(
-    manifest: RecipeManifest,
-    ctx: ExecutionContext,
-    modelId: string
-): Promise<ExecutionResult> {
-    const { inputs, modelConfig } = ctx;
-
-    try {
-        // Get the model plugin
-        const { getModel } = await import('@features/models');
-        const modelPlugin = getModel(modelId);
-        if (!modelPlugin) {
-            return { success: false, error: `Model not found: ${modelId}` };
-        }
-
-        // Get credentials from settings
-        const { getSettings, getProviderCredentials } = await import('@/lib/settings');
-        const settings = getSettings();
-        const provider = (modelConfig?.provider || modelPlugin.provider || (modelPlugin.supportedProviders || [])[0]) as import('@/lib/settings/types').ProviderKey;
-        const credentials = getProviderCredentials(settings, provider);
-
-        if (!credentials?.apiKey && !credentials?.baseUrl) {
-            return { success: false, error: `No credentials configured for ${provider}` };
-        }
-
-        // Extract inputs
-        const prompt = inputs.prompt || '';
-        const negativePrompt = inputs.negativePrompt;
-        const images = inputs.image ? [inputs.image] : undefined;
-
-        // Execute via model plugin
-        const modelResult = await modelPlugin.execute({
-            config: modelConfig?.params,
-            prompt,
-            negativePrompt,
-            images,
-            credentials: {
-                apiKey: credentials.apiKey || '',
-                baseUrl: credentials.baseUrl,
-            },
-        });
-
-        if (!modelResult.success) {
-            return { success: false, error: modelResult.error };
-        }
-
-        // Handle image output - prepare gallery data format
-        if (modelResult.data?.type === 'images' && modelResult.data.images) {
-            const { apiClient } = await import('@/lib/apiClient');
-
-            // Save images and return normalized gallery format
-            const galleryImages = await Promise.all(
-                modelResult.data.images.map(async (img: { url: string }, idx: number) => {
-                    const imageId = `gen-${Date.now()}-${idx}`;
-
-                    try {
-                        let result;
-                        if (img.url.startsWith('data:')) {
-                            result = await apiClient.saveProcessedImage(img.url);
-                        } else if (img.url.startsWith('http')) {
-                            result = await apiClient.downloadAndSaveImage(img.url);
-                        } else {
-                            return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
-                        }
-                        return { id: imageId, src: result.relativePath, starred: false, caption: prompt.slice(0, 50) };
-                    } catch (err) {
-                        console.error('Failed to save image:', err);
-                        return { id: imageId, src: img.url, starred: false, caption: prompt.slice(0, 50) };
-                    }
-                })
-            );
-
-            return { success: true, data: galleryImages };
-        }
-
-        // Handle video output
-        if (modelResult.data?.type === 'video' && modelResult.data.videoUrl) {
-            return { success: true, data: { videoUrl: modelResult.data.videoUrl } };
-        }
-
-        return { success: true, data: modelResult.data };
-    } catch (error: any) {
-        return { success: false, error: error.message || 'Media generation failed' };
-    }
-}
 
 // ============================================================================
 // Registry for V2 Recipes

@@ -8,12 +8,14 @@ import { WidgetDefinition, WidgetProps, FieldContentProps } from '../lib/types';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 // ============================================================================
 // Inspector Component (render)
 // ============================================================================
 
 function InspectorComponent({ value, field }: WidgetProps) {
+    const { t } = useTranslation('inspector');
     // Get schema from field definition
     const schema = field?.schema || [];
     const isConnected = value !== undefined && value !== null;
@@ -35,11 +37,14 @@ function InspectorComponent({ value, field }: WidgetProps) {
     // Create node handler
     const handleCreateNode = () => {
         if (!schema || schema.length === 0) return;
-        const newNodeId = graphEngine.mutator.createNodeFromSchema('form', schema, {
-            title: field?.label || 'New Form',
+        const newNodeId = graphEngine.mutator.createSmart({
+            value: {},
+            schema,
+            node: 'form',
+            name: field?.label || 'New Form',
         });
         if (newNodeId) {
-            toast.success('Form node created');
+            toast.success(t('widget.formNodeCreated'));
         }
     };
 
@@ -64,10 +69,10 @@ function InspectorComponent({ value, field }: WidgetProps) {
                             "text-xs font-medium",
                             allValid ? "text-green-600" : "text-yellow-600"
                         )}>
-                            Object Connected
+                            {t('widget.objectConnected')}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                            {Object.keys(connectedValue).length} keys
+                            {t('widget.keysCount', { count: Object.keys(connectedValue).length })}
                         </p>
                     </div>
                 </div>
@@ -110,8 +115,8 @@ function InspectorComponent({ value, field }: WidgetProps) {
                     <Braces className="h-3.5 w-3.5 text-blue-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Object Input</p>
-                    <p className="text-[10px] text-muted-foreground/60">Connect a Form/JSON node</p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('widget.objectInput')}</p>
+                    <p className="text-[10px] text-muted-foreground/60">{t('widget.connectFormNode')}</p>
                 </div>
             </div>
 
@@ -124,14 +129,14 @@ function InspectorComponent({ value, field }: WidgetProps) {
                     onClick={handleCreateNode}
                 >
                     <Plus className="h-3 w-3 mr-1" />
-                    Create Form Node
+                    {t('widget.createFormNode')}
                 </Button>
             )}
 
             {/* Expected Schema Preview */}
             {schema.length > 0 && (
                 <div className="space-y-1">
-                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">Expected Fields</p>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{t('widget.expectedFields')}</p>
                     <div className="flex flex-wrap gap-1">
                         {schema.map((f) => (
                             <span

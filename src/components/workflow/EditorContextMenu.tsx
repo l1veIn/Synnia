@@ -37,16 +37,13 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
 
   const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
 
-  const isShortcuttable = false;
-  // const isShortcuttable = targetNode && [NodeType.TEXT, NodeType.IMAGE, NodeType.JSON, NodeType.RECIPE].includes(targetNode.type as NodeType);
-
   const handleAddNode = (type: NodeType) => {
     if (contextMenuTarget?.position) {
       const position = screenToFlowPosition({
         x: contextMenuTarget.position.x,
         y: contextMenuTarget.position.y,
       });
-      graphEngine.mutator.addNode(type, position);
+      graphEngine.mutator.createSmart({ value: {}, node: type, position });
     }
   };
 
@@ -77,10 +74,12 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
                 })
                 : { x: 100, y: 100 };
 
-              graphEngine.mutator.addNode(NodeType.IMAGE, position, {
-                content: { src: result.relativePath, width: result.width, height: result.height },
-                assetName: file.name,
-                assetConfig: {
+              graphEngine.mutator.createSmart({
+                value: { src: result.relativePath, width: result.width, height: result.height },
+                node: 'image',
+                name: file.name,
+                position,
+                config: {
                   meta: {
                     width: result.width,
                     height: result.height,
@@ -172,12 +171,6 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     }
   };
 
-  const handleCreateShortcut = () => {
-    if (contextMenuTarget?.id) {
-      graphEngine.mutator.createShortcut(contextMenuTarget.id);
-    }
-  };
-
   const handleCopy = () => {
     if (contextMenuTarget?.id) {
       const node = nodes.find(n => n.id === contextMenuTarget.id);
@@ -200,7 +193,7 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     if (item.action === 'import-file') {
       handleAddImage();
     } else if (item.recipeId) {
-      graphEngine.mutator.addNode(`recipe:${item.recipeId}` as any, position);
+      graphEngine.mutator.createSmart({ value: {}, node: `recipe:${item.recipeId}`, position });
     } else if (item.nodeType) {
       handleAddNode(item.nodeType);
     }
@@ -246,9 +239,6 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
               <ContextMenuLabel>{t('contextMenu.nodeActions')}</ContextMenuLabel>
               <ContextMenuSeparator />
               <ContextMenuItem onSelect={handleDuplicate}>{t('contextMenu.duplicate')}</ContextMenuItem>
-              {isShortcuttable && (
-                <ContextMenuItem onSelect={handleCreateShortcut}>{t('contextMenu.createShortcut')}</ContextMenuItem>
-              )}
               <ContextMenuItem onSelect={handleCopy}>{t('contextMenu.copy')}</ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem

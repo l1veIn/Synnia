@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PanelProps } from './types';
 import { FieldDefinition, FieldType, WidgetType } from '@/types/assets';
 import { widgetRegistry, WidgetDefinition } from '@/components/workflow/widgets';
@@ -19,6 +20,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
+    const { t } = useTranslation('inspector');
     // Navigation State: stack of indices pointing to nested fields
     // [] = root
     // [0] = inside first field's schema (e.g. object property)
@@ -52,7 +54,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
 
     // Get breadcrumb items for display
     const breadcrumbs = useMemo(() => {
-        const items = [{ label: 'Root', path: [] as number[] }];
+        const items = [{ label: t('schemaVisual.root'), path: [] as number[] }];
         let current = schema;
         let currentPath: number[] = [];
 
@@ -171,10 +173,10 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                 <div className="flex items-center justify-between px-4 pb-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2">
                         {viewPath.length > 0 ? <CornerDownRight className="h-3 w-3" /> : null}
-                        {viewPath.length > 0 ? 'Nested Fields' : 'Root Fields'}
+                        {viewPath.length > 0 ? t('schemaVisual.nestedFields') : t('schemaVisual.rootFields')}
                     </Label>
                     <Button size="sm" onClick={handleAddField} className="h-6 text-xs bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90">
-                        <Plus className="h-3 w-3 mr-1" /> Add Field
+                        <Plus className="h-3 w-3 mr-1" /> {t('schemaVisual.addField')}
                     </Button>
                 </div>
             </div>
@@ -252,7 +254,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                     <div className="flex items-center justify-between p-2 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-md mb-2">
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                             <FolderTree className="h-3.5 w-3.5 text-blue-500" />
-                                            <span>Container Config</span>
+                                            <span>{t('schemaVisual.containerConfig')}</span>
                                         </div>
                                         <Button
                                             size="sm"
@@ -260,7 +262,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                             className="h-6 text-xs gap-1.5 bg-background border shadow-sm hover:text-primary"
                                             onClick={() => setViewPath([...viewPath, index])}
                                         >
-                                            Edit Nested Fields <ArrowRight className="h-3 w-3" />
+                                            {t('schemaVisual.editNestedFields')} <ArrowRight className="h-3 w-3" />
                                         </Button>
                                     </div>
                                 )}
@@ -268,7 +270,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                 {/* Row 1: Key, Label, Widget */}
                                 <div className="grid grid-cols-12 gap-3">
                                     <div className="col-span-4 space-y-1.5">
-                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Variable Key</Label>
+                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{t('schemaVisual.variableKey')}</Label>
                                         <Input
                                             className="h-8 text-xs font-mono bg-background"
                                             value={field.key}
@@ -277,7 +279,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                         />
                                     </div>
                                     <div className="col-span-4 space-y-1.5">
-                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Display Label</Label>
+                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{t('schemaVisual.displayLabel')}</Label>
                                         <Input
                                             className="h-8 text-xs bg-background"
                                             value={field.label}
@@ -286,7 +288,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                         />
                                     </div>
                                     <div className="col-span-4 space-y-1.5">
-                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Widget Type</Label>
+                                        <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{t('schemaVisual.widgetType')}</Label>
                                         <Select
                                             value={field.widget || 'text'}
                                             onValueChange={(v) => handleWidgetChange(index, v)}
@@ -324,13 +326,13 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                 <div className="grid grid-cols-1 gap-3 pt-1">
                                     <div className="flex flex-col gap-2">
                                         <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5 border-b pb-1">
-                                            <Link2 className="h-3 w-3" /> Field Behavior
+                                            <Link2 className="h-3 w-3" /> {t('schemaVisual.fieldBehavior')}
                                         </Label>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             {/* Connection Settings */}
                                             <div className="space-y-1.5">
-                                                <Label className="text-[10px] text-muted-foreground">Connection Ports</Label>
+                                                <Label className="text-[10px] text-muted-foreground">{t('schemaVisual.connectionPorts')}</Label>
                                                 <ToggleGroup
                                                     type="single"
                                                     size="sm"
@@ -338,39 +340,39 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                                     onValueChange={(val) => updateFieldLocal(index, { connection: val === 'none' ? undefined : val as any })}
                                                     className="justify-start inline-flex border rounded-md p-0.5 bg-background h-8 w-full"
                                                 >
-                                                    <ToggleGroupItem value="none" className="flex-1 h-7 text-[10px] data-[state=on]:bg-muted" title="No Ports">
-                                                        None
+                                                    <ToggleGroupItem value="none" className="flex-1 h-7 text-[10px] data-[state=on]:bg-muted" title={t('schemaVisual.noPorts')}>
+                                                        {t('schemaVisual.none')}
                                                     </ToggleGroupItem>
                                                     <ToggleGroupItem
                                                         value="input"
                                                         disabled={!widgetDef?.meta?.supportsInput}
                                                         className="flex-1 h-7 text-[10px] data-[state=on]:bg-primary/10 data-[state=on]:text-primary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title={widgetDef?.meta?.supportsInput ? "Input Port" : "Input not supported by this widget"}
+                                                        title={widgetDef?.meta?.supportsInput ? t('schemaVisual.inputPort') : t('schemaVisual.inputNotSupported')}
                                                     >
-                                                        Input
+                                                        {t('schemaVisual.input')}
                                                     </ToggleGroupItem>
                                                     <ToggleGroupItem
                                                         value="output"
                                                         disabled={!widgetDef?.meta?.supportsOutput}
                                                         className="flex-1 h-7 text-[10px] data-[state=on]:bg-orange-500/10 data-[state=on]:text-orange-600 hover:text-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title={widgetDef?.meta?.supportsOutput ? "Output Port" : "Output not supported by this widget"}
+                                                        title={widgetDef?.meta?.supportsOutput ? t('schemaVisual.outputPort') : t('schemaVisual.outputNotSupported')}
                                                     >
-                                                        Output
+                                                        {t('schemaVisual.output')}
                                                     </ToggleGroupItem>
                                                     <ToggleGroupItem
                                                         value="both"
                                                         disabled={!widgetDef?.meta?.supportsInput || !widgetDef?.meta?.supportsOutput}
                                                         className="flex-1 h-7 text-[10px] data-[state=on]:bg-blue-500/10 data-[state=on]:text-blue-600 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title={(!widgetDef?.meta?.supportsInput || !widgetDef?.meta?.supportsOutput) ? "Both ports not supported" : "Both Ports"}
+                                                        title={(!widgetDef?.meta?.supportsInput || !widgetDef?.meta?.supportsOutput) ? t('schemaVisual.bothNotSupported') : t('schemaVisual.bothPorts')}
                                                     >
-                                                        Both
+                                                        {t('schemaVisual.both')}
                                                     </ToggleGroupItem>
                                                 </ToggleGroup>
                                             </div>
 
                                             {/* Validation */}
                                             <div className="space-y-1.5">
-                                                <Label className="text-[10px] text-muted-foreground">Validation</Label>
+                                                <Label className="text-[10px] text-muted-foreground">{t('schemaVisual.validation')}</Label>
                                                 <div className="flex items-center gap-2 h-8 border rounded-md px-3 bg-background">
                                                     <Switch
                                                         id={`req-${index}`}
@@ -379,7 +381,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                                         className="scale-75 origin-left"
                                                     />
                                                     <Label htmlFor={`req-${index}`} className="text-xs cursor-pointer font-normal">
-                                                        Required Field
+                                                        {t('schemaVisual.requiredField')}
                                                     </Label>
                                                 </div>
                                             </div>
@@ -391,7 +393,7 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                 {widgetDef?.configSchema && widgetDef.configSchema.length > 0 && (
                                     <div className="space-y-2 pt-2 border-t border-dashed">
                                         <Label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                                            {widgetDef.meta?.label} Configuration
+                                            {widgetDef.meta?.label} {t('schemaVisual.configuration')}
                                         </Label>
                                         <div className="grid grid-cols-2 gap-x-4 gap-y-3 p-3 rounded-md border bg-background/50">
                                             {widgetDef.configSchema.map(configField => (
@@ -413,8 +415,8 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                                                         >
                                                             <SelectTrigger className="h-7 text-xs bg-background"><SelectValue /></SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="true">Yes</SelectItem>
-                                                                <SelectItem value="false">No</SelectItem>
+                                                                <SelectItem value="true">{t('schemaVisual.yes')}</SelectItem>
+                                                                <SelectItem value="false">{t('schemaVisual.no')}</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     ) : configField.widget === 'tags' || configField.type === 'array' ? (
@@ -449,9 +451,9 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
                         <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
                             <Plus className="h-6 w-6 opacity-30" />
                         </div>
-                        <p className="text-sm font-medium">No fields defined</p>
+                        <p className="text-sm font-medium">{t('schemaEditor.noFields')}</p>
                         <p className="text-xs opacity-60 mt-1">
-                            {viewPath.length === 0 ? 'Click "Add Field" to start' : 'This nested schema is empty'}
+                            {viewPath.length === 0 ? t('schemaVisual.clickAddField') : t('schemaVisual.nestedEmpty')}
                         </p>
                     </div>
                 )}

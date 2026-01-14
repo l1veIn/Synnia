@@ -2,24 +2,41 @@
   "actions": {
     "back": "Back",
     "cancel": "Cancel",
+    "confirm": "Confirm",
     "delete": "Delete"
   },
   "app": {
     "title": "Synnia"
   },
-  "demo": {
-    "desc": "A second page to prove router wiring works. Add your own routes here.",
-    "tabs": {
-      "content_one": "This is tab one content.",
-      "content_two": "This is tab two content.",
-      "content_three": "This is tab three content.",
-      "desc": "Shadcn tabs wired to i18n.",
-      "one": "Tab One",
-      "three": "Tab Three",
-      "title": "Tabs example",
-      "two": "Tab Two"
-    },
-    "title": "Routing demonstration"
+  "common": {
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes"
+  },
+  "dashboard": {
+    "aboutToDelete": "You are about to delete:",
+    "createProject": "Create Project",
+    "deleteConfirmTitle": "Wait! Are you sure?!",
+    "deleteFailed": "Failed to delete: {{error}}",
+    "deleteForever": "Yes, Delete Forever",
+    "deleteWarning": "This action is permanent. The files will be lost forever (a long time!).",
+    "githubSubtitle": "Star us & Contribute!",
+    "githubTitle": "Synnia GitHub",
+    "importFolder": "Import Folder",
+    "keepIt": "No, keep it!",
+    "name": "Name",
+    "newProject": "New Project",
+    "noProjects": "No projects found",
+    "noProjectsDescription": "Oops, looks like we got lost in the cloud! Let's find our way back by creating your first universe.",
+    "openProject": "Open Existing Project",
+    "projects": "Projects",
+    "recentProjects": "Recent Projects",
+    "renameDescription": "Enter a new name for your project. This will rename the folder on disk.",
+    "renameFailed": "Failed to rename: {{error}}",
+    "renameProject": "Rename Project",
+    "waitSeconds_one": "Wait ({{count}}s)",
+    "waitSeconds_other": "Wait ({{count}}s)",
+    "welcomeSubtitle": "Ready to weave some digital magic?",
+    "welcomeTitle": "Welcome back, Creator."
   },
   "dialogs": {
     "assetLibrary": {
@@ -44,9 +61,15 @@
       "addSelected": "Add Selected",
       "noAssets": "No {{type}} assets found",
       "search": "Search assets...",
-      "selected_one": "dialogs.assetPicker.selected",
-      "selected_other": "dialogs.assetPicker.selected"
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
     },
+    "deleteOutputEdge": {
+      "description": "Are you sure you want to disconnect this node from the recipe output?",
+      "note": "The node itself will not be deleted, only the output connection.",
+      "title": "Disconnect Output"
+    },
+    "dontAskAgain": "Don't ask again",
     "newProject": {
       "changeLocation": "Change Location",
       "created": "Project created!",

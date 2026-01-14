@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface InspectorProps {
     assetId: string;
@@ -17,6 +18,7 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
+    const { t } = useTranslation('inspector');
     const { asset, setValue } = useAsset(assetId);
 
     // Get saved content - handle both array and QueueAssetContent formats
@@ -111,7 +113,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
             continueOnError: draftContinueOnError,
             tasks: draftTasks,
         });
-        toast.success('Changes saved');
+        toast.success(t('changesSaved'));
     };
 
     // Discard
@@ -122,7 +124,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setDraftRetryCount(savedContent.retryCount);
         setDraftContinueOnError(savedContent.continueOnError);
         setDraftTasks(savedContent.tasks);
-        toast.info('Changes discarded');
+        toast.info(t('changesDiscarded'));
     };
 
     // Task operations
@@ -143,7 +145,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setDraftTasks(draftTasks.filter(t => t.id !== taskId));
     };
 
-    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs">{t('assetNotFound')}</div>;
 
     const completedCount = savedContent.tasks.filter(t => t.status === 'success').length;
     const errorCount = savedContent.tasks.filter(t => t.status === 'error').length;
@@ -154,7 +156,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {/* Concurrency */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Concurrency</Label>
+                        <Label className="text-xs">{t('queue.concurrency')}</Label>
                         <span className="text-xs text-muted-foreground">{draftConcurrency}</span>
                     </div>
                     <Slider
@@ -169,14 +171,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {/* Toggles */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Auto Start</Label>
+                        <Label className="text-xs">{t('queue.autoStart')}</Label>
                         <Switch
                             checked={draftAutoStart}
                             onCheckedChange={setDraftAutoStart}
                         />
                     </div>
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Retry on Error</Label>
+                        <Label className="text-xs">{t('queue.retryOnError')}</Label>
                         <Switch
                             checked={draftRetryOnError}
                             onCheckedChange={setDraftRetryOnError}
@@ -184,7 +186,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     </div>
                     {draftRetryOnError && (
                         <div className="flex items-center justify-between pl-4">
-                            <Label className="text-xs text-muted-foreground">Retry Count</Label>
+                            <Label className="text-xs text-muted-foreground">{t('queue.retryCount')}</Label>
                             <Input
                                 type="number"
                                 value={draftRetryCount}
@@ -196,7 +198,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         </div>
                     )}
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Continue on Error</Label>
+                        <Label className="text-xs">{t('queue.continueOnError')}</Label>
                         <Switch
                             checked={draftContinueOnError}
                             onCheckedChange={setDraftContinueOnError}
@@ -209,7 +211,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {/* Tasks */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Tasks ({draftTasks.length})</Label>
+                        <Label className="text-xs">{t('queue.tasks', { count: draftTasks.length })}</Label>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -217,7 +219,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                             onClick={addTask}
                         >
                             <Plus className="h-3.5 w-3.5 mr-1" />
-                            Add
+                            {t('queue.add')}
                         </Button>
                     </div>
 
@@ -246,7 +248,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                         {draftTasks.length === 0 && (
                             <div className="text-xs text-muted-foreground text-center py-4 border rounded-md border-dashed">
-                                No tasks
+                                {t('queue.noTasks')}
                             </div>
                         )}
                     </div>
@@ -257,15 +259,15 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     <div className="grid grid-cols-3 gap-2 text-xs text-center">
                         <div className="p-2 rounded bg-muted/30">
                             <div className="font-medium">{savedContent.tasks.length}</div>
-                            <div className="text-muted-foreground text-[10px]">Total</div>
+                            <div className="text-muted-foreground text-[10px]">{t('queue.total')}</div>
                         </div>
                         <div className="p-2 rounded bg-green-500/10">
                             <div className="font-medium text-green-600">{completedCount}</div>
-                            <div className="text-muted-foreground text-[10px]">Done</div>
+                            <div className="text-muted-foreground text-[10px]">{t('queue.done')}</div>
                         </div>
                         <div className="p-2 rounded bg-red-500/10">
                             <div className="font-medium text-red-600">{errorCount}</div>
-                            <div className="text-muted-foreground text-[10px]">Failed</div>
+                            <div className="text-muted-foreground text-[10px]">{t('queue.failed')}</div>
                         </div>
                     </div>
                 </div>
@@ -277,14 +279,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     {hasChanges && (
                         <span className="text-amber-600 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            Unsaved
+                            {t('form.unsaved')}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     {hasChanges && (
                         <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
-                            Discard
+                            {t('form.discard')}
                         </Button>
                     )}
                     <Button
@@ -295,7 +297,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         disabled={!hasChanges}
                     >
                         <Save className="h-3.5 w-3.5" />
-                        Save
+                        {t('form.save')}
                     </Button>
                 </div>
             </div>

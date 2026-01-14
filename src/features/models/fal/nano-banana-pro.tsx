@@ -154,7 +154,7 @@ async function executeFal(input: ModelExecutionInput): Promise<ModelExecutionRes
 
         return {
             success: true,
-            data: { type: 'images', images },
+            images,
         };
     } catch (error: any) {
         return {
@@ -239,14 +239,11 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
                 if (part.inlineData?.data) {
                     return {
                         success: true,
-                        data: {
-                            type: 'images',
-                            images: [{
-                                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                                width: 1024,
-                                height: 1024,
-                            }]
-                        }
+                        images: [{
+                            url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                            width: 1024,
+                            height: 1024,
+                        }]
                     };
                 }
             }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -11,7 +12,7 @@ import { SynniaIcon } from "@/components/SynniaIcon";
 import { SynniaSticker } from "@/components/SynniaSticker";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { apiClient } from '@/lib/apiClient'; // Use our wrapper
+import { apiClient } from '@/lib/apiClient';
 
 interface RecentProject {
     name: string;
@@ -95,6 +96,7 @@ function ProjectCard({ project, onClick, onDelete, onRename }: { project: Recent
 }
 
 export default function Dashboard() {
+    const { t } = useTranslation('common');
     const [recents, setRecents] = useState<RecentProject[]>([]);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -108,7 +110,6 @@ export default function Dashboard() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Use Mock API
         apiClient.invoke<RecentProject[]>('get_recent_projects').then(setRecents).catch(console.error);
     }, []);
 
@@ -137,7 +138,7 @@ export default function Dashboard() {
             const selected = await open({
                 directory: true,
                 multiple: false,
-                title: "Open Existing Project"
+                title: t('dashboard.openProject')
             });
             if (selected && typeof selected === 'string') {
                 await openProject(selected);
@@ -162,7 +163,7 @@ export default function Dashboard() {
             setProjectToDelete(null);
         } catch (e) {
             console.error(e);
-            alert(`Failed to delete: ${e}`);
+            alert(t('dashboard.deleteFailed', { error: e }));
         }
     };
 
@@ -180,7 +181,7 @@ export default function Dashboard() {
             setProjectToRename(null);
         } catch (e) {
             console.error(e);
-            alert(`Failed to rename: ${e}`);
+            alert(t('dashboard.renameFailed', { error: e }));
         }
     };
 
@@ -196,25 +197,25 @@ export default function Dashboard() {
             <Dialog open={!!projectToRename} onOpenChange={(open) => !open && setProjectToRename(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Rename Project</DialogTitle>
+                        <DialogTitle>{t('dashboard.renameProject')}</DialogTitle>
                         <DialogDescription>
-                            Enter a new name for your project. This will rename the folder on disk.
+                            {t('dashboard.renameDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="name" className="text-right">Name</Label>
+                            <Label htmlFor="name" className="text-right">{t('dashboard.name')}</Label>
                             <Input id="name" value={newName} onChange={(e) => setNewName(e.target.value)} className="col-span-3" autoFocus />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setProjectToRename(null)}>Cancel</Button>
-                        <Button type="submit" onClick={handleRenameProject}>Save Changes</Button>
+                        <Button variant="outline" onClick={() => setProjectToRename(null)}>{t('common.cancel')}</Button>
+                        <Button type="submit" onClick={handleRenameProject}>{t('common.saveChanges')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Exaggerated Delete Dialog */}
+            {/* Delete Dialog */}
             <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
                 <DialogContent className="sm:max-w-[425px] border-destructive/50 shadow-2xl shadow-destructive/20">
                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 bg-background rounded-full border-4 border-destructive flex items-center justify-center shadow-lg z-20">
@@ -223,17 +224,17 @@ export default function Dashboard() {
 
                     <DialogHeader className="pt-10 text-center space-y-4">
                         <DialogTitle className="text-2xl font-black text-destructive tracking-tight uppercase">
-                            Wait! Are you sure?!
+                            {t('dashboard.deleteConfirmTitle')}
                         </DialogTitle>
                         <DialogDescription className="text-base space-y-2">
                             <span className="block text-foreground font-medium">
-                                You are about to delete:
+                                {t('dashboard.aboutToDelete')}
                             </span>
                             <code className="block p-2 bg-muted rounded text-xs break-all font-mono border border-border">
                                 {projectToDelete}
                             </code>
                             <span className="block text-destructive/80 text-sm">
-                                This action is <b>permanent</b>. The files will be lost forever (a long time!).
+                                {t('dashboard.deleteWarning')}
                             </span>
                         </DialogDescription>
                     </DialogHeader>
@@ -244,7 +245,7 @@ export default function Dashboard() {
                             className="w-full sm:w-auto"
                             onClick={() => setProjectToDelete(null)}
                         >
-                            No, keep it!
+                            {t('dashboard.keepIt')}
                         </Button>
                         <Button
                             variant="destructive"
@@ -252,7 +253,7 @@ export default function Dashboard() {
                             onClick={confirmDelete}
                             disabled={countdown > 0}
                         >
-                            {countdown > 0 ? `Wait (${countdown}s)` : 'Yes, Delete Forever'}
+                            {countdown > 0 ? t('dashboard.waitSeconds', { count: countdown }) : t('dashboard.deleteForever')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -274,7 +275,7 @@ export default function Dashboard() {
                 <nav className="space-y-2 flex-1 min-h-0 overflow-y-auto">
                     <Button variant="ghost" className="w-full justify-start">
                         <FolderOpen className="w-4 h-4 mr-3 opacity-70" />
-                        Projects
+                        {t('dashboard.projects')}
                     </Button>
                 </nav>
 
@@ -288,8 +289,8 @@ export default function Dashboard() {
                                 <Github className="w-5 h-5" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium">Synnia GitHub</p>
-                                <p className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">Star us & Contribute!</p>
+                                <p className="text-sm font-medium">{t('dashboard.githubTitle')}</p>
+                                <p className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors">{t('dashboard.githubSubtitle')}</p>
                             </div>
                         </div>
                     </div>
@@ -302,8 +303,8 @@ export default function Dashboard() {
                     {/* Hero Header */}
                     <div className="mb-12 flex items-end justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold mb-2 text-foreground">Welcome back, Creator.</h1>
-                            <p className="text-muted-foreground">Ready to weave some digital magic?</p>
+                            <h1 className="text-3xl font-bold mb-2 text-foreground">{t('dashboard.welcomeTitle')}</h1>
+                            <p className="text-muted-foreground">{t('dashboard.welcomeSubtitle')}</p>
                         </div>
                         <div className="flex gap-3">
                             <Button
@@ -311,14 +312,14 @@ export default function Dashboard() {
                                 onClick={handleImport}
                                 className="h-12"
                             >
-                                Import Folder
+                                {t('dashboard.importFolder')}
                             </Button>
                             <Button
                                 onClick={() => setIsCreateOpen(true)}
                                 className="px-6 h-12 text-base shadow-lg shadow-primary/20"
                             >
                                 <Plus className="w-5 h-5 mr-2" />
-                                New Project
+                                {t('dashboard.newProject')}
                             </Button>
                         </div>
                     </div>
@@ -326,7 +327,7 @@ export default function Dashboard() {
                     {/* Recent Projects Grid */}
                     <div className="mb-6 flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
                         <Clock className="w-4 h-4" />
-                        Recent Projects
+                        {t('dashboard.recentProjects')}
                     </div>
 
                     {recents.length === 0 ? (
@@ -338,12 +339,12 @@ export default function Dashboard() {
                             <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
                                 <FolderOpen className="w-8 h-8 text-muted-foreground" />
                             </div>
-                            <h3 className="text-xl font-medium mb-2">No projects found</h3>
+                            <h3 className="text-xl font-medium mb-2">{t('dashboard.noProjects')}</h3>
                             <p className="text-muted-foreground max-w-md mb-6">
-                                "Oops, looks like we got lost in the cloud! Let's find our way back by creating your first universe."
+                                {t('dashboard.noProjectsDescription')}
                             </p>
                             <Button variant="outline">
-                                Create Project
+                                {t('dashboard.createProject')}
                             </Button>
                         </div>
                     ) : (

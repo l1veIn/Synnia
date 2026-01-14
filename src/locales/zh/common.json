@@ -2,24 +2,40 @@
   "actions": {
     "back": "返回",
     "cancel": "取消",
+    "confirm": "确定",
     "delete": "删除"
   },
   "app": {
     "title": "Synnia"
   },
-  "demo": {
-    "desc": "第二个页面用于验证路由正常，可在此扩展你的功能。",
-    "tabs": {
-      "content_one": "这里是标签一的内容。",
-      "content_two": "这里是标签二的内容。",
-      "content_three": "这里是标签三的内容。",
-      "desc": "基于 Shadcn 的标签页 + i18n。",
-      "one": "标签一",
-      "three": "标签三",
-      "title": "Tabs 示例",
-      "two": "标签二"
-    },
-    "title": "路由示例页面"
+  "common": {
+    "cancel": "取消",
+    "saveChanges": "保存更改"
+  },
+  "dashboard": {
+    "aboutToDelete": "您即将删除：",
+    "createProject": "创建项目",
+    "deleteConfirmTitle": "等等！确定要删除吗？！",
+    "deleteFailed": "删除失败：{{error}}",
+    "deleteForever": "是的，永久删除",
+    "deleteWarning": "此操作不可撤销。文件将被永久删除（很长一段时间！）。",
+    "githubSubtitle": "点个 Star 并参与贡献！",
+    "githubTitle": "Synnia GitHub",
+    "importFolder": "导入文件夹",
+    "keepIt": "不，保留它！",
+    "name": "名称",
+    "newProject": "新建项目",
+    "noProjects": "没有找到项目",
+    "noProjectsDescription": "糟糕，看起来我们在云端迷路了！让我们创建你的第一个宇宙，开启新的旅程吧。",
+    "openProject": "打开项目",
+    "projects": "项目",
+    "recentProjects": "最近项目",
+    "renameDescription": "为您的项目输入新名称。这将重命名磁盘上的文件夹。",
+    "renameFailed": "重命名失败：{{error}}",
+    "renameProject": "重命名项目",
+    "waitSeconds_other": "等待 ({{count}}s)",
+    "welcomeSubtitle": "准备好编织数字魔法了吗？",
+    "welcomeTitle": "欢迎回来，创作者。"
   },
   "dialogs": {
     "assetLibrary": {
@@ -44,8 +60,14 @@
       "addSelected": "添加所选",
       "noAssets": "未找到 {{type}} 类型的资源",
       "search": "搜索资源...",
-      "selected_other": "dialogs.assetPicker.selected"
+      "selected_other": "已选 {{count}} 项"
     },
+    "deleteOutputEdge": {
+      "description": "确定要解除该节点与配方的产出关联吗？",
+      "note": "节点本身不会被删除，仅移除产出连线。",
+      "title": "解除产出关联"
+    },
+    "dontAskAgain": "不再提示",
     "newProject": {
       "changeLocation": "更改位置",
       "created": "项目已创建！",

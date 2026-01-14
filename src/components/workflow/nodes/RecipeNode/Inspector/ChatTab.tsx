@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useChatContext } from '@/hooks/useChatContext';
 import { useRunRecipe } from '@/hooks/useRunRecipe';
 import { ChatBoxDialog } from './ChatBoxDialog';
+import { useTranslation } from 'react-i18next';
 
 export interface ChatTabProps {
     nodeId?: string;
@@ -21,6 +22,7 @@ export interface ChatTabProps {
 }
 
 export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
+    const { t } = useTranslation('recipe');
     const { messages, isLoading, refresh } = useChatContext(nodeId);
     const { runRecipeWithChat } = useRunRecipe();
     const [inputValue, setInputValue] = useState('');
@@ -100,11 +102,11 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
 
                 // Array: render as simple table
                 if (Array.isArray(data)) {
-                    if (data.length === 0) return <span className="text-muted-foreground text-xs">Empty array</span>;
+                    if (data.length === 0) return <span className="text-muted-foreground text-xs">{t('chat.emptyArray')}</span>;
                     const keys = Object.keys(data[0] || {});
                     return (
                         <div className="text-xs overflow-x-auto">
-                            <div className="text-muted-foreground mb-1">[{data.length} items]</div>
+                            <div className="text-muted-foreground mb-1">[{data.length} {t('chat.items')}]</div>
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr>
@@ -128,7 +130,7 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                                 </tbody>
                             </table>
                             {data.length > 3 && (
-                                <div className="text-muted-foreground mt-1">...and {data.length - 3} more</div>
+                                <div className="text-muted-foreground mt-1">...{t('chat.andMore', { count: data.length - 3 })}</div>
                             )}
                         </div>
                     );
@@ -146,7 +148,7 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                                 </div>
                             ))}
                             {entries.length > 5 && (
-                                <div className="text-muted-foreground">...and {entries.length - 5} more fields</div>
+                                <div className="text-muted-foreground">...{t('chat.andMoreFields', { count: entries.length - 5 })}</div>
                             )}
                         </div>
                     );
@@ -179,7 +181,7 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                 <div className="space-y-3">
                     {displayMessages.length === 0 ? (
                         <div className="text-center text-muted-foreground text-xs py-8">
-                            No messages yet. Run the recipe to start a conversation.
+                            {t('chat.noMessages')}
                         </div>
                     ) : (
                         displayMessages.map((message) => (
@@ -204,7 +206,7 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                         <div className="p-2.5 rounded-lg max-w-[85%] bg-muted text-sm">
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                <span>AI thinking...</span>
+                                <span>{t('chat.aiThinking')}</span>
                             </div>
                         </div>
                     )}
@@ -219,7 +221,7 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                     size="icon"
                     className="h-8 w-8 shrink-0"
                     onClick={() => setDialogOpen(true)}
-                    title="Open full chat"
+                    title={t('chat.openFull')}
                     disabled={messages.length === 0}
                 >
                     <Maximize2 className="h-4 w-4" />
@@ -233,10 +235,10 @@ export function ChatTab({ nodeId, recipeId, disabled = false }: ChatTabProps) {
                     onKeyDown={handleKeyDown}
                     placeholder={
                         messages.length === 0
-                            ? "Please run recipe first..."
+                            ? t('chat.runRecipeFirst')
                             : isExecuting
-                                ? "AI thinking..."
-                                : "Send message to continue..."
+                                ? t('chat.aiThinking')
+                                : t('chat.sendToContinue')
                     }
                     disabled={disabled || isExecuting || messages.length === 0}
                     rows={1}

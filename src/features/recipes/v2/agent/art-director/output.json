@@ -1,0 +1,40 @@
+{
+    "node": "table",
+    "title": "\u89c6\u89c9\u84dd\u56fe ({{count}} \u6761\u63d0\u793a\u8bcd)",
+    "collapsed": false,
+    "schema": [
+        {
+            "key": "assetId",
+            "label": "\u8d44\u4ea7ID",
+            "type": "string",
+            "config": {
+                "hidden": true
+            }
+        },
+        {
+            "key": "assetName",
+            "label": "\u8d44\u4ea7",
+            "type": "string"
+        },
+        {
+            "key": "finalPrompt",
+            "label": "\u63d0\u793a\u8bcd",
+            "type": "string"
+        },
+        {
+            "key": "resolution",
+            "label": "\u5206\u8fa8\u7387",
+            "type": "string"
+        },
+        {
+            "key": "aspectRatio",
+            "label": "\u5bbd\u9ad8\u6bd4",
+            "type": "string"
+        },
+        {
+            "key": "microCopy",
+            "label": "\u5fae\u6587\u6848",
+            "type": "string"
+        }
+    ]
+}

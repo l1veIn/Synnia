@@ -7,6 +7,7 @@ import { SynniaNode } from '@/types/project';
 import { toast } from 'sonner';
 import { Save, RotateCcw, Copy } from 'lucide-react';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { useTranslation } from 'react-i18next';
 
 interface JsonEditorBlockProps {
     title: string;
@@ -16,6 +17,7 @@ interface JsonEditorBlockProps {
 }
 
 const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps) => {
+    const { t } = useTranslation('inspector');
     const [value, setValue] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isDirty, setIsDirty] = useState(false);
@@ -37,10 +39,10 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps
             const parsed = JSON.parse(value);
             onSave(parsed);
             setIsDirty(false);
-            toast.success(`${title} updated`);
+            toast.success(t('debug.updated', { title }));
         } catch (e: any) {
             setError(e.message);
-            toast.error(`Invalid JSON in ${title}`);
+            toast.error(t('debug.invalidJson', { title }));
         }
     };
 
@@ -52,7 +54,7 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps
 
     const handleCopy = () => {
         navigator.clipboard.writeText(value);
-        toast.success("Copied to clipboard");
+        toast.success(t('debug.copied'));
     }
 
     return (
@@ -60,16 +62,16 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps
             <div className="flex items-center justify-between py-2 px-1">
                 <Label className="text-xs font-bold text-muted-foreground uppercase">{title}</Label>
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} title="Copy JSON">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} title={t('debug.copyJson')}>
                         <Copy className="h-3 w-3" />
                     </Button>
                     {!readOnly && isDirty && (
                         <>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleReset} title="Reset Changes">
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleReset} title={t('debug.resetChanges')}>
                                 <RotateCcw className="h-3 w-3" />
                             </Button>
                             <Button size="sm" className="h-6 text-xs px-2" onClick={handleSave}>
-                                <Save className="h-3 w-3 mr-1" /> Apply
+                                <Save className="h-3 w-3 mr-1" /> {t('debug.apply')}
                             </Button>
                         </>
                     )}
@@ -98,14 +100,15 @@ interface DebugInspectorProps {
 }
 
 export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
+    const { t } = useTranslation('inspector');
     const node = useWorkflowStore(state => state.nodes.find(n => n.id === nodeId));
     const asset = useWorkflowStore(state => node?.data.assetId ? state.assets[node.data.assetId] : null);
 
-    if (!node) return <div className="p-4 text-xs text-muted-foreground">No node selected</div>;
+    if (!node) return <div className="p-4 text-xs text-muted-foreground">{t('debug.noNode')}</div>;
 
     const handleNodeSave = (newNode: SynniaNode) => {
         if (newNode.id !== node.id) {
-            toast.error("Cannot change Node ID via Debugger");
+            toast.error(t('debug.cannotChangeId'));
             return;
         }
         graphEngine.updateNode(node.id, newNode);

@@ -198,7 +198,7 @@ function CanvasFlow() {
                           // For now handleAddImage handles image import
                           handleAddImage();
                         } else if (item.recipeId) {
-                          graphEngine.mutator.addNode(`recipe:${item.recipeId}` as any, { x: 150, y: 150 });
+                          graphEngine.mutator.createSmart({ value: {}, node: `recipe:${item.recipeId}`, position: { x: 150, y: 150 } });
                         } else if (item.nodeType) {
                           handleAddNode(item.nodeType);
                         }

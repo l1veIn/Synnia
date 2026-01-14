@@ -14,6 +14,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
+import { useTranslation } from 'react-i18next';
 
 interface InspectorProps {
     assetId: string;
@@ -21,6 +22,7 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
+    const { t } = useTranslation('inspector');
     const { asset, setValue, updateConfig } = useAsset(assetId);
 
     // Get config from normalized structure: schema at top level, settings in extra
@@ -102,7 +104,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 showSearch: draftShowSearch,
             },
         });
-        toast.success('Settings saved');
+        toast.success(t('changesSaved'));
     };
 
     // Discard settings
@@ -110,7 +112,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setDraftMode(savedContent.mode);
         setDraftShowSearch(savedContent.showSearch);
         setDraftSchema(savedContent.schema);
-        toast.info('Changes discarded');
+        toast.info(t('changesDiscarded'));
     };
 
     // Add new option
@@ -139,7 +141,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const handleDeleteOption = (optionId: string) => {
         const newOptions = options.filter(o => o.id !== optionId);
         setValue(newOptions);
-        toast.success('Option deleted');
+        toast.success(t('selector.optionDeleted'));
     };
 
     // Save option from dialog - saves only options array to asset.value
@@ -161,7 +163,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setValue(newOptions);
         setIsOptionDialogOpen(false);
         setEditingOption(null);
-        toast.success(exists ? 'Option updated' : 'Option added');
+        toast.success(exists ? t('selector.optionUpdated') : t('selector.optionAdded'));
     };
 
     // Get display label for an option
@@ -174,15 +176,15 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         return option.id.slice(0, 8);
     };
 
-    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs">{t('assetNotFound')}</div>;
 
     return (
         <div className="flex flex-col h-full">
             <Tabs defaultValue="options" className="flex-1 flex flex-col min-h-0">
                 <TabsList className="mx-4 mt-3 shrink-0">
-                    <TabsTrigger value="options" className="flex-1 text-xs">Options</TabsTrigger>
-                    <TabsTrigger value="schema" className="flex-1 text-xs">Schema</TabsTrigger>
-                    <TabsTrigger value="settings" className="flex-1 text-xs">Settings</TabsTrigger>
+                    <TabsTrigger value="options" className="flex-1 text-xs">{t('selector.options')}</TabsTrigger>
+                    <TabsTrigger value="schema" className="flex-1 text-xs">{t('form.schema')}</TabsTrigger>
+                    <TabsTrigger value="settings" className="flex-1 text-xs">{t('selector.settings')}</TabsTrigger>
                 </TabsList>
 
                 {/* Options Tab */}
@@ -196,7 +198,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 onClick={handleAddOption}
                             >
                                 <Plus className="h-4 w-4 mr-2" />
-                                Add Option
+                                {t('selector.addOption')}
                             </Button>
                             <AutoGenerateButton
                                 mode="table-full"
@@ -217,7 +219,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                     setDraftSchema(newSchema);
                                     updateConfig({ schema: newSchema });
                                     setValue([...options, ...newOptions]);
-                                    toast.success(`Added ${newOptions.length} options`);
+                                    toast.success(t('selector.addedOptions', { count: newOptions.length }));
                                 }}
                                 placeholder="Describe the selector options (e.g., 'color options with name and hex code')..."
                                 buttonLabel="+ Generate"
@@ -230,7 +232,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         <div className="space-y-1">
                             {options.length === 0 ? (
                                 <div className="text-xs text-muted-foreground text-center py-8 border rounded-md border-dashed">
-                                    No options defined
+                                    {t('selector.noOptions')}
                                 </div>
                             ) : (
                                 options.map((option, idx) => (
@@ -263,7 +265,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                         {/* Selection info */}
                         <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                            0 of {options.length} selected
+                            {t('selector.selectedOf', { selected: 0, total: options.length })}
                         </div>
                     </div>
                 </TabsContent>
@@ -283,7 +285,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                         {/* Mode */}
                         <div className="space-y-2">
-                            <Label className="text-xs">Selection Mode</Label>
+                            <Label className="text-xs">{t('selector.selectionMode')}</Label>
                             <div className="flex gap-2">
                                 <Button
                                     variant={draftMode === 'single' ? 'secondary' : 'ghost'}
@@ -291,7 +293,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                     className="flex-1 h-8 text-xs"
                                     onClick={() => setDraftMode('single')}
                                 >
-                                    Single
+                                    {t('selector.single')}
                                 </Button>
                                 <Button
                                     variant={draftMode === 'multi' ? 'secondary' : 'ghost'}
@@ -299,14 +301,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                     className="flex-1 h-8 text-xs"
                                     onClick={() => setDraftMode('multi')}
                                 >
-                                    Multiple
+                                    {t('selector.multiple')}
                                 </Button>
                             </div>
                         </div>
 
                         {/* Show Search */}
                         <div className="flex items-center justify-between">
-                            <Label className="text-xs">Show Search</Label>
+                            <Label className="text-xs">{t('selector.showSearch')}</Label>
                             <Switch checked={draftShowSearch} onCheckedChange={setDraftShowSearch} />
                         </div>
                     </div>
@@ -319,14 +321,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     {hasSettingsChanges && (
                         <span className="text-amber-600 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            Unsaved
+                            {t('form.unsaved')}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     {hasSettingsChanges && (
                         <Button size="sm" variant="ghost" onClick={handleDiscardSettings} className="h-7 text-xs">
-                            Discard
+                            {t('form.discard')}
                         </Button>
                     )}
                     <Button
@@ -337,7 +339,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         disabled={!hasSettingsChanges}
                     >
                         <Save className="h-3.5 w-3.5" />
-                        Save
+                        {t('form.save')}
                     </Button>
                 </div>
             </div>
@@ -348,8 +350,8 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     <DialogHeader>
                         <DialogTitle>
                             {editingOption && options.some(o => o.id === editingOption.id)
-                                ? 'Edit Option'
-                                : 'Add Option'
+                                ? t('selector.editOption')
+                                : t('selector.addOption')
                             }
                         </DialogTitle>
                     </DialogHeader>
@@ -364,10 +366,10 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsOptionDialogOpen(false)}>
-                            Cancel
+                            {t('actions.cancel', { ns: 'common' })}
                         </Button>
                         <Button onClick={handleSaveOption}>
-                            Save
+                            {t('form.save')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

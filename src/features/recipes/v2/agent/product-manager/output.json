@@ -1,0 +1,40 @@
+{
+    "node": "table",
+    "title": "\u751f\u4ea7\u6e05\u5355 ({{count}} \u9879)",
+    "collapsed": false,
+    "schema": [
+        {
+            "key": "assetId",
+            "label": "\u8d44\u4ea7ID",
+            "type": "string",
+            "config": {
+                "hidden": true
+            }
+        },
+        {
+            "key": "assetName",
+            "label": "\u8d44\u4ea7",
+            "type": "string"
+        },
+        {
+            "key": "family",
+            "label": "\u5bb6\u65cf",
+            "type": "string"
+        },
+        {
+            "key": "priority",
+            "label": "\u4f18\u5148\u7ea7",
+            "type": "string"
+        },
+        {
+            "key": "microCopy",
+            "label": "\u6587\u6848/\u4e0a\u4e0b\u6587",
+            "type": "string"
+        },
+        {
+            "key": "reason",
+            "label": "\u7406\u7531",
+            "type": "string"
+        }
+    ]
+}

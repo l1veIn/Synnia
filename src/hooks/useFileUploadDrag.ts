@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
-import { NodeType } from '@/types/project';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'sonner';
@@ -44,13 +43,12 @@ export function useFileUploadDrag() {
             // Save via backend
             const result = await apiClient.saveProcessedImage(base64);
 
-            graphEngine.mutator.addNode(NodeType.IMAGE, {
-              x: position.x + offset,
-              y: position.y + offset,
-            }, {
-              content: { src: result.relativePath, width: result.width, height: result.height },
-              assetName: file.name,
-              assetConfig: {
+            graphEngine.mutator.createSmart({
+              value: { src: result.relativePath, width: result.width, height: result.height },
+              node: 'image',
+              name: file.name,
+              position: { x: position.x + offset, y: position.y + offset },
+              config: {
                 meta: {
                   width: result.width,
                   height: result.height,
@@ -67,20 +65,20 @@ export function useFileUploadDrag() {
 
           offset += 30;
         } else if (isText) {
-          const nodeId = graphEngine.mutator.addNode(NodeType.TEXT, {
-            x: position.x + offset,
-            y: position.y + offset,
+          // Create text node first, then update with content after file read
+          const nodeId = graphEngine.mutator.createSmart({
+            value: { content: '', format: 'plain' },
+            node: 'text',
+            name: file.name,
+            position: { x: position.x + offset, y: position.y + offset },
           });
 
           const reader = new FileReader();
           reader.onload = (e) => {
-            graphEngine.updateNode(nodeId, {
-              data: {
-                title: file.name,
-                assetType: 'text',
-                content: e.target?.result as string
-              }
-            });
+            graphEngine.assets.update(
+              graphEngine.state.nodes.find(n => n.id === nodeId)?.data.assetId as string,
+              { content: e.target?.result as string, format: 'plain' }
+            );
           };
           reader.readAsText(file);
 

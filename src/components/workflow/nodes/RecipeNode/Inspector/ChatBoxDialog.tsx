@@ -15,6 +15,7 @@ import {
 import { Send, MessageSquare, User, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/features/recipes/types';
+import { useTranslation } from 'react-i18next';
 
 export interface ChatBoxDialogProps {
     open: boolean;
@@ -33,6 +34,7 @@ export function ChatBoxDialog({
     disabled = false,
     title = 'Chat',
 }: ChatBoxDialogProps) {
+    const { t } = useTranslation('recipe');
     const [inputValue, setInputValue] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -103,8 +105,8 @@ export function ChatBoxDialog({
                         {messages.length === 0 ? (
                             <div className="text-center text-muted-foreground py-12">
                                 <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                                <p>No messages yet</p>
-                                <p className="text-xs mt-1">Run the recipe to start a conversation</p>
+                                <p>{t('chat.noMessagesYet')}</p>
+                                <p className="text-xs mt-1">{t('chat.runToStart')}</p>
                             </div>
                         ) : (
                             messages.map((message) => (
@@ -156,7 +158,7 @@ export function ChatBoxDialog({
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={disabled ? "Chat is disabled" : "Type your message..."}
+                        placeholder={disabled ? t('chat.disabled') : t('chat.typeMessage')}
                         disabled={disabled}
                         rows={1}
                         className={cn(
@@ -176,7 +178,7 @@ export function ChatBoxDialog({
                         className="shrink-0 h-10"
                     >
                         <Send className="h-4 w-4 mr-2" />
-                        Send
+                        {t('chat.send')}
                     </Button>
                 </div>
             </DialogContent>

@@ -4,9 +4,11 @@ import { toast } from 'sonner';
 import { invoke } from '@tauri-apps/api/core';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { SmartNodeSpec } from '@core/engine/GraphMutator';
 import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
+import { inferValueType, determineOutputAction } from '@features/recipes/executors/outputStrategy';
 
 // ============================================
 // Execution Logging (TEP #001: Operational Layer)
@@ -262,23 +264,18 @@ export function useRunRecipe() {
                 data: { executionResult: result.data }
             });
 
-            // --- Build createNodes from output config if specified in manifest ---
+            // --- Build SmartNodeSpecs from output config ---
             const outputConfig = (recipe.manifest as any).output || (recipe.manifest as any).executor?.output;
 
-            if (outputConfig && result.data && !result.createNodes) {
-                const nodeSpecs = graphEngine.mutator.buildNodesFromConfig(
-                    Array.isArray(result.data) ? result.data : [result.data],
-                    outputConfig
-                );
-                result.createNodes = nodeSpecs;
-            }
-
-            // --- Handle createNodes (if recipe wants to create product nodes) ---
-            if (result.createNodes && result.createNodes.length > 0) {
+            if (outputConfig && result.data) {
                 const freshStore2 = useWorkflowStore.getState();
                 const freshNode2 = freshStore2.nodes.find(n => n.id === nodeId);
                 if (!freshNode2) return;
 
+                // Determine value type (explicit or inferred)
+                const valueType = inferValueType(outputConfig.node || 'form', outputConfig.valueType);
+
+                // Find existing product node
                 const existingOutputEdge = freshStore2.edges.find(e =>
                     e.source === nodeId &&
                     e.sourceHandle === 'product' &&
@@ -289,93 +286,89 @@ export function useRunRecipe() {
                     ? freshStore2.nodes.find(n => n.id === existingOutputEdge.target)
                     : null;
 
-                if (existingProductNode && result.createNodes.length === 1) {
-                    const nodeSpec = result.createNodes[0];
-                    const specData = nodeSpec.data as any;
-                    const existingAsset = freshStore2.assets[existingProductNode.data.assetId as string];
+                const existingAsset = existingProductNode
+                    ? freshStore2.assets[existingProductNode.data.assetId as string]
+                    : null;
 
-                    const isCollection = nodeRegistry.isCollection(existingProductNode.type);
+                // Determine action based on valueType and existing asset
+                const action = determineOutputAction(
+                    valueType,
+                    existingAsset ? { id: existingAsset.id, config: existingAsset.config } : null,
+                    result.data
+                );
+
+                // Normalize data
+                const dataItems = Array.isArray(result.data) ? result.data : [result.data];
+
+                // --- Execute Action ---
+                if (action.type === 'update' && existingAsset) {
+                    // Record mode: direct update
+                    graphEngine.assets.update(action.assetId, dataItems.length === 1 ? dataItems[0] : dataItems);
+                    return;
+                }
+
+                if (action.type === 'merge' && existingAsset && existingProductNode) {
+                    // Array mode: merge items
                     const nodeDef = nodeRegistry.getDefinition(existingProductNode.type);
-
-                    if (isCollection && existingAsset?.value && specData.content && nodeDef?.hooks) {
-                        const { getItems, mergeItems } = nodeDef.hooks;
-
-                        if (getItems && mergeItems) {
-                            const existingItems = getItems(existingAsset);
-                            const newItems = Array.isArray(specData.content)
-                                ? specData.content
-                                : getItems({ ...existingAsset, value: specData.content });
-                            const mergedItems = mergeItems(existingItems, newItems);
-                            graphEngine.assets.update(existingAsset.id, mergedItems);
-                        }
+                    if (nodeDef?.hooks?.getItems && nodeDef?.hooks?.mergeItems) {
+                        const existingItems = nodeDef.hooks.getItems(existingAsset);
+                        const mergedItems = nodeDef.hooks.mergeItems(existingItems, dataItems);
+                        graphEngine.assets.update(action.assetId, mergedItems);
                     } else {
-                        if (existingAsset && specData.content) {
-                            graphEngine.assets.update(existingAsset.id, specData.content);
-                        }
+                        // Fallback: concat arrays
+                        const existingValue = existingAsset.value;
+                        const merged = Array.isArray(existingValue)
+                            ? [...existingValue, ...dataItems]
+                            : dataItems;
+                        graphEngine.assets.update(action.assetId, merged);
                     }
                     return;
                 }
 
-                // --- Create new nodes ---
-                let prevNodeId: string | null = null;
-                const NODE_HEIGHT = 120;
+                // --- CREATE MODE ---
+                const isArray = valueType === 'array';
 
-                for (let i = 0; i < result.createNodes.length; i++) {
-                    const nodeSpec = result.createNodes[i];
-                    let targetPos = { x: freshNode2.position.x, y: freshNode2.position.y };
-
-                    if (nodeSpec.position === 'below') {
-                        targetPos.y += (freshNode2.measured?.height || 200) + 100;
-                    } else if (nodeSpec.position === 'right') {
-                        targetPos.x += (freshNode2.measured?.width || 250) + 100;
-                    } else if (nodeSpec.position && typeof nodeSpec.position === 'object') {
-                        targetPos = nodeSpec.position;
+                // Resolve title template
+                const resolveTitle = (index: number, item: any): string => {
+                    if (outputConfig.title) {
+                        return outputConfig.title
+                            .replace(/\{\{count\}\}/g, String(dataItems.length))
+                            .replace(/\{\{index\}\}/g, String(index + 1))
+                            .replace(/\{\{(\w+)\}\}/g, (_: string, k: string) => item?.[k] ?? '');
                     }
+                    return isArray ? `Result (${dataItems.length} items)` : `#${index + 1}`;
+                };
 
-                    let dockedToId: string | undefined;
-                    if (nodeSpec.dockedTo === '$prev' && prevNodeId) {
-                        dockedToId = prevNodeId;
-                        const prevNode = useWorkflowStore.getState().nodes.find(n => n.id === prevNodeId);
-                        if (prevNode) {
-                            targetPos = {
-                                x: prevNode.position.x,
-                                y: prevNode.position.y + (prevNode.measured?.height || NODE_HEIGHT)
-                            };
-                        }
-                    } else if (nodeSpec.dockedTo && nodeSpec.dockedTo !== '$prev') {
-                        dockedToId = nodeSpec.dockedTo;
-                    }
+                let specs: SmartNodeSpec[];
 
-                    const { content, assetType, assetName, ...restData } = nodeSpec.data as any;
-
-                    const newNodeId = graphEngine.mutator.addNode(nodeSpec.type, targetPos, {
-                        content,
-                        assetType,
-                        assetName,
-                        assetConfig: nodeSpec.config ? { schema: nodeSpec.config.schema, ...nodeSpec.config.extra } : undefined,
-                        ...restData,
-                        ...(dockedToId ? { dockedTo: dockedToId } : {})
-                    });
-
-                    // First node gets product edge
-                    if (i === 0) {
-                        graphEngine.updateNode(newNodeId, {
-                            data: { hasProductHandle: true }
-                        });
-
-                        graphEngine.connectOutputEdge({
-                            source: nodeId,
-                            sourceHandle: 'product',
-                            target: newNodeId,
-                            targetHandle: 'origin'
-                        });
-                    }
-
-                    prevNodeId = newNodeId;
+                if (isArray) {
+                    // Array: single node with all data
+                    specs = [{
+                        value: dataItems,
+                        schema: outputConfig.schema,
+                        node: outputConfig.node,
+                        name: resolveTitle(0, null),
+                        collapsed: outputConfig.collapsed ?? false,
+                        anchor: nodeId,
+                        offset: 'below',
+                        outputEdgeFrom: nodeId,
+                    }];
+                } else {
+                    // Record: one node per item
+                    specs = dataItems.map((item, i) => ({
+                        value: item,
+                        schema: outputConfig.schema,
+                        node: outputConfig.node,
+                        name: resolveTitle(i, item),
+                        collapsed: outputConfig.collapsed ?? true,
+                        anchor: i === 0 ? nodeId : undefined,
+                        offset: i === 0 ? 'below' as const : undefined,
+                        outputEdgeFrom: i === 0 ? nodeId : undefined,
+                    }));
                 }
 
-                const updatedNodes = graphEngine.layout.fixDockingLayout(useWorkflowStore.getState().nodes);
-                graphEngine.setNodes(updatedNodes);
+                // Create nodes
+                graphEngine.mutator.createSmartBatch(specs);
             }
 
             // --- Complete Logger ---

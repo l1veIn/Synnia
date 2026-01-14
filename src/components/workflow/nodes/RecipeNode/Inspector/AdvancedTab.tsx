@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 import type { RecordAsset } from '@/types/assets';
+import { useTranslation } from 'react-i18next';
 
 export interface AdvancedTabProps {
     asset: RecordAsset;
 }
 
 export function AdvancedTab({ asset }: AdvancedTabProps) {
+    const { t } = useTranslation('recipe');
     const [copied, setCopied] = useState(false);
 
     const jsonString = useMemo(() => {
@@ -31,7 +33,7 @@ export function AdvancedTab({ asset }: AdvancedTabProps) {
         <div className="advanced-tab flex flex-col h-full p-4">
             <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium text-muted-foreground">
-                    Raw Asset Configuration
+                    {t('advanced.rawConfig')}
                 </h3>
                 <Button variant="ghost" size="sm" onClick={handleCopy}>
                     {copied ? (

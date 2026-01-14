@@ -1,0 +1,6 @@
+{
+    "node": "video",
+    "title": "Reference Video: {{prompt}}",
+    "collapsed": false,
+    "schema": []
+}

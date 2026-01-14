@@ -58,11 +58,19 @@ export interface PromptTemplates {
 // ==========================================
 
 /**
+ * Output value type - determines how output is handled:
+ * - 'record': Single object → update existing or create one node
+ * - 'array': Array of items → merge into collection or create new
+ */
+export type OutputValueType = 'record' | 'array';
+
+/**
  * Output configuration.
  * All nodes expect JSON output except 'text' which accepts raw string.
  */
 export interface OutputDefinition {
     node: string;  // form | selector | gallery | table | text
+    valueType?: OutputValueType;  // Explicit: 'record' | 'array'. If omitted, inferred from node type.
     title?: string;
     collapsed?: boolean;
     schema?: FieldDefinition[];  // Output schema (for form/selector/table)

@@ -1,0 +1,92 @@
+{
+    "schema": [
+        {
+            "key": "soulProfile",
+            "label": "\u7075\u9b42\u6863\u6848",
+            "type": "object",
+            "widget": "form-input",
+            "required": true,
+            "connection": "input",
+            "config": {
+                "placeholder": "\u5728\u6b64\u8fde\u63a5'\u7075\u9b42\u6863\u6848'JSON\u8f93\u51fa"
+            },
+            "schema": [
+                {
+                    "key": "name",
+                    "label": "\u540d\u79f0",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "key": "tagline",
+                    "label": "\u6807\u8bed",
+                    "type": "string"
+                },
+                {
+                    "key": "personality",
+                    "label": "\u6027\u683c",
+                    "type": "string",
+                    "widget": "textarea"
+                },
+                {
+                    "key": "colorDNA",
+                    "label": "\u8272\u5f69DNA",
+                    "type": "object"
+                }
+            ]
+        },
+        {
+            "key": "productType",
+            "label": "\u4ea7\u54c1\u7c7b\u578b",
+            "type": "string",
+            "required": true,
+            "connection": "input"
+        },
+        {
+            "key": "visualStyle",
+            "label": "\u89c6\u89c9\u98ce\u683c",
+            "type": "string",
+            "required": true,
+            "config": {
+                "placeholder": "\u4f8b\u5982\uff1a3D\u76f2\u76d2\u3001\u6241\u5e73\u77e2\u91cf\u3001\u8d5b\u535a\u670b\u514b..."
+            },
+            "connection": "input"
+        },
+        {
+            "key": "assetDefinitions",
+            "label": "\u8d44\u4ea7\u5b9a\u4e49\u5e93",
+            "type": "array",
+            "widget": "table-input",
+            "required": true,
+            "connection": "input",
+            "config": {
+                "placeholder": "\u4f20\u5165\u8d44\u4ea7\u5b9a\u4e49 JSON"
+            },
+            "schema": [
+                {
+                    "key": "id",
+                    "label": "ID",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "key": "name",
+                    "label": "\u540d\u79f0",
+                    "type": "string",
+                    "required": true
+                },
+                {
+                    "key": "description",
+                    "label": "\u63cf\u8ff0",
+                    "type": "string",
+                    "widget": "textarea"
+                },
+                {
+                    "key": "category",
+                    "label": "\u7c7b\u522b",
+                    "type": "string"
+                }
+            ]
+        }
+    ]
+}

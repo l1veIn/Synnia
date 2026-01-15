@@ -508,22 +508,73 @@ fn save_assets(conn: &Connection, assets: &HashMap<String, Asset>) -> Result<(),
         ).map_err(|e| AppError::Io(format!("Failed to save asset: {}", e)))?;
     }
     
-    // Remove assets that are no longer in the project
+    // Remove orphaned assets (not in project AND not library assets)
+    // Also clean up their history records
     let ids: Vec<String> = assets.keys().cloned().collect();
     if !ids.is_empty() {
         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let sql = format!("DELETE FROM assets WHERE id NOT IN ({})", placeholders);
         
-        let mut stmt = conn.prepare(&sql)
-            .map_err(|e| AppError::Io(format!("Failed to prepare delete: {}", e)))?;
+        // First, find orphaned asset IDs (excluding library assets)
+        let find_orphans_sql = format!(
+            "SELECT id FROM assets WHERE id NOT IN ({}) AND (
+                json_extract(sys_json, '$.isLibraryAsset') IS NULL OR
+                json_extract(sys_json, '$.isLibraryAsset') = 'false' OR
+                json_extract(sys_json, '$.isLibraryAsset') = 0
+            )",
+            placeholders
+        );
+        
+        let mut find_stmt = conn.prepare(&find_orphans_sql)
+            .map_err(|e| AppError::Io(format!("Failed to prepare find orphans: {}", e)))?;
         
         for (i, id) in ids.iter().enumerate() {
-            stmt.raw_bind_parameter(i + 1, id)
+            find_stmt.raw_bind_parameter(i + 1, id)
                 .map_err(|e| AppError::Io(format!("Failed to bind: {}", e)))?;
         }
         
-        stmt.raw_execute()
-            .map_err(|e| AppError::Io(format!("Failed to delete orphaned assets: {}", e)))?;
+        // Use raw_query to iterate rows after raw_bind_parameter
+        let mut orphan_ids: Vec<String> = Vec::new();
+        let mut rows = find_stmt.raw_query();
+        while let Some(row) = rows.next().map_err(|e| AppError::Io(format!("Failed to read row: {}", e)))? {
+            if let Ok(id) = row.get::<_, String>(0) {
+                orphan_ids.push(id);
+            }
+        }
+        
+        // Delete orphaned assets and their history
+        if !orphan_ids.is_empty() {
+            let orphan_placeholders = orphan_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            
+            // Delete history first (foreign key order)
+            let delete_history_sql = format!(
+                "DELETE FROM asset_history WHERE asset_id IN ({})",
+                orphan_placeholders
+            );
+            let mut history_stmt = conn.prepare(&delete_history_sql)
+                .map_err(|e| AppError::Io(format!("Failed to prepare history delete: {}", e)))?;
+            for (i, id) in orphan_ids.iter().enumerate() {
+                history_stmt.raw_bind_parameter(i + 1, id)
+                    .map_err(|e| AppError::Io(format!("Failed to bind: {}", e)))?;
+            }
+            history_stmt.raw_execute()
+                .map_err(|e| AppError::Io(format!("Failed to delete orphaned history: {}", e)))?;
+            
+            // Then delete assets
+            let delete_assets_sql = format!(
+                "DELETE FROM assets WHERE id IN ({})",
+                orphan_placeholders
+            );
+            let mut assets_stmt = conn.prepare(&delete_assets_sql)
+                .map_err(|e| AppError::Io(format!("Failed to prepare assets delete: {}", e)))?;
+            for (i, id) in orphan_ids.iter().enumerate() {
+                assets_stmt.raw_bind_parameter(i + 1, id)
+                    .map_err(|e| AppError::Io(format!("Failed to bind: {}", e)))?;
+            }
+            assets_stmt.raw_execute()
+                .map_err(|e| AppError::Io(format!("Failed to delete orphaned assets: {}", e)))?;
+            
+            println!("[Asset] Cleaned up {} orphaned assets and their history", orphan_ids.len());
+        }
     }
     
     Ok(())

@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { graphEngine } from "@core/engine/GraphEngine";
 import { NodePicker, NodePickerItem } from "./NodePicker";
 import { useTranslation } from "react-i18next";
+import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -33,77 +34,11 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const contextMenuTarget = useWorkflowStore((state) => state.contextMenuTarget);
   const nodes = useWorkflowStore((state) => state.nodes);
 
+  const { handleAddImage, handleAddNode } = useCanvasLogic();
+
   const { screenToFlowPosition } = useReactFlow();
 
   const targetNode = contextMenuTarget?.id ? nodes.find(n => n.id === contextMenuTarget.id) : null;
-
-  const handleAddNode = (type: NodeType) => {
-    if (contextMenuTarget?.position) {
-      const position = screenToFlowPosition({
-        x: contextMenuTarget.position.x,
-        y: contextMenuTarget.position.y,
-      });
-      graphEngine.mutator.createSmart({ value: {}, node: type, position });
-    }
-  };
-
-  const handleAddImage = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const toastId = toast.loading("Importing image...");
-
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-          const base64 = ev.target?.result as string;
-          if (base64) {
-            try {
-              // Import dynamically to avoid circular dependency
-              const { apiClient } = await import('@/lib/apiClient');
-
-              // Save via backend (creates file + thumbnail)
-              const result = await apiClient.saveProcessedImage(base64);
-
-              const position = contextMenuTarget?.position
-                ? screenToFlowPosition({
-                  x: contextMenuTarget.position.x,
-                  y: contextMenuTarget.position.y,
-                })
-                : { x: 100, y: 100 };
-
-              graphEngine.mutator.createSmart({
-                value: { src: result.relativePath, width: result.width, height: result.height },
-                node: 'image',
-                name: file.name,
-                position,
-                config: {
-                  meta: {
-                    width: result.width,
-                    height: result.height,
-                    preview: result.thumbnailPath || undefined
-                  }
-                }
-              });
-              toast.success("Image imported", { id: toastId });
-            } catch (err) {
-              console.error("Failed to save image:", err);
-              toast.error("Failed to import image", { id: toastId });
-            }
-          } else {
-            toast.error("Failed to read file", { id: toastId });
-          }
-        };
-        reader.onerror = () => toast.error("Failed to read file", { id: toastId });
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
-  };
-
-
 
   const getClipboardNodes = (): SynniaNode[] => {
     try {

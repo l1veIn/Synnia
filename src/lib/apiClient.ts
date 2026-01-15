@@ -30,6 +30,7 @@ export interface RecentProject {
 
 /** Result from saving an image file */
 export interface SaveImageResult {
+    assetId: string;
     relativePath: string;
     thumbnailPath: string | null;
     width: number;
@@ -54,6 +55,23 @@ export interface BatchImportResult {
     sourcePath: string;
     result: SaveImageResult | null;
     error: string | null;
+}
+
+/** Parameters for getMediaAssets query */
+export interface GetMediaAssetsParams {
+    ids?: string[];
+    mediaType?: 'image' | 'video' | 'audio';
+    search?: string;
+    sortBy?: 'createdAt' | 'updatedAt' | 'name';
+    sortOrder?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+}
+
+/** Response from getMediaAssets */
+export interface MediaAssetsResponse {
+    items: MediaAssetInfo[];
+    total: number;
 }
 
 // ============================================
@@ -165,9 +183,10 @@ export const apiClient = {
 
     /**
      * Get all media assets (images, videos, audio) for the asset library.
+     * Supports filtering by IDs, media type, search, and pagination.
      */
-    getMediaAssets: (): Promise<MediaAssetInfo[]> =>
-        apiClient.invoke('get_media_assets', {}),
+    getMediaAssets: (params?: GetMediaAssetsParams): Promise<MediaAssetsResponse> =>
+        apiClient.invoke('get_media_assets', { params }),
 
     /**
      * Download an image from a URL and save it to the assets folder.
@@ -192,6 +211,13 @@ export const apiClient = {
 
     openInBrowser: (url: string): Promise<void> =>
         apiClient.invoke('open_in_browser', { url }),
+
+    /**
+     * Fetch an image from a URL and return it as a base64 data URI.
+     * This bypasses CORS restrictions for external image URLs.
+     */
+    fetchImageAsBase64: (url: string): Promise<{ success: boolean; data?: string; error?: string; contentType?: string }> =>
+        apiClient.invoke('fetch_image_as_base64', { url }),
 };
 
 // ============================================

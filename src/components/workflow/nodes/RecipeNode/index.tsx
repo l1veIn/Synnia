@@ -266,11 +266,12 @@ function DynamicInputPorts({ recipeCapabilities = [], isCollapsed = false }: Dyn
         const handles: { id: string; dataType: string; label: string }[] = [];
 
         // If recipe requires vision capability, add vision input port
+        // Uses 'gallery' dataType to allow multiple images from Gallery node
         if (recipeCapabilities.includes('vision')) {
             handles.push({
                 id: 'visionImage',
-                dataType: 'image',
-                label: 'Vision Image',
+                dataType: 'gallery',
+                label: 'Reference Images',
             });
         }
 

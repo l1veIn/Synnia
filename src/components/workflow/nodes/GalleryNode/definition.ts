@@ -27,10 +27,10 @@ export const definition: NodeDefinition = {
         return {
             asset: {
                 valueType: 'array' as const,
-                // value: pure data array (images)
+                // value: pure data array (GalleryImageRef[])
                 value: items.map((item: any, i: number) => ({
                     id: item.id || `img-${i}`,
-                    src: item.src || item.url || '',
+                    mediaAssetId: item.mediaAssetId || '',
                     starred: item.starred ?? false,
                     caption: item.caption || '',
                 })),

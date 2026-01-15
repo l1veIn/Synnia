@@ -6,8 +6,6 @@ import { ModelPlugin, ModelConfigProps, ModelExecutionInput, ModelExecutionResul
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ImagePicker } from '@/components/workflow/widgets';
-import { ImagePickerValue } from '@/lib/utils/image';
 
 // ============================================================================
 // Config Component
@@ -16,15 +14,15 @@ import { ImagePickerValue } from '@/lib/utils/image';
 interface NanoBananaConfig {
     resolution: string;
     aspectRatio: string;
-    provider: ProviderType;
-    referenceImage?: ImagePickerValue;
+    useGoogleSearch?: boolean;
 }
 
-function NanoBananaProConfig({ value, onChange, disabled }: ModelConfigProps) {
-    const config: NanoBananaConfig = value || {
+function NanoBananaProConfig({ value, onChange, disabled, provider }: ModelConfigProps) {
+    const config: NanoBananaConfig = {
         resolution: '2k',
         aspectRatio: '1:1',
-        provider: 'fal'
+        useGoogleSearch: false,
+        ...value  // Merge with existing values
     };
 
     const handleChange = (key: string, val: any) => {
@@ -33,56 +31,32 @@ function NanoBananaProConfig({ value, onChange, disabled }: ModelConfigProps) {
 
     const resolutions = ['1k', '2k', '4k'];
     const aspectRatios = ['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '3:2', '2:3'];
-    const providers: { id: ProviderType; label: string }[] = [
-        { id: 'fal', label: 'FAL (Nano Banana)' },
-        { id: 'google', label: 'Google (Gemini Imagen)' },
-    ];
+
+    // Check if current provider is Gemini-based (supports Google Search)
+    const isGeminiProvider = provider === 'google' || provider === 'g4f';
 
     return (
         <div className="space-y-3 p-3 rounded-lg border border-border/50 bg-muted/20">
-            {/* Provider Selection */}
+            {/* Resolution */}
             <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Provider</Label>
+                <Label className="text-xs text-muted-foreground">Resolution</Label>
                 <Select
-                    value={config.provider}
-                    onValueChange={(v) => handleChange('provider', v)}
+                    value={config.resolution}
+                    onValueChange={(v) => handleChange('resolution', v)}
                     disabled={disabled}
                 >
                     <SelectTrigger className="h-8 text-xs">
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        {providers.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="text-xs">
-                                {p.label}
+                        {resolutions.map((res) => (
+                            <SelectItem key={res} value={res} className="text-xs">
+                                {res.toUpperCase()}
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
             </div>
-
-            {/* Resolution (FAL only) */}
-            {config.provider === 'fal' && (
-                <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Resolution</Label>
-                    <Select
-                        value={config.resolution}
-                        onValueChange={(v) => handleChange('resolution', v)}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {resolutions.map((res) => (
-                                <SelectItem key={res} value={res} className="text-xs">
-                                    {res.toUpperCase()}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
 
             {/* Aspect Ratio */}
             <div className="space-y-1.5">
@@ -103,17 +77,24 @@ function NanoBananaProConfig({ value, onChange, disabled }: ModelConfigProps) {
                 </div>
             </div>
 
-            {/* Reference Image (Image-to-Image) */}
-            <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                    Reference Image <span className="text-muted-foreground/60">(optional)</span>
-                </Label>
-                <ImagePicker
-                    value={config.referenceImage}
-                    onChange={(v) => handleChange('referenceImage', v)}
-                    disabled={disabled}
-                />
-            </div>
+            {/* Google Search Toggle (Gemini only) */}
+            {isGeminiProvider && (
+                <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">
+                        Use Google Search
+                        <span className="ml-1 text-[10px] text-muted-foreground/60">(for real-time info)</span>
+                    </Label>
+                    <Button
+                        variant={config.useGoogleSearch ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => handleChange('useGoogleSearch', !config.useGoogleSearch)}
+                        disabled={disabled}
+                    >
+                        {config.useGoogleSearch ? 'ON' : 'OFF'}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
@@ -186,48 +167,82 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
         const parts: any[] = [];
         let finalPrompt = prompt || '';
 
-        // Add reference image if provided (Image-to-Image)
-        if (config?.referenceImage?.base64 || config?.referenceImage?.url) {
-            let base64Data: string;
-            let mimeType: string;
+        // Helper function to extract base64 from image URL/data
+        const extractBase64 = (imgData: any): { base64: string; mimeType: string } | null => {
+            if (typeof imgData === 'string') {
+                if (imgData.startsWith('data:')) {
+                    return {
+                        base64: imgData.split(',')[1],
+                        mimeType: imgData.split(';')[0].split(':')[1]
+                    };
+                }
+                // External URL - not supported yet
+                return null;
+            }
+            if (imgData?.base64) {
+                return { base64: imgData.base64, mimeType: imgData.mimeType || 'image/png' };
+            }
+            if (imgData?.url?.startsWith('data:')) {
+                return {
+                    base64: imgData.url.split(',')[1],
+                    mimeType: imgData.url.split(';')[0].split(':')[1]
+                };
+            }
+            if (imgData?.src?.startsWith('data:')) {
+                return {
+                    base64: imgData.src.split(',')[1],
+                    mimeType: imgData.src.split(';')[0].split(':')[1]
+                };
+            }
+            return null;
+        };
 
-            if (config.referenceImage.base64) {
-                base64Data = config.referenceImage.base64;
-                mimeType = config.referenceImage.mimeType || 'image/png';
-            } else {
-                // If it's a data URL, extract base64
-                const url = config.referenceImage.url!;
-                if (url.startsWith('data:')) {
-                    base64Data = url.split(',')[1];
-                    mimeType = url.split(';')[0].split(':')[1];
-                } else {
-                    // For external URLs, Gemini might not support directly
-                    // TODO: Fetch and convert to base64 if needed
-                    return { success: false, error: 'External URLs not yet supported for reference images' };
+        // Add reference images from input.images array (multi-image support)
+        const inputImages = (input as any).images;
+        if (inputImages && Array.isArray(inputImages)) {
+            for (const img of inputImages) {
+                const imgData = extractBase64(img);
+                if (imgData) {
+                    parts.push({
+                        inlineData: { data: imgData.base64, mimeType: imgData.mimeType }
+                    });
                 }
             }
-
-            parts.push({
-                inlineData: {
-                    data: base64Data,
-                    mimeType: mimeType
-                }
-            });
-            finalPrompt = `(Strictly follow the character design in the reference image) ${prompt || ''}`;
+            if (parts.length > 0) {
+                finalPrompt = `(Strictly follow the character design in the reference image(s)) ${prompt || ''}`;
+            }
+        }
+        // Fallback: single reference image from config
+        else if (config?.referenceImage?.base64 || config?.referenceImage?.url) {
+            const imgData = extractBase64(config.referenceImage);
+            if (imgData) {
+                parts.push({
+                    inlineData: { data: imgData.base64, mimeType: imgData.mimeType }
+                });
+                finalPrompt = `(Strictly follow the character design in the reference image) ${prompt || ''}`;
+            }
         }
 
         parts.push({ text: finalPrompt });
 
+        // Build config
+        const generateConfig: any = {
+            imageConfig: {
+                aspectRatio: config?.aspectRatio || '1:1',
+                imageSize: config?.resolution?.toUpperCase() || '2K',
+            }
+        };
 
-        // Call Gemini Imagen - using imageConfig like visualAgent.ts
+        // Add Google Search tool if enabled
+        if (config?.useGoogleSearch) {
+            generateConfig.tools = [{ google_search: {} }];
+        }
+
+        // Call Gemini Imagen
         const response = await client.models.generateContent({
             model: 'gemini-3-pro-image-preview',
             contents: { parts },
-            config: {
-                imageConfig: {
-                    aspectRatio: config?.aspectRatio || '1:1',
-                }
-            }
+            config: generateConfig
         });
 
 
@@ -267,21 +282,157 @@ async function executeGoogle(input: ModelExecutionInput): Promise<ModelExecution
 }
 
 // ============================================================================
+// Execution - g4f Local Provider (OpenAI-compatible)
+// ============================================================================
+
+async function executeG4F(input: ModelExecutionInput): Promise<ModelExecutionResult> {
+    const { config, prompt, credentials } = input;
+
+    if (!credentials.baseUrl) {
+        return { success: false, error: 'g4f: No base URL configured. Please set the g4f URL in Settings > Models.' };
+    }
+
+    const baseUrl = credentials.baseUrl;
+
+    try {
+        // g4f returns images via chat completion endpoint
+        // The image URL is returned in the 'reasoning' field of the response
+        const messages: any[] = [];
+
+        // Add reference image if provided
+        if (config?.referenceImage?.url || config?.referenceImage?.base64) {
+            const imageUrl = config.referenceImage.url ||
+                `data:${config.referenceImage.mimeType || 'image/png'};base64,${config.referenceImage.base64}`;
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'image_url', image_url: { url: imageUrl } },
+                    { type: 'text', text: `Generate an image based on this reference: ${prompt}` }
+                ]
+            });
+        } else {
+            messages.push({
+                role: 'user',
+                content: `Generate an image: ${prompt}`
+            });
+        }
+
+        const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'Gemini',
+                messages,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            return {
+                success: false,
+                error: `g4f: ${response.status} - ${errorText}`,
+            };
+        }
+
+        const data = await response.json();
+
+        // Check for error in response
+        if (data.error) {
+            return {
+                success: false,
+                error: `g4f: ${data.error.message || JSON.stringify(data.error)}`,
+            };
+        }
+
+        // g4f returns image URL in the 'reasoning' field
+        // Format: "https://lh3.googleusercontent.com/...\n\n$signature...\n\nimage/png\n\n..."
+        const reasoning = data.choices?.[0]?.message?.reasoning;
+        let imageUrl: string | null = null;
+
+        if (reasoning) {
+            // Extract the first URL from the reasoning field
+            const urlMatch = reasoning.match(/https:\/\/lh3\.googleusercontent\.com\/[^\s\n]+/);
+            if (urlMatch) {
+                imageUrl = urlMatch[0];
+            }
+        }
+
+        // Fallback: check if there's text content that might contain an image
+        if (!imageUrl) {
+            const content = data.choices?.[0]?.message?.content;
+            if (content && content.includes('http')) {
+                const urlMatch = content.match(/(https?:\/\/[^\s]+\.(png|jpg|jpeg|webp|gif))/i);
+                if (urlMatch) {
+                    imageUrl = urlMatch[0];
+                }
+            }
+        }
+
+        if (!imageUrl) {
+            return {
+                success: false,
+                error: 'g4f: No image URL found in response',
+            };
+        }
+
+        // Use Tauri command to fetch image (bypasses CORS)
+        // Browser fetch fails due to CORS, Tauri has no such restriction
+        try {
+            const { apiClient } = await import('@/lib/apiClient');
+            const result = await apiClient.fetchImageAsBase64(imageUrl);
+
+            if (result.success && result.data) {
+                return {
+                    success: true,
+                    images: [{ url: result.data, width: 1024, height: 1024 }],
+                };
+            } else {
+                console.error('[g4f] Tauri fetch failed:', result.error);
+                // Return URL as fallback (will likely fail but worth trying)
+                return {
+                    success: true,
+                    images: [{ url: imageUrl, width: 1024, height: 1024 }],
+                };
+            }
+        } catch (fetchError) {
+            console.error('[g4f] Failed to fetch image via Tauri:', fetchError);
+            // Return URL as fallback
+            return {
+                success: true,
+                images: [{ url: imageUrl, width: 1024, height: 1024 }],
+            };
+        }
+    } catch (error: any) {
+        console.error('[g4f] Image generation error:', error);
+        return {
+            success: false,
+            error: error.message || 'g4f: Failed to generate image',
+        };
+    }
+}
+
+// ============================================================================
 // Main Execute Function
 // ============================================================================
 
 async function execute(input: ModelExecutionInput): Promise<ModelExecutionResult> {
-    const { config, prompt } = input;
+    const { prompt } = input;
 
     if (!prompt) {
         return { success: false, error: 'Prompt is required' };
     }
 
-    const provider = config?.provider || 'fal';
+    // Use input.provider (passed from ModelExecutor via modelConfig.provider)
+    // Fallback to config.provider for backwards compatibility, then to 'fal'
+    const provider = input.provider || input.config?.provider || 'fal';
 
     switch (provider) {
         case 'google':
             return executeGoogle(input);
+        case 'g4f':
+            return executeG4F(input);
         case 'fal':
         default:
             return executeFal(input);
@@ -297,22 +448,9 @@ export const nanoBananaPro: ModelPlugin = {
     name: 'Nano Banana Pro',
     description: 'Fast image generation with reference image support (FAL / Google Gemini)',
     category: 'image-generation',
+    capabilities: ['vision'],  // Supports image-to-image with reference
     provider: 'fal',  // Primary provider
-    supportedProviders: ['fal', 'google'],
+    supportedProviders: ['fal', 'google', 'g4f'],
     renderConfig: (props) => <NanoBananaProConfig {...props} />,
-
-    // Declare optional reference image input
-    getInputHandles: (config) => {
-        // Only show handle if user hasn't already selected a reference image in config
-        if (!config?.referenceImage?.url && !config?.referenceImage?.base64) {
-            return [{
-                id: 'referenceImage',
-                dataType: 'image',
-                label: 'Reference Image',
-            }];
-        }
-        return [];
-    },
-
     execute: execute as any,
 };

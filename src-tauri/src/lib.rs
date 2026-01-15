@@ -124,6 +124,7 @@ pub fn run() {
 
             // HTTP Proxy
             commands::http_proxy::proxy_request,
+            commands::http_proxy::fetch_image_as_base64,
 
             // Ops: Chat Context
             commands::ops_chat::get_chat_messages,

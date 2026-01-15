@@ -1,9 +1,10 @@
 //! Asset management commands.
 
 use tauri::{State, AppHandle};
+use rusqlite::{Connection, params};
 use crate::error::AppError;
 use crate::AppState;
-use crate::services::{database, io_sqlite};
+use crate::services::{database, io_sqlite, hash};
 use std::path::PathBuf;
 use std::io::Cursor;
 use base64::Engine;
@@ -28,6 +29,8 @@ pub struct MediaAssetInfo {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveImageResult {
+    /// The created Asset ID
+    pub asset_id: String,
     /// Relative path to the saved image (e.g., "assets/xxx.png")
     pub relative_path: String,
     /// Relative path to the thumbnail (e.g., "assets/thumb_xxx.jpg")
@@ -60,31 +63,47 @@ pub fn import_file(file_path: String, state: State<AppState>, _app: AppHandle) -
     let relative_path = format!("assets/{}", new_filename);
     let target_path = project_root.join(&relative_path);
     
+    // Get original filename for asset name
+    let original_name = source_path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Imported");
+    
     println!("[Asset] Copying from {:?} to {:?}", source_path, target_path);
     std::fs::copy(&source_path, &target_path)?;
 
     // Check if it's an image and generate thumbnail
     let is_image = matches!(ext.to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp");
     
-    if is_image {
+    let (width, height, thumbnail_path) = if is_image {
         let image_data = std::fs::read(&target_path)?;
-        let (width, height) = get_image_dimensions(&image_data)?;
-        let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data)?;
-        
-        Ok(SaveImageResult {
-            relative_path,
-            thumbnail_path: Some(thumbnail_path),
-            width,
-            height,
-        })
+        let (w, h) = get_image_dimensions(&image_data)?;
+        let thumb = generate_thumbnail(&project_root, &file_id, &image_data)?;
+        (w, h, Some(thumb))
     } else {
-        Ok(SaveImageResult {
-            relative_path,
-            thumbnail_path: None,
-            width: 0,
-            height: 0,
-        })
-    }
+        (0, 0, None)
+    };
+    
+    // Create Asset record in database
+    let db_path = io_sqlite::get_db_path(&project_root);
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
+    let asset_id = create_media_asset(
+        &conn,
+        &relative_path,
+        original_name,
+        width,
+        height,
+        thumbnail_path.as_deref(),
+    )?;
+    
+    Ok(SaveImageResult {
+        asset_id,
+        relative_path,
+        thumbnail_path,
+        width,
+        height,
+    })
 }
 
 /// Save a processed image from base64 data.
@@ -106,7 +125,8 @@ pub fn save_processed_image(
     // Generate unique filename
     let file_id = uuid::Uuid::new_v4().to_string();
     let ext = detect_image_format(&image_data).unwrap_or("png");
-    let final_filename = filename.unwrap_or_else(|| format!("{}.{}", file_id, ext));
+    let final_filename = filename.clone().unwrap_or_else(|| format!("{}.{}", file_id, ext));
+    let asset_name = filename.unwrap_or_else(|| "Processed Image".to_string());
     
     // Ensure assets directory exists
     let assets_dir = project_root.join("assets");
@@ -122,7 +142,22 @@ pub fn save_processed_image(
     // Generate thumbnail
     let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data)?;
     
+    // Create Asset record in database
+    let db_path = io_sqlite::get_db_path(&project_root);
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
+    let asset_id = create_media_asset(
+        &conn,
+        &relative_path,
+        &asset_name,
+        width,
+        height,
+        Some(&thumbnail_path),
+    )?;
+    
     Ok(SaveImageResult {
+        asset_id,
         relative_path,
         thumbnail_path: Some(thumbnail_path),
         width,
@@ -140,8 +175,16 @@ pub async fn download_and_save_image(
 ) -> Result<SaveImageResult, AppError> {
     let project_root = get_project_root(&state)?;
     
-    // Download the image
-    let response = reqwest::get(&url).await
+    // Download the image with browser-like headers to avoid 403/429 errors
+    // Google's image servers (lh3.googleusercontent.com) require proper headers
+    let client = reqwest::Client::new();
+    let response = client.get(&url)
+        .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .header("Referer", "https://gemini.google.com/")
+        .header("Accept", "image/webp,image/apng,image/*,*/*;q=0.8")
+        .header("Accept-Language", "en-US,en;q=0.9")
+        .send()
+        .await
         .map_err(|e| AppError::Unknown(format!("Failed to download image: {}", e)))?;
     
     if !response.status().is_success() {
@@ -157,7 +200,8 @@ pub async fn download_and_save_image(
     // Generate unique filename
     let file_id = uuid::Uuid::new_v4().to_string();
     let ext = detect_image_format(&image_data).unwrap_or("png");
-    let final_filename = filename.unwrap_or_else(|| format!("{}.{}", file_id, ext));
+    let final_filename = filename.clone().unwrap_or_else(|| format!("{}.{}", file_id, ext));
+    let asset_name = filename.unwrap_or_else(|| "Downloaded Image".to_string());
     
     // Ensure assets directory exists
     let assets_dir = project_root.join("assets");
@@ -173,7 +217,22 @@ pub async fn download_and_save_image(
     // Generate thumbnail
     let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data)?;
     
+    // Create Asset record in database
+    let db_path = io_sqlite::get_db_path(&project_root);
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
+    let asset_id = create_media_asset(
+        &conn,
+        &relative_path,
+        &asset_name,
+        width,
+        height,
+        Some(&thumbnail_path),
+    )?;
+    
     Ok(SaveImageResult {
+        asset_id,
         relative_path,
         thumbnail_path: Some(thumbnail_path),
         width,
@@ -181,10 +240,44 @@ pub async fn download_and_save_image(
     })
 }
 
+/// Parameters for get_media_assets query
+#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMediaAssetsParams {
+    /// Filter by specific asset IDs
+    pub ids: Option<Vec<String>>,
+    /// Filter by media type (image, video, audio)
+    pub media_type: Option<String>,
+    /// Search by name (case-insensitive contains)
+    pub search: Option<String>,
+    /// Sort field: createdAt, updatedAt, name
+    pub sort_by: Option<String>,
+    /// Sort order: asc, desc
+    pub sort_order: Option<String>,
+    /// Limit results
+    pub limit: Option<u32>,
+    /// Offset for pagination
+    pub offset: Option<u32>,
+}
+
+/// Response from get_media_assets
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaAssetsResponse {
+    pub items: Vec<MediaAssetInfo>,
+    pub total: u32,
+}
+
 /// Get all media assets (images, videos, audio) for the asset library.
 /// Only returns assets where sys.isLibraryAsset is true.
+/// Supports filtering by IDs, media type, search, and pagination.
 #[tauri::command]
-pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, AppError> {
+pub fn get_media_assets(
+    params: Option<GetMediaAssetsParams>,
+    state: State<AppState>
+) -> Result<MediaAssetsResponse, AppError> {
+    let params = params.unwrap_or_default();
+    
     let project_path = {
         let path_guard = state.current_project_path.lock()
             .map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
@@ -215,11 +308,22 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
         Ok((id, asset_type, value_json, value_meta_json, config_json, sys_json, updated_at))
     }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
     
-    let mut result = Vec::new();
+    // Build ID set for filtering if provided
+    let id_set: Option<std::collections::HashSet<String>> = params.ids.as_ref()
+        .map(|ids| ids.iter().cloned().collect());
+    
+    let mut all_items = Vec::new();
     
     for asset in assets {
-        let (id, asset_type, value_json, value_meta_json, config_json, sys_json, updated_at) = 
+        let (id, _asset_type, value_json, value_meta_json, config_json, sys_json, updated_at) = 
             asset.map_err(|e| AppError::Io(format!("Failed to read asset: {}", e)))?;
+        
+        // Filter by ID list if provided
+        if let Some(ref ids) = id_set {
+            if !ids.contains(&id) {
+                continue;
+            }
+        }
         
         // Parse sys metadata
         let sys: serde_json::Value = serde_json::from_str(&sys_json)
@@ -284,7 +388,21 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
         // Infer media type from file extension
         let media_type = infer_media_type(&content);
         
-        result.push(MediaAssetInfo {
+        // Filter by media type if provided
+        if let Some(ref filter_type) = params.media_type {
+            if &media_type != filter_type {
+                continue;
+            }
+        }
+        
+        // Filter by search term if provided (case-insensitive name search)
+        if let Some(ref search) = params.search {
+            if !search.is_empty() && !name.to_lowercase().contains(&search.to_lowercase()) {
+                continue;
+            }
+        }
+        
+        all_items.push(MediaAssetInfo {
             id,
             media_type,
             name,
@@ -297,7 +415,33 @@ pub fn get_media_assets(state: State<AppState>) -> Result<Vec<MediaAssetInfo>, A
         });
     }
     
-    Ok(result)
+    // Sort items
+    let sort_by = params.sort_by.as_deref().unwrap_or("updatedAt");
+    let sort_desc = params.sort_order.as_deref() != Some("asc");
+    
+    all_items.sort_by(|a, b| {
+        let cmp = match sort_by {
+            "name" => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            "createdAt" => a.created_at.cmp(&b.created_at),
+            _ => a.updated_at.cmp(&b.updated_at), // default: updatedAt
+        };
+        if sort_desc { cmp.reverse() } else { cmp }
+    });
+    
+    // Get total before pagination
+    let total = all_items.len() as u32;
+    
+    // Apply pagination
+    let offset = params.offset.unwrap_or(0) as usize;
+    let limit = params.limit.map(|l| l as usize);
+    
+    let items: Vec<MediaAssetInfo> = if let Some(limit) = limit {
+        all_items.into_iter().skip(offset).take(limit).collect()
+    } else {
+        all_items.into_iter().skip(offset).collect()
+    };
+    
+    Ok(MediaAssetsResponse { items, total })
 }
 
 // ============================================
@@ -314,6 +458,50 @@ fn infer_media_type(path: &str) -> String {
         "pdf" => "pdf".to_string(),
         _ => "file".to_string(),
     }
+}
+
+/// Create an Asset record for an imported media file.
+/// This makes the file immediately visible in the Asset Library.
+fn create_media_asset(
+    conn: &Connection,
+    relative_path: &str,
+    original_name: &str,
+    width: u32,
+    height: u32,
+    thumbnail_path: Option<&str>,
+) -> Result<String, AppError> {
+    let asset_id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().timestamp_millis();
+    
+    // Value is just the relative path as a JSON string
+    let value_json = serde_json::json!(relative_path).to_string();
+    let value_hash = hash::compute_content_hash(&value_json);
+    
+    // Store metadata in config.meta
+    let config_json = serde_json::json!({
+        "meta": {
+            "width": width,
+            "height": height,
+            "preview": thumbnail_path
+        }
+    }).to_string();
+    
+    // System metadata with isLibraryAsset = true
+    let sys_json = serde_json::json!({
+        "name": original_name,
+        "createdAt": now,
+        "updatedAt": now,
+        "source": "import",
+        "isLibraryAsset": true
+    }).to_string();
+    
+    conn.execute(
+        "INSERT INTO assets (id, value_type, value_hash, value_json, value_meta_json, config_json, sys_json, updated_at)
+         VALUES (?1, ?2, ?3, ?4, NULL, ?5, ?6, ?7)",
+        params![&asset_id, "\"record\"", &value_hash, &value_json, &config_json, &sys_json, now],
+    ).map_err(|e| AppError::Io(format!("Failed to create asset: {}", e)))?;
+    
+    Ok(asset_id)
 }
 
 fn get_project_root(state: &State<AppState>) -> Result<PathBuf, AppError> {
@@ -422,6 +610,11 @@ pub fn batch_import_images(
         std::fs::create_dir_all(&assets_dir)?;
     }
     
+    // Open database connection once for all imports
+    let db_path = io_sqlite::get_db_path(&project_root);
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
     let mut results: Vec<BatchImportResult> = Vec::with_capacity(file_paths.len());
     
     for file_path in file_paths {
@@ -453,6 +646,12 @@ pub fn batch_import_images(
             continue;
         }
         
+        // Get original filename for asset name
+        let original_name = source_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Imported")
+            .to_string();
+        
         let file_id = uuid::Uuid::new_v4().to_string();
         let new_filename = format!("{}.{}", file_id, ext);
         let relative_path = format!("assets/{}", new_filename);
@@ -467,16 +666,36 @@ pub fn batch_import_images(
                         let (width, height) = get_image_dimensions(&image_data).unwrap_or((0, 0));
                         let thumbnail_path = generate_thumbnail(&project_root, &file_id, &image_data).ok();
                         
-                        results.push(BatchImportResult {
-                            source_path: file_path,
-                            result: Some(SaveImageResult {
-                                relative_path,
-                                thumbnail_path,
-                                width,
-                                height,
-                            }),
-                            error: None,
-                        });
+                        // Create Asset record
+                        match create_media_asset(
+                            &conn,
+                            &relative_path,
+                            &original_name,
+                            width,
+                            height,
+                            thumbnail_path.as_deref(),
+                        ) {
+                            Ok(asset_id) => {
+                                results.push(BatchImportResult {
+                                    source_path: file_path,
+                                    result: Some(SaveImageResult {
+                                        asset_id,
+                                        relative_path,
+                                        thumbnail_path,
+                                        width,
+                                        height,
+                                    }),
+                                    error: None,
+                                });
+                            }
+                            Err(e) => {
+                                results.push(BatchImportResult {
+                                    source_path: file_path,
+                                    result: None,
+                                    error: Some(format!("Failed to create asset: {}", e)),
+                                });
+                            }
+                        }
                     }
                     Err(e) => {
                         results.push(BatchImportResult {

@@ -138,7 +138,7 @@ export const RecipeBehavior: NodeBehavior = {
      * Performs schema-based validation with implicit type conversion.
      */
     canConnect: (ctx: ConnectionContext): string | null => {
-        const { edge, sourcePortValue, targetAsset } = ctx;
+        const { edge, sourcePortValue, targetAsset, sourceNode } = ctx;
         const targetHandle = edge.targetHandle;
 
         // Skip validation for system handles
@@ -148,6 +148,24 @@ export const RecipeBehavior: NodeBehavior = {
 
         if (!sourcePortValue?.value) {
             return 'Source node has no output data';
+        }
+
+        // Handle model: prefixed ports (from DynamicInputPorts)
+        if (targetHandle.startsWith('model:')) {
+            const portId = targetHandle.replace('model:', '');
+
+            // model:visionImage expects gallery (array of images) or single image
+            if (portId === 'visionImage') {
+                const value = sourcePortValue.value;
+                // Accept: array (gallery), object with src (single image), or string (image URL)
+                const isGallery = sourceNode.type === 'gallery';
+
+                if (!isGallery) {
+                    return 'Reference Images port expects a Gallery or Image node';
+                }
+            }
+
+            return null; // Valid model port connection
         }
 
         // Get recipe schema for target field

@@ -65,7 +65,6 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Local LLM server',
         type: 'local',
         placeholder: 'http://localhost:11434',
-        defaultBaseUrl: 'http://localhost:11434',
         requiresApiKey: false,
     },
     {
@@ -74,7 +73,6 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Local LLM server',
         type: 'local',
         placeholder: 'http://localhost:1234',
-        defaultBaseUrl: 'http://localhost:1234',
         requiresApiKey: false,
     },
     {
@@ -83,7 +81,14 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Local image generation',
         type: 'local',
         placeholder: 'http://localhost:8188',
-        defaultBaseUrl: 'http://localhost:8188',
+        requiresApiKey: false,
+    },
+    {
+        key: 'g4f',
+        name: 'GPT4Free',
+        description: 'Local proxy (Gemini Imagen, etc.)',
+        type: 'local',
+        placeholder: 'http://localhost:8080',
         requiresApiKey: false,
     },
 ];

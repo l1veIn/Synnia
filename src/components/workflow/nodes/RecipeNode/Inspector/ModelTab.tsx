@@ -26,6 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { modelRegistry, ModelCategory, ProviderType } from '@features/models';
+import { PROVIDER_INFO } from '@features/models/providers';
 import { useSettings, ProviderKey, isProviderConfigured, getDefaultModel } from '@/lib/settings';
 import type { ModelConfig } from '@/features/recipes/types';
 import type { ModelCapability } from '@features/models/types';
@@ -170,9 +171,10 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
     const configuredProviders = useMemo(() => {
         const providers: ProviderType[] = [];
         if (settings) {
-            const allProviderKeys: ProviderKey[] = ['openai', 'anthropic', 'google', 'fal', 'replicate', 'deepseek', 'ollama', 'lmstudio', 'comfyui'];
+            // Dynamically get all provider keys from PROVIDER_INFO
+            const allProviderKeys = PROVIDER_INFO.map(p => p.key);
             allProviderKeys.forEach(key => {
-                if (isProviderConfigured(settings, key)) {
+                if (isProviderConfigured(settings, key as ProviderKey)) {
                     providers.push(key as ProviderType);
                 }
             });
@@ -235,6 +237,19 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         if (category) {
             await setDefaultModel(category, modelId);
         }
+    };
+
+    // Handle provider selection (for multi-provider models)
+    const handleProviderSelect = (modelId: string, provider: ProviderType) => {
+        if (!configuredProviders.includes(provider)) {
+            return; // Provider not configured
+        }
+        onModelConfigChange({
+            modelId,
+            provider,
+            params: modelConfig?.params || {},
+        });
+        setOpen(false);
     };
 
     // Handle config change
@@ -319,19 +334,34 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                                     <div className="flex flex-col gap-0.5">
                                                         <span>{model.name}</span>
                                                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                            {(model.supportedProviders || [model.provider]).map(p => (
-                                                                <span
-                                                                    key={p}
-                                                                    className={cn(
-                                                                        "uppercase",
-                                                                        configuredProviders.includes(p)
-                                                                            ? "text-green-500"
-                                                                            : "text-muted-foreground/50"
-                                                                    )}
-                                                                >
-                                                                    {p}
-                                                                </span>
-                                                            ))}
+                                                            {(model.supportedProviders || [model.provider]).map(p => {
+                                                                const isConfigured = configuredProviders.includes(p);
+                                                                const isSelected = modelConfig?.modelId === model.id && modelConfig?.provider === p;
+                                                                return (
+                                                                    <button
+                                                                        key={p}
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (isConfigured) {
+                                                                                handleProviderSelect(model.id, p);
+                                                                            }
+                                                                        }}
+                                                                        className={cn(
+                                                                            "uppercase px-1 py-0.5 rounded transition-colors",
+                                                                            isConfigured
+                                                                                ? isSelected
+                                                                                    ? "bg-green-500/20 text-green-500 font-medium"
+                                                                                    : "text-green-500 hover:bg-green-500/10 cursor-pointer"
+                                                                                : "text-muted-foreground/50 cursor-not-allowed"
+                                                                        )}
+                                                                        disabled={!isConfigured}
+                                                                        title={isConfigured ? `Use ${p.toUpperCase()} provider` : `${p.toUpperCase()} not configured`}
+                                                                    >
+                                                                        {p}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 </CommandItem>
@@ -363,6 +393,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                     onChange: handleParamsChange,
                                     disabled: false,
                                     availableProviders,
+                                    provider: modelConfig?.provider as ProviderType | undefined,  // Pass current provider
                                 })
                             ) : isLLMCategory ? (
                                 // LLM model without custom config: use default settings

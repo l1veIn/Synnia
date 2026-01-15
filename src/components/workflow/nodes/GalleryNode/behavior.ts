@@ -18,9 +18,8 @@ export const GalleryBehavior: NodeBehavior = {
         if (!asset?.value) return null;
 
         if (portId === 'output' || portId === 'origin') {
-            const images = Array.isArray(asset.value)
-                ? asset.value
-                : (asset.value as any).images || [];
+            // value is always GalleryImageRef[]
+            const images = Array.isArray(asset.value) ? asset.value : [];
             return {
                 type: 'array',
                 value: images,

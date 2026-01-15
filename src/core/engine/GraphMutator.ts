@@ -239,7 +239,14 @@ export class GraphMutator {
         const isEmptyCreate = spec.assetId === undefined && spec.value === undefined;
         const valueType = spec.valueType ?? (isEmptyCreate ? 'record' : inferValueType(spec.value));
         const schema = spec.schema ?? (spec.value !== undefined ? inferSchema(spec.value) : []);
-        const nodeType = spec.node ?? valueTypeToNode(valueType);
+
+        // Resolve node type (supports aliases for backwards compatibility)
+        let nodeType = spec.node ?? valueTypeToNode(valueType);
+        const def = nodeRegistry.get(nodeType) || nodeRegistry.getByAlias(nodeType);
+        if (def) {
+            nodeType = def.type; // Use the actual registered type
+        }
+
         const name = spec.name ?? `New ${nodeRegistry.getMeta(nodeType)?.title || nodeType}`;
 
         // ─────────────────────────────────────────────────────────────────────
@@ -298,9 +305,12 @@ export class GraphMutator {
             // Determine value to store (empty object for schema-only creation)
             const assetValue = createResult?.asset?.value ?? spec.value ?? (valueType === 'array' ? [] : {});
 
+            // Use valueType from createResult if provided (node definition knows best)
+            const finalValueType = createResult?.asset?.valueType ?? valueType;
+
             // Create asset
             assetId = this.engine.assets.create(
-                valueType,
+                finalValueType,
                 assetValue,
                 {
                     name,

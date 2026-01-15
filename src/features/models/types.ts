@@ -35,7 +35,8 @@ export type ProviderType =
     | 'ppio'
     | 'ollama'
     | 'lmstudio'
-    | 'comfyui';
+    | 'comfyui'
+    | 'g4f';
 
 export type ProviderKey = ProviderType;
 
@@ -63,6 +64,7 @@ export interface ModelConfigProps {
     onChange: (value: any) => void;
     disabled?: boolean;
     availableProviders: ProviderType[];
+    provider?: ProviderType;  // Current selected provider (from ModelTab)
 }
 
 export interface HandleSpec {
@@ -82,6 +84,9 @@ export interface ModelExecutionInput {
 
     // Model-specific settings
     config?: Record<string, any>;
+
+    // Provider (injected by engine, for multi-provider models)
+    provider?: ProviderType;
 
     // Auth (injected by engine)
     credentials: ProviderCredentials;

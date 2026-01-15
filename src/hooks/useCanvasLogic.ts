@@ -84,13 +84,13 @@ export function useCanvasLogic() {
 
         // Import file via backend (saves file and generates thumbnail)
         const result = await apiClient.importFile(filePath);
-
+        console.log({ result });
         const STD_WIDTH = 240;
         const STD_HEIGHT = 240;
         const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
         graphEngine.mutator.createSmart({
-          value: { src: result.relativePath, width: result.width, height: result.height },
+          value: result.relativePath,
           node: 'image',
           name: filePath.split(/[/\\]/).pop(),
           position: targetPos,

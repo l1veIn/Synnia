@@ -41,8 +41,8 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
     const loadAssets = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiClient.getMediaAssets();
-            setAssets(data);
+            const resp = await apiClient.getMediaAssets();
+            setAssets(resp.items);
         } catch (e) {
             console.error('Failed to load media assets:', e);
             toast.error(t('dialogs.assetLibrary.loadFailed'));

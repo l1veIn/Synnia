@@ -47,12 +47,11 @@ export const AssetPicker = ({
     const loadAssets = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiClient.getMediaAssets();
-            // Filter by type if specified
-            const filtered = assetType === 'all'
-                ? data
-                : data.filter(a => a.mediaType === assetType);
-            setAssets(filtered);
+            // Use server-side filtering for mediaType
+            const resp = await apiClient.getMediaAssets({
+                mediaType: assetType === 'all' ? undefined : assetType,
+            });
+            setAssets(resp.items);
         } catch (e) {
             console.error('Failed to load media assets:', e);
             toast.error(t('dialogs.assetLibrary.loadFailed'));

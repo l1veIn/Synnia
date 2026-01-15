@@ -48,7 +48,7 @@ export const ModelExecutor = {
         try {
             // 5. Prepare input
             const input = isMedia
-                ? prepareMediaInput(ctx, credentials)
+                ? prepareMediaInput(ctx, credentials, provider)
                 : prepareLLMInput(ctx, credentials, manifest);
 
             // 6. Execute model
@@ -106,14 +106,50 @@ function prepareLLMInput(
     };
 }
 
-function prepareMediaInput(ctx: ExecutionContext, credentials: Credentials): ModelExecutionInput {
+function prepareMediaInput(ctx: ExecutionContext, credentials: Credentials, provider: string): ModelExecutionInput {
     const { inputs, modelConfig } = ctx;
 
+    // Get images from multiple possible sources:
+    // 1. model:visionImage (from DynamicInputPorts - now gallery dataType)
+    // 2. inputs.image (legacy/direct single image)
+    const visionInput = inputs['model:visionImage'];
+    const directImage = inputs.image;
+
+    // Build images array for model input
+    let images: any[] | undefined;
+
+    if (visionInput) {
+        // From vision port - could be:
+        // - Gallery data: array of items with { src, id, ... }
+        // - PortValue wrapper: { value: [...], type: 'gallery' }
+        // - Single image object
+        const galleryData = typeof visionInput === 'object' && visionInput.value
+            ? visionInput.value  // Unwrap PortValue
+            : visionInput;
+
+        if (Array.isArray(galleryData)) {
+            // Gallery format: extract src from each item
+            images = galleryData.map(item => {
+                if (typeof item === 'string') return item;
+                return item.src || item.url || item.value || item;
+            }).filter(Boolean);
+        } else if (typeof galleryData === 'string') {
+            images = [galleryData];
+        } else if (galleryData?.src || galleryData?.url) {
+            images = [galleryData.src || galleryData.url];
+        }
+    } else if (directImage) {
+        images = [directImage];
+    }
+
+    const config = { ...modelConfig?.params };
+
     return {
-        config: modelConfig?.params,
+        provider: provider as any,  // Provider for multi-provider models
+        config,
         prompt: inputs.prompt || '',
         negativePrompt: inputs.negativePrompt,
-        images: inputs.image ? [inputs.image] : undefined,
+        images,
         credentials: {
             apiKey: credentials?.apiKey || '',
             baseUrl: credentials?.baseUrl,
@@ -135,6 +171,7 @@ async function processOutput(
         const galleryImages = await Promise.all(
             result.images.map(async (img, idx) => {
                 const imageId = `gen-${Date.now()}-${idx}`;
+                const caption = (prompt || '').slice(0, 50);
                 try {
                     let saveResult;
                     if (img.url.startsWith('data:')) {
@@ -142,12 +179,20 @@ async function processOutput(
                     } else if (img.url.startsWith('http')) {
                         saveResult = await apiClient.downloadAndSaveImage(img.url);
                     } else {
-                        return { id: imageId, src: img.url, starred: false, caption: (prompt || '').slice(0, 50) };
+                        // Local path - no asset created, fallback to legacy format
+                        return { id: imageId, src: img.url, starred: false, caption };
                     }
-                    return { id: imageId, src: saveResult.relativePath, starred: false, caption: (prompt || '').slice(0, 50) };
+                    // Use assetId for GalleryNode reference pattern
+                    return {
+                        id: imageId,
+                        mediaAssetId: saveResult.assetId,
+                        starred: false,
+                        caption
+                    };
                 } catch (err) {
                     console.error('Failed to save image:', err);
-                    return { id: imageId, src: img.url, starred: false, caption: (prompt || '').slice(0, 50) };
+                    // Fallback to URL on error
+                    return { id: imageId, src: img.url, starred: false, caption };
                 }
             })
         );

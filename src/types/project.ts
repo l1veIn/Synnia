@@ -37,14 +37,14 @@ export type EdgeType = 'data' | 'output';
  * Node type enum - maps to React Flow nodeTypes
  */
 export enum NodeType {
-  TEXT = 'text-node',
-  IMAGE = 'image-node',
-  FORM = 'form-node',
-  RECIPE = 'recipe-node',
-  SELECTOR = 'selector-node',
-  GALLERY = 'gallery-node',
-  TABLE = 'table-node',
-  QUEUE = 'queue-node',
+  TEXT = 'text',
+  IMAGE = 'image',
+  FORM = 'form',
+  RECIPE = 'recipe',
+  SELECTOR = 'selector',
+  GALLERY = 'gallery',
+  TABLE = 'table',
+  QUEUE = 'queue',
 }
 
 // ==========================================

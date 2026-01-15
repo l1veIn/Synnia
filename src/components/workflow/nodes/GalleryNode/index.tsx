@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { NodeProps, NodeResizer, useUpdateNodeInternals } from '@xyflow/react';
 import { SynniaNode } from '@/types/project';
 import { NodeShell } from '../primitives/NodeShell';
@@ -8,23 +8,8 @@ import { useNode } from '@/hooks/useNode';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-// --- Asset Content Type ---
-export interface GalleryImage {
-    id: string;
-    src: string;
-    starred: boolean;
-    caption?: string;
-    mediaAssetId?: string; // Reference to source asset in library
-}
-
-export interface GalleryAssetContent {
-    viewMode: 'grid' | 'list' | 'single';
-    columnsPerRow: number;
-    allowStar: boolean;
-    allowDelete: boolean;
-    images: GalleryImage[];
-}
+import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
+import { GalleryImageRef, GalleryDisplayConfig } from './types';
 
 // --- Node Component ---
 export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
@@ -33,45 +18,60 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
     const serverPort = useWorkflowStore(s => s.serverPort);
     const updateNodeInternals = useUpdateNodeInternals();
 
+    // Media assets cache for resolving URLs
+    const [mediaAssets, setMediaAssets] = useState<Map<string, MediaAssetInfo>>(new Map());
+
     useEffect(() => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
+    // Load media assets for URL resolution
+    useEffect(() => {
+        apiClient.getMediaAssets().then(resp => {
+            setMediaAssets(new Map(resp.items.map(a => [a.id, a])));
+        });
+    }, []);
+
     // Get content with defaults - normalized: value is images[], config.extra has settings
-    const content: GalleryAssetContent = useMemo(() => {
+    const content = useMemo(() => {
         const raw = state.asset?.value;
         const config = state.asset?.config as any || {};
         const extra = config.extra || {};
 
-        // value is always the images array
-        let images: GalleryImage[] = [];
+        // value is always the images array (GalleryImageRef[])
+        let images: GalleryImageRef[] = [];
         if (Array.isArray(raw)) {
             images = raw.map((item: any, i: number) => ({
                 id: item.id || `img-${i}`,
-                src: item.src || item.url || '',
+                mediaAssetId: item.mediaAssetId || '',
                 starred: item.starred ?? false,
                 caption: item.caption || '',
             }));
         }
 
         // settings from config.extra
-        return {
+        const displayConfig: GalleryDisplayConfig = {
             viewMode: extra.viewMode ?? 'grid',
             columnsPerRow: extra.columnsPerRow ?? 4,
             allowStar: extra.allowStar ?? true,
             allowDelete: extra.allowDelete ?? true,
-            images,
         };
+
+        return { images, ...displayConfig };
     }, [state.asset?.value, state.asset?.config]);
 
-    // Resolve image URLs
-    const resolveUrl = (src: string): string => {
-        if (!src) return '';
-        if ((src.startsWith('assets/') || src.startsWith('assets\\')) && serverPort) {
-            const filename = src.replace(/\\/g, '/').split('/').pop();
+    // Resolve image URL from mediaAssetId
+    const resolveImageUrl = (item: GalleryImageRef): string => {
+        const asset = mediaAssets.get(item.mediaAssetId);
+        if (!asset) return '';
+        const path = asset.content;
+        if (!path) return '';
+        if (path.startsWith('http') || path.startsWith('data:')) return path;
+        if (serverPort && (path.startsWith('assets/') || path.includes('assets\\\\'))) {
+            const filename = path.replace(/\\/g, '/').split('/').pop();
             return `http://localhost:${serverPort}/assets/${filename}`;
         }
-        return src;
+        return path;
     };
 
     // Toggle star - only update value (images array)
@@ -160,16 +160,22 @@ export const GalleryNode = memo((props: NodeProps<SynniaNode>) => {
                                             content.viewMode === 'single' && 'max-w-full max-h-full'
                                         )}
                                     >
-                                        <img
-                                            src={resolveUrl(img.src)}
-                                            alt={img.caption || 'Gallery image'}
-                                            className={cn(
-                                                'object-cover',
-                                                content.viewMode === 'grid' && 'w-full h-full',
-                                                content.viewMode === 'list' && 'h-full w-14',
-                                                content.viewMode === 'single' && 'max-w-full max-h-full object-contain'
-                                            )}
-                                        />
+                                        {resolveImageUrl(img) ? (
+                                            <img
+                                                src={resolveImageUrl(img)}
+                                                alt={img.caption || 'Gallery image'}
+                                                className={cn(
+                                                    'object-cover',
+                                                    content.viewMode === 'grid' && 'w-full h-full',
+                                                    content.viewMode === 'list' && 'h-full w-14',
+                                                    content.viewMode === 'single' && 'max-w-full max-h-full object-contain'
+                                                )}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-xs">
+                                                Loading...
+                                            </div>
+                                        )}
 
                                         {/* Star overlay */}
                                         {content.allowStar && (

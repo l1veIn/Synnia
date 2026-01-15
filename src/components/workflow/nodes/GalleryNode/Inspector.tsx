@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Save, AlertCircle, FolderOpen, Upload } from 'lucide-react';
-import { GalleryAssetContent, GalleryImage } from './index';
+import { GalleryImageRef } from './types';
 import { AssetPicker } from '@/components/AssetPicker';
 import { MediaAssetInfo, apiClient } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
@@ -25,12 +25,12 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
     // Get images from value (pure array) and settings from config.extra
-    const images: GalleryImage[] = useMemo(() => {
+    const images: GalleryImageRef[] = useMemo(() => {
         const raw = asset?.value;
         if (Array.isArray(raw)) {
             return raw.map((item: any, i: number) => ({
                 id: item.id || `img-${i}`,
-                src: item.src || item.url || '',
+                mediaAssetId: item.mediaAssetId || '',
                 starred: item.starred ?? false,
                 caption: item.caption || '',
             }));
@@ -109,23 +109,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         toast.info('Changes discarded');
     };
 
-    // Handle assets selected from picker
+    // Handle assets selected from picker - only store mediaAssetId reference
     const handleAssetsSelected = (selectedAssets: MediaAssetInfo[]) => {
-        const newImages: GalleryImage[] = selectedAssets.map(asset => {
-            // Resolve the correct URL/path
-            let src = asset.content;
-            if (serverPort && (src.startsWith('assets/') || src.includes('assets\\\\'))) {
-                const filename = src.replace(/\\/g, '/').split('/').pop();
-                src = `http://localhost:${serverPort}/assets/${filename}`;
-            }
-            return {
-                id: uuidv4(),
-                src,
-                caption: asset.name,
-                starred: false,
-                mediaAssetId: asset.id, // Track the source asset
-            };
-        });
+        const newImages: GalleryImageRef[] = selectedAssets.map(asset => ({
+            id: uuidv4(),
+            mediaAssetId: asset.id,
+            starred: false,
+            caption: asset.name,
+        }));
 
         setValue([...images, ...newImages]);
         toast.success(`Added ${selectedAssets.length} image(s)`);
@@ -139,13 +130,13 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Clear all stars
     const clearAllStars = () => {
-        setValue(images.map((img: GalleryImage) => ({ ...img, starred: false })));
+        setValue(images.map((img: GalleryImageRef) => ({ ...img, starred: false })));
         toast.success('All stars cleared');
     };
 
     if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
 
-    const starredCount = images.filter((img: GalleryImage) => img.starred).length;
+    const starredCount = images.filter((img: GalleryImageRef) => img.starred).length;
 
     return (
         <div className="flex flex-col h-full">
@@ -175,22 +166,18 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 const succeeded = results.filter(r => r.result);
                                 const failed = results.filter(r => r.error).length;
 
-                                // Add imported images to gallery
-                                const newImages: GalleryImage[] = succeeded.map(r => {
-                                    const path = r.result!.relativePath;
-                                    const src = serverPort
-                                        ? `http://localhost:${serverPort}/assets/${path.split('/').pop()}`
-                                        : path;
-                                    return {
+                                if (succeeded.length > 0) {
+                                    // Use assetId directly from import result (auto-created)
+                                    const newImages: GalleryImageRef[] = succeeded.map(r => ({
                                         id: uuidv4(),
-                                        src,
-                                        caption: r.sourcePath.split('/').pop() || 'Imported',
+                                        mediaAssetId: r.result!.assetId,
                                         starred: false,
-                                    };
-                                });
+                                        caption: r.sourcePath.split('/').pop() || 'Imported',
+                                    }));
 
-                                if (newImages.length > 0) {
-                                    setValue([...images, ...newImages]);
+                                    if (newImages.length > 0) {
+                                        setValue([...images, ...newImages]);
+                                    }
                                 }
 
                                 if (failed > 0) {

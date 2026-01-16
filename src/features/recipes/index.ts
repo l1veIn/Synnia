@@ -1,42 +1,42 @@
 // ============================================================================
 // Recipe Registry - Entry Point
-// V3: Loads recipes from v2/ directory using Package format only
+// V1.0: Unified YAML with $ref support
 // ============================================================================
 
-import { recipeRegistry as internalRegistry, loadRecipePackage, type PackageFiles } from './recipeLoader';
-import type { RecipeDefinition } from '@/types/recipe';
+import { parse as parseYaml } from 'yaml';
+import {
+    recipeRegistry as internalRegistry,
+    loadRecipePackage,
+    type PackageFiles,
+} from './recipeLoader';
+import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
 
 // ============================================================================
 // Load Package Files using Vite glob
 // ============================================================================
 
-// Import all Package manifest.yaml files
-const manifestModules = import.meta.glob('./v2/**/manifest.yaml', {
+// Import all manifest.yaml files
+const manifestModules = import.meta.glob('./packages/**/manifest.yaml', {
     eager: true,
     query: '?raw',
     import: 'default'
 }) as Record<string, string>;
 
-// Import input/output JSON files (new unified format)
-const inputModules = import.meta.glob('./v2/**/input.json', {
+// Import all schema YAML files for $ref resolution
+const schemaModules = import.meta.glob('./packages/**/*.yaml', {
     eager: true,
     query: '?raw',
     import: 'default'
 }) as Record<string, string>;
 
-const outputModules = import.meta.glob('./v2/**/output.json', {
+// Import prompt files
+const systemPromptModules = import.meta.glob('./packages/**/prompts/system.md', {
     eager: true,
     query: '?raw',
     import: 'default'
 }) as Record<string, string>;
 
-const systemPromptModules = import.meta.glob('./v2/**/prompts/system.md', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-const userPromptModules = import.meta.glob('./v2/**/prompts/user.md', {
+const userPromptModules = import.meta.glob('./packages/**/prompts/user.md', {
     eager: true,
     query: '?raw',
     import: 'default'
@@ -46,41 +46,69 @@ const userPromptModules = import.meta.glob('./v2/**/prompts/user.md', {
 const recipePathMap = new Map<string, string[]>();
 
 // ============================================================================
-// Register all Package recipes
+// $ref File Loader (uses pre-loaded schema modules)
 // ============================================================================
 
-for (const [manifestPath, manifestContent] of Object.entries(manifestModules)) {
-    try {
-        // Extract package directory: ./v2/agent/storyteller/manifest.yaml -> ./v2/agent/storyteller
-        const packageDir = manifestPath.replace('/manifest.yaml', '');
+/**
+ * Create a sync file loader that looks up files from pre-loaded modules.
+ * All files are eagerly loaded by Vite glob at build time, no async needed.
+ */
+function createFileLoader(_basePath: string): (path: string) => string {
+    return (absolutePath: string): string => {
+        // Convert absolute path back to module path format: ./packages/...
+        const modulePath = '.' + absolutePath;
 
-        // Gather all package files
-        const files: PackageFiles = {
-            manifest: manifestContent,
-            input: inputModules[`${packageDir}/input.json`],
-            output: outputModules[`${packageDir}/output.json`],
-            systemPrompt: systemPromptModules[`${packageDir}/prompts/system.md`],
-            userPrompt: userPromptModules[`${packageDir}/prompts/user.md`],
-        };
-
-        // Load and register the recipe
-        const manifest = loadRecipePackage(files);
-        const recipe = internalRegistry.registerManifest(manifest);
-
-        // Extract path for NodePicker: ./v2/agent/storyteller -> ['agent']
-        const pathMatch = packageDir.match(/\.\/v2\/(.+)$/);
-        if (pathMatch) {
-            // Split path and remove last segment (package name)
-            const segments = pathMatch[1].split('/');
-            const category = segments.slice(0, -1); // ['agent', 'storyteller'] -> ['agent']
-            recipePathMap.set(recipe.id, category.length > 0 ? category : [segments[0]]);
+        const content = schemaModules[modulePath];
+        if (!content) {
+            // Try alternative path formats
+            const altPath = absolutePath.startsWith('/') ? '.' + absolutePath : './' + absolutePath;
+            const altContent = schemaModules[altPath];
+            if (!altContent) {
+                throw new Error(`Schema file not found: ${absolutePath}\nAvailable: ${Object.keys(schemaModules).slice(0, 5).join(', ')}...`);
+            }
+            return altContent;
         }
+        return content;
+    };
+}
 
-        console.log(`[RecipeRegistry] Loaded package: ${recipe.id}`);
-    } catch (error) {
-        console.error(`[RecipeRegistry] Failed to load ${manifestPath}:`, error);
+// ============================================================================
+// Register all Package recipes (SYNC - all files pre-loaded by Vite glob)
+// ============================================================================
+
+function registerAllRecipes(): void {
+    for (const [manifestPath, manifestContent] of Object.entries(manifestModules)) {
+        try {
+            // Extract package directory: ./packages/agent/storyteller/manifest.yaml -> ./packages/agent/storyteller
+            const packageDir = manifestPath.replace('/manifest.yaml', '');
+
+            const files: PackageFiles = {
+                manifest: manifestContent,
+                systemPrompt: systemPromptModules[`${packageDir}/prompts/system.md`],
+                userPrompt: userPromptModules[`${packageDir}/prompts/user.md`],
+                loadFile: createFileLoader(packageDir),
+                basePath: packageDir.replace('./', '/'),  // ./packages/agent/art-director -> /packages/agent/art-director
+            };
+            const manifest = loadRecipePackage(files);
+            const recipe = internalRegistry.registerManifest(manifest);
+
+            // Extract path for NodePicker: ./packages/agent/storyteller -> ['agent']
+            const pathMatch = packageDir.match(/\.\/packages\/(.+)$/);
+            if (pathMatch) {
+                const segments = pathMatch[1].split('/');
+                const category = segments.slice(0, -1);
+                recipePathMap.set(recipe.id, category.length > 0 ? category : [segments[0]]);
+            }
+
+            console.log(`[RecipeRegistry] Loaded: ${recipe.id}`);
+        } catch (error) {
+            console.error(`[RecipeRegistry] Failed to load ${manifestPath}:`, error);
+        }
     }
 }
+
+// Initialize recipes synchronously (all files pre-loaded by Vite glob)
+registerAllRecipes();
 
 // ============================================================================
 // Recipe Tree Structure for NodePicker

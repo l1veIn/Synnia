@@ -94,6 +94,12 @@ for (const recipe of recipes) {
                 }
             }
 
+            // Copy prompts from manifest for user customization
+            const prompt = recipe.manifest.prompt ? {
+                system: recipe.manifest.prompt.system || '',
+                user: recipe.manifest.prompt.user || '',
+            } : undefined;
+
             return {
                 asset: {
                     valueType: 'record' as const,
@@ -103,6 +109,7 @@ for (const recipe of recipes) {
                         extra: {
                             recipeId: recipe.id,
                             modelConfig,
+                            prompt,
                         },
                     },
                 },

@@ -118,7 +118,10 @@ export function useFieldConnections(
             // Get capability and resolve value
             const field = schema?.find(f => f.key === fieldKey);
             const capability = field
-                ? (getCapability?.(field) ?? getDefaultCapability(field))
+                ? {
+                    ...(getCapability?.(field) ?? getDefaultCapability(field)),
+                    targetField: field, // Pass field def for smart resolution
+                }
                 : { hasInputPort: true, hasOutputPort: false };
 
             const value = resolveWithCapability(capability, context);
@@ -214,7 +217,10 @@ export function resolveFieldConnections(
 
         const field = schema?.find(f => f.key === fieldKey);
         const capability = field
-            ? (getCapability?.(field) ?? getDefaultCapability(field))
+            ? {
+                ...(getCapability?.(field) ?? getDefaultCapability(field)),
+                targetField: field, // Pass field def for smart resolution
+            }
             : { hasInputPort: true, hasOutputPort: false };
 
         const value = resolveWithCapability(capability, context);

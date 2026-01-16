@@ -1,0 +1,37 @@
+# product-manager Input Schema
+
+- key: soulProfile
+  label: 灵魂档案
+  type: object
+  widget: form-input
+  required: true
+  connection: input
+  config:
+    placeholder: 在此连接'灵魂档案'JSON输出
+  schema:
+    $ref: ../../storyteller/schemas/soul-profile.yaml
+
+- key: productType
+  label: 产品类型
+  type: string
+  required: true
+  connection: input
+
+- key: visualStyle
+  label: 视觉风格
+  type: string
+  required: true
+  config:
+    placeholder: "例如：3D盲盒、扁平矢量、赛博朋克..."
+  connection: input
+
+- key: assetDefinitions
+  label: 资产定义库
+  type: array
+  widget: table-input
+  required: true
+  connection: input
+  config:
+    placeholder: 传入资产定义 JSON
+  schema:
+    $ref: ../../art-director/schemas/asset-definitions.yaml

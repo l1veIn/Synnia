@@ -1,0 +1,31 @@
+# 产品经理 - Product Manager
+# Recipe Package
+version: 1
+
+id: product-manager
+name: 产品经理
+description: 规划生产清单并为角色撰写微文案
+category: Agent
+icon: Briefcase
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.5
+    maxTokens: 4096
+
+advanced:
+  multiTurn: true
+
+input:
+  schema:
+    $ref: ./schemas/input.yaml
+
+output:
+  node: table
+  title: "生产清单 ({{count}} 项)"
+  collapsed: false
+  schema:
+    $ref: ./schemas/production-manifest.yaml

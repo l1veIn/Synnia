@@ -1,6 +1,0 @@
-{
-    "node": "video",
-    "title": "Video: {{prompt}}",
-    "collapsed": false,
-    "schema": []
-}

@@ -18,10 +18,12 @@ import { FormRenderer } from '../../inspector/FormRenderer';
 import type { RecipeAssetConfig, ModelConfig, ChatMessage, RecipeExtra } from '@/features/recipes/types';
 
 // Tab Components
+// Tab Components
 import { ModelTab } from './Inspector/ModelTab';
 import { ChatTab } from './Inspector/ChatTab';
-import { AdvancedTab } from './Inspector/AdvancedTab';
 import { LogTab } from './Inspector/LogTab';
+import { AdvancedTab } from './Inspector/AdvancedTab';
+import { Settings } from 'lucide-react';
 
 interface RecipeNodeInspectorProps {
     assetId?: string;
@@ -174,55 +176,69 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
 
     return (
         <div className="flex flex-col h-full">
-            {/* Recipe Info Header */}
-            <div className="px-4 py-3 border-b bg-muted/10">
-                <div className="flex items-center gap-2">
-                    {recipe.icon && <recipe.icon className="h-4 w-4 text-primary" />}
-                    <span className="font-medium text-sm">{recipe.name}</span>
-                    {recipe.category && (
-                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                            {recipe.category}
-                        </span>
-                    )}
-                    {hasChanges && (
-                        <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            Unsaved
-                        </span>
-                    )}
+            {/* Header / Description */}
+            <div className="px-4 py-3 border-b bg-muted/10 shrink-0">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{recipe.name}</span>
+                        {/* Status badges */}
+                        {hasChanges && (
+                            <span className="text-[10px] bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                Unsaved
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {recipe.description && (
-                    <p className="text-[10px] text-muted-foreground mt-1">{recipe.description}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{recipe.description}</p>
                 )}
             </div>
 
-            {/* 5-Tab Layout */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-4 h-9">
-                    <TabsTrigger value="form" className="gap-1.5 text-xs">
-                        <FileText className="h-3.5 w-3.5" />
-                        Form
-                    </TabsTrigger>
-                    <TabsTrigger value="model" className="gap-1.5 text-xs">
-                        <Bot className="h-3.5 w-3.5" />
-                        Model
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="chat"
-                        className={cn("gap-1.5 text-xs", !hasChatCapability && "opacity-50 cursor-not-allowed")}
+            {/* Split Layout: Tabs + Advanced Action */}
+            <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="flex-1 flex flex-col overflow-hidden"
+            >
+                <div className="flex items-center border-b px-2 h-10 bg-transparent">
+                    <TabsList className="flex-1 justify-start rounded-none border-b-0 bg-transparent p-0 h-full gap-0 overflow-x-auto no-scrollbar">
+                        <TabsTrigger value="form" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 text-xs font-medium min-w-fit flex-1">
+                            <FileText className="h-3.5 w-3.5 mr-1.5" />
+                            Form
+                        </TabsTrigger>
+                        <TabsTrigger value="model" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 text-xs font-medium min-w-fit flex-1">
+                            <Bot className="h-3.5 w-3.5 mr-1.5" />
+                            Model
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="chat"
+                            className={cn("h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 text-xs font-medium min-w-fit flex-1", !hasChatCapability && "opacity-50 cursor-not-allowed")}
+                        >
+                            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                            Chat
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-2 text-xs font-medium min-w-fit flex-1">
+                            <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+                            Logs
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <div className="w-px h-4 bg-border mx-1 shrink-0" />
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                            "h-7 w-7 p-0 rounded-sm hover:bg-muted text-muted-foreground shrink-0",
+                            activeTab === 'advanced' && "bg-primary/10 text-primary hover:bg-primary/20"
+                        )}
+                        onClick={() => setActiveTab(activeTab === 'advanced' ? 'form' : 'advanced')}
+                        title="Advanced Settings (Prompts)"
                     >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Chat
-                    </TabsTrigger>
-                    <TabsTrigger value="logs" className="gap-1.5 text-xs">
-                        <ScrollText className="h-3.5 w-3.5" />
-                        Logs
-                    </TabsTrigger>
-                    <TabsTrigger value="advanced" className="gap-1.5 text-xs">
-                        <Code className="h-3.5 w-3.5" />
-                        Advanced
-                    </TabsTrigger>
-                </TabsList>
+                        <Settings className="h-4 w-4" />
+                    </Button>
+                </div>
 
                 {/* Form Tab */}
                 <TabsContent value="form" className="flex-1 flex flex-col overflow-hidden mt-0">
@@ -316,7 +332,7 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
 
                 {/* Advanced Tab */}
                 <TabsContent value="advanced" className="flex-1 overflow-hidden mt-0">
-                    {asset && <AdvancedTab asset={asset as any} />}
+                    {asset && <AdvancedTab asset={asset as any} recipe={recipe} />}
                 </TabsContent>
             </Tabs>
         </div>

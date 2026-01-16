@@ -1,0 +1,31 @@
+# Art Director - English Version
+# Recipe Package
+version: 1
+
+id: art-director-en
+name: Art Director
+description: Generate executable AI image prompts with color injection for the production manifest
+category: Agent
+icon: Palette
+
+model:
+  category: llm
+  capabilities:
+    - chat
+  defaultParams:
+    temperature: 0.7
+    maxTokens: 8192
+
+advanced:
+  multiTurn: true
+
+input:
+  schema:
+    $ref: ./schemas/input.yaml
+
+output:
+  node: table
+  title: "Visual Blueprint ({{count}} prompts)"
+  collapsed: false
+  schema:
+    $ref: ./schemas/visual-blueprint.yaml

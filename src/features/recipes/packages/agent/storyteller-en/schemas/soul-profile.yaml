@@ -1,0 +1,34 @@
+# Soul Profile Schema (English)
+# Brand/IP core attributes
+# Referenced by: art-director-en, product-manager-en
+
+- key: name
+  label: Name
+  type: string
+  required: true
+
+- key: tagline
+  label: Tagline
+  type: string
+
+- key: personality
+  label: Personality
+  type: string
+  widget: textarea
+
+- key: colorDNA
+  label: Color DNA
+  type: object
+  schema:
+    - key: primary
+      label: Primary
+      type: string
+      widget: color
+    - key: secondary
+      label: Secondary
+      type: string
+      widget: color
+    - key: accent
+      label: Accent
+      type: string
+      widget: color

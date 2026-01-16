@@ -14,6 +14,7 @@
 import type { FieldDefinition } from '@/types/assets';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
 import type { Asset } from '@/types/assets';
+import { smartResolveValue } from './smartResolve';
 
 // ============================================================================
 // Core Interfaces
@@ -71,12 +72,21 @@ export interface FieldCapability {
     /**
      * Custom resolution function for connected values
      * 
-     * Default behavior: ctx.sourcePortValue?.value[fieldKey] ?? ctx.sourcePortValue?.value
+     * Default behavior uses smartResolve:
+     * 1. Try source[fieldKey] if exists and valid
+     * 2. Try source itself if valid (object type)
+     * 3. Return undefined if neither works
      * 
      * Reference-style widgets can ignore sourcePortValue and use:
      * { nodeId: ctx.sourceNode.id, title: ctx.sourceNode.data.title, ... }
      */
     resolveConnectedValue?: (ctx: ConnectionContext) => any;
+
+    /**
+     * Target field definition for smart resolution
+     * If provided, smartResolve will validate type and required fields
+     */
+    targetField?: FieldDefinition;
 }
 
 // ============================================================================
@@ -148,18 +158,35 @@ export function parseFieldKeyFromHandle(targetHandle: string | null | undefined)
 }
 
 /**
- * Default resolution: extract value from sourcePortValue
+ * Default resolution: extract value from sourcePortValue using smartResolve
+ * 
+ * If targetField is provided, uses full smart resolution with validation.
+ * Otherwise falls back to simple key extraction for backward compatibility.
  */
-export function defaultResolveConnectedValue(ctx: ConnectionContext): any {
+export function defaultResolveConnectedValue(
+    ctx: ConnectionContext,
+    targetField?: FieldDefinition
+): any {
     const { sourcePortValue, fieldKey } = ctx;
 
     if (!sourcePortValue?.value) return undefined;
 
     const value = sourcePortValue.value;
 
-    // If value is an object, try to get the specific field
+    // If we have target field definition, use smart resolution
+    if (targetField) {
+        return smartResolveValue(value, targetField);
+    }
+
+    // Fallback: simple key extraction for backward compatibility
+    // (when no schema info available)
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-        return value[fieldKey] ?? value;
+        // Try keyed extraction first
+        if (fieldKey in value) {
+            return value[fieldKey];
+        }
+        // Return whole object as fallback
+        return value;
     }
 
     return value;
@@ -176,5 +203,5 @@ export function resolveWithCapability(
     if (capability.resolveConnectedValue) {
         return capability.resolveConnectedValue(ctx);
     }
-    return defaultResolveConnectedValue(ctx);
+    return defaultResolveConnectedValue(ctx, capability.targetField);
 }

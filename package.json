@@ -73,6 +73,7 @@
     "react-dom": "^19.0.0",
     "react-i18next": "^15.4.1",
     "react-image-crop": "^11.0.10",
+    "react-json-view": "^1.21.3",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.6",
     "remark-gfm": "^4.0.1",

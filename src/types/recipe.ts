@@ -144,6 +144,7 @@ export interface ExecutionContext {
     nodeId: string;
     engine: GraphEngine;
     node: SynniaNode;
+    asset?: import('@/types/assets').Asset;  // Asset for prompt customization
     manifest: RecipeManifest;
     chatContext?: import('@/features/recipes/types').ChatMessage[];
     modelConfig?: import('@/features/recipes/types').ModelConfig;

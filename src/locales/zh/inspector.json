@@ -22,7 +22,8 @@
     "invalidJson": "{{title}} 的 JSON 格式无效",
     "noNode": "未选择节点",
     "resetChanges": "重置更改",
-    "updated": "{{title}} 已更新"
+    "updated": "{{title}} 已更新",
+    "saveFailed": "{{title}} 保存失败"
   },
   "empty": {
     "noInspector": "此节点暂无检查器"

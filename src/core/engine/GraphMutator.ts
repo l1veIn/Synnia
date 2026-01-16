@@ -247,7 +247,7 @@ export class GraphMutator {
             nodeType = def.type; // Use the actual registered type
         }
 
-        const name = spec.name ?? `New ${nodeRegistry.getMeta(nodeType)?.title || nodeType}`;
+        const name = spec.name ?? `${nodeRegistry.getMeta(nodeType)?.title || nodeType}`;
 
         // ─────────────────────────────────────────────────────────────────────
         // Step 3: Calculate position

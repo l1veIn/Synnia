@@ -76,19 +76,23 @@ function prepareLLMInput(
     credentials: Credentials,
     manifest?: RecipeManifest
 ): ModelExecutionInput {
-    const { inputs, modelConfig, chatContext } = ctx;
+    const { inputs, modelConfig, chatContext, asset } = ctx;
 
-    // Build prompts from manifest templates
-    const systemPrompt = manifest?.prompt?.system
-        ? interpolate(manifest.prompt.system, inputs)
+    // Get prompts: prioritize user-customized prompts from asset, fallback to manifest defaults
+    const assetPrompt = (asset?.config as any)?.extra?.prompt;
+    const promptSource = assetPrompt || manifest?.prompt;
+
+    // Build prompts from templates
+    const systemPrompt = promptSource?.system
+        ? interpolate(promptSource.system, inputs)
         : '';
 
     let userPrompt: string;
     if (chatContext && chatContext.length > 0) {
         const lastUserMsg = [...chatContext].reverse().find(m => m.role === 'user');
-        userPrompt = lastUserMsg?.content || interpolate(manifest?.prompt?.user || '', inputs);
+        userPrompt = lastUserMsg?.content || interpolate(promptSource?.user || '', inputs);
     } else {
-        userPrompt = interpolate(manifest?.prompt?.user || '', inputs);
+        userPrompt = interpolate(promptSource?.user || '', inputs);
     }
 
     const isTextOutput = manifest?.output?.node === 'text';

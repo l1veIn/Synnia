@@ -1,0 +1,20 @@
+# 资产定义 Schema
+# Used by: art-director, product-manager
+- key: id
+  label: ID
+  type: string
+  required: true
+
+- key: name
+  label: 名称
+  type: string
+  required: true
+
+- key: description
+  label: 描述
+  type: string
+  widget: textarea
+
+- key: category
+  label: 类别
+  type: string

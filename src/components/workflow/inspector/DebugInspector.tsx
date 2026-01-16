@@ -1,97 +1,128 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { SynniaNode } from '@/types/project';
 import { toast } from 'sonner';
-import { Save, RotateCcw, Copy } from 'lucide-react';
+import { Save, RotateCcw, Copy, ChevronRight, ChevronDown } from 'lucide-react';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { useTranslation } from 'react-i18next';
+import ReactJson from 'react-json-view';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
+import { PortsDebugSection } from './PortsDebugSection';
 
 interface JsonEditorBlockProps {
     title: string;
     data: any;
     onSave: (newData: any) => void;
     readOnly?: boolean;
+    defaultOpen?: boolean;
 }
 
-const JsonEditorBlock = ({ title, data, onSave, readOnly }: JsonEditorBlockProps) => {
+const JsonEditorBlock = ({ title, data, onSave, readOnly, defaultOpen = true }: JsonEditorBlockProps) => {
     const { t } = useTranslation('inspector');
-    const [value, setValue] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const { resolvedTheme } = useTheme();
+    const [jsonData, setJsonData] = useState<any>(data);
     const [isDirty, setIsDirty] = useState(false);
+    const [isOpen, setIsOpen] = useState(defaultOpen);
 
     useEffect(() => {
         if (!isDirty && data) {
-            setValue(JSON.stringify(data, null, 2));
+            setJsonData(data);
         }
     }, [data, isDirty]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setValue(e.target.value);
+    const handleEdit = (edit: any) => {
+        setJsonData(edit.updated_src);
         setIsDirty(true);
-        setError(null);
     };
 
-    const handleSave = () => {
+    const handleSave = (e: React.MouseEvent) => {
+        e.stopPropagation();
         try {
-            const parsed = JSON.parse(value);
-            onSave(parsed);
+            onSave(jsonData);
             setIsDirty(false);
             toast.success(t('debug.updated', { title }));
         } catch (e: any) {
-            setError(e.message);
-            toast.error(t('debug.invalidJson', { title }));
+            toast.error(t('debug.saveFailed', { title }));
         }
     };
 
-    const handleReset = () => {
-        setValue(JSON.stringify(data, null, 2));
+    const handleReset = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setJsonData(data);
         setIsDirty(false);
-        setError(null);
     };
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(value);
+    const handleCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(JSON.stringify(jsonData, null, 2));
         toast.success(t('debug.copied'));
     }
 
+    const rjvTheme = resolvedTheme === 'dark' ? 'monokai' : 'rjv-default';
+    const bgClass = resolvedTheme === 'dark' ? 'bg-[#272822]' : 'bg-white';
+
     return (
-        <div className="flex flex-col h-1/2 min-h-0 border-b last:border-0 pb-4">
-            <div className="flex items-center justify-between py-2 px-1">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">{title}</Label>
-                <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy} title={t('debug.copyJson')}>
-                        <Copy className="h-3 w-3" />
-                    </Button>
-                    {!readOnly && isDirty && (
-                        <>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleReset} title={t('debug.resetChanges')}>
-                                <RotateCcw className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" className="h-6 text-xs px-2" onClick={handleSave}>
-                                <Save className="h-3 w-3 mr-1" /> {t('debug.apply')}
-                            </Button>
-                        </>
-                    )}
-                </div>
-            </div>
-            <div className="flex-1 relative min-h-0">
-                <Textarea
-                    value={value}
-                    onChange={handleChange}
-                    className={`h-full font-mono text-[10px] resize-none border-0 rounded-none bg-muted/30 focus-visible:ring-0 p-2 leading-relaxed ${error ? 'border-2 border-destructive' : ''}`}
-                    spellCheck={false}
-                    readOnly={readOnly}
-                />
-                {error && (
-                    <div className="absolute bottom-2 right-2 left-2 bg-destructive/90 text-destructive-foreground text-[10px] p-1.5 rounded shadow-lg backdrop-blur-sm truncate">
-                        {error}
-                    </div>
-                )}
-            </div>
-        </div>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full space-y-2">
+            <Card className="rounded-md border shadow-sm overflow-hidden">
+                <CardHeader className="p-0">
+                    <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors select-none">
+                            <div className="flex items-center gap-2">
+                                {isOpen ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <Label className="text-sm font-semibold cursor-pointer">{title}</Label>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy} title={t('debug.copyJson')}>
+                                    <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                                {!readOnly && isDirty && (
+                                    <>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handleReset} title={t('debug.resetChanges')}>
+                                            <RotateCcw className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button size="sm" className="h-7 text-xs px-2 ml-1" onClick={handleSave}>
+                                            <Save className="h-3.5 w-3.5 mr-1" /> {t('debug.apply')}
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                    <CardContent className="p-0 border-t">
+                        <div className={cn("relative min-h-[100px] max-h-[500px]", bgClass)}>
+                            <ScrollArea className="h-full w-full max-h-[500px]">
+                                <div className="p-4 text-xs">
+                                    <ReactJson
+                                        src={jsonData}
+                                        theme={rjvTheme}
+                                        collapsed={2}
+                                        collapseStringsAfterLength={50}
+                                        onEdit={!readOnly ? handleEdit : undefined}
+                                        onAdd={!readOnly ? handleEdit : undefined}
+                                        onDelete={!readOnly ? handleEdit : undefined}
+                                        displayDataTypes={false}
+                                        enableClipboard={false}
+                                        style={{ backgroundColor: 'transparent', fontFamily: 'monospace' }}
+                                    />
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </CardContent>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
     );
 };
 
@@ -129,19 +160,26 @@ export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
     const fullAssetData = asset;
 
     return (
-        <div className="flex flex-col h-full">
-            <JsonEditorBlock
-                title={`Node (${node.type})`}
-                data={node}
-                onSave={handleNodeSave}
-            />
-            {asset && (
+        <ScrollArea className="h-full">
+            <div className="flex flex-col gap-4 p-4 pb-20">
                 <JsonEditorBlock
-                    title={`Asset (${asset.valueType})`}
-                    data={fullAssetData}
-                    onSave={handleAssetSave}
+                    title={`Node (${node.type})`}
+                    data={node}
+                    onSave={handleNodeSave}
+                    defaultOpen={false}
                 />
-            )}
-        </div>
+
+                {asset && (
+                    <JsonEditorBlock
+                        title={`Asset (${asset.valueType})`}
+                        data={fullAssetData}
+                        onSave={handleAssetSave}
+                        defaultOpen={true}
+                    />
+                )}
+
+                <PortsDebugSection nodeId={nodeId} defaultOpen={true} />
+            </div>
+        </ScrollArea>
     );
 };

@@ -1,0 +1,17 @@
+# naming-master-en Output Schema - Naming Options
+
+- key: name
+  label: Name
+  type: string
+
+- key: tagline
+  label: Tagline
+  type: string
+
+- key: rationale
+  label: Rationale
+  type: string
+
+- key: style
+  label: Style
+  type: string

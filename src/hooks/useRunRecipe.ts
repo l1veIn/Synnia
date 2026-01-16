@@ -229,6 +229,7 @@ export function useRunRecipe() {
                 inputs: effectiveValues,
                 nodeId,
                 node,
+                asset: node.data.assetId ? store.assets[node.data.assetId as string] : undefined,
                 engine: graphEngine,
                 manifest: recipe.manifest,
                 chatContext: undefined, // Now handled by useChatContext in operational layer
@@ -459,6 +460,7 @@ export function useRunRecipe() {
                 inputs: staticValues,
                 nodeId,
                 node,
+                asset: node.data.assetId ? store.assets[node.data.assetId as string] : undefined,
                 engine: graphEngine,
                 manifest: recipe.manifest,
                 chatContext: chatMessages as any, // Pass chat history

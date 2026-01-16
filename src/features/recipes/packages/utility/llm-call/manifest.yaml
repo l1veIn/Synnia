@@ -1,0 +1,29 @@
+# LLM Call - Basic Utility Recipe
+version: 1
+
+id: llm-call
+name: LLM Call
+description: Basic LLM invocation with custom prompts
+category: Utility
+icon: Sparkles
+
+model:
+  category: llm
+  capabilities:
+    - chat
+    - vision
+  defaultParams:
+    temperature: 0.7
+    maxTokens: 2048
+
+advanced:
+  multiTurn: true
+
+input:
+  schema:
+    $ref: ./schemas/input.yaml
+
+output:
+  node: text
+  title: "Response"
+  collapsed: false

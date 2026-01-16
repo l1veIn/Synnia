@@ -1,0 +1,34 @@
+# 灵魂档案 Schema
+# 品牌/IP 的核心属性定义
+# Referenced by: art-director, product-manager
+
+- key: name
+  label: 名称
+  type: string
+  required: true
+
+- key: tagline
+  label: 标语
+  type: string
+
+- key: personality
+  label: 性格
+  type: string
+  widget: textarea
+
+- key: colorDNA
+  label: 色彩DNA
+  type: object
+  schema:
+    - key: primary
+      label: 主色
+      type: string
+      widget: color
+    - key: secondary
+      label: 辅助色
+      type: string
+      widget: color
+    - key: accent
+      label: 强调色
+      type: string
+      widget: color

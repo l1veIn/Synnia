@@ -23,7 +23,8 @@
     "invalidJson": "Invalid JSON in {{title}}",
     "noNode": "No node selected",
     "resetChanges": "Reset Changes",
-    "updated": "{{title}} updated"
+    "updated": "{{title}} updated",
+    "saveFailed": "Save failed for {{title}}"
   },
   "empty": {
     "noInspector": "No inspector available for this node"

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2, Maximize2, AlignLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { callLLM } from '@features/models';
+import { useDefaultLLM } from '@features/models/hooks';
 import { SynniaEditor } from '@/components/ui/synnia-editor';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -50,18 +50,18 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
         editorMode = 'plain'
     } = config;
 
-    const [isEnhancing, setIsEnhancing] = useState(false);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [editorValue, setEditorValue] = useState('');
+
+    // Use the new default LLM hook
+    const { call: callLLM, isLoading: isEnhancing } = useDefaultLLM();
 
     const handleEnhance = useCallback(async () => {
         if (!value?.trim() || isEnhancing) return;
 
-        setIsEnhancing(true);
         try {
-            const response = await callLLM({
+            const response = await callLLM(`Enhance this prompt:\n\n${value}`, {
                 systemPrompt: enhancePrompt,
-                userPrompt: `Enhance this prompt:\n\n${value}`,
                 temperature: 0.7,
                 maxTokens: 500,
             });
@@ -71,10 +71,8 @@ function InspectorComponent({ value, onChange, disabled, field }: WidgetProps) {
             }
         } catch (error) {
             console.error('[TextArea] Enhancement failed:', error);
-        } finally {
-            setIsEnhancing(false);
         }
-    }, [value, isEnhancing, enhancePrompt, onChange]);
+    }, [value, isEnhancing, enhancePrompt, onChange, callLLM]);
 
     const handleOpenEditor = () => {
         setEditorValue(value || '');

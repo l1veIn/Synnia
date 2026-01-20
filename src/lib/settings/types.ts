@@ -14,12 +14,21 @@ export interface ProviderConfig {
     enabled?: boolean;   // Explicit enable flag
 }
 
+// Default LLM parameters
+export interface DefaultLLMParams {
+    temperature?: number;
+    maxTokens?: number;
+}
+
 export interface AppSettings {
     // Provider configurations
     providers: Partial<Record<ProviderKey, ProviderConfig>>;
 
     // Default models per category (e.g., 'llm-chat': 'gpt-4o')
     defaultModels: Partial<Record<string, string>>;
+
+    // Default LLM generation parameters
+    defaultLLMParams?: DefaultLLMParams;
 
     // Settings version for future migrations
     _version: number;
@@ -35,7 +44,11 @@ export function createDefaultSettings(): AppSettings {
             'llm-chat': 'gpt-4o-mini',
             'llm-vision': 'gpt-4o',
         },
-        _version: 3,
+        defaultLLMParams: {
+            temperature: 0.7,
+            maxTokens: 2048,
+        },
+        _version: 4,
     };
 }
 

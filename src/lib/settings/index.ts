@@ -76,12 +76,15 @@ export function invalidateSettingsCache(): void {
 // React Hook
 // ============================================================================
 
+import { DefaultLLMParams } from './types';
+
 export interface UseSettingsReturn {
     settings: AppSettings | null;
     loading: boolean;
     error: Error | null;
     updateProvider: (provider: ProviderKey, config: Partial<ProviderConfig>) => Promise<void>;
     setDefaultModel: (category: string, modelId: string) => Promise<void>;
+    setDefaultLLMParams: (params: Partial<DefaultLLMParams>) => Promise<void>;
     refresh: () => Promise<void>;
 }
 
@@ -139,6 +142,19 @@ export function useSettings(): UseSettingsReturn {
         setSettings(newSettings);
     }, [settings]);
 
+    const setDefaultLLMParams = useCallback(async (params: Partial<DefaultLLMParams>) => {
+        if (!settings) return;
+        const newSettings: AppSettings = {
+            ...settings,
+            defaultLLMParams: {
+                ...settings.defaultLLMParams,
+                ...params,
+            },
+        };
+        await saveSettings(newSettings);
+        setSettings(newSettings);
+    }, [settings]);
+
     useEffect(() => {
         if (!cachedSettings) {
             loadSettings()
@@ -148,7 +164,7 @@ export function useSettings(): UseSettingsReturn {
         }
     }, []);
 
-    return { settings, loading, error, updateProvider, setDefaultModel, refresh };
+    return { settings, loading, error, updateProvider, setDefaultModel, setDefaultLLMParams, refresh };
 }
 
 // Re-export types

@@ -98,7 +98,7 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
                                             <div className={cn("border rounded overflow-hidden", bgClass)}>
                                                 <div className="p-2 text-[10px]">
                                                     <ReactJson
-                                                        src={info.value}
+                                                        src={typeof info.value === 'object' && info.value !== null ? info.value : { value: info.value }}
                                                         name={null}
                                                         theme={rjvTheme}
                                                         collapsed={1}
@@ -133,7 +133,7 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
                                             <div className={cn("border rounded overflow-hidden", bgClass)}>
                                                 <div className="p-2 text-[10px]">
                                                     <ReactJson
-                                                        src={outputValues[port.id]}
+                                                        src={typeof outputValues[port.id] === 'object' && outputValues[port.id] !== null ? outputValues[port.id] : { value: outputValues[port.id] }}
                                                         name={null}
                                                         theme={rjvTheme}
                                                         collapsed={1}

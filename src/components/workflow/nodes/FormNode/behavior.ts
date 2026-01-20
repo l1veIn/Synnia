@@ -2,8 +2,9 @@ import { NodeBehavior, ConnectionContext } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
+import { smartResolveError } from '@core/engine/smartResolve';
 import type { SynniaNode } from '@/types/project';
-import type { Asset } from '@/types/assets';
+import type { Asset, FieldDefinition } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
 
 /**
@@ -95,8 +96,11 @@ export const FormBehavior: NodeBehavior = {
     /**
      * Validate if this Form can accept the incoming connection.
      */
+    /**
+     * Validate if this Form can accept the incoming connection.
+     */
     canConnect: (ctx: ConnectionContext): string | null => {
-        const { edge, sourcePortValue } = ctx;
+        const { edge, sourcePortValue, targetAsset } = ctx;
         const targetHandle = edge.targetHandle;
 
         // Output ports don't accept connections
@@ -108,7 +112,24 @@ export const FormBehavior: NodeBehavior = {
             return 'Source node has no output data';
         }
 
-        return null;
+        // Get target field definition
+        // For FormNode, schema is always in config.schema or asset.schema
+        const assetSchema = (targetAsset as any)?.schema || (targetAsset?.config as any)?.schema;
+        let targetField: FieldDefinition | undefined;
+
+        if (assetSchema && Array.isArray(assetSchema)) {
+            targetField = assetSchema.find((f: FieldDefinition) => f.key === targetHandle);
+        }
+
+        if (!targetField) {
+            // Strict: Block connection if target field is missing
+            return 'Target field definition is missing';
+        }
+
+        // Use smartResolve to validate
+        // "能提取 = 能连接"
+        const error = smartResolveError(sourcePortValue.value, targetField);
+        return error;
     },
 
     /**

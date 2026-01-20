@@ -51,6 +51,14 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         requiresApiKey: true,
     },
     {
+        key: 'zhipu',
+        name: 'Zhipu AI',
+        description: 'GLM-4.7, GLM-4.6v',
+        type: 'cloud',
+        placeholder: 'your-zhipu-api-key',
+        requiresApiKey: true,
+    },
+    {
         key: 'ppio',
         name: 'PPIO',
         description: 'PPIO Cloud GPU',

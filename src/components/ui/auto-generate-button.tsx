@@ -5,10 +5,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2, Key, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { autoGenerate, AutoGenerateOptions, getAllLLMPlugins } from '@features/models';
+import { autoGenerate, AutoGenerateOptions, modelRegistry, ModelPlugin } from '@features/models';
 import { useSettings, isProviderConfigured, ProviderKey, getDefaultModel } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 import { openSettingsDialog } from '@/components/settings/SettingsDialog';
+import { PROVIDER_INFO } from '@features/models/providers';
 
 export interface AutoGenerateButtonProps {
     mode: AutoGenerateOptions['mode'];
@@ -47,7 +48,7 @@ export function AutoGenerateButton({
     const configuredProviders = useMemo(() => {
         const providers: ProviderKey[] = [];
         if (settings) {
-            const allProviderKeys: ProviderKey[] = ['openai', 'anthropic', 'google', 'deepseek', 'ollama', 'lmstudio'];
+            const allProviderKeys = PROVIDER_INFO.map(p => p.key as ProviderKey);
             allProviderKeys.forEach(key => {
                 if (isProviderConfigured(settings, key)) {
                     providers.push(key);
@@ -59,8 +60,11 @@ export function AutoGenerateButton({
 
     // Get available LLM models (filtered by configured providers)
     const availableModels = useMemo(() => {
-        const allModels = getAllLLMPlugins();
-        return allModels.filter(m => configuredProviders.includes(m.provider as ProviderKey));
+        const allModels = modelRegistry.getByCategory('llm');
+        return allModels.filter((m: ModelPlugin) => {
+            const providers = m.supportedProviders || [m.provider];
+            return providers.some(p => configuredProviders.includes(p as ProviderKey));
+        });
     }, [configuredProviders]);
 
     // Auto-select model using ModelTab priority logic:
@@ -70,8 +74,8 @@ export function AutoGenerateButton({
         if (availableModels.length === 0) return null;
 
         // Try global default
-        const defaultModelId = settings ? getDefaultModel(settings, 'llm') : null;
-        if (defaultModelId && availableModels.some(m => m.id === defaultModelId)) {
+        const defaultModelId = settings ? getDefaultModel(settings, 'llm-chat') || getDefaultModel(settings, 'llm') : null;
+        if (defaultModelId && availableModels.some((m: ModelPlugin) => m.id === defaultModelId)) {
             return defaultModelId;
         }
 

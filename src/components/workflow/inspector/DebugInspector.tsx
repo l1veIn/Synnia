@@ -174,7 +174,7 @@ export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
                         title={`Asset (${asset.valueType})`}
                         data={fullAssetData}
                         onSave={handleAssetSave}
-                        defaultOpen={true}
+                        defaultOpen={false}
                     />
                 )}
 

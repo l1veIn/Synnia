@@ -1,22 +1,33 @@
 import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { useSettings, isProviderConfigured } from "@/lib/settings";
-import { getAllLLMModels } from "@features/models";
+import { useSettings, isProviderConfigured, ProviderKey } from "@/lib/settings";
+import { modelRegistry } from "@features/models";
 import { useTranslation } from "react-i18next";
+import { Thermometer, Hash } from "lucide-react";
 
 export function GeneralSettingsPage() {
     const { t, i18n } = useTranslation('settings');
-    const { settings, loading, setDefaultModel } = useSettings();
+    const { settings, loading, setDefaultModel, setDefaultLLMParams } = useSettings();
 
+    // Get all LLM models from unified registry, filter by configured providers
     const availableLLMOptions = useMemo(() => {
-        const allModels = getAllLLMModels();
+        const allModels = modelRegistry.getByCategory('llm');
         return allModels.filter(m => {
-            const provider = m.provider || (m.supportedProviders || [])[0];
-            return provider ? isProviderConfigured(settings, provider) : false;
+            const providers = m.supportedProviders || [m.provider];
+            return providers.some(p => isProviderConfigured(settings, p as ProviderKey));
         });
     }, [settings]);
+
+    // Get current selected model for max tokens limit
+    const selectedModel = useMemo(() => {
+        const modelId = settings?.defaultModels?.['llm-chat'];
+        return modelId ? modelRegistry.get(modelId) : null;
+    }, [settings?.defaultModels]);
+
+    const maxOutputTokens = (selectedModel as any)?.maxOutputTokens || 4096;
 
     const handleDefaultLLMChange = async (model: string) => {
         try {
@@ -32,6 +43,25 @@ export function GeneralSettingsPage() {
         toast.success(t('general.languageChanged'));
     };
 
+    const handleTemperatureChange = async (value: number[]) => {
+        try {
+            await setDefaultLLMParams({ temperature: value[0] });
+        } catch (e: any) {
+            toast.error(`Failed to save: ${e.message}`);
+        }
+    };
+
+    const handleMaxTokensChange = async (value: number[]) => {
+        try {
+            await setDefaultLLMParams({ maxTokens: value[0] });
+        } catch (e: any) {
+            toast.error(`Failed to save: ${e.message}`);
+        }
+    };
+
+    const temperature = settings?.defaultLLMParams?.temperature ?? 0.7;
+    const maxTokens = settings?.defaultLLMParams?.maxTokens ?? 2048;
+
     return (
         <div className="h-full flex flex-col p-8 space-y-6 overflow-y-auto">
             <div>
@@ -39,7 +69,7 @@ export function GeneralSettingsPage() {
                 <p className="text-sm text-muted-foreground">{t('general.description')}</p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {/* Language Selector */}
                 <div className="space-y-2">
                     <Label>{t('general.language')}</Label>
@@ -88,6 +118,49 @@ export function GeneralSettingsPage() {
                             )}
                         </SelectContent>
                     </Select>
+                </div>
+
+                {/* LLM Parameters */}
+                <div className="space-y-4 p-4 rounded-lg border border-border/50 bg-muted/20 max-w-sm">
+                    <h3 className="text-sm font-medium">{t('general.llmParams', 'LLM Parameters')}</h3>
+
+                    {/* Temperature */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs flex items-center gap-1.5">
+                                <Thermometer className="h-3 w-3 text-muted-foreground" />
+                                {t('general.temperature', 'Temperature')}
+                            </Label>
+                            <span className="text-xs text-muted-foreground">{temperature.toFixed(2)}</span>
+                        </div>
+                        <Slider
+                            value={[temperature]}
+                            onValueChange={handleTemperatureChange}
+                            min={0}
+                            max={2}
+                            step={0.05}
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {/* Max Tokens */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs flex items-center gap-1.5">
+                                <Hash className="h-3 w-3 text-muted-foreground" />
+                                {t('general.maxTokens', 'Max Tokens')}
+                            </Label>
+                            <span className="text-xs text-muted-foreground">{maxTokens}</span>
+                        </div>
+                        <Slider
+                            value={[maxTokens]}
+                            onValueChange={handleMaxTokensChange}
+                            min={256}
+                            max={maxOutputTokens}
+                            step={256}
+                            disabled={loading}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

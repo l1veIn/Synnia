@@ -1,7 +1,7 @@
 // Model Plugin Registry
 // Central registry for all model plugins (LLM + Media unified)
 
-import { ModelPlugin, ModelCategory, ModelCapability, ModelRegistry } from './types';
+import { ModelPlugin, ModelCategory, ModelCapability, ModelRegistry, ProviderType } from './types';
 
 // ============================================================================
 // Registry Implementation
@@ -60,37 +60,16 @@ export function getAllModels(): ModelPlugin[] {
 }
 
 // ============================================================================
-// Re-export from LLM module (for backward compatibility)
+// New Default LLM API (unified)
 // ============================================================================
 
-export {
-    // Registry functions
-    llmRegistry,
-    getLLMPlugin,
-    getAllLLMPlugins,
-    getLLMModel,
-    getAllLLMModels,
-    getLLMModelsForCapability,
-    // LLM call function
-    callLLM,
-    // Types
-    type CallLLMOptions,
-    type LLMConfigValue,
-    type LLMModelDefinition,
-} from './llm/registry';
+export { callDefaultLLM, callLLM, type CallDefaultLLMOptions } from './shared/callDefaultLLM';
+export { useDefaultLLM, type UseDefaultLLMReturn, type UseDefaultLLMOptions } from './hooks';
+export { autoGenerate, type AutoGenerateOptions, type AutoGenerateResult } from './shared/autoGenerate';
+export { extractJson, repairTruncatedJsonArray } from './utils';
 
-export {
-    // Auto-generate (now in shared/)
-    autoGenerate,
-    type AutoGenerateOptions,
-    type AutoGenerateResult,
-} from './shared/autoGenerate';
-
-export {
-    // Utilities (now at root)
-    extractJson,
-    repairTruncatedJsonArray,
-} from './utils';
+// Re-export types
+export * from './types';
 
 // ============================================================================
 // Auto-register Models from Provider Directories
@@ -123,13 +102,14 @@ modelRegistry.register(nanoBananaPro);
 import { deepseekChat } from './deepseek/deepseek';
 modelRegistry.register(deepseekChat);
 
+// Zhipu (GLM)
+import { glm47, glm46v, glm4Flash, glm47Flash } from './zhipu/zhipu';
+modelRegistry.register(glm47);
+modelRegistry.register(glm46v);
+modelRegistry.register(glm4Flash);
+modelRegistry.register(glm47Flash);
+
 // Local (Ollama)
 import { llama32, llama32Vision } from './local/ollama';
 modelRegistry.register(llama32);
 modelRegistry.register(llama32Vision);
-
-// Also trigger llmRegistry population (for backward compat with callLLM)
-import './llm';
-
-// Re-export types
-export * from './types';

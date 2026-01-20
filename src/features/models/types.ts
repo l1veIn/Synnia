@@ -30,6 +30,7 @@ export type ProviderType =
     | 'anthropic'
     | 'google'
     | 'deepseek'
+    | 'zhipu'
     | 'fal'
     | 'replicate'
     | 'ppio'

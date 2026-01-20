@@ -112,6 +112,7 @@ export function smartResolve(
     source: unknown,
     targetField: FieldDefinition
 ): SmartResolveResult {
+
     // Source must be an object for smart resolution
     if (typeof source !== 'object' || source === null || Array.isArray(source)) {
         // Direct value for non-object sources

@@ -27,6 +27,15 @@ function getTargetFieldDefinition(
     targetAsset: Asset | null,
     targetHandle: string
 ): FieldDefinition | undefined {
+    // 1. Try to find in asset's own schema (instance-specific or hydrated)
+    // Supports both runtime top-level schema (from log) and typed config.schema
+    const assetSchema = (targetAsset as any)?.schema || (targetAsset?.config as any)?.schema;
+    if (assetSchema && Array.isArray(assetSchema)) {
+        const found = assetSchema.find((f: FieldDefinition) => f.key === targetHandle);
+        if (found) return found;
+    }
+
+    // 2. Fallback to registry lookup
     const recipeId = (targetAsset?.config as any)?.recipeId;
     if (!recipeId) return undefined;
 
@@ -121,6 +130,8 @@ export const RecipeBehavior: NodeBehavior = {
         const { edge, sourcePortValue, targetAsset, sourceNode } = ctx;
         const targetHandle = edge.targetHandle;
 
+        console.log('canConnect', ctx);
+
         // Skip system handles
         if (isSystemHandle(targetHandle)) {
             return null;
@@ -134,9 +145,10 @@ export const RecipeBehavior: NodeBehavior = {
 
         // Get target field definition
         const targetField = getTargetFieldDefinition(targetAsset, targetHandle!);
+        // console.log('targetField', targetField);
         if (!targetField) {
-            // No schema info, allow connection (legacy compatibility)
-            return null;
+            // Strict: Block connection if target field is missing
+            return 'Target field definition is missing';
         }
 
         // No source data at all

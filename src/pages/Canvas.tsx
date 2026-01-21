@@ -1,4 +1,4 @@
-import { ReactFlow, Background, Panel, MiniMap, ReactFlowProvider } from '@xyflow/react';
+import { ReactFlow, Background, Panel, MiniMap, ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect, useState } from 'react';
 
@@ -32,8 +32,12 @@ function CanvasFlow() {
   const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
   const nodes = useWorkflowStore(s => s.nodes);
   const edges = useWorkflowStore(s => s.edges);
+  const viewport = useWorkflowStore(s => s.viewport);
+  const setViewport = useWorkflowStore(s => s.setViewport);
   const loadProject = useWorkflowStore(s => s.loadProject);
   const restoreDraft = useWorkflowStore(s => s.restoreDraft);
+
+  const reactFlowInstance = useReactFlow();
 
   // Hydration Logic
   useEffect(() => {
@@ -64,6 +68,14 @@ function CanvasFlow() {
 
           const project = await apiClient.invoke<SynniaProject>('load_project', { path });
           loadProject(project);
+
+          // Restore viewport after a short delay to ensure ReactFlow is ready
+          setTimeout(() => {
+            const savedViewport = useWorkflowStore.getState().viewport;
+            if (savedViewport && (savedViewport.x !== 0 || savedViewport.y !== 0 || savedViewport.zoom !== 1)) {
+              reactFlowInstance.setViewport(savedViewport);
+            }
+          }, 100);
         } else {
           // 2. Fallback to LocalStorage (Draft)
           const saved = localStorage.getItem(STORAGE_KEY);
@@ -118,7 +130,7 @@ function CanvasFlow() {
   } = useCanvasLogic();
 
   const handleSave = async () => {
-    const { nodes, edges, assets, projectMeta, viewport } = useWorkflowStore.getState();
+    const { nodes, edges, projectMeta, viewport } = useWorkflowStore.getState();
 
     if (!projectMeta) {
       toast.warning("No project open. Use File > New Project first.");
@@ -126,12 +138,14 @@ function CanvasFlow() {
     }
 
     try {
+      // Assets are synced in real-time via AssetSystem, so we pass empty here.
+      // Manual save is essentially a "comfort button" - auto-save already handles persistence.
       const project: SynniaProject = {
         version: "2.0.0",
         meta: projectMeta,
         viewport,
         graph: { nodes: nodes as any, edges: edges as any },
-        assets,
+        assets: {},  // Empty - assets managed by AssetSystem
         settings: {}
       };
       await apiClient.invoke('save_project', { project });
@@ -148,8 +162,6 @@ function CanvasFlow() {
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden">
       <div
         className="relative h-full w-full"
-        onDragOver={onDragOver}
-        onDrop={onDrop}
       >
         <EditorContextMenu>
           <ReactFlow
@@ -165,11 +177,14 @@ function CanvasFlow() {
             edgeTypes={edgeTypes}
             defaultEdgeOptions={{ type: 'deletable' }}
             deleteKeyCode={null} // 禁用默认删除，交给 useGlobalShortcuts 处理级联删除
-            fitView
+            defaultViewport={viewport}
             className="bg-dot-pattern"
             onNodeContextMenu={onNodeContextMenu}
             onPaneContextMenu={onPaneContextMenu}
             onNodeDoubleClick={onNodeDoubleClick}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onMoveEnd={(event, viewport) => setViewport(viewport)}
           >
             <Background gap={20} color="#888" className="opacity-20" />
             {/* <Controls /> */}

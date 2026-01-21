@@ -202,6 +202,14 @@ export const apiClient = {
     batchImportImages: (filePaths: string[]): Promise<BatchImportResult[]> =>
         apiClient.invoke('batch_import_images', { filePaths }),
 
+    /**
+     * Delete a media asset from the database and optionally its physical files.
+     * @param assetId - The asset ID to delete
+     * @param deleteFiles - Whether to delete the physical files (default: true)
+     */
+    deleteMediaAsset: (assetId: string, deleteFiles?: boolean): Promise<void> =>
+        apiClient.invoke('delete_media_asset', { assetId, deleteFiles }),
+
     // ========================================
     // Utility Commands
     // ========================================

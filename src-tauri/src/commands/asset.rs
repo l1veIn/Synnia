@@ -1,7 +1,7 @@
 //! Asset management commands.
 
 use tauri::{State, AppHandle};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, OptionalExtension};
 use crate::error::AppError;
 use crate::AppState;
 use crate::services::{database, io_sqlite, hash};
@@ -42,68 +42,76 @@ pub struct SaveImageResult {
 }
 
 /// Import a file from the file system into the project assets folder.
+/// Uses spawn_blocking to avoid blocking the main thread during file I/O.
 #[tauri::command]
-pub fn import_file(file_path: String, state: State<AppState>, _app: AppHandle) -> Result<SaveImageResult, AppError> {
+pub async fn import_file(file_path: String, state: State<'_, AppState>, _app: AppHandle) -> Result<SaveImageResult, AppError> {
     let project_root = get_project_root(&state)?;
+    let source_path_str = file_path.clone();
     
-    let source_path = PathBuf::from(&file_path);
-    if !source_path.exists() {
-        return Err(AppError::NotFound(format!("File not found: {}", file_path)));
-    }
+    // Move heavy I/O operations to a blocking thread pool
+    let result = tokio::task::spawn_blocking(move || {
+        let source_path = PathBuf::from(&source_path_str);
+        if !source_path.exists() {
+            return Err(AppError::NotFound(format!("File not found: {}", source_path_str)));
+        }
 
-    // Create assets directory if it doesn't exist
-    let assets_dir = project_root.join("assets");
-    if !assets_dir.exists() {
-        std::fs::create_dir_all(&assets_dir)?;
-    }
+        // Create assets directory if it doesn't exist
+        let assets_dir = project_root.join("assets");
+        if !assets_dir.exists() {
+            std::fs::create_dir_all(&assets_dir)?;
+        }
 
-    let ext = source_path.extension().and_then(|s| s.to_str()).unwrap_or("bin");
-    let file_id = uuid::Uuid::new_v4().to_string();
-    let new_filename = format!("{}.{}", file_id, ext);
-    let relative_path = format!("assets/{}", new_filename);
-    let target_path = project_root.join(&relative_path);
-    
-    // Get original filename for asset name
-    let original_name = source_path.file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Imported");
-    
-    println!("[Asset] Copying from {:?} to {:?}", source_path, target_path);
-    std::fs::copy(&source_path, &target_path)?;
+        let ext = source_path.extension().and_then(|s| s.to_str()).unwrap_or("bin");
+        let file_id = uuid::Uuid::new_v4().to_string();
+        let new_filename = format!("{}.{}", file_id, ext);
+        let relative_path = format!("assets/{}", new_filename);
+        let target_path = project_root.join(&relative_path);
+        
+        // Get original filename for asset name
+        let original_name = source_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Imported")
+            .to_string();
+        
+        println!("[Asset] Copying from {:?} to {:?}", source_path, target_path);
+        std::fs::copy(&source_path, &target_path)?;
 
-    // Check if it's an image and generate thumbnail
-    let is_image = matches!(ext.to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp");
+        // Check if it's an image and generate thumbnail
+        let is_image = matches!(ext.to_lowercase().as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp");
+        
+        let (width, height, thumbnail_path) = if is_image {
+            let image_data = std::fs::read(&target_path)?;
+            let (w, h) = get_image_dimensions(&image_data)?;
+            let thumb = generate_thumbnail(&project_root, &file_id, &image_data)?;
+            (w, h, Some(thumb))
+        } else {
+            (0, 0, None)
+        };
+        
+        // Create Asset record in database
+        let db_path = io_sqlite::get_db_path(&project_root);
+        let conn = database::open_db(&db_path)
+            .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+        
+        let asset_id = create_media_asset(
+            &conn,
+            &relative_path,
+            &original_name,
+            width,
+            height,
+            thumbnail_path.as_deref(),
+        )?;
+        
+        Ok(SaveImageResult {
+            asset_id,
+            relative_path,
+            thumbnail_path,
+            width,
+            height,
+        })
+    }).await.map_err(|e| AppError::Io(format!("Task panicked: {}", e)))??;
     
-    let (width, height, thumbnail_path) = if is_image {
-        let image_data = std::fs::read(&target_path)?;
-        let (w, h) = get_image_dimensions(&image_data)?;
-        let thumb = generate_thumbnail(&project_root, &file_id, &image_data)?;
-        (w, h, Some(thumb))
-    } else {
-        (0, 0, None)
-    };
-    
-    // Create Asset record in database
-    let db_path = io_sqlite::get_db_path(&project_root);
-    let conn = database::open_db(&db_path)
-        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
-    
-    let asset_id = create_media_asset(
-        &conn,
-        &relative_path,
-        original_name,
-        width,
-        height,
-        thumbnail_path.as_deref(),
-    )?;
-    
-    Ok(SaveImageResult {
-        asset_id,
-        relative_path,
-        thumbnail_path,
-        width,
-        height,
-    })
+    Ok(result)
 }
 
 /// Save a processed image from base64 data.
@@ -442,6 +450,76 @@ pub fn get_media_assets(
     };
     
     Ok(MediaAssetsResponse { items, total })
+}
+
+/// Delete a media asset from the database and optionally delete the physical files.
+#[tauri::command]
+pub fn delete_media_asset(
+    asset_id: String,
+    delete_files: Option<bool>,
+    state: State<AppState>
+) -> Result<(), AppError> {
+    let project_root = get_project_root(&state)?;
+    let db_path = io_sqlite::get_db_path(&project_root);
+    
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
+    // Get asset info before deletion (for file paths)
+    let asset_info: Option<(String, Option<String>)> = conn.query_row(
+        "SELECT value_json, config_json FROM assets WHERE id = ?1",
+        params![&asset_id],
+        |row| {
+            let value_json: String = row.get(0)?;
+            let config_json: Option<String> = row.get(1)?;
+            Ok((value_json, config_json))
+        }
+    ).optional().map_err(|e| AppError::Io(format!("Failed to query asset: {}", e)))?;
+    
+    if asset_info.is_none() {
+        return Err(AppError::NotFound(format!("Asset not found: {}", asset_id)));
+    }
+    
+    // Delete from database
+    conn.execute(
+        "DELETE FROM assets WHERE id = ?1",
+        params![&asset_id],
+    ).map_err(|e| AppError::Io(format!("Failed to delete asset: {}", e)))?;
+    
+    // Also delete from asset_history
+    conn.execute(
+        "DELETE FROM asset_history WHERE asset_id = ?1",
+        params![&asset_id],
+    ).ok(); // Ignore errors for history deletion
+    
+    // Optionally delete physical files
+    if delete_files.unwrap_or(true) {
+        if let Some((value_json, config_json)) = asset_info {
+            // Parse relative path from value
+            let relative_path: Option<String> = serde_json::from_str(&value_json).ok();
+            
+            if let Some(path) = relative_path {
+                let file_path = project_root.join(&path);
+                if file_path.exists() {
+                    let _ = std::fs::remove_file(&file_path);
+                }
+            }
+            
+            // Parse thumbnail path from config.meta.preview
+            if let Some(config_str) = config_json {
+                if let Ok(config) = serde_json::from_str::<serde_json::Value>(&config_str) {
+                    if let Some(preview) = config.get("meta").and_then(|m| m.get("preview")).and_then(|p| p.as_str()) {
+                        let thumb_path = project_root.join(preview);
+                        if thumb_path.exists() {
+                            let _ = std::fs::remove_file(&thumb_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 // ============================================

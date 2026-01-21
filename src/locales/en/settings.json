@@ -8,7 +8,10 @@
     "languageChanged": "Language changed successfully",
     "languageHelp": "Choose your preferred interface language.",
     "llmHelp": "Used for utility functions like Prompt Enhancer and Autofill.",
+    "llmParams": "general.llmParams",
     "llmUpdated": "Default LLM updated",
+    "maxTokens": "general.maxTokens",
+    "temperature": "general.temperature",
     "title": "General"
   },
   "models": {

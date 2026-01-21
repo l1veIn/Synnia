@@ -1,7 +1,4 @@
 {
-  "advanced": {
-    "rawConfig": "Raw Asset Configuration"
-  },
   "chat": {
     "aiThinking": "AI thinking...",
     "andMore_one": "and {{count}} more",

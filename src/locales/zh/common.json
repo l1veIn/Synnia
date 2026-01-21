@@ -41,7 +41,12 @@
     "assetLibrary": {
       "assets": "个资源",
       "cannotDelete": "无法删除：资源正在使用中",
+      "confirmDeleteDescription": "此操作将永久删除 \"{{name}}\" 及其关联文件。此操作无法撤销。",
+      "confirmDeleteTitle": "删除资源？",
       "deleteAsset": "删除资源",
+      "deleted": "资源已删除",
+      "deleteFailed": "删除资源失败",
+      "deleting": "删除中...",
       "dimensions": "尺寸",
       "import": "导入...",
       "loadFailed": "加载资源失败",
@@ -83,8 +88,5 @@
       "projectPath": "项目将创建于：",
       "title": "创建新世界"
     }
-  },
-  "nav": {
-    "demo": "路由示例"
   }
 }

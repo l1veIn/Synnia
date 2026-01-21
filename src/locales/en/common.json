@@ -42,7 +42,12 @@
     "assetLibrary": {
       "assets": "assets",
       "cannotDelete": "Cannot delete: asset is in use",
+      "confirmDeleteDescription": "Are you sure you want to delete this asset?",
+      "confirmDeleteTitle": "Delete asset?",
       "deleteAsset": "Delete asset",
+      "deleted": "Asset deleted",
+      "deleteFailed": "Failed to delete asset",
+      "deleting": "Deleting...",
       "dimensions": "Dimensions",
       "import": "Import...",
       "loadFailed": "Failed to load assets",
@@ -85,8 +90,5 @@
       "projectPath": "Project will be created at:",
       "title": "Create New Universe"
     }
-  },
-  "nav": {
-    "demo": "Routing Demo"
   }
 }

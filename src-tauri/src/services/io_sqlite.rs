@@ -480,9 +480,33 @@ fn load_assets(conn: &Connection) -> Result<HashMap<String, Asset>, AppError> {
     Ok(assets)
 }
 
+/// Save assets to the database.
+///
+/// # Architecture Note (2026-01)
+///
+/// In the current architecture, **assets are synced in real-time** via the frontend
+/// `AssetSystem` (create/update/delete operations invoke Tauri commands directly).
+/// This means:
+///
+/// - **Auto-save** and **manual save (Ctrl+S)** pass an empty `assets` HashMap
+/// - When `assets.is_empty()`, this function returns early (no-op)
+/// - The actual asset persistence is handled by:
+///   - `save_asset_with_history` - for create/update operations
+///   - `delete_media_asset` - for delete operations
+///
+/// This function still exists for:
+/// 1. **Backward compatibility** - importing old project formats where assets are in JSON
+/// 2. **Unit tests** - testing asset serialization logic
+///
+/// In normal operation, this function is effectively a no-op.
 fn save_assets(conn: &Connection, assets: &HashMap<String, Asset>) -> Result<(), AppError> {
-    // Note: We don't clear assets here to preserve history.
-    // Instead, we upsert each asset.
+    // Assets are managed in real-time via AssetSystem.
+    // Auto-save and manual save pass empty assets, so we skip here.
+    if assets.is_empty() {
+        return Ok(());
+    }
+    
+    // Legacy path: only used for importing old projects or tests
     
     for (id, asset) in assets {
         let value_json = serde_json::to_string(&asset.value)?;

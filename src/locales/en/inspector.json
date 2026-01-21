@@ -20,11 +20,10 @@
     "cannotChangeId": "Cannot change Node ID via Debugger",
     "copied": "Copied to clipboard",
     "copyJson": "Copy JSON",
-    "invalidJson": "Invalid JSON in {{title}}",
     "noNode": "No node selected",
     "resetChanges": "Reset Changes",
-    "updated": "{{title}} updated",
-    "saveFailed": "Save failed for {{title}}"
+    "saveFailed": "Save failed for {{title}}",
+    "updated": "{{title}} updated"
   },
   "empty": {
     "noInspector": "No inspector available for this node"

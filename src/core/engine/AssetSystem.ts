@@ -198,10 +198,26 @@ export class AssetSystem {
         });
     }
 
-    public delete(id: string) {
+    /**
+     * Delete an asset from both frontend store and backend database.
+     * This is the single source of truth for asset deletion.
+     * @param id - The asset ID to delete
+     * @param deleteFiles - Whether to delete physical files (default: true)
+     */
+    public async delete(id: string, deleteFiles: boolean = true): Promise<void> {
+        // 1. Delete from frontend Zustand store (immediate UI update)
         const { assets } = this.store;
         const { [id]: deleted, ...remainingAssets } = assets;
         this.setAssets(remainingAssets);
+
+        // 2. Delete from backend database (async, but we await to ensure consistency)
+        try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('delete_media_asset', { assetId: id, deleteFiles });
+        } catch (e) {
+            // May fail in browser mode or if asset doesn't exist in DB
+            console.debug('[AssetSystem] Backend delete skipped:', e);
+        }
     }
 
     public get(id: string): Asset | undefined {

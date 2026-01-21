@@ -1,7 +1,4 @@
 {
-  "advanced": {
-    "rawConfig": "原始资源配置"
-  },
   "chat": {
     "aiThinking": "AI 思考中...",
     "andMore_other": "以及另外 {{count}} 项",

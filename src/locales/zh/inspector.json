@@ -19,11 +19,10 @@
     "cannotChangeId": "无法通过调试器更改节点 ID",
     "copied": "已复制到剪贴板",
     "copyJson": "复制 JSON",
-    "invalidJson": "{{title}} 的 JSON 格式无效",
     "noNode": "未选择节点",
     "resetChanges": "重置更改",
-    "updated": "{{title}} 已更新",
-    "saveFailed": "{{title}} 保存失败"
+    "saveFailed": "{{title}} 保存失败",
+    "updated": "{{title}} 已更新"
   },
   "empty": {
     "noInspector": "此节点暂无检查器"

@@ -7,18 +7,87 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Image, FileImage, Search, ArrowLeft, MapPin, Trash2, Loader2, FolderOpen, Upload } from 'lucide-react';
+import { graphEngine } from '@core/engine/GraphEngine';
+import { Image, FileImage, Search, ArrowLeft, MapPin, Trash2, Loader2, FolderOpen, Upload, ChevronRight, ChevronDown, Copy, Code } from 'lucide-react';
 import { toast } from 'sonner';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from 'next-themes';
+import ReactJson from 'react-json-view';
+
+/**
+ * Collapsible JSON viewer for debugging asset data
+ */
+const AssetJsonViewer = ({ asset }: { asset: MediaAssetInfo }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const { resolvedTheme } = useTheme();
+    const { t } = useTranslation('common');
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(JSON.stringify(asset, null, 2));
+        toast.success('Copied to clipboard');
+    };
+
+    const rjvTheme = resolvedTheme === 'dark' ? 'monokai' : 'rjv-default';
+    const bgClass = resolvedTheme === 'dark' ? 'bg-[#272822]' : 'bg-white';
+
+    return (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
+            <div className="rounded-md border overflow-hidden">
+                <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between p-2 cursor-pointer hover:bg-muted/50 transition-colors select-none">
+                        <div className="flex items-center gap-2">
+                            {isOpen ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                            <Code className="h-3.5 w-3.5 text-muted-foreground" />
+                            <Label className="text-xs font-medium cursor-pointer">Debug JSON</Label>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={handleCopy}
+                            title="Copy JSON"
+                        >
+                            <Copy className="h-3 w-3" />
+                        </Button>
+                    </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <div className={cn("border-t", bgClass)}>
+                        <ScrollArea className="max-h-[300px]">
+                            <div className="p-3 text-xs">
+                                <ReactJson
+                                    src={asset}
+                                    theme={rjvTheme}
+                                    collapsed={1}
+                                    collapseStringsAfterLength={40}
+                                    displayDataTypes={false}
+                                    enableClipboard={false}
+                                    style={{ backgroundColor: 'transparent', fontFamily: 'monospace', fontSize: '11px' }}
+                                />
+                            </div>
+                        </ScrollArea>
+                    </div>
+                </CollapsibleContent>
+            </div>
+        </Collapsible>
+    );
+};
 
 interface AssetLibraryDialogProps {
     open: boolean;
@@ -113,6 +182,24 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
             hour: '2-digit',
             minute: '2-digit'
         });
+    };
+
+    // Handle asset deletion (called after confirmation)
+    const handleDeleteAsset = async () => {
+        if (!selectedAsset) return;
+
+        const toastId = toast.loading(t('dialogs.assetLibrary.deleting'));
+        try {
+            // Use unified delete API: deletes from both frontend store and backend database
+            await graphEngine.assets.delete(selectedAsset.id, true);
+
+            toast.success(t('dialogs.assetLibrary.deleted'), { id: toastId });
+            setSelectedAsset(null);
+            loadAssets(); // Refresh the list
+        } catch (e) {
+            console.error('Failed to delete asset:', e);
+            toast.error(t('dialogs.assetLibrary.deleteFailed'), { id: toastId });
+        }
     };
 
     return (
@@ -325,20 +412,43 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                             </div>
                                         )}
                                     </div>
+
+                                    <Separator />
+
+                                    {/* JSON Debug View */}
+                                    <AssetJsonViewer asset={selectedAsset} />
                                 </div>
                             </ScrollArea>
 
                             {/* Actions */}
                             <div className="p-3 border-t shrink-0 flex items-center justify-end gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={referencingNodes.length > 0}
-                                    title={referencingNodes.length > 0 ? t('dialogs.assetLibrary.cannotDelete') : t('dialogs.assetLibrary.deleteAsset')}
-                                >
-                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                    {t('actions.delete')}
-                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            disabled={referencingNodes.length > 0}
+                                            title={referencingNodes.length > 0 ? t('dialogs.assetLibrary.cannotDelete') : t('dialogs.assetLibrary.deleteAsset')}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                            {t('actions.delete')}
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>{t('dialogs.assetLibrary.confirmDeleteTitle')}</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                {t('dialogs.assetLibrary.confirmDeleteDescription', { name: selectedAsset.name })}
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteAsset} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                                {t('actions.delete')}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         </div>
                     )}

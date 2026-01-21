@@ -8,7 +8,10 @@
     "languageChanged": "语言已切换",
     "languageHelp": "选择您偏好的界面语言。",
     "llmHelp": "用于 Prompt 增强和自动填充等功能。",
+    "llmParams": "general.llmParams",
     "llmUpdated": "默认 LLM 已更新",
+    "maxTokens": "general.maxTokens",
+    "temperature": "general.temperature",
     "title": "通用"
   },
   "models": {

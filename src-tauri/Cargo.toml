@@ -39,6 +39,7 @@ sha2 = "0.10"
 kamadak-exif = "0.5"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 base64 = "0.22"
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 
 [dev-dependencies]
 tempfile = "3"

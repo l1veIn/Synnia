@@ -104,6 +104,7 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
     const [editingName, setEditingName] = useState('');
 
     const nodes = useWorkflowStore(s => s.nodes);
+    const storeAssets = useWorkflowStore(s => s.assets);
     const serverPort = useWorkflowStore(s => s.serverPort);
 
     // Load assets on open
@@ -138,10 +139,28 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
     }, [assets, searchTerm]);
 
     // Find nodes that reference this asset
+    // Includes: (1) direct reference via node.data.assetId
+    //           (2) indirect reference via Gallery asset's value[].mediaAssetId
     const referencingNodes = useMemo(() => {
         if (!selectedAsset) return [];
-        return nodes.filter(n => n.data?.assetId === selectedAsset.id);
-    }, [selectedAsset, nodes]);
+
+        return nodes.filter(n => {
+            // Direct reference
+            if (n.data?.assetId === selectedAsset.id) return true;
+
+            // Indirect reference: check if node's asset contains this mediaAssetId in its value array
+            const nodeAssetId = n.data?.assetId;
+            if (nodeAssetId && storeAssets[nodeAssetId]) {
+                const nodeAsset = storeAssets[nodeAssetId];
+                // Check if value is an array (Gallery) with mediaAssetId entries
+                if (Array.isArray(nodeAsset.value)) {
+                    return nodeAsset.value.some((item: any) => item?.mediaAssetId === selectedAsset.id);
+                }
+            }
+
+            return false;
+        });
+    }, [selectedAsset, nodes, storeAssets]);
 
     // Get thumbnail URL
     const getThumbnailUrl = (asset: MediaAssetInfo) => {
@@ -199,6 +218,26 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
         } catch (e) {
             console.error('Failed to delete asset:', e);
             toast.error(t('dialogs.assetLibrary.deleteFailed'), { id: toastId });
+        }
+    };
+
+    // Handle cleanup of orphan assets (via engine)
+    const handleCleanupOrphans = async () => {
+        const toastId = toast.loading('Cleaning up orphan assets...');
+        try {
+            const result = await graphEngine.assets.cleanupOrphans();
+
+            if (result.deletedCount > 0) {
+                toast.success(`Deleted ${result.deletedCount} orphan assets`, { id: toastId });
+            } else {
+                toast.info('No orphan assets found', { id: toastId });
+            }
+
+            setSelectedAsset(null);
+            loadAssets();
+        } catch (e) {
+            console.error('Failed to cleanup orphan assets:', e);
+            toast.error('Cleanup failed', { id: toastId });
         }
     };
 
@@ -317,6 +356,28 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
                                 <Button size="sm" variant="outline" onClick={loadAssets}>
                                     {t('dialogs.assetLibrary.refresh')}
                                 </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="outline">
+                                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                            Clean
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Clean orphan assets?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete all assets that are not referenced by any nodes.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleCleanupOrphans}>
+                                                Clean Up
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
                         </div>
                     </div>

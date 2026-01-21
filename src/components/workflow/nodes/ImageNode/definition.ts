@@ -27,7 +27,7 @@ export const definition: NodeDefinition = {
             valueType: 'record' as const,
             value: { src: data || '', width: undefined, height: undefined },
             config: { schema: IMAGE_SCHEMA },
-            sys: { isLibraryAsset: true } as any,  // Partial sys, merged in createFromPartial
+            sys: { isLibraryAsset: true },
         },
     }),
     behavior: ImageBehavior,

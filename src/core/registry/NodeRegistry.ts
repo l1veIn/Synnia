@@ -3,7 +3,7 @@ import { LucideIcon } from 'lucide-react';
 import type { NodeBehavior } from '@core/engine/types/behavior';
 import type { NodePortConfig } from '@core/engine/ports/types';
 import type { SynniaNode, BaseNodeData, NodeType } from '@/types/project';
-import type { Asset, FieldDefinition } from '@/types/assets';
+import type { Asset, FieldDefinition, AssetSysMetadata } from '@/types/assets';
 import type { GraphEngine } from '@core/engine/GraphEngine';
 import type { ExecutionResult } from '@/types/recipe';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
@@ -91,8 +91,16 @@ export interface CreateContext {
 
 export interface CreateResult {
     data?: Partial<BaseNodeData>;  // UI config
-    asset?: Partial<Asset>;        // Asset
+    asset?: PartialAssetSpec;      // Asset (allows partial sys for factory use)
 }
+
+/**
+ * For node factory creation - allows partial sys metadata.
+ * AssetSystem.create() will merge with defaults.
+ */
+export type PartialAssetSpec = Omit<Partial<Asset>, 'sys'> & {
+    sys?: Partial<AssetSysMetadata>;
+};
 
 // ============================================================================
 // Node Hooks (optional extension points)

@@ -210,6 +210,13 @@ export const apiClient = {
     deleteMediaAsset: (assetId: string, deleteFiles?: boolean): Promise<void> =>
         apiClient.invoke('delete_media_asset', { assetId, deleteFiles }),
 
+    /**
+     * Delete orphan media assets that are not referenced by any node.
+     * Returns the count and IDs of deleted assets.
+     */
+    cleanupOrphanAssets: (): Promise<{ deletedCount: number; deletedAssetIds: string[] }> =>
+        apiClient.invoke('cleanup_orphan_assets'),
+
     // ========================================
     // Utility Commands
     // ========================================

@@ -115,6 +115,7 @@ pub fn run() {
             commands::asset::batch_import_images,
             commands::asset::get_media_assets,
             commands::asset::delete_media_asset,
+            commands::asset::cleanup_orphan_assets,
 
             // History Commands
             commands::history::save_asset_with_history,

@@ -2,6 +2,7 @@ import { GraphEngine } from './GraphEngine';
 import { Asset, ValueType, AssetSysMetadata } from '@/types/assets';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { v4 as uuidv4 } from 'uuid';
+import { apiClient } from '@/lib/apiClient';
 
 export class AssetSystem {
     private engine: GraphEngine;
@@ -67,37 +68,6 @@ export class AssetSystem {
     }
 
     /**
-     * Create an asset from a partial definition (used by node factories).
-     */
-    public createFromPartial(partial: Partial<Asset> & { valueType: ValueType; value: any }, name?: string): string {
-        const id = uuidv4();
-        const now = Date.now();
-
-        // Merge partial sys with defaults (allows passing partial sys like {isLibraryAsset: true})
-        const defaultSys: AssetSysMetadata = {
-            name: name || 'New Asset',
-            createdAt: now,
-            updatedAt: now,
-            source: 'user' as const,
-            isLibraryAsset: null,
-        };
-
-        const newAsset: Asset = {
-            id,
-            valueType: partial.valueType,
-            value: partial.value,
-            config: partial.config,
-            sys: { ...defaultSys, ...partial.sys },
-        } as Asset;
-
-        const { assets } = this.store;
-        this.setAssets({ ...assets, [id]: newAsset });
-        this.saveAssetToBackend(newAsset);
-
-        return id;
-    }
-
-    /**
      * Update the value of an asset.
      */
     public update(id: string, value: any) {
@@ -122,9 +92,9 @@ export class AssetSystem {
             [id]: updatedAsset
         });
 
-        // Save to backend for history tracking (async, fire-and-forget)
+        // Save to backend (history is auto-created only when value hash changes)
         this.saveAssetToBackend(updatedAsset).catch(err => {
-            console.warn('Failed to save asset history:', err);
+            console.warn('Failed to save asset:', err);
         });
     }
 
@@ -141,7 +111,7 @@ export class AssetSystem {
             config: { ...asset.config, ...config },
             sys: {
                 ...asset.sys,
-                updatedAt: Date.now()
+                // updatedAt: Date.now()
             }
         } as Asset;
 
@@ -149,23 +119,16 @@ export class AssetSystem {
             ...assets,
             [id]: updatedAsset
         });
+
+        // Persist to backend (no history created since value unchanged)
+        this.saveAssetToBackend(updatedAsset).catch(err => {
+            console.warn('Failed to persist asset config:', err);
+        });
     }
 
     /**
-     * Update metadata stored in config.meta.
-     */
-    public updateMeta(id: string, meta: Record<string, any>) {
-        const { assets } = this.store;
-        const asset = assets[id];
-        if (!asset) return;
-
-        const existingMeta = (asset.config as any)?.meta || {};
-        this.updateConfig(id, { meta: { ...existingMeta, ...meta } });
-    }
-
-    /**
-     * Save asset to backend for history tracking.
-     * This creates a history snapshot if content has changed.
+     * Save asset to backend.
+     * History snapshot is auto-created only when value hash changes.
      */
     private async saveAssetToBackend(asset: Asset) {
         try {
@@ -185,16 +148,23 @@ export class AssetSystem {
         const asset = assets[id];
         if (!asset) return;
 
+        const updatedAsset = {
+            ...asset,
+            sys: {
+                ...asset.sys,
+                ...sysUpdates,
+                updatedAt: Date.now()
+            }
+        } as Asset;
+
         this.setAssets({
             ...assets,
-            [id]: {
-                ...asset,
-                sys: {
-                    ...asset.sys,
-                    ...sysUpdates,
-                    updatedAt: Date.now()
-                }
-            } as Asset
+            [id]: updatedAsset
+        });
+
+        // Persist to backend (no history created since value unchanged)
+        this.saveAssetToBackend(updatedAsset).catch(err => {
+            console.warn('Failed to persist asset sys:', err);
         });
     }
 
@@ -217,6 +187,34 @@ export class AssetSystem {
         } catch (e) {
             // May fail in browser mode or if asset doesn't exist in DB
             console.debug('[AssetSystem] Backend delete skipped:', e);
+        }
+    }
+
+    /**
+     * Clean up orphan assets that are not referenced by any node.
+     * Backend scans:
+     * 1. nodes.data_json for assetId references (most nodes)
+     * 2. assets.value_json for mediaAssetId references (Gallery nodes)
+     * @returns Result with deleted count and IDs
+     */
+    public async cleanupOrphans(): Promise<{ deletedCount: number; deletedAssetIds: string[] }> {
+        try {
+            const result = await apiClient.cleanupOrphanAssets();
+
+            if (result.deletedCount > 0) {
+                // Sync: remove deleted assets from frontend store
+                const { assets } = this.store;
+                const newAssets = { ...assets };
+                for (const id of result.deletedAssetIds) {
+                    delete newAssets[id];
+                }
+                this.setAssets(newAssets);
+            }
+
+            return result;
+        } catch (e) {
+            console.error('[AssetSystem] Cleanup orphans failed:', e);
+            throw e;
         }
     }
 

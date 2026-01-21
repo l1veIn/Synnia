@@ -522,6 +522,148 @@ pub fn delete_media_asset(
     Ok(())
 }
 
+/// Response from cleanup_orphan_assets
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupOrphansResult {
+    pub deleted_count: u32,
+    pub deleted_asset_ids: Vec<String>,
+}
+
+/// Delete orphan media assets that are not referenced by any node.
+/// Scans:
+/// 1. nodes.data_json for assetId references (most nodes)
+/// 2. assets.value_json for mediaAssetId references (Gallery nodes)
+#[tauri::command]
+pub fn cleanup_orphan_assets(
+    state: State<AppState>
+) -> Result<CleanupOrphansResult, AppError> {
+    let project_root = get_project_root(&state)?;
+    let db_path = io_sqlite::get_db_path(&project_root);
+    
+    let conn = database::open_db(&db_path)
+        .map_err(|e| AppError::Io(format!("Failed to open database: {}", e)))?;
+    
+    // Step 1: Collect all referenced asset IDs from nodes
+    let mut referenced_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    
+    // Scan nodes.data_json for assetId
+    let mut node_stmt = conn.prepare("SELECT data_json FROM nodes")
+        .map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
+    
+    let node_rows = node_stmt.query_map([], |row| {
+        let data_json: String = row.get(0)?;
+        Ok(data_json)
+    }).map_err(|e| AppError::Io(format!("Failed to query nodes: {}", e)))?;
+    
+    for row in node_rows {
+        if let Ok(data_json) = row {
+            if let Ok(data) = serde_json::from_str::<serde_json::Value>(&data_json) {
+                if let Some(asset_id) = data.get("assetId").and_then(|v| v.as_str()) {
+                    referenced_ids.insert(asset_id.to_string());
+                }
+            }
+        }
+    }
+    
+    // Step 2: Scan assets.value_json for mediaAssetId (Gallery items)
+    let mut asset_stmt = conn.prepare("SELECT value_json FROM assets")
+        .map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
+    
+    let asset_rows = asset_stmt.query_map([], |row| {
+        let value_json: String = row.get(0)?;
+        Ok(value_json)
+    }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
+    
+    for row in asset_rows {
+        if let Ok(value_json) = row {
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&value_json) {
+                // Check if it's an array (Gallery)
+                if let Some(arr) = value.as_array() {
+                    for item in arr {
+                        if let Some(media_id) = item.get("mediaAssetId").and_then(|v| v.as_str()) {
+                            referenced_ids.insert(media_id.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Step 3: Find orphan library assets (isLibraryAsset = true, not in referenced_ids)
+    let mut orphan_stmt = conn.prepare(
+        "SELECT id, value_json, config_json, sys_json FROM assets"
+    ).map_err(|e| AppError::Io(format!("Failed to prepare query: {}", e)))?;
+    
+    let mut orphans_to_delete: Vec<(String, Option<String>, Option<String>)> = Vec::new();
+    
+    let orphan_rows = orphan_stmt.query_map([], |row| {
+        let id: String = row.get(0)?;
+        let value_json: String = row.get(1)?;
+        let config_json: Option<String> = row.get(2)?;
+        let sys_json: String = row.get(3)?;
+        Ok((id, value_json, config_json, sys_json))
+    }).map_err(|e| AppError::Io(format!("Failed to query assets: {}", e)))?;
+    
+    for row in orphan_rows {
+        if let Ok((id, value_json, config_json, sys_json)) = row {
+            // Check if it's a library asset
+            if let Ok(sys) = serde_json::from_str::<serde_json::Value>(&sys_json) {
+                let is_library = sys.get("isLibraryAsset")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                
+                // Only delete unreferenced library assets
+                if is_library && !referenced_ids.contains(&id) {
+                    orphans_to_delete.push((id, Some(value_json), config_json));
+                }
+            }
+        }
+    }
+    
+    // Step 4: Delete orphans
+    let mut deleted_ids: Vec<String> = Vec::new();
+    
+    for (asset_id, value_json, config_json) in orphans_to_delete {
+        // Delete from database
+        if conn.execute("DELETE FROM assets WHERE id = ?1", params![&asset_id]).is_ok() {
+            // Delete history
+            let _ = conn.execute("DELETE FROM asset_history WHERE asset_id = ?1", params![&asset_id]);
+            
+            // Delete physical files
+            if let Some(value_str) = value_json {
+                // Try to parse as object with src field
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&value_str) {
+                    let path = value.get("src").and_then(|v| v.as_str())
+                        .or_else(|| value.as_str());
+                    
+                    if let Some(p) = path {
+                        let file_path = project_root.join(p);
+                        let _ = std::fs::remove_file(&file_path);
+                    }
+                }
+                
+                // Delete thumbnail
+                if let Some(config_str) = config_json {
+                    if let Ok(config) = serde_json::from_str::<serde_json::Value>(&config_str) {
+                        if let Some(preview) = config.get("meta").and_then(|m| m.get("preview")).and_then(|p| p.as_str()) {
+                            let thumb_path = project_root.join(preview);
+                            let _ = std::fs::remove_file(&thumb_path);
+                        }
+                    }
+                }
+            }
+            
+            deleted_ids.push(asset_id);
+        }
+    }
+    
+    Ok(CleanupOrphansResult {
+        deleted_count: deleted_ids.len() as u32,
+        deleted_asset_ids: deleted_ids,
+    })
+}
+
 // ============================================
 // Helper Functions
 // ============================================

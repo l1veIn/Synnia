@@ -9,8 +9,6 @@ icon: Image
 
 model:
   category: image-generation
-  capabilities:
-    - vision
   defaultParams: {}
 
 advanced:

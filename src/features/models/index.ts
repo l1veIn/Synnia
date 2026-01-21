@@ -102,12 +102,18 @@ modelRegistry.register(nanoBananaPro);
 import { deepseekChat } from './deepseek/deepseek';
 modelRegistry.register(deepseekChat);
 
-// Zhipu (GLM)
+// Zhipu (GLM LLM)
 import { glm47, glm46v, glm4Flash, glm47Flash } from './zhipu/zhipu';
 modelRegistry.register(glm47);
 modelRegistry.register(glm46v);
 modelRegistry.register(glm4Flash);
 modelRegistry.register(glm47Flash);
+
+// Zhipu (GLM Image)
+import { glmImage, cogview4, cogview3Flash } from './zhipu/zhipu-image';
+modelRegistry.register(glmImage);
+modelRegistry.register(cogview4);
+modelRegistry.register(cogview3Flash);
 
 // Local (Ollama)
 import { llama32, llama32Vision } from './local/ollama';

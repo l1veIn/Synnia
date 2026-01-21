@@ -20,7 +20,7 @@ pub struct HistoryEntry {
 
 /// Save an asset and create a history snapshot if content changed.
 #[tauri::command]
-pub fn save_asset_with_history(
+pub fn save_asset(
     asset: Asset,
     state: State<AppState>,
 ) -> Result<bool, AppError> {

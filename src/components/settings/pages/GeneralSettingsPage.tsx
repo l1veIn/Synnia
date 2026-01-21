@@ -23,7 +23,7 @@ export function GeneralSettingsPage() {
 
     // Get current selected model for max tokens limit
     const selectedModel = useMemo(() => {
-        const modelId = settings?.defaultModels?.['llm-chat'];
+        const modelId = settings?.defaultModels?.['llm'];
         return modelId ? modelRegistry.get(modelId) : null;
     }, [settings?.defaultModels]);
 
@@ -31,7 +31,7 @@ export function GeneralSettingsPage() {
 
     const handleDefaultLLMChange = async (model: string) => {
         try {
-            await setDefaultModel('llm-chat', model);
+            await setDefaultModel('llm', model);
             toast.success(t('general.llmUpdated'));
         } catch (e: any) {
             toast.error(`Failed to save: ${e.message}`);
@@ -97,7 +97,7 @@ export function GeneralSettingsPage() {
                         {t('general.llmHelp')}
                     </p>
                     <Select
-                        value={settings?.defaultModels?.['llm-chat'] || 'gpt-4o-mini'}
+                        value={settings?.defaultModels?.['llm'] || 'gpt-4o-mini'}
                         onValueChange={handleDefaultLLMChange}
                         disabled={loading}
                     >

@@ -74,7 +74,7 @@ export function AutoGenerateButton({
         if (availableModels.length === 0) return null;
 
         // Try global default
-        const defaultModelId = settings ? getDefaultModel(settings, 'llm-chat') || getDefaultModel(settings, 'llm') : null;
+        const defaultModelId = settings ? getDefaultModel(settings, 'llm') : null;
         if (defaultModelId && availableModels.some((m: ModelPlugin) => m.id === defaultModelId)) {
             return defaultModelId;
         }

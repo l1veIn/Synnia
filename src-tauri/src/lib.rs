@@ -118,7 +118,7 @@ pub fn run() {
             commands::asset::cleanup_orphan_assets,
 
             // History Commands
-            commands::history::save_asset_with_history,
+            commands::history::save_asset,
             commands::history::get_asset_history,
             commands::history::get_history_content,
             commands::history::restore_asset_version,

@@ -24,7 +24,7 @@ export interface AppSettings {
     // Provider configurations
     providers: Partial<Record<ProviderKey, ProviderConfig>>;
 
-    // Default models per category (e.g., 'llm-chat': 'gpt-4o')
+    // Default models per category (e.g., 'llm': 'gpt-4o')
     defaultModels: Partial<Record<string, string>>;
 
     // Default LLM generation parameters
@@ -40,14 +40,8 @@ export interface AppSettings {
 export function createDefaultSettings(): AppSettings {
     return {
         providers: {},
-        defaultModels: {
-            'llm-chat': 'gpt-4o-mini',
-            'llm-vision': 'gpt-4o',
-        },
-        defaultLLMParams: {
-            temperature: 0.7,
-            maxTokens: 2048,
-        },
+        defaultModels: {},
+        defaultLLMParams: {},
         _version: 4,
     };
 }

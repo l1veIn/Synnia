@@ -1,7 +1,7 @@
 // Call Default LLM - Pure async function
 // For use in non-React contexts (autoGenerate, etc.)
 
-import { modelRegistry, ModelPlugin, LLMExecutionResult, ProviderCredentials, ProviderType } from '../index';
+import { modelRegistry, ModelPlugin, ModelExecutionResult, ProviderCredentials, ProviderType } from '../index';
 import { loadSettings, getProviderCredentials, getDefaultModel, isProviderConfigured, ProviderKey } from '@/lib/settings';
 
 export interface CallDefaultLLMOptions {
@@ -29,11 +29,11 @@ export interface CallDefaultLLMOptions {
  * Call the default LLM configured in Settings.
  * Uses modelRegistry (unified) instead of legacy llmRegistry.
  */
-export async function callDefaultLLM(options: CallDefaultLLMOptions): Promise<LLMExecutionResult> {
+export async function callDefaultLLM(options: CallDefaultLLMOptions): Promise<ModelExecutionResult> {
     const settings = await loadSettings();
 
     // 1. Determine model ID
-    const modelId = options.modelId || getDefaultModel(settings, 'llm-chat') || getDefaultModel(settings, 'llm') || 'gpt-4o-mini';
+    const modelId = options.modelId || getDefaultModel(settings, 'llm') || 'gpt-4o-mini';
 
     // 2. Get model from unified registry
     const model = modelRegistry.get(modelId);
@@ -63,7 +63,7 @@ async function executeWithModel(
     model: ModelPlugin,
     options: CallDefaultLLMOptions,
     settings: Awaited<ReturnType<typeof loadSettings>>
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     // Get provider and credentials
     const providers = model.supportedProviders || [model.provider];
     const configuredProvider = providers.find(p => isProviderConfigured(settings, p as ProviderKey));

@@ -3,7 +3,7 @@
 
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -12,9 +12,9 @@ import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 // ============================================================================
 
 async function executeGoogle(
-    input: LLMExecutionInput,
+    input: ModelExecutionInput,
     modelId: string
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
@@ -107,7 +107,7 @@ const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
         }
         : undefined,
 
-    execute: (input) => executeGoogle(input as LLMExecutionInput, config.id),
+    execute: (input) => executeGoogle(input as ModelExecutionInput, config.id),
 });
 
 // ============================================================================

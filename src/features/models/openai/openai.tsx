@@ -3,7 +3,7 @@
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -12,9 +12,9 @@ import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 // ============================================================================
 
 async function executeOpenAI(
-    input: LLMExecutionInput,
+    input: ModelExecutionInput,
     modelId: string
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
@@ -105,7 +105,7 @@ const createOpenAIModel = (config: OpenAIModelConfig): ModelPlugin => ({
         }
         : undefined,
 
-    execute: (input) => executeOpenAI(input as LLMExecutionInput, config.id),
+    execute: (input) => executeOpenAI(input as ModelExecutionInput, config.id),
 });
 
 // ============================================================================

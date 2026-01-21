@@ -2,9 +2,9 @@
  * ModelTab - Model configuration for Recipe nodes
  * Uses the same logic as ModelConfigurator widget
  */
-
-import { useState, useMemo, useEffect } from 'react';
-import { Check, ChevronsUpDown, AlertCircle, Thermometer, Hash, FileJson, Key, Settings } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Check, ChevronsUpDown, AlertCircle, Thermometer, Hash, FileJson, Key, Settings, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -37,7 +37,7 @@ import { useTranslation } from 'react-i18next';
 export interface ModelTabProps {
     modelConfig?: ModelConfig;
     onModelConfigChange: (config: ModelConfig) => void;
-    filterCategory?: string; // e.g., 'llm', 'llm-chat', 'image-generation'
+    filterCategory?: string; // e.g., 'llm', 'image-generation', 'video-generation'
     /** Required capabilities from recipe - only show models with these capabilities */
     requiredCapabilities?: ModelCapability[];
 }
@@ -145,6 +145,39 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
 
     const isLLMCategory = filterCategory?.startsWith('llm-') || filterCategory === 'llm';
 
+    // ========================================================================
+    // Draft Mode: Local state for unsaved changes
+    // ========================================================================
+    const [draftConfig, setDraftConfig] = useState<ModelConfig | undefined>(modelConfig);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Sync draft with saved config when it changes externally (e.g., different node selected)
+    useEffect(() => {
+        if (!isInitialized) {
+            setDraftConfig(modelConfig);
+            setIsInitialized(true);
+        }
+    }, [modelConfig, isInitialized]);
+
+    // Reset initialization when modelConfig identity changes (different asset)
+    const prevModelConfigRef = useRef<ModelConfig | undefined>(undefined);
+    useEffect(() => {
+        // Detect if this is a different config (different asset selected)
+        const isDifferentConfig = modelConfig?.modelId !== prevModelConfigRef.current?.modelId ||
+            modelConfig?.provider !== prevModelConfigRef.current?.provider;
+        if (isDifferentConfig) {
+            prevModelConfigRef.current = modelConfig;
+            setDraftConfig(modelConfig);
+        }
+    }, [modelConfig]);
+
+    // Check if there are unsaved changes
+    const hasChanges = useMemo(() => {
+        return JSON.stringify(draftConfig) !== JSON.stringify(modelConfig);
+    }, [draftConfig, modelConfig]);
+
+    // ========================================================================
+
     // Get available models for this category, filtered by required capabilities
     const models = useMemo(() => {
         let categoryModels = isLLMCategory
@@ -161,11 +194,11 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         return categoryModels;
     }, [filterCategory, isLLMCategory, requiredCapabilities]);
 
-    // Current selected model
+    // Current selected model (from draft)
     const selectedModel = useMemo(() => {
-        if (!modelConfig?.modelId) return null;
-        return modelRegistry.get(modelConfig.modelId);
-    }, [modelConfig?.modelId]);
+        if (!draftConfig?.modelId) return null;
+        return modelRegistry.get(draftConfig.modelId);
+    }, [draftConfig?.modelId]);
 
     // Get providers user has configured
     const configuredProviders = useMemo(() => {
@@ -189,35 +222,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         return providers.filter(p => configuredProviders.includes(p));
     }, [selectedModel, configuredProviders]);
 
-    // Auto-select default model if none selected
-    useEffect(() => {
-        if (!modelConfig?.modelId && settings && models.length > 0) {
-            const category = filterCategory || 'llm';
-            const defaultModelId = getDefaultModel(settings, category);
-
-            let modelToSelect = defaultModelId
-                ? models.find(m => m.id === defaultModelId)
-                : null;
-
-            if (!modelToSelect) {
-                modelToSelect = models.find(m =>
-                    (m.supportedProviders || [m.provider]).some(p => configuredProviders.includes(p))
-                );
-            }
-
-            if (modelToSelect) {
-                const providers = modelToSelect.supportedProviders || [modelToSelect.provider];
-                const availableProvider = providers.find(p => configuredProviders.includes(p));
-                onModelConfigChange({
-                    modelId: modelToSelect.id,
-                    provider: availableProvider,
-                    params: {},
-                });
-            }
-        }
-    }, [modelConfig?.modelId, settings, models, configuredProviders, filterCategory]);
-
-    // Handle model selection
+    // Handle model selection (update draft only)
     const handleModelSelect = async (modelId: string) => {
         const model = modelRegistry.get(modelId);
         if (!model) return;
@@ -225,7 +230,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         const providers = model.supportedProviders || [model.provider];
         const availableProvider = providers.find(p => configuredProviders.includes(p));
 
-        onModelConfigChange({
+        setDraftConfig({
             modelId,
             provider: availableProvider,
             params: {},
@@ -234,28 +239,42 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
 
         // Update default model for this category
         const category = filterCategory || model.category;
-        if (category) {
+        if (category && category != 'llm') {
             await setDefaultModel(category, modelId);
         }
     };
 
-    // Handle provider selection (for multi-provider models)
+    // Handle provider selection (update draft only)
     const handleProviderSelect = (modelId: string, provider: ProviderType) => {
         if (!configuredProviders.includes(provider)) {
             return; // Provider not configured
         }
-        onModelConfigChange({
+        setDraftConfig({
             modelId,
             provider,
-            params: modelConfig?.params || {},
+            params: draftConfig?.params || {},
         });
         setOpen(false);
     };
 
-    // Handle config change
+    // Handle config change (update draft only)
     const handleParamsChange = (params: any) => {
-        if (!modelConfig) return;
-        onModelConfigChange({ ...modelConfig, params });
+        if (!draftConfig) return;
+        setDraftConfig({ ...draftConfig, params });
+    };
+
+    // Save draft to asset
+    const handleSave = () => {
+        if (draftConfig) {
+            onModelConfigChange(draftConfig);
+            toast.success('Model configuration saved');
+        }
+    };
+
+    // Discard changes
+    const handleDiscard = () => {
+        setDraftConfig(modelConfig);
+        toast.info('Changes discarded');
     };
 
     return (
@@ -389,16 +408,16 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                             {selectedModel.renderConfig ? (
                                 // Model has custom config UI
                                 selectedModel.renderConfig({
-                                    value: modelConfig?.params,
+                                    value: draftConfig?.params,
                                     onChange: handleParamsChange,
                                     disabled: false,
                                     availableProviders,
-                                    provider: modelConfig?.provider as ProviderType | undefined,  // Pass current provider
+                                    provider: draftConfig?.provider as ProviderType | undefined,
                                 })
                             ) : isLLMCategory ? (
                                 // LLM model without custom config: use default settings
                                 <DefaultLLMSettings
-                                    value={modelConfig?.params}
+                                    value={draftConfig?.params}
                                     onChange={handleParamsChange}
                                     disabled={false}
                                     defaultTemperature={(selectedModel as any).defaultTemperature}
@@ -408,6 +427,30 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                             ) : null}
                         </>
                     )}
+
+                    {/* Save/Discard Footer */}
+                    <div className="pt-4 border-t flex items-center justify-end gap-2">
+                        {hasChanges && (
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleDiscard}
+                                className="h-7 text-xs"
+                            >
+                                Discard
+                            </Button>
+                        )}
+                        <Button
+                            size="sm"
+                            variant={hasChanges ? "default" : "outline"}
+                            onClick={handleSave}
+                            className={cn("h-7 gap-1.5", hasChanges && "bg-primary")}
+                            disabled={!hasChanges}
+                        >
+                            <Save className="h-3.5 w-3.5" />
+                            Save
+                        </Button>
+                    </div>
                 </>
             )}
         </div>

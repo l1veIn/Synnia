@@ -3,21 +3,21 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useSettings, isProviderConfigured, getDefaultModel, ProviderKey } from '@/lib/settings';
-import { modelRegistry, ModelPlugin, LLMExecutionResult } from '../index';
+import { modelRegistry, ModelPlugin, ModelExecutionResult } from '../index';
 import { callDefaultLLM, CallDefaultLLMOptions } from '../shared/callDefaultLLM';
 
 export interface UseDefaultLLMOptions {
-    // Override default model category (default: 'llm-chat')
+    // Override default model category (default: 'llm')
     category?: string;
 }
 
 export interface UseDefaultLLMReturn {
     // Call the default LLM
-    call: (prompt: string, options?: Partial<Omit<CallDefaultLLMOptions, 'prompt'>>) => Promise<LLMExecutionResult>;
+    call: (prompt: string, options?: Partial<Omit<CallDefaultLLMOptions, 'prompt'>>) => Promise<ModelExecutionResult>;
 
     // State
     isLoading: boolean;
-    lastResult: LLMExecutionResult | null;
+    lastResult: ModelExecutionResult | null;
     lastError: string | null;
 
     // Model info
@@ -30,11 +30,11 @@ export interface UseDefaultLLMReturn {
  * React hook for calling the default LLM with settings-aware credentials.
  */
 export function useDefaultLLM(options: UseDefaultLLMOptions = {}): UseDefaultLLMReturn {
-    const { category = 'llm-chat' } = options;
+    const { category = 'llm' } = options;
     const { settings } = useSettings();
 
     const [isLoading, setIsLoading] = useState(false);
-    const [lastResult, setLastResult] = useState<LLMExecutionResult | null>(null);
+    const [lastResult, setLastResult] = useState<ModelExecutionResult | null>(null);
     const [lastError, setLastError] = useState<string | null>(null);
 
     // Get default model info
@@ -65,7 +65,7 @@ export function useDefaultLLM(options: UseDefaultLLMOptions = {}): UseDefaultLLM
     const call = useCallback(async (
         prompt: string,
         callOptions?: Partial<Omit<CallDefaultLLMOptions, 'prompt'>>
-    ): Promise<LLMExecutionResult> => {
+    ): Promise<ModelExecutionResult> => {
         setIsLoading(true);
         setLastError(null);
 
@@ -84,7 +84,7 @@ export function useDefaultLLM(options: UseDefaultLLMOptions = {}): UseDefaultLLM
         } catch (error: any) {
             const errorMessage = error.message || 'LLM call failed';
             setLastError(errorMessage);
-            const result: LLMExecutionResult = { success: false, error: errorMessage };
+            const result: ModelExecutionResult = { success: false, error: errorMessage };
             setLastResult(result);
             return result;
         } finally {

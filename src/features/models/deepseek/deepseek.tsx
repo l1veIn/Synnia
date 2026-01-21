@@ -3,7 +3,7 @@
 
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { ModelPlugin, LLMExecutionInput, LLMExecutionResult } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -12,9 +12,9 @@ import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 // ============================================================================
 
 async function executeDeepSeek(
-    input: LLMExecutionInput,
+    input: ModelExecutionInput,
     modelId: string
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
@@ -85,5 +85,5 @@ export const deepseekChat: ModelPlugin = {
         />
     ),
 
-    execute: (input) => executeDeepSeek(input as LLMExecutionInput, 'deepseek-chat'),
+    execute: (input) => executeDeepSeek(input as ModelExecutionInput, 'deepseek-chat'),
 };

@@ -1,7 +1,7 @@
 // Zhipu AI (智谱 AI) LLM Plugins
 // GLM models via native fetch (avoiding SDK compatibility issues)
 
-import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -30,9 +30,9 @@ interface ZhipuResponse {
 }
 
 async function executeZhipu(
-    input: LLMExecutionInput,
+    input: ModelExecutionInput,
     modelId: string
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
@@ -142,7 +142,7 @@ const createZhipuModel = (config: ZhipuModelConfig): ModelPlugin => ({
         }
         : undefined,
 
-    execute: (input) => executeZhipu(input as LLMExecutionInput, config.id),
+    execute: (input) => executeZhipu(input as ModelExecutionInput, config.id),
 });
 
 // ============================================================================

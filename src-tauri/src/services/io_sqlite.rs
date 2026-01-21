@@ -164,7 +164,7 @@ pub fn save_project_sqlite(project_root: &Path, project: &SynniaProject) -> Resu
 }
 
 /// Save a single asset with version history.
-pub fn save_asset_with_history(
+pub fn save_asset(
     project_root: &Path,
     asset: &Asset,
 ) -> Result<bool, AppError> {
@@ -491,7 +491,7 @@ fn load_assets(conn: &Connection) -> Result<HashMap<String, Asset>, AppError> {
 /// - **Auto-save** and **manual save (Ctrl+S)** pass an empty `assets` HashMap
 /// - When `assets.is_empty()`, this function returns early (no-op)
 /// - The actual asset persistence is handled by:
-///   - `save_asset_with_history` - for create/update operations
+///   - `save_asset` - for create/update operations
 ///   - `delete_media_asset` - for delete operations
 ///
 /// This function still exists for:

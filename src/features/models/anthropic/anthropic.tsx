@@ -3,7 +3,7 @@
 
 import { generateText } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { ModelPlugin, LLMExecutionInput, LLMExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -12,9 +12,9 @@ import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 // ============================================================================
 
 async function executeAnthropic(
-    input: LLMExecutionInput,
+    input: ModelExecutionInput,
     modelId: string
-): Promise<LLMExecutionResult> {
+): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
@@ -105,7 +105,7 @@ const createClaudeModel = (config: ClaudeModelConfig): ModelPlugin => ({
         }
         : undefined,
 
-    execute: (input) => executeAnthropic(input as LLMExecutionInput, config.id),
+    execute: (input) => executeAnthropic(input as ModelExecutionInput, config.id),
 });
 
 // ============================================================================

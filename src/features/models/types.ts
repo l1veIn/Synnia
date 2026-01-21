@@ -158,17 +158,3 @@ export interface ModelRegistry {
     getByCapabilities: (category: ModelCategory, caps: ModelCapability[]) => ModelPlugin[];
     getAll: () => ModelPlugin[];
 }
-
-// ============================================================================
-// Legacy Aliases (for gradual migration)
-// ============================================================================
-
-// These will be removed in Phase 5
-export type LLMPlugin = ModelPlugin;
-export type LLMCapability = ModelCapability;
-export type LLMExecutionInput = ModelExecutionInput;
-export type LLMExecutionResult = ModelExecutionResult;
-
-// Deprecated: Use ModelCategory instead
-/** @deprecated Use 'llm' category with capabilities instead */
-export type LegacyLLMCategory = 'llm-chat' | 'llm-vision' | 'llm-code';

@@ -133,7 +133,7 @@ export class AssetSystem {
     private async saveAssetToBackend(asset: Asset) {
         try {
             const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('save_asset_with_history', { asset });
+            await invoke('save_asset', { asset });
         } catch (e) {
             // May fail in browser mode or if Tauri is not available
             console.debug('[AssetSystem] Backend save skipped:', e);

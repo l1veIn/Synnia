@@ -8,7 +8,9 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import { ChevronRight, ChevronDown } from 'lucide-react';
-import ReactJson from 'react-json-view';
+import JsonView from '@uiw/react-json-view';
+import { lightTheme } from '@uiw/react-json-view/light';
+import { darkTheme } from '@uiw/react-json-view/dark';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -55,7 +57,7 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
         return values;
     }, [node, asset, outputPorts]);
 
-    const rjvTheme = resolvedTheme === 'dark' ? 'monokai' : 'rjv-default';
+
     const bgClass = resolvedTheme === 'dark' ? 'bg-[#272822]' : 'bg-white';
 
     if (!node) return null;
@@ -97,15 +99,11 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
                                             </div>
                                             <div className={cn("border rounded overflow-hidden", bgClass)}>
                                                 <div className="p-2 text-[10px]">
-                                                    <ReactJson
-                                                        src={typeof info.value === 'object' && info.value !== null ? info.value : { value: info.value }}
-                                                        name={null}
-                                                        theme={rjvTheme}
+                                                    <JsonView
+                                                        value={typeof info.value === 'object' && info.value !== null ? info.value : { value: info.value }}
+                                                        style={resolvedTheme === 'dark' ? darkTheme : lightTheme}
                                                         collapsed={1}
-                                                        collapseStringsAfterLength={30}
                                                         displayDataTypes={false}
-                                                        enableClipboard={false}
-                                                        style={{ backgroundColor: 'transparent' }}
                                                     />
                                                 </div>
                                             </div>
@@ -132,15 +130,11 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
                                             </div>
                                             <div className={cn("border rounded overflow-hidden", bgClass)}>
                                                 <div className="p-2 text-[10px]">
-                                                    <ReactJson
-                                                        src={typeof outputValues[port.id] === 'object' && outputValues[port.id] !== null ? outputValues[port.id] : { value: outputValues[port.id] }}
-                                                        name={null}
-                                                        theme={rjvTheme}
+                                                    <JsonView
+                                                        value={typeof outputValues[port.id] === 'object' && outputValues[port.id] !== null ? outputValues[port.id] : { value: outputValues[port.id] }}
+                                                        style={resolvedTheme === 'dark' ? darkTheme : lightTheme}
                                                         collapsed={1}
-                                                        collapseStringsAfterLength={30}
                                                         displayDataTypes={false}
-                                                        enableClipboard={false}
-                                                        style={{ backgroundColor: 'transparent' }}
                                                     />
                                                 </div>
                                             </div>

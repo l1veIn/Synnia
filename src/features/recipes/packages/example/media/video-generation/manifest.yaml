@@ -1,25 +1,33 @@
 # Video Generation - Media Recipe
+# Single-file manifest
 version: 1
 
 id: video-generation
 name: Video Generation
 description: Generate videos from text prompts
-category: Media
+category: 媒体生成
 icon: Film
 
-model:
-  category: video-generation
-  capabilities: []
-  defaultParams: {}
-
-advanced:
-  multiTurn: false
+executor:
+  type: agent
+  model:
+    category: video-generation
+    capabilities: []
+    defaultParams: {}
+  prompt:
+    user: "{{prompt}}"
 
 input:
-  schema:
-    $ref: ./schemas/input.yaml
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    config:
+      placeholder: "Describe the video scene..."
+    connection: input
 
 output:
   node: video
-  title: "Generated: {{prompt}}"
+  title: "Generated video"
   collapsed: false

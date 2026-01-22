@@ -5,19 +5,23 @@ version: 1
 id: product-manager
 name: 产品经理
 description: 规划生产清单并为角色撰写微文案
-category: Agent
+category: 创意工具
 icon: Briefcase
 
-model:
-  category: llm
-  capabilities:
-    - chat
-  defaultParams:
-    temperature: 0.5
-    maxTokens: 4096
-
-advanced:
-  multiTurn: true
+executor:
+  type: agent
+  model:
+    category: llm
+    capabilities:
+      - chat
+    defaultParams:
+      temperature: 0.5
+      maxTokens: 4096
+  prompt:
+    system:
+      $ref: ./prompts/system.md
+    user:
+      $ref: ./prompts/user.md
 
 input:
   schema:

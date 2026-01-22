@@ -1,25 +1,40 @@
 # Reference to Video - Media Recipe
+# Single-file manifest
 version: 1
 
 id: reference-to-video
 name: Reference to Video
 description: Generate video using reference images for style/content
-category: Media
+category: 媒体生成
 icon: Images
 
-model:
-  category: video-generation
-  capabilities: []
-  defaultParams: {}
-
-advanced:
-  multiTurn: false
+executor:
+  type: agent
+  model:
+    category: video-generation
+    capabilities: []
+    defaultParams: {}
+  prompt:
+    user: "{{prompt}}"
 
 input:
-  schema:
-    $ref: ./schemas/input.yaml
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    config:
+      placeholder: "Describe the video scene..."
+    connection: input
+
+  - key: image
+    label: Reference Images
+    type: string
+    widget: image-picker
+    required: true
+    connection: input
 
 output:
   node: video
-  title: "Generated: {{prompt}}"
+  title: "Generated video"
   collapsed: false

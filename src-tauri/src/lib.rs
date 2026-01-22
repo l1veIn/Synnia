@@ -140,6 +140,18 @@ pub fn run() {
             commands::ops_logs::append_log_entry,
             commands::ops_logs::get_log_entries,
             commands::ops_logs::clear_execution_logs,
+
+            // Recipe Management
+            commands::recipe::list_recipe_directory,
+            commands::recipe::get_recipe_file_tree,
+            commands::recipe::read_recipe_file,
+            commands::recipe::write_recipe_file,
+            commands::recipe::create_recipe_file,
+            commands::recipe::delete_recipe_file,
+            commands::recipe::create_recipe,
+            commands::recipe::create_recipe_folder,
+            commands::recipe::delete_recipe,
+            commands::recipe::get_recipes_base_path,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

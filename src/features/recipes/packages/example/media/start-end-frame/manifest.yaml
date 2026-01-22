@@ -1,25 +1,47 @@
 # Start-End Frame Video - Media Recipe
+# Single-file manifest
 version: 1
 
 id: start-end-frame
 name: Start-End Frame Video
 description: Generate video transitions between two images
-category: Media
+category: 媒体生成
 icon: SplitSquareVertical
 
-model:
-  category: video-generation
-  capabilities: []
-  defaultParams: {}
-
-advanced:
-  multiTurn: false
+executor:
+  type: agent
+  model:
+    category: video-generation
+    capabilities: []
+    defaultParams: {}
+  prompt:
+    user: "{{prompt}}"
 
 input:
-  schema:
-    $ref: ./schemas/input.yaml
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    config:
+      placeholder: "Describe the transition motion..."
+    connection: input
+
+  - key: startImage
+    label: Start Frame
+    type: string
+    widget: image-picker
+    required: true
+    connection: input
+
+  - key: endImage
+    label: End Frame
+    type: string
+    widget: image-picker
+    required: true
+    connection: input
 
 output:
   node: video
-  title: "Transition: {{prompt}}"
+  title: "Transition video"
   collapsed: false

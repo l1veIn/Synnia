@@ -1,24 +1,40 @@
 # Image Generation - Media Recipe
+# Single-file manifest (no $ref needed for simple recipes)
 version: 1
 
 id: image-generation
 name: Image Generation
 description: Generate images from text prompts
-category: Media
+category: 媒体生成
 icon: Image
 
-model:
-  category: image-generation
-  defaultParams: {}
+executor:
+  type: agent
+  model:
+    category: image-generation
+    defaultParams: {}
+  prompt:
+    user: "{{prompt}}"  
 
-advanced:
-  multiTurn: false
-
+# Input schema (inline)
 input:
-  schema:
-    $ref: ./schemas/input.yaml
+  - key: prompt
+    label: Prompt
+    type: string
+    widget: textarea
+    required: true
+    config:
+      placeholder: "Describe the image you want to generate..."
+    connection: input
+
+  - key: negativePrompt
+    label: Negative Prompt
+    type: string
+    widget: textarea
+    config:
+      placeholder: "What to avoid in the image..."
 
 output:
   node: gallery
-  title: "Generated: {{prompt}}"
+  title: "Generated images"
   collapsed: false

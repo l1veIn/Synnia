@@ -115,8 +115,9 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
             return <div className="text-destructive text-xs">Recipe not found: {recipeId}</div>;
         }
 
-        // Get recipe capabilities for dynamic ports
-        const recipeCapabilities = recipe.manifest.model.capabilities || [];
+        // Get recipe capabilities for dynamic ports (only for agent executor)
+        const executor = recipe.manifest.executor;
+        const recipeCapabilities = (executor.type === 'agent' && executor.model?.capabilities) || [];
 
         // Check if there are any visible fields
         const visibleFields = recipe.inputSchema.filter(field => !field.hidden);

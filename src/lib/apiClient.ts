@@ -227,6 +227,37 @@ export const apiClient = {
     openInBrowser: (url: string): Promise<void> =>
         apiClient.invoke('open_in_browser', { url }),
 
+    // ========================================
+    // Recipe Management Commands
+    // ========================================
+
+    listRecipeDirectory: (subpath?: string): Promise<import('@/types/recipe').DirectoryListing> =>
+        apiClient.invoke('list_recipe_directory', { subpath }),
+
+    createRecipe: (recipeId: string, parentPath?: string): Promise<string> =>
+        apiClient.invoke('create_recipe', { recipeId, parentPath }),
+
+    createRecipeFolder: (folderName: string, parentPath?: string): Promise<string> =>
+        apiClient.invoke('create_recipe_folder', { folderName, parentPath }),
+
+    deleteRecipe: (recipePath: string): Promise<void> =>
+        apiClient.invoke('delete_recipe', { recipePath }),
+
+    getRecipeFileTree: (recipePath: string): Promise<import('@/types/recipe').FileNode[]> =>
+        apiClient.invoke('get_recipe_file_tree', { recipePath }),
+
+    readRecipeFile: (recipePath: string, filePath: string): Promise<string> =>
+        apiClient.invoke('read_recipe_file', { recipePath, filePath }),
+
+    writeRecipeFile: (recipePath: string, filePath: string, content: string): Promise<void> =>
+        apiClient.invoke('write_recipe_file', { recipePath, filePath, content }),
+
+    createRecipeFile: (recipePath: string, filePath: string): Promise<void> =>
+        apiClient.invoke('create_recipe_file', { recipePath, filePath }),
+
+    deleteRecipeFile: (recipePath: string, filePath: string): Promise<void> =>
+        apiClient.invoke('delete_recipe_file', { recipePath, filePath }),
+
     /**
      * Fetch an image from a URL and return it as a base64 data URI.
      * This bypasses CORS restrictions for external image URLs.

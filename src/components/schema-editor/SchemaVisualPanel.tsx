@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelProps } from './types';
-import { FieldDefinition, FieldType, WidgetType } from '@/types/assets';
+import { FieldDefinition, WidgetType } from '@/types/assets';
 import { widgetRegistry, WidgetDefinition } from '@/components/workflow/widgets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import {
     Plus, Trash2, ChevronDown,
     ArrowDownToLine, ArrowUpFromLine,
-    Link2, Link2Off, Eye, EyeOff,
+    Link2,
     CornerDownRight, ArrowRight, FolderTree, Layers
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,7 +35,11 @@ export function SchemaVisualPanel({ schema, onChange, className }: PanelProps) {
         };
         allWidgets.forEach(w => {
             const cat = w.meta?.category || 'other';
-            grouped[cat]?.push(w) || grouped.other.push(w);
+            if (grouped[cat]) {
+                grouped[cat].push(w);
+            } else {
+                grouped.other.push(w);
+            }
         });
         return grouped;
     }, [allWidgets]);

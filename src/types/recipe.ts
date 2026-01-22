@@ -1,24 +1,25 @@
 /**
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                   🍳 Synnia Recipe System                       │
- * │         YAML/Package → RecipeManifest → RecipeDefinition        │
+ * │         manifest.yaml → RecipeManifest → RecipeDefinition       │
  * ├─────────────────────────────────────────────────────────────────┤
  * │                                                                 │
- * │  Recipe Package Structure:                                      │
- * │  ──────────────────────────                                     │
+ * │  Recipe = Single manifest.yaml with $ref for complex parts      │
+ * │  ─────────────────────────────────────────────────────────      │
  * │  recipe-name/                                                   │
- * │  ├── manifest.yaml         # Meta + model + executor            │
- * │  ├── input.schema.json     # Input FieldDefinition[]            │
- * │  ├── output.config.yaml    # Output configuration               │
- * │  ├── output.schema.json    # Output FieldDefinition[]           │
- * │  ├── prompts/                                                   │
- * │  │   ├── system.md         # System prompt                      │
- * │  │   └── user.md           # User prompt template               │
- * │  └── README.md             # Documentation                      │
+ * │  ├── manifest.yaml         # 唯一入口，包含全部配置              │
+ * │  │   ├── executor.type     # 'agent' | 'http'                   │
+ * │  │   ├── executor.model    # $ref or inline                     │
+ * │  │   ├── executor.prompt   # $ref: ./prompts/*.md               │
+ * │  │   ├── input.schema      # $ref: ./schemas/input.yaml         │
+ * │  │   └── output.schema     # $ref: ./schemas/output.yaml        │
+ * │  ├── prompts/system.md     # Referenced by $ref                 │
+ * │  ├── prompts/user.md       # Referenced by $ref                 │
+ * │  └── schemas/*.yaml        # Referenced by $ref                 │
  * │                                                                 │
  * │  Type Flow:                                                     │
  * │  ──────────                                                     │
- * │  YAML/JSON → Loader → RecipeDefinition → GraphEngine            │
+ * │  manifest.yaml → Loader($ref) → RecipeDefinition → GraphEngine  │
  * │                                                                 │
  * └─────────────────────────────────────────────────────────────────┘
  */
@@ -87,45 +88,53 @@ export interface AdvancedOptions {
     retryOnError?: boolean;
 }
 
+
 // ==========================================
-// 📋 Executor Config
+// 🔧 Executor Configs (Discriminated Union)
 // ==========================================
 
-export interface ExecutorConfig {
-    type: string;
-    [key: string]: any;
+export interface AgentExecutorConfig {
+    type: 'agent';
+    model: ModelRequirements;
+    prompt?: PromptTemplates;
 }
+
+export interface HttpExecutorConfig {
+    type: 'http';
+    endpoint: string;
+    method?: 'GET' | 'POST';
+    timeout?: number;
+    headers?: Record<string, string>;
+}
+
+// Discriminated union - TypeScript auto-narrows based on `type`
+export type ExecutorConfig = AgentExecutorConfig | HttpExecutorConfig;
 
 // ==========================================
 // 📦 Recipe Manifest (Package manifest.yaml)
 // ==========================================
 
 export interface RecipeManifest {
-    version: 2;
+    version: 1;
 
     // --- Identity ---
     id: string;
     name: string;
     description?: string;
-    category?: string;
+    category?: string;       // Pure UI grouping (e.g. "创意工具", "媒体生成")
     icon?: string;
 
     // --- Market (Optional) ---
     author?: string;
     license?: string;
     tags?: string[];
-    cover?: string;
+    cover?: string;           // Cover image for marketplace
+    readme?: string;          // Detailed documentation (inline or $ref: ./README.md)
 
-    // --- Model ---
-    model: ModelRequirements;
+    // --- Executor (discriminated union) ---
+    executor: ExecutorConfig;
 
-    // --- Executor ---
-    executor?: ExecutorConfig;
-
-    // --- Prompt (inline or file reference) ---
-    prompt?: PromptTemplates;
-
-    // --- Input (inline or from input.schema.json) ---
+    // --- Input (inline or $ref) ---
     input?: FieldDefinition[];
 
     // --- Output ---
@@ -182,4 +191,33 @@ export interface RecipeDefinition {
     outputSchema?: FieldDefinition[];
     manifest: RecipeManifest;
     execute: RecipeExecutor;
+}
+
+// ==========================================
+// 📂 File System Types (for Recipe Manager)
+// ==========================================
+
+export type RecipeEntry =
+    | { type: 'folder'; name: string; path: string }
+    | {
+        type: 'recipe';
+        id: string;
+        path: string;
+        name: string;
+        description?: string;
+        author?: string;
+        icon?: string;
+        cover?: string;
+    };
+
+export interface DirectoryListing {
+    path: string;
+    entries: RecipeEntry[];
+}
+
+export interface FileNode {
+    name: string;
+    path: string;
+    is_dir: boolean;
+    children?: FileNode[];
 }

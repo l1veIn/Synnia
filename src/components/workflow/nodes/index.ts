@@ -72,9 +72,10 @@ for (const recipe of recipes) {
             // Initialize modelConfig with default model if available
             let modelConfig: ModelConfig | undefined;
             const settings = getSettings();
-            if (settings) {
-                // Get model category from recipe manifest, fallback to 'llm'
-                const category = recipe.manifest.model.category;
+            const executor = recipe.manifest.executor;
+            if (settings && executor.type === 'agent') {
+                // Get model category from recipe manifest
+                const category = executor.model.category;
                 const defaultModelId = getDefaultModel(settings, category);
                 if (defaultModelId) {
                     const model = modelRegistry.get(defaultModelId);
@@ -87,7 +88,7 @@ for (const recipe of recipes) {
                             modelConfig = {
                                 modelId: defaultModelId,
                                 provider: availableProvider,
-                                params: {},
+                                params: executor.model.defaultParams || {},
                             };
                         }
                     }
@@ -95,9 +96,9 @@ for (const recipe of recipes) {
             }
 
             // Copy prompts from manifest for user customization
-            const prompt = recipe.manifest.prompt ? {
-                system: recipe.manifest.prompt.system || '',
-                user: recipe.manifest.prompt.user || '',
+            const prompt = (executor.type === 'agent' && executor.prompt) ? {
+                system: executor.prompt.system || '',
+                user: executor.prompt.user || '',
             } : undefined;
 
             return {

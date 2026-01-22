@@ -26,8 +26,9 @@ export function AdvancedTab({ asset, recipe }: AdvancedTabProps) {
     const extra = (asset.config as any)?.extra || {};
     const assetPrompt = extra.prompt || { system: '', user: '' };
 
-    // Get original prompts from recipe manifest for reset
-    const manifestPrompt = recipe?.manifest?.prompt || { system: '', user: '' };
+    // Get original prompts from recipe manifest for reset (only for agent executor)
+    const executor = recipe?.manifest?.executor;
+    const manifestPrompt = (executor?.type === 'agent' && executor.prompt) || { system: '', user: '' };
 
     // Check if prompts have been modified
     const isSystemModified = assetPrompt.system !== manifestPrompt.system;

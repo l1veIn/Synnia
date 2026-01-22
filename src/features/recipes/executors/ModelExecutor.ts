@@ -48,7 +48,7 @@ export const ModelExecutor = {
         try {
             // 5. Prepare input
             const input = isMedia
-                ? prepareMediaInput(ctx, credentials, provider)
+                ? prepareMediaInput(ctx, credentials, provider, manifest)
                 : prepareLLMInput(ctx, credentials, manifest);
 
             // 6. Execute model
@@ -78,9 +78,12 @@ function prepareLLMInput(
 ): ModelExecutionInput {
     const { inputs, modelConfig, chatContext, asset } = ctx;
 
-    // Get prompts: prioritize user-customized prompts from asset, fallback to manifest defaults
-    const assetPrompt = (asset?.config as any)?.extra?.prompt;
-    const promptSource = assetPrompt || manifest?.prompt;
+    // Get executor config (type-guard for agent executor)
+    const executor = manifest?.executor;
+    const agentConfig = executor?.type === 'agent' ? executor : undefined;
+
+    // Get prompts from asset (copied from manifest at node creation time)
+    const promptSource = (asset?.config as any)?.extra?.prompt;
 
     // Build prompts from templates
     const systemPrompt = promptSource?.system
@@ -100,8 +103,8 @@ function prepareLLMInput(
     return {
         systemPrompt,
         userPrompt,
-        temperature: modelConfig?.params?.temperature ?? manifest?.model?.defaultParams?.temperature ?? 0.7,
-        maxTokens: modelConfig?.params?.maxTokens ?? manifest?.model?.defaultParams?.maxTokens ?? 2048,
+        temperature: modelConfig?.params?.temperature ?? agentConfig?.model?.defaultParams?.temperature ?? 0.7,
+        maxTokens: modelConfig?.params?.maxTokens ?? agentConfig?.model?.defaultParams?.maxTokens ?? 2048,
         jsonMode: !isTextOutput && (modelConfig?.params?.jsonMode !== false),
         credentials: {
             apiKey: credentials?.apiKey || '',
@@ -110,8 +113,25 @@ function prepareLLMInput(
     };
 }
 
-function prepareMediaInput(ctx: ExecutionContext, credentials: Credentials, provider: string): ModelExecutionInput {
-    const { inputs, modelConfig } = ctx;
+function prepareMediaInput(
+    ctx: ExecutionContext,
+    credentials: Credentials,
+    provider: string,
+    manifest?: RecipeManifest
+): ModelExecutionInput {
+    const { inputs, modelConfig, asset } = ctx;
+
+    // Get executor config (type-guard for agent executor)
+    const executor = manifest?.executor;
+    const agentConfig = executor?.type === 'agent' ? executor : undefined;
+
+    // Get prompts from asset (copied from manifest at node creation time)
+    const promptSource = (asset?.config as any)?.extra?.prompt;
+
+    // Build prompt: use template interpolation if available, otherwise direct input
+    const finalPrompt = promptSource?.user
+        ? interpolate(promptSource.user, inputs)
+        : inputs.prompt || '';
 
     // Get images from multiple possible sources:
     // 1. model:visionImage (from DynamicInputPorts - now gallery dataType)
@@ -151,7 +171,7 @@ function prepareMediaInput(ctx: ExecutionContext, credentials: Credentials, prov
     return {
         provider: provider as any,  // Provider for multi-provider models
         config,
-        prompt: inputs.prompt || '',
+        prompt: finalPrompt,
         negativePrompt: inputs.negativePrompt,
         images,
         credentials: {

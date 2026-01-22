@@ -7,7 +7,9 @@ import { toast } from 'sonner';
 import { Save, RotateCcw, Copy, ChevronRight, ChevronDown } from 'lucide-react';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { useTranslation } from 'react-i18next';
-import ReactJson from 'react-json-view';
+import JsonView from '@uiw/react-json-view';
+import { lightTheme } from '@uiw/react-json-view/light';
+import { darkTheme } from '@uiw/react-json-view/dark';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -64,7 +66,7 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly, defaultOpen = true }: 
         toast.success(t('debug.copied'));
     }
 
-    const rjvTheme = resolvedTheme === 'dark' ? 'monokai' : 'rjv-default';
+
     const bgClass = resolvedTheme === 'dark' ? 'bg-[#272822]' : 'bg-white';
 
     return (
@@ -104,17 +106,11 @@ const JsonEditorBlock = ({ title, data, onSave, readOnly, defaultOpen = true }: 
                         <div className={cn("relative min-h-[100px] max-h-[500px]", bgClass)}>
                             <ScrollArea className="h-full w-full max-h-[500px]">
                                 <div className="p-4 text-xs">
-                                    <ReactJson
-                                        src={jsonData}
-                                        theme={rjvTheme}
+                                    <JsonView
+                                        value={jsonData}
+                                        style={resolvedTheme === 'dark' ? darkTheme : lightTheme}
                                         collapsed={2}
-                                        collapseStringsAfterLength={50}
-                                        onEdit={!readOnly ? handleEdit : undefined}
-                                        onAdd={!readOnly ? handleEdit : undefined}
-                                        onDelete={!readOnly ? handleEdit : undefined}
                                         displayDataTypes={false}
-                                        enableClipboard={false}
-                                        style={{ backgroundColor: 'transparent', fontFamily: 'monospace' }}
                                     />
                                 </div>
                             </ScrollArea>

@@ -74,6 +74,12 @@ function resolveRefs<T>(obj: T, ctx: ResolveContext): T {
             );
         }
 
+        // For .md files, return raw content as string (no YAML parsing)
+        if (absolutePath.endsWith('.md')) {
+            ctx.cache.set(absolutePath, content);
+            return content as T;
+        }
+
         let parsed: any;
         try {
             parsed = parseYaml(content);
@@ -148,7 +154,10 @@ export function parseManifest(yamlContent: string): RecipeManifest {
     // Validate required fields
     if (!raw.id) throw new Error('Recipe manifest missing "id"');
     if (!raw.name) throw new Error('Recipe manifest missing "name"');
-    if (!raw.model) throw new Error('Recipe manifest missing "model"');
+    // agent.model is required for agent executor, http is optional for http executor
+    if (!raw.executor.model && !raw.http) {
+        throw new Error('Recipe manifest requires either "agent.model" or "http"');
+    }
 
     return raw as RecipeManifest;
 }
@@ -159,8 +168,6 @@ export function parseManifest(yamlContent: string): RecipeManifest {
 
 export interface PackageFiles {
     manifest: string;           // manifest.yaml content (may contain $ref)
-    systemPrompt?: string;      // prompts/system.md content
-    userPrompt?: string;        // prompts/user.md content
     loadFile: (path: string) => string;  // Sync: files pre-loaded by Vite glob
     basePath: string;           // Base path for resolving $ref
 }
@@ -192,12 +199,9 @@ export function loadRecipePackage(files: PackageFiles): RecipeManifest {
         manifest.output.schema = resolveRefs(manifest.output.schema, ctx);
     }
 
-    // Load prompts from separate files (kept as-is for readability)
-    if (files.systemPrompt || files.userPrompt) {
-        manifest.prompt = {
-            system: files.systemPrompt || '',
-            user: files.userPrompt || '',
-        };
+    // Resolve all $ref in executor.prompt (supports .md files, only for agent type)
+    if (manifest.executor.type === 'agent' && manifest.executor.prompt) {
+        manifest.executor.prompt = resolveRefs(manifest.executor.prompt, ctx);
     }
 
     return manifest;

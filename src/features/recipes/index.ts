@@ -11,32 +11,11 @@ import {
 } from './recipeLoader';
 import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
 
-// ============================================================================
 // Load Package Files using Vite glob
 // ============================================================================
 
-// Import all manifest.yaml files
-const manifestModules = import.meta.glob('./packages/**/manifest.yaml', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-// Import all schema YAML files for $ref resolution
-const schemaModules = import.meta.glob('./packages/**/*.yaml', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-// Import prompt files
-const systemPromptModules = import.meta.glob('./packages/**/prompts/system.md', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-const userPromptModules = import.meta.glob('./packages/**/prompts/user.md', {
+// Single glob for all recipe package files (manifest, schemas, prompts)
+const packageFiles = import.meta.glob('./packages/**/*.{yaml,md}', {
     eager: true,
     query: '?raw',
     import: 'default'
@@ -46,7 +25,7 @@ const userPromptModules = import.meta.glob('./packages/**/prompts/user.md', {
 const recipePathMap = new Map<string, string[]>();
 
 // ============================================================================
-// $ref File Loader (uses pre-loaded schema modules)
+// $ref File Loader (uses pre-loaded package files)
 // ============================================================================
 
 /**
@@ -58,13 +37,13 @@ function createFileLoader(_basePath: string): (path: string) => string {
         // Convert absolute path back to module path format: ./packages/...
         const modulePath = '.' + absolutePath;
 
-        const content = schemaModules[modulePath];
+        const content = packageFiles[modulePath];
         if (!content) {
             // Try alternative path formats
             const altPath = absolutePath.startsWith('/') ? '.' + absolutePath : './' + absolutePath;
-            const altContent = schemaModules[altPath];
+            const altContent = packageFiles[altPath];
             if (!altContent) {
-                throw new Error(`Schema file not found: ${absolutePath}\nAvailable: ${Object.keys(schemaModules).slice(0, 5).join(', ')}...`);
+                throw new Error(`File not found: ${absolutePath}\nAvailable: ${Object.keys(packageFiles).slice(0, 5).join(', ')}...`);
             }
             return altContent;
         }
@@ -77,15 +56,17 @@ function createFileLoader(_basePath: string): (path: string) => string {
 // ============================================================================
 
 function registerAllRecipes(): void {
-    for (const [manifestPath, manifestContent] of Object.entries(manifestModules)) {
+    // Filter to only manifest.yaml files
+    const manifestModules = Object.entries(packageFiles)
+        .filter(([path]) => path.endsWith('/manifest.yaml'));
+
+    for (const [manifestPath, manifestContent] of manifestModules) {
         try {
             // Extract package directory: ./packages/agent/storyteller/manifest.yaml -> ./packages/agent/storyteller
             const packageDir = manifestPath.replace('/manifest.yaml', '');
 
             const files: PackageFiles = {
                 manifest: manifestContent,
-                systemPrompt: systemPromptModules[`${packageDir}/prompts/system.md`],
-                userPrompt: userPromptModules[`${packageDir}/prompts/user.md`],
                 loadFile: createFileLoader(packageDir),
                 basePath: packageDir.replace('./', '/'),  // ./packages/agent/art-director -> /packages/agent/art-director
             };

@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, FolderOpen, Clock, ChevronRight, Trash2, Github, Pencil } from "lucide-react";
+import { Plus, FolderOpen, Clock, ChevronRight, Trash2, Github, Pencil, FileCode } from "lucide-react";
 import { open } from '@tauri-apps/plugin-dialog';
 import { SynniaIcon } from "@/components/SynniaIcon";
 import { SynniaSticker } from "@/components/SynniaSticker";
@@ -276,6 +276,14 @@ export default function Dashboard() {
                     <Button variant="ghost" className="w-full justify-start">
                         <FolderOpen className="w-4 h-4 mr-3 opacity-70" />
                         {t('dashboard.projects')}
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-start text-muted-foreground hover:text-foreground"
+                        onClick={() => navigate('/recipes')}
+                    >
+                        <FileCode className="w-4 h-4 mr-3 opacity-70" />
+                        Recipes
                     </Button>
                 </nav>
 

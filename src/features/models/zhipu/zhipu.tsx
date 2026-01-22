@@ -35,7 +35,7 @@ async function executeZhipu(
 ): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
-
+    console.log({ input })
     if (!credentials.apiKey) {
         return { success: false, error: 'Zhipu API key not configured' };
     }
@@ -156,7 +156,7 @@ export const glm47 = createZhipuModel({
     description: 'Zhipu flagship model with reasoning capabilities',
     hasVision: false,
     contextWindow: 200000,
-    maxOutputTokens: 128000,
+    maxOutputTokens: 96000,
 });
 
 // GLM-4.6v: Vision model (based on GLM-4.6, 200K context, 128K output)
@@ -166,7 +166,7 @@ export const glm46v = createZhipuModel({
     description: 'Zhipu multimodal model with vision support',
     hasVision: true,
     contextWindow: 200000,
-    maxOutputTokens: 128000,
+    maxOutputTokens: 96000,
 });
 
 // GLM-4-Flash: Fast and affordable (128K context, 16K output)
@@ -186,6 +186,6 @@ export const glm47Flash = createZhipuModel({
     description: 'Free flagship model with full capabilities',
     hasVision: false,
     contextWindow: 200000,
-    maxOutputTokens: 128000,
+    maxOutputTokens: 96000,
 });
 

@@ -1,5 +1,5 @@
 # Video Generation - Media Recipe
-# Single-file manifest
+# Uses nested input format (V1.0 standard)
 version: 1
 
 id: video-generation
@@ -18,14 +18,15 @@ executor:
     user: "{{prompt}}"
 
 input:
-  - key: prompt
-    label: Prompt
-    type: string
-    widget: textarea
-    required: true
-    config:
-      placeholder: "Describe the video scene..."
-    connection: input
+  schema:
+    - key: prompt
+      label: Prompt
+      type: string
+      widget: textarea
+      required: true
+      config:
+        placeholder: "Describe the video scene..."
+      connection: input
 
 output:
   node: video

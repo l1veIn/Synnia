@@ -1,95 +1,59 @@
 // ============================================================================
 // Recipe Registry - Entry Point
-// V1.0: Unified YAML with $ref support
+// V2.0: Backend-driven with on-demand loading
 // ============================================================================
 
-import { parse as parseYaml } from 'yaml';
-import {
-    recipeRegistry as internalRegistry,
-    loadRecipePackage,
-    type PackageFiles,
-} from './recipeLoader';
 import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
-
-// Load Package Files using Vite glob
-// ============================================================================
-
-// Single glob for all recipe package files (manifest, schemas, prompts)
-const packageFiles = import.meta.glob('./packages/**/*.{yaml,md}', {
-    eager: true,
-    query: '?raw',
-    import: 'default'
-}) as Record<string, string>;
-
-// Build path mapping: recipeId -> directory path segments
-const recipePathMap = new Map<string, string[]>();
+import { useRecipeStore, RecipeMeta } from '@/store/recipeStore';
+import { createRecipeFromManifest } from './recipeLoader';
+import * as LucideIcons from 'lucide-react';
+import { LucideIcon, Wand2 } from 'lucide-react';
 
 // ============================================================================
-// $ref File Loader (uses pre-loaded package files)
+// Internal Registry (for loaded recipes)
 // ============================================================================
+
+const loadedRecipes = new Map<string, RecipeDefinition>();
 
 /**
- * Create a sync file loader that looks up files from pre-loaded modules.
- * All files are eagerly loaded by Vite glob at build time, no async needed.
+ * Register a recipe from its manifest
  */
-function createFileLoader(_basePath: string): (path: string) => string {
-    return (absolutePath: string): string => {
-        // Convert absolute path back to module path format: ./packages/...
-        const modulePath = '.' + absolutePath;
-
-        const content = packageFiles[modulePath];
-        if (!content) {
-            // Try alternative path formats
-            const altPath = absolutePath.startsWith('/') ? '.' + absolutePath : './' + absolutePath;
-            const altContent = packageFiles[altPath];
-            if (!altContent) {
-                throw new Error(`File not found: ${absolutePath}\nAvailable: ${Object.keys(packageFiles).slice(0, 5).join(', ')}...`);
-            }
-            return altContent;
-        }
-        return content;
-    };
+export function registerRecipe(manifest: RecipeManifest): RecipeDefinition {
+    const recipe = createRecipeFromManifest(manifest);
+    loadedRecipes.set(recipe.id, recipe);
+    return recipe;
 }
 
-// ============================================================================
-// Register all Package recipes (SYNC - all files pre-loaded by Vite glob)
-// ============================================================================
+/**
+ * Get a loaded recipe by ID (may be undefined if not loaded)
+ */
+export function getRecipe(id: string): RecipeDefinition | undefined {
+    return loadedRecipes.get(id);
+}
 
-function registerAllRecipes(): void {
-    // Filter to only manifest.yaml files
-    const manifestModules = Object.entries(packageFiles)
-        .filter(([path]) => path.endsWith('/manifest.yaml'));
+/**
+ * Get all loaded recipes
+ */
+export function getAllRecipes(): RecipeDefinition[] {
+    return Array.from(loadedRecipes.values());
+}
 
-    for (const [manifestPath, manifestContent] of manifestModules) {
-        try {
-            // Extract package directory: ./packages/agent/storyteller/manifest.yaml -> ./packages/agent/storyteller
-            const packageDir = manifestPath.replace('/manifest.yaml', '');
-
-            const files: PackageFiles = {
-                manifest: manifestContent,
-                loadFile: createFileLoader(packageDir),
-                basePath: packageDir.replace('./', '/'),  // ./packages/agent/art-director -> /packages/agent/art-director
-            };
-            const manifest = loadRecipePackage(files);
-            const recipe = internalRegistry.registerManifest(manifest);
-
-            // Extract path for NodePicker: ./packages/agent/storyteller -> ['agent']
-            const pathMatch = packageDir.match(/\.\/packages\/(.+)$/);
-            if (pathMatch) {
-                const segments = pathMatch[1].split('/');
-                const category = segments.slice(0, -1);
-                recipePathMap.set(recipe.id, category.length > 0 ? category : [segments[0]]);
-            }
-
-            console.log(`[RecipeRegistry] Loaded: ${recipe.id}`);
-        } catch (error) {
-            console.error(`[RecipeRegistry] Failed to load ${manifestPath}:`, error);
-        }
+/**
+ * Get loaded recipes grouped by category
+ */
+export function getRecipesByCategory(): Map<string, RecipeDefinition[]> {
+    const byCategory = new Map<string, RecipeDefinition[]>();
+    for (const recipe of loadedRecipes.values()) {
+        const category = recipe.category || 'Other';
+        const list = byCategory.get(category) || [];
+        list.push(recipe);
+        byCategory.set(category, list);
     }
+    return byCategory;
 }
 
-// Initialize recipes synchronously (all files pre-loaded by Vite glob)
-registerAllRecipes();
+// Alias for backward compatibility
+export const getResolvedRecipe = getRecipe;
 
 // ============================================================================
 // Recipe Tree Structure for NodePicker
@@ -100,20 +64,20 @@ export interface RecipeTreeNode {
     name: string;
     path: string[];
     children?: RecipeTreeNode[];
-    recipe?: RecipeDefinition;
+    recipe?: {
+        id: string;
+        name: string;
+        description?: string;
+        icon?: LucideIcon;
+    };
 }
 
 /**
- * Get the directory path for a recipe
- */
-export function getRecipePath(recipeId: string): string[] {
-    return recipePathMap.get(recipeId) || [];
-}
-
-/**
- * Build a tree structure from all registered recipes
+ * Build recipe tree from RecipeStore metas
  */
 export function getRecipeTree(): RecipeTreeNode {
+    const metas = useRecipeStore.getState().metas;
+
     const root: RecipeTreeNode = {
         type: 'folder',
         name: 'Recipes',
@@ -121,27 +85,48 @@ export function getRecipeTree(): RecipeTreeNode {
         children: [],
     };
 
-    for (const recipe of internalRegistry.getAll()) {
-        const pathSegments = recipePathMap.get(recipe.id) || ['Other'];
-        insertIntoTree(root, pathSegments, recipe);
+    for (const meta of metas) {
+        // Use category as path, split by / for multi-level support
+        // e.g. "品牌设计/简易工具" -> ["品牌设计", "简易工具"]
+        const category = meta.category || 'Other';
+        const pathSegments = category.split('/').map(s => s.trim()).filter(s => s.length > 0);
+
+        insertIntoTree(root, pathSegments, meta);
     }
 
     sortTreeChildren(root);
     return root;
 }
 
+/**
+ * Get recipe path (category-based, supports multi-level with /)
+ */
+export function getRecipePath(recipeId: string): string[] {
+    const metas = useRecipeStore.getState().metas;
+    const meta = metas.find(m => m.id === recipeId);
+    if (meta?.category) {
+        return meta.category.split('/').map(s => s.trim()).filter(s => s.length > 0);
+    }
+    return ['Other'];
+}
+
 function insertIntoTree(
     node: RecipeTreeNode,
     pathSegments: string[],
-    recipe: RecipeDefinition
+    meta: RecipeMeta
 ): void {
     if (pathSegments.length === 0) {
         node.children = node.children || [];
         node.children.push({
             type: 'recipe',
-            name: recipe.name,
+            name: meta.name,
             path: [...node.path],
-            recipe,
+            recipe: {
+                id: meta.id,
+                name: meta.name,
+                description: meta.description,
+                icon: meta.icon ? (LucideIcons as any)[meta.icon] || Wand2 : Wand2,
+            },
         });
         return;
     }
@@ -163,7 +148,7 @@ function insertIntoTree(
         node.children.push(folder);
     }
 
-    insertIntoTree(folder, rest, recipe);
+    insertIntoTree(folder, rest, meta);
 }
 
 function sortTreeChildren(node: RecipeTreeNode): void {
@@ -184,11 +169,8 @@ function sortTreeChildren(node: RecipeTreeNode): void {
 }
 
 // ============================================================================
-// Public API
+// Re-exports
 // ============================================================================
 
-export const recipeRegistry = internalRegistry;
-export const getRecipe = (id: string) => internalRegistry.get(id);
-export const getResolvedRecipe = (id: string) => internalRegistry.get(id);
-export const getAllRecipes = () => internalRegistry.getAll();
-export const getRecipesByCategory = () => internalRegistry.getByCategory();
+export { createRecipeFromManifest } from './recipeLoader';
+export type { RecipeMeta } from '@/store/recipeStore';

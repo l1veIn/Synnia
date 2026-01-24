@@ -3,7 +3,7 @@ import '@xyflow/react/dist/style.css';
 import { useMemo, useEffect, useState } from 'react';
 
 import { useWorkflowStore } from '@/store/workflowStore';
-import { nodeTypes } from '@/components/workflow/nodes';
+import { getNodeTypes, ensureRecipeNodesRegistered } from '@/components/workflow/nodes';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Save, Home, FolderOpen } from 'lucide-react';
@@ -30,6 +30,7 @@ const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 function CanvasFlow() {
   const navigate = useNavigate();
   const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true); // Block render until hydration complete
   const nodes = useWorkflowStore(s => s.nodes);
   const edges = useWorkflowStore(s => s.edges);
   const viewport = useWorkflowStore(s => s.viewport);
@@ -67,6 +68,17 @@ function CanvasFlow() {
           } catch (e) { console.warn("Failed to resolve project root", e); }
 
           const project = await apiClient.invoke<SynniaProject>('load_project', { path });
+
+          // Pre-register recipe nodes used in this project before loading
+          const recipeNodeTypes = project.graph?.nodes
+            ?.filter(n => n.type?.startsWith('recipe:'))
+            ?.map(n => n.type!.slice(7)) || [];
+
+          if (recipeNodeTypes.length > 0) {
+            console.log('[Canvas] Pre-registering recipes:', recipeNodeTypes);
+            await ensureRecipeNodesRegistered(recipeNodeTypes);
+          }
+
           loadProject(project);
 
           // Restore viewport after a short delay to ensure ReactFlow is ready
@@ -103,11 +115,12 @@ function CanvasFlow() {
       }
     };
 
-    hydrate();
+    hydrate().finally(() => setIsHydrating(false));
   }, []);
 
-  // Memoize nodeTypes and edgeTypes to prevent unnecessary re-renders/warnings
-  const memoizedNodeTypes = useMemo(() => nodeTypes, []);
+  // Dynamic nodeTypes - memoized but updates when nodes change (indicating new recipe may have been registered)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedNodeTypes = useMemo(() => getNodeTypes(), [nodes.length]);
 
   const edgeTypes = useMemo(() => ({
     deletable: DeletableEdge,
@@ -157,6 +170,18 @@ function CanvasFlow() {
   };
 
   useGlobalShortcuts(handleSave);
+
+  // Show loading during hydration
+  if (isHydrating) {
+    return (
+      <div className="h-screen w-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading project...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden">

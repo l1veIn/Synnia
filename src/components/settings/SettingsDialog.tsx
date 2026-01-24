@@ -10,9 +10,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Settings, Brain, Sliders } from "lucide-react";
+import { Settings, Brain, Sliders, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GeneralSettingsPage, ModelSettingsPage } from "./pages";
+import { GeneralSettingsPage, ModelSettingsPage, SystemSettingsPage } from "./pages";
 import { useTranslation } from "react-i18next";
 
 // Global event to open settings dialog
@@ -24,7 +24,7 @@ export const openSettingsDialog = (tab?: 'general' | 'models') => {
 // Main Dialog
 // ----------------------------------------------------------------------------
 
-type ActiveTab = "general" | "models";
+type ActiveTab = "general" | "models" | "system";
 
 export function SettingsDialog() {
   const { t } = useTranslation('settings');
@@ -77,12 +77,21 @@ export function SettingsDialog() {
           >
             {t('sections.ai')}
           </SidebarButton>
+
+          <SidebarButton
+            active={activeTab === "system"}
+            onClick={() => setActiveTab("system")}
+            icon={<HardDrive className="w-4 h-4" />}
+          >
+            System
+          </SidebarButton>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden bg-background">
           {activeTab === "general" && <GeneralSettingsPage />}
           {activeTab === "models" && <ModelSettingsPage />}
+          {activeTab === "system" && <SystemSettingsPage />}
         </div>
 
       </DialogContent>

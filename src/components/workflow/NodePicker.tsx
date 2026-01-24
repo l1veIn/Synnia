@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/command';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { getRecipeTree, RecipeTreeNode } from '@features/recipes';
+import { ensureRecipeNodeRegistered } from '@/components/workflow/nodes';
 import { NodeType } from '@/types/project';
 import {
     FileText,
@@ -180,12 +181,22 @@ export function NodePicker({ onSelect, onClose, className }: NodePickerProps) {
             .filter((item): item is NodePickerItem => item !== undefined);
     }, [allNodeItems, recentNodeIds]);
 
-    const handleSelect = useCallback((item: NodePickerItem) => {
+    const handleSelect = useCallback(async (item: NodePickerItem) => {
+        // Ensure recipe node is registered before selection
+        if (item.recipeId) {
+            try {
+                await ensureRecipeNodeRegistered(item.recipeId);
+            } catch (error) {
+                console.error('[NodePicker] Failed to register recipe:', error);
+                // Continue anyway - legacy loop may have registered it
+            }
+        }
+
         // Record to recent nodes cache
         addRecentNode(item.id);
         onSelect(item);
         onClose?.();
-    }, [onSelect, onClose]);
+    }, [onSelect, onClose, addRecentNode]);
 
     const handleFolderClick = (folderName: string) => {
         setCurrentPath([...currentPath, folderName]);

@@ -33,6 +33,9 @@ pub mod features;
 /// Application module: Tauri setup and initialization
 pub mod app;
 
+/// Global data module: App-wide database (~/.synnia/synnia.db)
+pub mod global;
+
 
 // Re-export core types
 pub use core::{AppError, AppState};
@@ -136,7 +139,7 @@ pub fn run() {
             features::asset::commands::cleanup_orphan_assets,
 
             // History commands
-            features::history::commands::save_asset_with_history,
+            features::history::commands::save_asset,
             features::history::commands::get_asset_history,
             features::history::commands::get_history_content,
             features::history::commands::restore_asset_version,
@@ -153,6 +156,12 @@ pub fn run() {
             features::settings::commands::save_media_config,
             features::settings::commands::get_app_settings,
             features::settings::commands::save_app_settings,
+            features::settings::commands::get_projects_directory,
+            features::settings::commands::set_projects_directory,
+            features::settings::commands::get_user_recipes_directory,
+            features::settings::commands::set_user_recipes_directory,
+            features::settings::commands::get_setting,
+            features::settings::commands::set_setting,
 
             // Agent commands
             features::agent::commands::run_agent,
@@ -184,6 +193,22 @@ pub fn run() {
             features::recipe::commands::create_recipe_folder,
             features::recipe::commands::delete_recipe,
             features::recipe::commands::get_recipes_base_path,
+
+            // Recipe Index (FTS5 search)
+            features::recipe::index::sync_recipe_index,
+            features::recipe::index::sync_recipe_index_async,
+            features::recipe::index::search_recipes,
+            features::recipe::index::list_indexed_recipes,
+            features::recipe::index::get_indexed_recipe,
+            features::recipe::index::get_recipe_categories,
+            features::recipe::index::get_recipe_tags,
+            features::recipe::index::get_recipe_manifest,
+            features::recipe::index::get_recipe_manifest_by_id,
+            features::recipe::index::clear_recipe_index,
+            features::recipe::index::get_recipe_count,
+
+            // Project Validation
+            features::project::commands::validate_projects,
 
             // HTTP Proxy
             infrastructure::http::proxy_request,

@@ -1,12 +1,13 @@
 import { nodeRegistry, NodeCategory } from '@core/registry/NodeRegistry';
 import { portRegistry } from '@core/engine/ports';
-import { getAllRecipes } from '@features/recipes';
 import { RecipeNode } from './RecipeNode';
 import { RecipeNodeInspector } from './RecipeNode/Inspector';
 import { FileText } from 'lucide-react';
 import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
 import { modelRegistry } from '@features/models';
 import type { ModelConfig } from '@/features/recipes/types';
+import type { RecipeManifest, RecipeDefinition } from '@/types/recipe';
+import type { FieldDefinition } from '@/types/assets';
 
 // Import node definitions directly to avoid circular dependency
 import { definition as selectorDef } from './SelectorNode/definition';
@@ -17,6 +18,9 @@ import { definition as textDef } from './TextNode/definition';
 import { definition as imageDef } from './ImageNode/definition';
 import { definition as queueDef } from './QueueNode/definition';
 import { RecipeBehavior } from './RecipeNode/behavior';
+import { useRecipeStore } from '@/store/recipeStore';
+import { registerRecipe } from '@/features/recipes';
+import * as LucideIcons from 'lucide-react';
 
 // ============================================================================
 // Register Static Nodes (auto-cascades behavior + ports)
@@ -37,44 +41,64 @@ for (const def of staticDefinitions) {
 }
 
 // ============================================================================
-// Recipe-as-Node: Each Recipe appears as a separate node type
+// Dynamic Recipe Registration
 // ============================================================================
 
-const recipes = getAllRecipes();
+/** Tracks registered recipe IDs to prevent duplicate registration */
+const registeredRecipes = new Set<string>();
 
-for (const recipe of recipes) {
-    const virtualType = `recipe:${recipe.id}`;
+/** Loading promises to prevent duplicate loading */
+const loadingPromises = new Map<string, Promise<void>>();
+
+/**
+ * Register a single recipe node from manifest.
+ * This is the core logic extracted from the original loop.
+ */
+function registerRecipeNode(manifest: RecipeManifest): void {
+    const recipeId = manifest.id;
+    const virtualType = `recipe:${recipeId}`;
+
+    // Already registered
+    if (registeredRecipes.has(recipeId)) return;
+
+    // Register recipe in the recipes feature (for getResolvedRecipe)
+    const recipe = registerRecipe(manifest);
+
+    // Get icon
+    const icon = manifest.icon
+        ? (LucideIcons as any)[manifest.icon] || FileText
+        : FileText;
 
     nodeRegistry.register({
         type: virtualType,
         component: RecipeNode,
         inspector: RecipeNodeInspector,
-        behavior: RecipeBehavior,  // Register behavior for canConnect/onConnect
+        behavior: RecipeBehavior,
         meta: {
-            title: recipe.name,
-            icon: recipe.icon || FileText,
-            category: (recipe.category || 'Recipe') as NodeCategory,
-            description: recipe.description || '',
-            hidden: true, // Recipe nodes are picked via recipe tree, not node picker
-            style: { width: 280 },  // Fixed width for Recipe nodes
+            title: manifest.name,
+            icon,
+            category: (manifest.category || 'Recipe') as NodeCategory,
+            description: manifest.description || '',
+            hidden: true,
+            style: { width: 280 },
         },
         create: () => {
             // Extract default values from recipe input schema
             const defaultValues: Record<string, any> = {};
-            if (recipe.inputSchema) {
-                for (const field of recipe.inputSchema) {
-                    if (field.defaultValue !== undefined) {
-                        defaultValues[field.key] = field.defaultValue;
-                    }
+            const inputSchema = Array.isArray(recipe.inputSchema) ? recipe.inputSchema : [];
+
+            for (const field of inputSchema) {
+                if (field && field.defaultValue !== undefined) {
+                    defaultValues[field.key] = field.defaultValue;
                 }
             }
 
             // Initialize modelConfig with default model if available
             let modelConfig: ModelConfig | undefined;
             const settings = getSettings();
-            const executor = recipe.manifest.executor;
+            const executor = manifest.executor;
+
             if (settings && executor.type === 'agent') {
-                // Get model category from recipe manifest
                 const category = executor.model.category;
                 const defaultModelId = getDefaultModel(settings, category);
                 if (defaultModelId) {
@@ -106,9 +130,9 @@ for (const recipe of recipes) {
                     valueType: 'record' as const,
                     value: defaultValues,
                     config: {
-                        schema: recipe.inputSchema,
+                        schema: inputSchema,
                         extra: {
-                            recipeId: recipe.id,
+                            recipeId,
                             modelConfig,
                             prompt,
                         },
@@ -118,9 +142,7 @@ for (const recipe of recipes) {
         },
     });
 
-    // Behavior registered via definition (nodeRegistry auto-cascades)
-
-    // Register dynamic ports for recipe nodes
+    // Register dynamic ports
     portRegistry.register(virtualType, {
         dynamic: (node, asset) => {
             const ports: any[] = [
@@ -130,7 +152,6 @@ for (const recipe of recipes) {
                     dataType: 'json',
                     label: 'Reference Output',
                     resolver: (n: any, a: any) => {
-                        // V2 architecture: form values stored directly in asset.value
                         if (a?.value && typeof a.value === 'object') {
                             return {
                                 type: 'json',
@@ -143,15 +164,15 @@ for (const recipe of recipes) {
                 }
             ];
 
-            // RecordAsset: values are directly in asset.value
             const values = (asset?.value && typeof asset.value === 'object')
                 ? asset.value as Record<string, any>
                 : {};
 
-            for (const field of recipe.inputSchema) {
+            const inputSchema = recipe.inputSchema || [];
+
+            for (const field of inputSchema) {
                 const conn = field.connection;
                 const fieldKey = field.key;
-                const fieldValue = values[fieldKey];
 
                 const hasOutput = conn === 'output' || conn === 'both';
 
@@ -164,7 +185,6 @@ for (const recipe of recipes) {
                         dataType: 'json',
                         label: field.label || field.key,
                         resolver: (n: any, a: any) => {
-                            // RecordAsset: values are directly in asset.value
                             if (a?.value && typeof a.value === 'object') {
                                 const value = (a.value as Record<string, any>)[fieldKey];
                                 if (value !== undefined) {
@@ -175,18 +195,88 @@ for (const recipe of recipes) {
                         }
                     });
                 }
-
             }
 
             return ports;
         }
     });
+
+    registeredRecipes.add(recipeId);
+    console.log(`[Nodes] Registered recipe: ${recipeId}`);
+}
+
+/**
+ * Ensure a recipe node is registered (load manifest if needed).
+ * Uses Promise caching to prevent duplicate loading.
+ */
+export async function ensureRecipeNodeRegistered(recipeId: string): Promise<void> {
+    // Already registered
+    if (registeredRecipes.has(recipeId)) return;
+
+    // Already loading
+    const existing = loadingPromises.get(recipeId);
+    if (existing) return existing;
+
+    // Start loading
+    const promise = (async () => {
+        try {
+            const store = useRecipeStore.getState();
+            const manifest = await store.loadManifest(recipeId);
+            registerRecipeNode(manifest);
+        } catch (error) {
+            console.error(`[Nodes] Failed to register recipe ${recipeId}:`, error);
+            throw error;
+        } finally {
+            loadingPromises.delete(recipeId);
+        }
+    })();
+
+    loadingPromises.set(recipeId, promise);
+    return promise;
+}
+
+/**
+ * Batch register recipe nodes (for project loading).
+ * Returns list of failed recipe IDs.
+ */
+export async function ensureRecipeNodesRegistered(recipeIds: string[]): Promise<string[]> {
+    const uniqueIds = [...new Set(recipeIds)];
+    const failed: string[] = [];
+
+    await Promise.all(
+        uniqueIds.map(async (id) => {
+            try {
+                await ensureRecipeNodeRegistered(id);
+            } catch {
+                failed.push(id);
+            }
+        })
+    );
+
+    return failed;
+}
+
+/**
+ * Check if a recipe is registered.
+ */
+export function isRecipeRegistered(recipeId: string): boolean {
+    return registeredRecipes.has(recipeId);
 }
 
 // ============================================================================
 // Exports
 // ============================================================================
 
+// Dynamic getters - recalculated on each access to include newly registered nodes
+export function getNodeTypes() {
+    return nodeRegistry.getNodeTypes();
+}
+
+export function getInspectorTypes() {
+    return nodeRegistry.getInspectorTypes();
+}
+
+// Backwards compatibility - but prefer using getNodeTypes() for dynamic updates
 export const nodeTypes = nodeRegistry.getNodeTypes();
 export const inspectorTypes = nodeRegistry.getInspectorTypes();
 

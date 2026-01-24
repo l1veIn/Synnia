@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useEffect, useState } from "react";
 import { SynniaNode } from "@/types/project";
-import { inspectorTypes } from '@/components/workflow/nodes';
+import { getInspectorTypes } from '@/components/workflow/nodes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DebugInspector } from "./inspector/DebugInspector";
 import { AssetHistoryPanel } from "./inspector/AssetHistoryPanel";
@@ -20,7 +20,8 @@ const NodeInspector = ({ node }: { node: SynniaNode }) => {
     const assetId = node.data.assetId as string | undefined;
     const recipeId = (node.data as any).recipeId as string | undefined;
 
-    // Get the Inspector component for this node type
+    // Get the Inspector component for this node type (dynamic lookup for dynamically registered nodes)
+    const inspectorTypes = getInspectorTypes();
     const Inspector = inspectorTypes[node.type];
 
     if (Inspector) {
@@ -101,7 +102,7 @@ export const InspectorPanel = () => {
     // Check if it's an Asset Node or Recipe Node (needs NodeInspector)
     const assetId = selectedNode.data.assetId;
     const recipeId = (selectedNode.data as any).recipeId;
-    const hasInspector = assetId || recipeId || inspectorTypes[selectedNode.type];
+    const hasInspector = assetId || recipeId || getInspectorTypes()[selectedNode.type];
 
     return (
         <motion.div

@@ -5,7 +5,7 @@ version: 1
 id: naming-master
 name: 命名大师
 description: 使用"相关度光谱"策略，为品牌生成9个虚拟IP角色名称
-category: 创意工具
+category: 创意工具/品牌设计
 icon: Wand2
 
 executor:

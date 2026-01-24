@@ -134,8 +134,10 @@ export interface RecipeManifest {
     // --- Executor (discriminated union) ---
     executor: ExecutorConfig;
 
-    // --- Input (inline or $ref) ---
-    input?: FieldDefinition[];
+    // --- Input (nested format preferred, flat array supported for legacy) ---
+    // Preferred: input: { schema: FieldDefinition[] }
+    // Legacy:    input: FieldDefinition[]
+    input?: { schema: FieldDefinition[] } | FieldDefinition[];
 
     // --- Output ---
     output: OutputDefinition;

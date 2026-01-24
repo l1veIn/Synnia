@@ -3,42 +3,85 @@
 use tauri::{State, AppHandle, Emitter};
 use tauri::Manager;
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 use crate::core::{AppError, AppState};
 use crate::domain::SynniaProject;
-use crate::features::settings::config::{GlobalConfig, RecentProject};
+use crate::global::{database, projects, settings};
 use super::persistence;
 
+// ============================================
+// Types for frontend compatibility
+// ============================================
+
+/// Project info for frontend (matches old RecentProject format)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecentProjectInfo {
+    pub name: String,
+    pub path: String,
+    pub last_opened: String, // ISO string for frontend
+    pub is_pinned: bool,
+    pub status: String,
+}
+
+impl From<projects::ProjectInfo> for RecentProjectInfo {
+    fn from(p: projects::ProjectInfo) -> Self {
+        RecentProjectInfo {
+            name: p.name,
+            path: p.path,
+            last_opened: chrono::DateTime::from_timestamp_millis(p.last_opened)
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_default(),
+            is_pinned: p.is_pinned,
+            status: p.status.as_str().to_string(),
+        }
+    }
+}
+
+// ============================================
+// Project List Commands
+// ============================================
+
 #[tauri::command]
-pub fn get_recent_projects(app: AppHandle) -> Result<Vec<RecentProject>, AppError> {
-    let config = GlobalConfig::load(&app);
-    Ok(config.recent_projects)
+pub fn get_recent_projects() -> Result<Vec<RecentProjectInfo>, AppError> {
+    let conn = database::init_global_db()?;
+    let projects_list = projects::list_projects(&conn, Some(20))?;
+    Ok(projects_list.into_iter().map(Into::into).collect())
 }
 
 #[tauri::command]
 pub fn get_default_projects_path(app: AppHandle) -> Result<String, AppError> {
-    let config = GlobalConfig::load(&app);
+    let conn = database::init_global_db()?;
     
-    if let Some(ws) = config.default_workspace {
+    // Check for projects_directory setting first
+    if let Some(path) = settings::get_setting(&conn, database::SETTING_PROJECTS_DIR)? {
+        return Ok(database::expand_path(&path).to_string_lossy().to_string());
+    }
+    
+    // Legacy: check for default_workspace
+    if let Some(ws) = settings::get_setting(&conn, "default_workspace")? {
         return Ok(ws);
     }
 
-    let docs_dir = app.path().document_dir()
-        .map_err(|_| AppError::Unknown("Could not find documents dir".to_string()))?;
-    let default_path = docs_dir.join("SynniaProjects"); 
-    if !default_path.exists() {
-        std::fs::create_dir_all(&default_path)?;
+    // Fallback: use default and save it
+    let expanded = database::expand_path(database::DEFAULT_PROJECTS_DIR);
+    if !expanded.exists() {
+        std::fs::create_dir_all(&expanded)?;
     }
-    Ok(default_path.to_string_lossy().to_string())
+    Ok(expanded.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-pub fn set_default_projects_path(path: String, app: AppHandle) -> Result<(), AppError> {
-    let mut config = GlobalConfig::load(&app);
-    config.set_workspace(path);
-    config.save(&app).map_err(|e| AppError::Config(e))?;
+pub fn set_default_projects_path(path: String) -> Result<(), AppError> {
+    let conn = database::init_global_db()?;
+    settings::set_setting(&conn, "default_workspace", &path)?;
     Ok(())
 }
+
+// ============================================
+// Project Lifecycle Commands
+// ============================================
 
 #[tauri::command]
 pub fn create_project(
@@ -89,12 +132,9 @@ pub fn init_project(
         .map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
     *path_guard = Some(path.clone());
 
-    // Update Global Config
-    let mut config = GlobalConfig::load(&app);
-    config.add_recent(name.to_string(), path.clone());
-    if let Err(e) = config.save(&app) {
-        println!("Failed to save global config: {}", e);
-    }
+    // Register in global database
+    let conn = database::init_global_db()?;
+    projects::register_project(&conn, &path, name)?;
     
     app.emit("project:active", serde_json::json!({ "name": name }))
         .map_err(|e| AppError::Unknown(e.to_string()))?;
@@ -120,10 +160,9 @@ pub fn load_project(
         .map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
     *path_guard = Some(path.clone());
 
-    // Update Recent Projects
-    let mut config = GlobalConfig::load(&app);
-    config.add_recent(project.meta.name.clone(), path.clone());
-    config.save(&app).map_err(|e| AppError::Config(e))?;
+    // Update last_opened in global database
+    let conn = database::init_global_db()?;
+    projects::register_project(&conn, &path, &project.meta.name)?;
 
     app.emit("project:active", serde_json::json!({ "name": project.meta.name }))
         .map_err(|e| AppError::Unknown(e.to_string()))?;
@@ -174,7 +213,6 @@ pub fn get_current_project_path(state: State<AppState>) -> Result<String, AppErr
 pub fn delete_project(
     path: String, 
     state: State<AppState>, 
-    app: AppHandle
 ) -> Result<(), AppError> {
     let path_buf = PathBuf::from(&path);
     
@@ -205,10 +243,9 @@ pub fn delete_project(
 
     std::fs::remove_dir_all(&path_buf)?;
 
-    // Remove from Config
-    let mut config = GlobalConfig::load(&app);
-    config.recent_projects.retain(|p| p.path != path);
-    config.save(&app).map_err(|e| AppError::Config(e))?;
+    // Remove from global database
+    let conn = database::init_global_db()?;
+    projects::remove_project(&conn, &path)?;
 
     Ok(())
 }
@@ -218,7 +255,6 @@ pub fn rename_project(
     old_path: String, 
     new_name: String, 
     state: State<AppState>, 
-    app: AppHandle
 ) -> Result<String, AppError> {
     let old_path_buf = PathBuf::from(&old_path);
     if !old_path_buf.exists() {
@@ -249,15 +285,11 @@ pub fn rename_project(
 
     std::fs::rename(&old_path_buf, &new_path_buf)?;
 
-    // Update Config
+    // Update in global database
     let new_path_str = new_path_buf.to_string_lossy().to_string();
-    let mut config = GlobalConfig::load(&app);
-    
-    if let Some(project) = config.recent_projects.iter_mut().find(|p| p.path == old_path) {
-        project.path = new_path_str.clone();
-        project.name = safe_name;
-    }
-    config.save(&app).map_err(|e| AppError::Config(e))?;
+    let conn = database::init_global_db()?;
+    projects::remove_project(&conn, &old_path)?;
+    projects::register_project(&conn, &new_path_str, &safe_name)?;
 
     Ok(new_path_str)
 }
@@ -265,7 +297,6 @@ pub fn rename_project(
 #[tauri::command]
 pub fn reset_project(
     state: State<AppState>, 
-    _app: AppHandle
 ) -> Result<SynniaProject, AppError> {
     let project_path_str = {
         let path_guard = state.current_project_path.lock()
@@ -328,4 +359,14 @@ pub fn set_thumbnail(
     }
 
     Ok(())
+}
+
+// ============================================
+// Project Validation (for startup)
+// ============================================
+
+#[tauri::command]
+pub fn validate_projects() -> Result<projects::ValidateResult, AppError> {
+    let conn = database::init_global_db()?;
+    projects::validate_projects(&conn)
 }

@@ -22,8 +22,8 @@ pub struct HistoryEntry {
 
 /// Save an asset and create a history snapshot if content changed.
 /// Frontend calls this as "save_asset" for backward compatibility.
-#[tauri::command(rename_all = "snake_case", rename = "save_asset")]
-pub fn save_asset_with_history(
+#[tauri::command(rename_all = "snake_case")]
+pub fn save_asset(
     asset: Asset,
     create_history: Option<bool>,
     state: State<AppState>,

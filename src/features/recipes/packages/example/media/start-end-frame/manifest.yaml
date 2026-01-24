@@ -1,5 +1,5 @@
 # Start-End Frame Video - Media Recipe
-# Single-file manifest
+# Uses nested input format (V1.0 standard)
 version: 1
 
 id: start-end-frame
@@ -18,28 +18,29 @@ executor:
     user: "{{prompt}}"
 
 input:
-  - key: prompt
-    label: Prompt
-    type: string
-    widget: textarea
-    required: true
-    config:
-      placeholder: "Describe the transition motion..."
-    connection: input
+  schema:
+    - key: prompt
+      label: Prompt
+      type: string
+      widget: textarea
+      required: true
+      config:
+        placeholder: "Describe the transition motion..."
+      connection: input
 
-  - key: startImage
-    label: Start Frame
-    type: string
-    widget: image-picker
-    required: true
-    connection: input
+    - key: startImage
+      label: Start Frame
+      type: string
+      widget: image-picker
+      required: true
+      connection: input
 
-  - key: endImage
-    label: End Frame
-    type: string
-    widget: image-picker
-    required: true
-    connection: input
+    - key: endImage
+      label: End Frame
+      type: string
+      widget: image-picker
+      required: true
+      connection: input
 
 output:
   node: video

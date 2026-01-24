@@ -1,4 +1,5 @@
 # art-director 输入 Schema
+# Uses package references for cross-recipe schemas
 
 - key: productionManifest
   label: 生产清单
@@ -30,7 +31,7 @@
   config:
     placeholder: 在此连接'灵魂档案'JSON
   schema:
-    $ref: ../../storyteller/schemas/soul-profile.yaml
+    $ref: "@storyteller/schemas/soul-profile.yaml"
 
 - key: styleTemplate
   label: 视觉风格模板

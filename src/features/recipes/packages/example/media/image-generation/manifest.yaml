@@ -1,5 +1,5 @@
 # Image Generation - Media Recipe
-# Single-file manifest (no $ref needed for simple recipes)
+# Uses nested input format (V1.0 standard)
 version: 1
 
 id: image-generation
@@ -16,23 +16,24 @@ executor:
   prompt:
     user: "{{prompt}}"  
 
-# Input schema (inline)
+# Input schema (nested format)
 input:
-  - key: prompt
-    label: Prompt
-    type: string
-    widget: textarea
-    required: true
-    config:
-      placeholder: "Describe the image you want to generate..."
-    connection: input
+  schema:
+    - key: prompt
+      label: Prompt
+      type: string
+      widget: textarea
+      required: true
+      config:
+        placeholder: "Describe the image you want to generate..."
+      connection: input
 
-  - key: negativePrompt
-    label: Negative Prompt
-    type: string
-    widget: textarea
-    config:
-      placeholder: "What to avoid in the image..."
+    - key: negativePrompt
+      label: Negative Prompt
+      type: string
+      widget: textarea
+      config:
+        placeholder: "What to avoid in the image..."
 
 output:
   node: gallery

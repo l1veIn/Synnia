@@ -162,12 +162,12 @@ export const RecipeNode = memo((props: NodeProps<SynniaNode>) => {
     const IconComponent = recipe?.icon || ScrollText;
 
     // Check if there are fields with handles (to know if we need content area even when collapsed)
-    const hasHandleFields = recipe?.inputSchema.some(field => {
+    const hasHandleFields = (Array.isArray(recipe?.inputSchema) && recipe?.inputSchema.some(field => {
         const conn = field.connection;
         return conn === 'input' || conn === 'output' || conn === 'both' ||
             field.widget === 'form-input' || field.widget === 'table-input' ||
             field.type === 'object' || field.type === 'array';
-    }) ?? false;
+    })) ?? false;
 
     return (
         <NodeShell

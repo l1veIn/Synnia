@@ -2,4 +2,7 @@
 import type { SynniaEdge } from "./SynniaEdge";
 import type { SynniaNode } from "./SynniaNode";
 
+/**
+ * Graph container for nodes and edges.
+ */
 export type Graph = { nodes: Array<SynniaNode>, edges: Array<SynniaEdge>, };

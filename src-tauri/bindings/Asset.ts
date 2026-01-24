@@ -3,8 +3,7 @@ import type { AssetSysMetadata } from "./AssetSysMetadata";
 import type { ValueType } from "./ValueType";
 
 /**
- * Unified Asset structure (Form-Centric Model)
- * Frontend uses valueType to determine the asset variant
+ * Unified Asset structure (Form-Centric Model).
  */
 export type Asset = { id: string, valueType: ValueType, value: any, 
 /**

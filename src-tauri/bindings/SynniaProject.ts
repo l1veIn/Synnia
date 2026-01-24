@@ -4,4 +4,11 @@ import type { Graph } from "./Graph";
 import type { ProjectMeta } from "./ProjectMeta";
 import type { Viewport } from "./Viewport";
 
-export type SynniaProject = { version: string, meta: ProjectMeta, viewport: Viewport, graph: Graph, assets: Record<string, Asset>, settings: Record<string, any>, };
+/**
+ * The root project structure.
+ */
+export type SynniaProject = { version: string, meta: ProjectMeta, viewport: Viewport, graph: Graph, 
+/**
+ * Central Asset Registry
+ */
+assets: Record<string, Asset>, settings: Record<string, any>, };

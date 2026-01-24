@@ -1,17 +1,45 @@
+//! Synnia Tauri Backend
+//!
+//! This is the main library entry point for the Tauri application.
+//! Uses a modular architecture with clear separation of concerns:
+//!
+//! - `core/`: Error handling and application state
+//! - `domain/`: Pure data structures (models)
+//! - `infrastructure/`: Low-level utilities (database, http, server, hash)
+//! - `features/`: Domain-specific modules (project, asset, recipe, etc.)
+//! - `app/`: Tauri application setup
+
+use std::sync::{Mutex, Arc};
 use tauri::{Manager, State};
 use serde::{Serialize, Deserialize};
 use ts_rs::TS;
-use std::sync::{Mutex, Arc};
 
-mod commands;
-// mod db; // Removed
-mod models;
-mod services;
-mod error;
-mod config;
-mod state; 
+// ============================================
+// NEW Modular Architecture
+// ============================================
 
-use state::AppState; 
+/// Core module: Error handling and application state
+pub mod core;
+
+/// Domain module: Pure data structures (models with ts-rs)
+pub mod domain;
+
+/// Infrastructure module: Low-level utilities
+pub mod infrastructure;
+
+/// Features module: Domain-specific logic
+pub mod features;
+
+/// Application module: Tauri setup and initialization
+pub mod app;
+
+
+// Re-export core types
+pub use core::{AppError, AppState};
+
+// ============================================
+// Utility Commands
+// ============================================
 
 #[derive(Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -29,25 +57,29 @@ async fn ping(name: String) -> GreetResponse {
 }
 
 #[tauri::command]
-fn get_server_port(state: State<AppState>) -> u16 {
+fn get_server_port(state: State<core::AppState>) -> u16 {
     state.server_port
 }
 
+// ============================================
+// Application Entry Point
+// ============================================
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Shared State for Project Path (between Tauri Commands and Actix)
+    // Shared State for Project Path
     let current_project_path = Arc::new(Mutex::new(None));
 
     // Start Local File Server
-    let server_port = services::file_server::init(current_project_path.clone());
+    let server_port = infrastructure::server::init(current_project_path.clone());
 
     tauri::Builder::default()
-        .manage(AppState {
+        .manage(core::AppState {
             current_project_path,
             server_port,
         })
         .setup(|app| {
-            app.handle().plugin(tauri_plugin_dialog::init())?; // Init dialog plugin
+            app.handle().plugin(tauri_plugin_dialog::init())?;
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -57,11 +89,9 @@ pub fn run() {
             }
 
             if let Some(window) = app.get_webview_window("main") {
-                // Windows: Manual borderless
                 #[cfg(target_os = "windows")]
                 let _ = window.set_decorations(false);
 
-                // macOS: Clear title to avoid text over custom bar
                 #[cfg(target_os = "macos")]
                 let _ = window.set_title("");
                 
@@ -72,86 +102,92 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Utility commands
             ping,
             get_server_port,
-            // Project Commands
-            commands::project::init_project,
-            commands::project::get_recent_projects,
-            commands::project::get_default_projects_path,
-            commands::project::set_default_projects_path,
-            commands::project::create_project,
-            commands::project::load_project, // New
-            commands::project::save_project, // New
-            commands::project::save_project_autosave, // New
-            commands::project::get_current_project_path,
-            commands::project::delete_project,
-            commands::project::reset_project,
-            commands::project::set_thumbnail,
-            commands::project::open_in_browser,
-            commands::project::rename_project,
 
-            // Graph Commands REMOVED
+            // ============================================
+            // NEW FEATURE MODULES
+            // ============================================
 
-            // Agent Commands
-            commands::agent::save_settings,
-            commands::agent::get_api_key,
-            commands::agent::get_base_url,
-            commands::agent::get_model_name,
-            commands::agent::run_agent,
-            commands::agent::get_agents,
-            commands::agent::save_agent,
-            commands::agent::delete_agent,
-            commands::agent::get_ai_config,
-            commands::agent::save_ai_config,
-            commands::agent::get_media_config,
-            commands::agent::save_media_config,
-            commands::agent::get_app_settings,
-            commands::agent::save_app_settings,
+            // Project commands
+            features::project::commands::init_project,
+            features::project::commands::get_recent_projects,
+            features::project::commands::get_default_projects_path,
+            features::project::commands::set_default_projects_path,
+            features::project::commands::create_project,
+            features::project::commands::load_project,
+            features::project::commands::save_project,
+            features::project::commands::save_project_autosave,
+            features::project::commands::get_current_project_path,
+            features::project::commands::delete_project,
+            features::project::commands::reset_project,
+            features::project::commands::set_thumbnail,
+            features::project::commands::open_in_browser,
+            features::project::commands::rename_project,
 
-            // Asset Commands
-            commands::asset::import_file,
-            commands::asset::save_processed_image,
-            commands::asset::download_and_save_image,
-            commands::asset::batch_import_images,
-            commands::asset::get_media_assets,
-            commands::asset::delete_media_asset,
-            commands::asset::cleanup_orphan_assets,
+            // Asset commands
+            features::asset::commands::import_file,
+            features::asset::commands::save_processed_image,
+            features::asset::commands::download_and_save_image,
+            features::asset::commands::batch_import_images,
+            features::asset::commands::get_media_assets,
+            features::asset::commands::delete_media_asset,
+            features::asset::commands::cleanup_orphan_assets,
 
-            // History Commands
-            commands::history::save_asset,
-            commands::history::get_asset_history,
-            commands::history::get_history_content,
-            commands::history::restore_asset_version,
-            commands::history::count_asset_history,
+            // History commands
+            features::history::commands::save_asset_with_history,
+            features::history::commands::get_asset_history,
+            features::history::commands::get_history_content,
+            features::history::commands::restore_asset_version,
+            features::history::commands::count_asset_history,
+
+            // Settings commands
+            features::settings::commands::save_settings,
+            features::settings::commands::get_api_key,
+            features::settings::commands::get_base_url,
+            features::settings::commands::get_model_name,
+            features::settings::commands::get_ai_config,
+            features::settings::commands::save_ai_config,
+            features::settings::commands::get_media_config,
+            features::settings::commands::save_media_config,
+            features::settings::commands::get_app_settings,
+            features::settings::commands::save_app_settings,
+
+            // Agent commands
+            features::agent::commands::run_agent,
+            features::agent::commands::get_agents,
+            features::agent::commands::save_agent,
+            features::agent::commands::delete_agent,
+
+            // Operations: Chat
+            features::operations::chat::get_chat_messages,
+            features::operations::chat::add_chat_message,
+            features::operations::chat::clear_chat_messages,
+
+            // Operations: Logs
+            features::operations::logs::get_execution_runs,
+            features::operations::logs::create_execution_run,
+            features::operations::logs::update_execution_run,
+            features::operations::logs::append_log_entry,
+            features::operations::logs::get_log_entries,
+            features::operations::logs::clear_execution_logs,
+
+            // Recipe commands
+            features::recipe::commands::list_recipe_directory,
+            features::recipe::commands::get_recipe_file_tree,
+            features::recipe::commands::read_recipe_file,
+            features::recipe::commands::write_recipe_file,
+            features::recipe::commands::create_recipe_file,
+            features::recipe::commands::delete_recipe_file,
+            features::recipe::commands::create_recipe,
+            features::recipe::commands::create_recipe_folder,
+            features::recipe::commands::delete_recipe,
+            features::recipe::commands::get_recipes_base_path,
 
             // HTTP Proxy
-            commands::http_proxy::proxy_request,
-            commands::http_proxy::fetch_image_as_base64,
-
-            // Ops: Chat Context
-            commands::ops_chat::get_chat_messages,
-            commands::ops_chat::add_chat_message,
-            commands::ops_chat::clear_chat_messages,
-
-            // Ops: Execution Logs
-            commands::ops_logs::get_execution_runs,
-            commands::ops_logs::create_execution_run,
-            commands::ops_logs::update_execution_run,
-            commands::ops_logs::append_log_entry,
-            commands::ops_logs::get_log_entries,
-            commands::ops_logs::clear_execution_logs,
-
-            // Recipe Management
-            commands::recipe::list_recipe_directory,
-            commands::recipe::get_recipe_file_tree,
-            commands::recipe::read_recipe_file,
-            commands::recipe::write_recipe_file,
-            commands::recipe::create_recipe_file,
-            commands::recipe::delete_recipe_file,
-            commands::recipe::create_recipe,
-            commands::recipe::create_recipe_folder,
-            commands::recipe::delete_recipe,
-            commands::recipe::get_recipes_base_path,
+            infrastructure::http::proxy_request,
+            infrastructure::http::fetch_image_as_base64,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

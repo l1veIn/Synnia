@@ -2,6 +2,6 @@
 import type { AssetMeta } from "./AssetMeta";
 
 /**
- * Config for array assets (tables, selectors, galleries)
+ * Config for array assets (tables, selectors, galleries).
  */
 export type ArrayAssetConfig = { schema: any[], meta: AssetMeta | null, itemSchema: any[], columns: any[], options: any[], mode: string | null, };

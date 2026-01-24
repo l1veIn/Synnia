@@ -2,6 +2,6 @@
 import type { AssetMeta } from "./AssetMeta";
 
 /**
- * Config for record assets (forms, text, image)
+ * Config for record assets (forms, text, image).
  */
 export type RecordAssetConfig = { schema: any[], meta: AssetMeta | null, recipeId: string | null, modelConfig: any, chatContext: any, };

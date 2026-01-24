@@ -36,6 +36,7 @@ actix-cors = "0.6.5"
 # SQLite + CAS + Metadata extraction
 rusqlite = { version = "0.32", features = ["bundled"] }
 sha2 = "0.10"
+thiserror = "1.0"
 kamadak-exif = "0.5"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 base64 = "0.22"
@@ -43,6 +44,10 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[features]
+default = ["new_features"]
+new_features = []
 
 # ts-rs global config: export all types to bindings/ directory
 [package.metadata.ts-rs]

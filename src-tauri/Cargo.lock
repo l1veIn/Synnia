@@ -4458,6 +4458,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "ts-rs",
  "uuid",

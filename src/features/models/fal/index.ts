@@ -1,5 +1,5 @@
 // FAL Provider Models
-// Flux Schnell, Nano Banana Pro (Image Generation)
+// Image Generation
 
 export { fluxSchnell } from './flux-schnell';
-export { nanoBananaPro } from './nano-banana-pro';
+export { falNanoBanana } from './fal-nano-banana';

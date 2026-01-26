@@ -25,7 +25,7 @@ async function executeOpenAI(
     try {
         const openai = createOpenAI({
             apiKey: credentials.apiKey,
-            baseURL: credentials.baseUrl || 'https://api.openai.com/v1',
+            baseURL: credentials.baseUrl,
         });
 
         const model = openai(modelId);

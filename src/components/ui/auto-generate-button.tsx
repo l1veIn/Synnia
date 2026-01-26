@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,6 +40,7 @@ export function AutoGenerateButton({
     buttonVariant = 'ghost',
     buttonSize = 'sm',
 }: AutoGenerateButtonProps) {
+    const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
@@ -87,12 +89,12 @@ export function AutoGenerateButton({
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
-            toast.error('Please enter a prompt');
+            toast.error(t('errors.enterPrompt'));
             return;
         }
 
         if (!selectedModelId) {
-            toast.error('No model available');
+            toast.error(t('errors.noModel'));
             return;
         }
 
@@ -112,12 +114,12 @@ export function AutoGenerateButton({
                 onGenerate(result.content);
                 setPrompt('');
                 setOpen(false);
-                toast.success('Content generated');
+                toast.success(t('success.generated'));
             } else {
-                toast.error(result.error || 'Generation failed');
+                toast.error(result.error || t('errors.generationFailed'));
             }
         } catch (e: any) {
-            toast.error(e.message || 'Generation failed');
+            toast.error(e.message || t('errors.generationFailed'));
         } finally {
             setLoading(false);
         }
@@ -151,9 +153,9 @@ export function AutoGenerateButton({
                             <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-3">
                                 <Key className="h-5 w-5 text-muted-foreground" />
                             </div>
-                            <h3 className="text-sm font-medium mb-1">No API Keys</h3>
+                            <h3 className="text-sm font-medium mb-1">{t('errors.noApiKeys')}</h3>
                             <p className="text-xs text-muted-foreground mb-3">
-                                Configure API keys to use AI generation
+                                {t('errors.configureApiKeys')}
                             </p>
                             <Button
                                 size="sm"
@@ -163,25 +165,25 @@ export function AutoGenerateButton({
                                 }}
                             >
                                 <Settings className="h-4 w-4 mr-2" />
-                                Open Settings
+                                {t('actions.openSettings')}
                             </Button>
                         </div>
                     ) : (
                         <>
                             <div className="space-y-1">
                                 <Label className="text-xs font-medium">
-                                    {mode === 'text' && 'Generate Text'}
-                                    {mode === 'table-rows' && `Generate ${count} Rows`}
-                                    {mode === 'table-full' && 'Generate Table'}
-                                    {mode === 'json-complete' && 'Complete JSON'}
-                                    {mode === 'form-autofill' && 'Autofill Form'}
+                                    {mode === 'text' && t('generate.text')}
+                                    {mode === 'table-rows' && t('generate.rows', { count })}
+                                    {mode === 'table-full' && t('generate.table')}
+                                    {mode === 'json-complete' && t('generate.completeJson')}
+                                    {mode === 'form-autofill' && t('generate.autofillForm')}
                                 </Label>
                                 <p className="text-[10px] text-muted-foreground">
-                                    {mode === 'text' && 'Describe the content you want to generate'}
-                                    {mode === 'table-rows' && 'Describe the data to fill the table'}
-                                    {mode === 'table-full' && 'Describe the table structure and data'}
-                                    {mode === 'json-complete' && 'Describe how to complete the JSON'}
-                                    {mode === 'form-autofill' && 'Describe what this form should contain'}
+                                    {mode === 'text' && t('generate.textDesc')}
+                                    {mode === 'table-rows' && t('generate.rowsDesc')}
+                                    {mode === 'table-full' && t('generate.tableDesc')}
+                                    {mode === 'json-complete' && t('generate.completeJsonDesc')}
+                                    {mode === 'form-autofill' && t('generate.autofillFormDesc')}
                                 </p>
                             </div>
 
@@ -207,12 +209,12 @@ export function AutoGenerateButton({
                                     {loading ? (
                                         <>
                                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            Generating...
+                                            {t('generate.generating')}
                                         </>
                                     ) : (
                                         <>
                                             <Sparkles className="h-3.5 w-3.5" />
-                                            Generate
+                                            {t('generate.generate')}
                                         </>
                                     )}
                                 </Button>

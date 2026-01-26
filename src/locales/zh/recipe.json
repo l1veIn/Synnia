@@ -1,4 +1,26 @@
 {
+  "errors": {
+    "loadFailed": "加载配方失败",
+    "createFailed": "创建失败",
+    "deleteFailed": "删除失败"
+  },
+  "folder": {
+    "created": "文件夹已创建"
+  },
+  "item": {
+    "created": "配方已创建",
+    "deleted": "项目已删除"
+  },
+  "search": {
+    "placeholder": "搜索配方..."
+  },
+  "actions": {
+    "newFolder": "新建文件夹",
+    "newRecipe": "新建配方"
+  },
+  "empty": {
+    "folder": "此文件夹为空"
+  },
   "chat": {
     "aiThinking": "AI 思考中...",
     "andMore_other": "以及另外 {{count}} 项",
@@ -25,13 +47,38 @@
   "model": {
     "addKeysDesc": "添加 OpenAI、Google 或 Anthropic 等 AI 服务商的 API 密钥以开始使用。",
     "availableModels": "可用模型",
+    "configSaved": "模型配置已保存",
+    "discard": "放弃",
+    "discarded": "更改已放弃",
     "jsonMode": "JSON 模式",
     "maxTokens": "最大令牌数",
+    "needApiKey": "需要配置 {{providers}} 的 API Key",
     "noApiKeys": "未配置 API 密钥",
     "noModelsFound": "未找到模型。",
     "openSettings": "打开设置",
+    "providerNotConfigured": "{{provider}} 未配置",
+    "save": "保存",
     "searchModels": "搜索模型...",
     "selectModel": "选择模型...",
-    "temperature": "温度"
+    "temperature": "温度",
+    "useProvider": "使用 {{provider}} 服务商"
+  },
+  "page": {
+    "breadcrumbRoot": "根目录",
+    "confirmDelete": "确定要删除 {{name}} 吗？",
+    "createDesc": "为新{{type}}输入唯一名称（ID）。",
+    "createTitle": "创建新{{type}}",
+    "emptyFolder": "此文件夹为空",
+    "folderCreated": "文件夹已创建",
+    "itemDeleted": "项目已删除",
+    "loadFailed": "加载配方失败",
+    "nameHint": "只能使用小写字母、数字和连字符。",
+    "nameLabel": "名称（ID）",
+    "newFolder": "新建文件夹",
+    "newRecipe": "新建配方",
+    "recipeCreated": "配方已创建",
+    "searchPlaceholder": "搜索配方...",
+    "createFailed": "创建失败",
+    "deleteFailed": "删除失败"
   }
 }

@@ -55,32 +55,36 @@ export function getDefaultModel(
 }
 
 // Helper: Check if a provider is configured
+// Cloud providers: require API key
+// Local providers: always considered configured if they have a default endpoint
 export function isProviderConfigured(
     settings: AppSettings | null,
     provider: ProviderKey
 ): boolean {
-    if (!settings?.providers) return false;
-    const config = settings.providers[provider];
-    if (!config) return false;
-
+    const config = settings?.providers?.[provider];
     const info = PROVIDER_INFO.find(p => p.key === provider);
+
+    // Local providers with default endpoint are always "configured"
     if (info?.type === 'local') {
-        return !!config.baseUrl || !!config.enabled;
+        return !!config?.baseUrl || !!config?.apiKey || !!info.defaultBaseUrl;
     }
-    return !!config.apiKey;
+
+    // Cloud providers require API key
+    return !!config?.apiKey;
 }
 
 // Helper: Get API key or base URL for a provider
+// Returns user-configured values, falling back to defaultBaseUrl if not set
 export function getProviderCredentials(
     settings: AppSettings | null,
     provider: ProviderKey
 ): { apiKey?: string; baseUrl?: string } | null {
-    if (!settings?.providers) return null;
-    const config = settings.providers[provider];
-    if (!config) return null;
+    const config = settings?.providers?.[provider];
+    const info = PROVIDER_INFO.find(p => p.key === provider);
 
+    // Build credentials with fallback to default base URL
     return {
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl,
+        apiKey: config?.apiKey,
+        baseUrl: config?.baseUrl || info?.defaultBaseUrl,
     };
 }

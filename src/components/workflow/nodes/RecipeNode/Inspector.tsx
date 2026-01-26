@@ -311,8 +311,8 @@ export const RecipeNodeInspector = ({ assetId, nodeId }: RecipeNodeInspectorProp
                     <ModelTab
                         modelConfig={extra.modelConfig}
                         onModelConfigChange={handleModelConfigChange}
-                        filterCategory={(recipe?.manifest as any)?.model?.category || 'llm'}
-                        requiredCapabilities={(recipe?.manifest as any)?.model?.capabilities || []}
+                        filterCategory={(recipe?.manifest as any)?.executor?.model?.category || 'llm'}
+                        requiredCapabilities={(recipe?.manifest as any)?.executor?.model?.capabilities || []}
                     />
                 </TabsContent>
 

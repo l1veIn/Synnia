@@ -13,6 +13,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from 'react-i18next';
 
 interface InspectorProps {
     assetId: string;
@@ -20,6 +21,7 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
+    const { t } = useTranslation(['nodes', 'common']);
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const serverPort = useWorkflowStore(s => s.serverPort);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -97,7 +99,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 allowDelete: draftAllowDelete,
             },
         });
-        toast.success('Settings saved');
+        toast.success(t('common:settings.saved'));
     };
 
     // Discard
@@ -106,7 +108,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setDraftColumns(savedSettings.columnsPerRow);
         setDraftAllowStar(savedSettings.allowStar);
         setDraftAllowDelete(savedSettings.allowDelete);
-        toast.info('Changes discarded');
+        toast.info(t('common:changes.discarded'));
     };
 
     // Handle assets selected from picker - only store mediaAssetId reference
@@ -119,22 +121,22 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         }));
 
         setValue([...images, ...newImages]);
-        toast.success(`Added ${selectedAssets.length} image(s)`);
+        toast.success(t('nodes:gallery.addedImages', { count: selectedAssets.length }));
     };
 
     // Clear all images
     const clearAllImages = () => {
         setValue([]);
-        toast.success('All images cleared');
+        toast.success(t('nodes:gallery.allCleared'));
     };
 
     // Clear all stars
     const clearAllStars = () => {
         setValue(images.map((img: GalleryImageRef) => ({ ...img, starred: false })));
-        toast.success('All stars cleared');
+        toast.success(t('nodes:gallery.starsCleared'));
     };
 
-    if (!asset) return <div className="p-4 text-xs">Asset Not Found</div>;
+    if (!asset) return <div className="p-4 text-xs">{t('common:errors.assetNotFound')}</div>;
 
     const starredCount = images.filter((img: GalleryImageRef) => img.starred).length;
 
@@ -148,7 +150,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     onClick={() => setIsPickerOpen(true)}
                 >
                     <FolderOpen className="h-4 w-4 mr-2" />
-                    Add from Library
+                    {t('nodes:gallery.addFromLibrary')}
                 </Button>
 
                 <Button
@@ -160,7 +162,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                             filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
                         });
                         if (selected && Array.isArray(selected) && selected.length > 0) {
-                            const toastId = toast.loading(`Importing ${selected.length} images...`);
+                            const toastId = toast.loading(t('nodes:gallery.importing', { count: selected.length }));
                             try {
                                 const results = await apiClient.batchImportImages(selected);
                                 const succeeded = results.filter(r => r.result);
@@ -181,25 +183,25 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                                 }
 
                                 if (failed > 0) {
-                                    toast.warning(`Added ${succeeded.length}, failed ${failed}`, { id: toastId });
+                                    toast.warning(t('nodes:gallery.addedFailed', { added: succeeded.length, failed }), { id: toastId });
                                 } else {
-                                    toast.success(`Added ${succeeded.length} images`, { id: toastId });
+                                    toast.success(t('nodes:gallery.addedImages', { count: succeeded.length }), { id: toastId });
                                 }
                             } catch (e) {
                                 console.error('Batch import failed:', e);
-                                toast.error('Import failed', { id: toastId });
+                                toast.error(t('nodes:gallery.importFailed'), { id: toastId });
                             }
                         }
                     }}
                 >
                     <Upload className="h-4 w-4 mr-2" />
-                    Add from Local
+                    {t('nodes:gallery.addFromLocal')}
                 </Button>
 
                 <div className="border-t" />
 
                 <div className="flex items-center justify-between text-xs">
-                    <span>Images: {images.length}</span>
+                    <span>{t('nodes:gallery.imagesCount', { count: images.length })}</span>
                     {starredCount > 0 && (
                         <span className="text-yellow-500">⭐ {starredCount}</span>
                     )}
@@ -214,7 +216,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         onClick={clearAllStars}
                         disabled={starredCount === 0}
                     >
-                        Clear Stars
+                        {t('nodes:gallery.clearStars')}
                     </Button>
                     <Button
                         variant="outline"
@@ -223,7 +225,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         onClick={clearAllImages}
                         disabled={images.length === 0}
                     >
-                        Clear All
+                        {t('nodes:gallery.clearAll')}
                     </Button>
                 </div>
 
@@ -231,12 +233,12 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                 {/* Display Settings */}
                 <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
-                    Display Settings
+                    {t('nodes:gallery.displaySettings')}
                 </div>
 
                 {/* View Mode */}
                 <div className="space-y-2">
-                    <Label className="text-xs">View Mode</Label>
+                    <Label className="text-xs">{t('nodes:gallery.viewMode')}</Label>
                     <div className="flex gap-2">
                         {(['grid', 'list', 'single'] as const).map((mode) => (
                             <Button
@@ -256,7 +258,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {draftViewMode === 'grid' && (
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <Label className="text-xs">Columns</Label>
+                            <Label className="text-xs">{t('nodes:gallery.columns')}</Label>
                             <span className="text-xs text-muted-foreground">{draftColumns}</span>
                         </div>
                         <Slider
@@ -272,11 +274,11 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 {/* Toggles */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Allow Star</Label>
+                        <Label className="text-xs">{t('nodes:gallery.allowStar')}</Label>
                         <Switch checked={draftAllowStar} onCheckedChange={setDraftAllowStar} />
                     </div>
                     <div className="flex items-center justify-between">
-                        <Label className="text-xs">Allow Delete</Label>
+                        <Label className="text-xs">{t('nodes:gallery.allowDelete')}</Label>
                         <Switch checked={draftAllowDelete} onCheckedChange={setDraftAllowDelete} />
                     </div>
                 </div>
@@ -288,14 +290,14 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     {hasChanges && (
                         <span className="text-amber-600 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            Unsaved
+                            {t('common:status.unsaved')}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
                     {hasChanges && (
                         <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
-                            Discard
+                            {t('common:actions.discard')}
                         </Button>
                     )}
                     <Button
@@ -306,7 +308,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                         disabled={!hasChanges}
                     >
                         <Save className="h-3.5 w-3.5" />
-                        Save
+                        {t('common:actions.save')}
                     </Button>
                 </div>
             </div>
@@ -317,7 +319,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                 onOpenChange={setIsPickerOpen}
                 onSelect={handleAssetsSelected}
                 multiple={true}
-                title="Select Images"
+                title={t('nodes:gallery.selectImages')}
                 assetType="image"
             />
         </div>

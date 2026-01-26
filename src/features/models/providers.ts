@@ -8,6 +8,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'GPT-4o, DALL-E 3',
         type: 'cloud',
         placeholder: 'sk-...',
+        defaultBaseUrl: 'https://api.openai.com/v1',
         requiresApiKey: true,
     },
     {
@@ -16,6 +17,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Claude 3.5 Sonnet',
         type: 'cloud',
         placeholder: 'sk-ant-...',
+        defaultBaseUrl: 'https://api.anthropic.com/v1',
         requiresApiKey: true,
     },
     {
@@ -24,6 +26,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Gemini 2.0, Imagen',
         type: 'cloud',
         placeholder: 'AIza...',
+        defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         requiresApiKey: true,
     },
     {
@@ -32,6 +35,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Flux, Nano Banana, Kling',
         type: 'cloud',
         placeholder: 'fal_...',
+        defaultBaseUrl: 'https://fal.run',
         requiresApiKey: true,
     },
     {
@@ -40,6 +44,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'Various open models',
         type: 'cloud',
         placeholder: 'r8_...',
+        defaultBaseUrl: 'https://api.replicate.com/v1',
         requiresApiKey: true,
     },
     {
@@ -48,6 +53,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'DeepSeek V3',
         type: 'cloud',
         placeholder: 'sk-...',
+        defaultBaseUrl: 'https://api.deepseek.com/v1',
         requiresApiKey: true,
     },
     {
@@ -56,6 +62,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'GLM-4.7, GLM-4.6v',
         type: 'cloud',
         placeholder: 'your-zhipu-api-key',
+        defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4',
         requiresApiKey: true,
     },
     {
@@ -64,6 +71,7 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         description: 'PPIO Cloud GPU',
         type: 'cloud',
         placeholder: 'pp_...',
+        defaultBaseUrl: 'https://api.ppinfra.com/v3/openai',
         requiresApiKey: true,
     },
     // Local providers
@@ -72,7 +80,8 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         name: 'Ollama',
         description: 'Local LLM server',
         type: 'local',
-        placeholder: 'http://localhost:11434',
+        placeholder: 'Optional API key',
+        defaultBaseUrl: 'http://localhost:11434',
         requiresApiKey: false,
     },
     {
@@ -80,7 +89,8 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         name: 'LM Studio',
         description: 'Local LLM server',
         type: 'local',
-        placeholder: 'http://localhost:1234',
+        placeholder: 'Optional API key',
+        defaultBaseUrl: 'http://localhost:1234',
         requiresApiKey: false,
     },
     {
@@ -88,7 +98,8 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         name: 'ComfyUI',
         description: 'Local image generation',
         type: 'local',
-        placeholder: 'http://localhost:8188',
+        placeholder: 'Optional API key',
+        defaultBaseUrl: 'http://localhost:8188',
         requiresApiKey: false,
     },
     {
@@ -96,7 +107,8 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         name: 'GPT4Free',
         description: 'Local proxy (Gemini Imagen, etc.)',
         type: 'local',
-        placeholder: 'http://localhost:8080',
+        placeholder: 'Optional API key',
+        defaultBaseUrl: 'http://localhost:8080',
         requiresApiKey: false,
     },
 ];

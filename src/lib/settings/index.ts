@@ -37,7 +37,7 @@ export async function loadSettings(): Promise<AppSettings> {
 export async function saveSettings(settings: AppSettings): Promise<void> {
     cachedSettings = settings;
     try {
-        await invoke('save_app_settings', { settings: JSON.stringify(settings) });
+        await invoke('save_app_settings', { settingsJson: JSON.stringify(settings) });
     } catch (e) {
         console.error('[Settings] Failed to save:', e);
         throw e;

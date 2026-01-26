@@ -1,4 +1,5 @@
 // Google Provider Models
-// Gemini 2.0 Flash, Gemini 2.5 Flash
+// LLM + Image Generation
 
 export { gemini2Flash, gemini25Flash } from './google';
+export { geminiImage } from './gemini-image';

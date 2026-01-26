@@ -25,6 +25,7 @@ async function executeGoogle(
     try {
         const google = createGoogleGenerativeAI({
             apiKey: credentials.apiKey,
+            // Only set baseURL for non-default endpoints (custom proxies)
             baseURL: credentials.baseUrl?.includes('generativelanguage.googleapis.com')
                 ? undefined
                 : credentials.baseUrl,

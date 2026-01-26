@@ -1,4 +1,26 @@
 {
+  "errors": {
+    "loadFailed": "Failed to load recipes",
+    "createFailed": "Failed to create item",
+    "deleteFailed": "Failed to delete item"
+  },
+  "folder": {
+    "created": "Folder created"
+  },
+  "item": {
+    "created": "Recipe created",
+    "deleted": "Item deleted"
+  },
+  "search": {
+    "placeholder": "Search recipes..."
+  },
+  "actions": {
+    "newFolder": "New Folder",
+    "newRecipe": "New Recipe"
+  },
+  "empty": {
+    "folder": "No items in this folder"
+  },
   "chat": {
     "aiThinking": "AI thinking...",
     "andMore_one": "and {{count}} more",
@@ -28,13 +50,38 @@
   "model": {
     "addKeysDesc": "Add your API keys for AI providers like OpenAI, Google, or Anthropic to get started.",
     "availableModels": "Available Models",
+    "configSaved": "Model configuration saved",
+    "discard": "Discard",
+    "discarded": "Changes discarded",
     "jsonMode": "JSON Mode",
     "maxTokens": "Max Tokens",
+    "needApiKey": "API Key needed for {{providers}}",
     "noApiKeys": "No API Keys Configured",
     "noModelsFound": "No models found.",
     "openSettings": "Open Settings",
+    "providerNotConfigured": "{{provider}} not configured",
+    "save": "Save",
     "searchModels": "Search models...",
     "selectModel": "Select model...",
-    "temperature": "Temperature"
+    "temperature": "Temperature",
+    "useProvider": "Use {{provider}} provider"
+  },
+  "page": {
+    "breadcrumbRoot": "Root",
+    "confirmDelete": "Are you sure you want to delete {{name}}?",
+    "createDesc": "Enter a unique name (ID) for the new {{type}}.",
+    "createTitle": "Create New {{type}}",
+    "emptyFolder": "No items in this folder",
+    "folderCreated": "Folder created",
+    "itemDeleted": "Item deleted",
+    "loadFailed": "Failed to load recipes",
+    "nameHint": "Use lowercase letters, numbers, and hyphens only.",
+    "nameLabel": "Name (ID)",
+    "newFolder": "New Folder",
+    "newRecipe": "New Recipe",
+    "recipeCreated": "Recipe created",
+    "searchPlaceholder": "Search recipes...",
+    "createFailed": "Failed to create item",
+    "deleteFailed": "Failed to delete item"
   }
 }

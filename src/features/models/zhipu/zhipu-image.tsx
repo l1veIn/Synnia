@@ -132,7 +132,8 @@ function ZhipuImageConfig({ value, onChange, disabled }: ModelConfigProps) {
 // Execution
 // ============================================================================
 
-const ZHIPU_IMAGE_URL = 'https://open.bigmodel.cn/api/paas/v4/images/generations';
+// Default endpoint is defined in providers.ts
+// credentials.baseUrl will contain the configured or default endpoint
 
 async function executeZhipuImage(
     input: ModelExecutionInput,
@@ -142,6 +143,10 @@ async function executeZhipuImage(
 
     if (!credentials.apiKey) {
         return { success: false, error: 'Zhipu API key not configured' };
+    }
+
+    if (!credentials.baseUrl) {
+        return { success: false, error: 'Zhipu API endpoint not configured' };
     }
 
     if (!prompt) {
@@ -165,7 +170,10 @@ async function executeZhipuImage(
             requestBody.watermark_enabled = config.watermarkEnabled;
         }
 
-        const response = await fetch(credentials.baseUrl || ZHIPU_IMAGE_URL, {
+        // Build API URL from configured endpoint
+        const apiUrl = `${credentials.baseUrl}/images/generations`;
+
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

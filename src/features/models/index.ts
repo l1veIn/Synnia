@@ -82,10 +82,12 @@ modelRegistry.register(gpt4o);
 modelRegistry.register(gpt4oMini);
 modelRegistry.register(dallE3);
 
-// Google
+// Google (LLM + Image)
 import { gemini2Flash, gemini25Flash } from './google/google';
+import { geminiImage } from './google/gemini-image';
 modelRegistry.register(gemini2Flash);
 modelRegistry.register(gemini25Flash);
+modelRegistry.register(geminiImage);
 
 // Anthropic
 import { claude35Sonnet, claude35Haiku } from './anthropic/anthropic';
@@ -94,9 +96,9 @@ modelRegistry.register(claude35Haiku);
 
 // FAL (Image)
 import { fluxSchnell } from './fal/flux-schnell';
-import { nanoBananaPro } from './fal/nano-banana-pro';
+import { falNanoBanana } from './fal/fal-nano-banana';
 modelRegistry.register(fluxSchnell);
-modelRegistry.register(nanoBananaPro);
+modelRegistry.register(falNanoBanana);
 
 // DeepSeek
 import { deepseekChat } from './deepseek/deepseek';
@@ -115,7 +117,10 @@ modelRegistry.register(glmImage);
 modelRegistry.register(cogview4);
 modelRegistry.register(cogview3Flash);
 
-// Local (Ollama)
+// Local (Ollama, g4f)
 import { llama32, llama32Vision } from './local/ollama';
+import { g4fGeminiImage } from './local/g4f-gemini-image';
 modelRegistry.register(llama32);
 modelRegistry.register(llama32Vision);
+modelRegistry.register(g4fGeminiImage);
+

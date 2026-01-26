@@ -25,7 +25,7 @@ async function executeAnthropic(
     try {
         const anthropic = createAnthropic({
             apiKey: credentials.apiKey,
-            baseURL: credentials.baseUrl || 'https://api.anthropic.com',
+            baseURL: credentials.baseUrl,
         });
 
         const model = anthropic(modelId);

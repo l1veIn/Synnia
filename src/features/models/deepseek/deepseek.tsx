@@ -25,7 +25,7 @@ async function executeDeepSeek(
     try {
         const deepseek = createOpenAI({
             apiKey: credentials.apiKey,
-            baseURL: credentials.baseUrl || 'https://api.deepseek.com',
+            baseURL: credentials.baseUrl,
         });
 
         const model = deepseek(modelId);

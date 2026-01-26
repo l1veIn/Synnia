@@ -1,6 +1,7 @@
 // Zhipu AI (智谱 AI) LLM Plugins
-// GLM models via native fetch (avoiding SDK compatibility issues)
+// GLM models via Tauri backend proxy (bypassing browser restrictions)
 
+import { invoke } from '@tauri-apps/api/core';
 import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
@@ -9,8 +10,8 @@ import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 // Shared Zhipu Execution Logic
 // ============================================================================
 
-// Zhipu's OpenAI-compatible chat completions endpoint
-const ZHIPU_CHAT_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+// Default endpoint is now defined in providers.ts
+// credentials.baseUrl will contain the configured or default endpoint
 
 interface ZhipuMessage {
     role: 'system' | 'user' | 'assistant';
@@ -29,15 +30,25 @@ interface ZhipuResponse {
     };
 }
 
+interface ProxyResponse {
+    status: number;
+    headers: Record<string, string>;
+    body: string;
+}
+
 async function executeZhipu(
     input: ModelExecutionInput,
     modelId: string
 ): Promise<ModelExecutionResult> {
     const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
-    console.log({ input })
+
     if (!credentials.apiKey) {
         return { success: false, error: 'Zhipu API key not configured' };
+    }
+
+    if (!credentials.baseUrl) {
+        return { success: false, error: 'Zhipu API endpoint not configured' };
     }
 
     try {
@@ -48,8 +59,12 @@ async function executeZhipu(
         }
         messages.push({ role: 'user', content: userPrompt });
 
-        // Direct fetch to Zhipu's chat/completions endpoint
-        const response = await fetch(credentials.baseUrl || ZHIPU_CHAT_URL, {
+        // Build API URL from configured endpoint
+        const apiUrl = `${credentials.baseUrl}/chat/completions`;
+
+        // Use Tauri backend proxy to bypass browser restrictions
+        const response = await invoke<ProxyResponse>('proxy_request', {
+            url: apiUrl,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -63,13 +78,12 @@ async function executeZhipu(
             }),
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[Zhipu] HTTP Error:', response.status, errorText);
-            return { success: false, error: `Zhipu API error: ${response.status} - ${errorText}` };
+        if (response.status !== 200) {
+            console.error('[Zhipu] HTTP Error:', response.status, response.body);
+            return { success: false, error: `Zhipu API error: ${response.status} - ${response.body}` };
         }
 
-        const data: ZhipuResponse = await response.json();
+        const data: ZhipuResponse = JSON.parse(response.body);
 
         if (data.error) {
             return { success: false, error: data.error.message };

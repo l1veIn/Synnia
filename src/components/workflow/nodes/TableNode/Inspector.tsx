@@ -9,6 +9,7 @@ import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 import { FieldDefinition } from '@/types/assets';
+import { useTranslation } from 'react-i18next';
 
 interface InspectorProps {
     assetId: string;
@@ -16,6 +17,7 @@ interface InspectorProps {
 }
 
 export function Inspector({ assetId, nodeId }: InspectorProps) {
+    const { t } = useTranslation(['nodes', 'common']);
     const { asset, setValue, updateConfig } = useAsset(assetId);
     const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
     const [isSchemaEditorOpen, setIsSchemaEditorOpen] = useState(false);
@@ -45,7 +47,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     const handleDataSave = (newData: Record<string, any>[]) => {
         setValue(newData);
-        toast.success('Table data updated');
+        toast.success(t('nodes:table.dataUpdated'));
     };
 
     // Handlers

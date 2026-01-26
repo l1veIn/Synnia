@@ -3,7 +3,53 @@
     "back": "返回",
     "cancel": "取消",
     "confirm": "确定",
-    "delete": "删除"
+    "create": "创建",
+    "delete": "删除",
+    "discard": "放弃",
+    "openSettings": "打开设置",
+    "save": "保存"
+  },
+  "changes": {
+    "discarded": "更改已放弃"
+  },
+  "errors": {
+    "assetNotFound": "资源未找到",
+    "configureApiKeys": "配置 API 密钥以使用 AI 生成",
+    "enterPrompt": "请输入提示词",
+    "generationFailed": "生成失败",
+    "noApiKeys": "未配置 API 密钥",
+    "noModel": "没有可用的模型"
+  },
+  "generate": {
+    "autofillForm": "自动填充表单",
+    "autofillFormDesc": "描述此表单应包含的内容",
+    "completeJson": "补全 JSON",
+    "completeJsonDesc": "描述如何补全 JSON",
+    "generate": "生成",
+    "generating": "生成中...",
+    "rows": "生成 {{count}} 行",
+    "rowsDesc": "描述要填充表格的数据",
+    "table": "生成表格",
+    "tableDesc": "描述表格结构和数据",
+    "text": "生成文本",
+    "textDesc": "描述你想要生成的内容"
+  },
+  "labels": {
+    "aiGeneration": "AI 生成"
+  },
+  "nav": {
+    "github": "GitHub",
+    "projects": "项目",
+    "recipes": "配方"
+  },
+  "settings": {
+    "saved": "设置已保存"
+  },
+  "status": {
+    "unsaved": "未保存"
+  },
+  "success": {
+    "generated": "内容已生成"
   },
   "app": {
     "title": "Synnia"

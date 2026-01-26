@@ -86,7 +86,7 @@ function RecipeCard({
 }
 
 export default function RecipesPage() {
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'recipe']);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const currentPath = searchParams.get('path') || '';
@@ -110,7 +110,7 @@ export default function RecipesPage() {
             setListing(data);
         } catch (error) {
             console.error("Failed to load directory:", error);
-            toast.error("Failed to load recipes");
+            toast.error(t('recipe:errors.loadFailed'));
         } finally {
             setLoading(false);
         }
@@ -131,17 +131,17 @@ export default function RecipesPage() {
         try {
             if (createType === 'folder') {
                 await apiClient.createRecipeFolder(newItemName, currentPath);
-                toast.success("Folder created");
+                toast.success(t('recipe:folder.created'));
             } else {
                 await apiClient.createRecipe(newItemName, currentPath);
-                toast.success("Recipe created");
+                toast.success(t('recipe:item.created'));
             }
             setIsCreateOpen(false);
             setNewItemName("");
             loadDirectory(currentPath);
         } catch (error) {
             console.error("Create failed:", error);
-            toast.error("Failed to create item");
+            toast.error(t('recipe:errors.createFailed'));
         }
     };
 
@@ -149,11 +149,11 @@ export default function RecipesPage() {
         if (!confirm(`Are you sure you want to delete ${entry.name}?`)) return;
         try {
             await apiClient.deleteRecipe(entry.path);
-            toast.success("Item deleted");
+            toast.success(t('recipe:item.deleted'));
             loadDirectory(currentPath);
         } catch (error) {
             console.error("Delete failed:", error);
-            toast.error("Failed to delete item");
+            toast.error(t('recipe:errors.deleteFailed'));
         }
     };
 
@@ -183,21 +183,21 @@ export default function RecipesPage() {
                         onClick={() => navigate('/')}
                     >
                         <FolderOpen className="w-4 h-4 mr-3 opacity-70" />
-                        Projects
+                        {t('common:nav.projects')}
                     </Button>
                     <Button
                         variant="secondary"
                         className="w-full justify-start font-medium bg-accent/50"
                     >
                         <FileCode className="w-4 h-4 mr-3 text-primary" />
-                        Recipes
+                        {t('common:nav.recipes')}
                     </Button>
                 </nav>
 
                 <div className="mt-auto pt-4 border-t border-border/50">
                     <div className="p-4 rounded-lg bg-muted/50 border border-border cursor-pointer flex items-center gap-3 opacity-50">
                         <Github className="w-5 h-5" />
-                        <span className="text-sm">GitHub</span>
+                        <span className="text-sm">{t('common:nav.github')}</span>
                     </div>
                 </div>
             </div>
@@ -246,15 +246,15 @@ export default function RecipesPage() {
                         <div className="flex gap-2">
                             <div className="relative w-64">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="Search recipes..." className="pl-8" />
+                                <Input placeholder={t('recipe:search.placeholder')} className="pl-8" />
                             </div>
                             <Button onClick={() => { setCreateType('folder'); setIsCreateOpen(true); }} variant="outline">
                                 <Folder className="w-4 h-4 mr-2" />
-                                New Folder
+                                {t('recipe:actions.newFolder')}
                             </Button>
                             <Button onClick={() => { setCreateType('recipe'); setIsCreateOpen(true); }}>
                                 <Plus className="w-4 h-4 mr-2" />
-                                New Recipe
+                                {t('recipe:actions.newRecipe')}
                             </Button>
                         </div>
                     </div>
@@ -267,7 +267,7 @@ export default function RecipesPage() {
                     ) : (
                         listing?.entries.length === 0 ? (
                             <div className="text-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
-                                <p>No items in this folder</p>
+                                <p>{t('recipe:empty.folder')}</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -307,8 +307,8 @@ export default function RecipesPage() {
                         </p>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                        <Button onClick={handleCreate}>Create</Button>
+                        <Button variant="outline" onClick={() => setIsCreateOpen(false)}>{t('common:actions.cancel')}</Button>
+                        <Button onClick={handleCreate}>{t('common:actions.create')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

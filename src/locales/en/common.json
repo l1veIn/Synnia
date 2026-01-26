@@ -3,7 +3,53 @@
     "back": "Back",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "delete": "Delete"
+    "create": "Create",
+    "delete": "Delete",
+    "discard": "Discard",
+    "openSettings": "Open Settings",
+    "save": "Save"
+  },
+  "changes": {
+    "discarded": "Changes discarded"
+  },
+  "errors": {
+    "assetNotFound": "Asset Not Found",
+    "configureApiKeys": "Configure API keys to use AI generation",
+    "enterPrompt": "Please enter a prompt",
+    "generationFailed": "Generation failed",
+    "noApiKeys": "No API Keys",
+    "noModel": "No model available"
+  },
+  "generate": {
+    "autofillForm": "Autofill Form",
+    "autofillFormDesc": "Describe what this form should contain",
+    "completeJson": "Complete JSON",
+    "completeJsonDesc": "Describe how to complete the JSON",
+    "generate": "Generate",
+    "generating": "Generating...",
+    "rows": "Generate {{count}} Rows",
+    "rowsDesc": "Describe the data to fill the table",
+    "table": "Generate Table",
+    "tableDesc": "Describe the table structure and data",
+    "text": "Generate Text",
+    "textDesc": "Describe the content you want to generate"
+  },
+  "labels": {
+    "aiGeneration": "AI Generation"
+  },
+  "nav": {
+    "github": "GitHub",
+    "projects": "Projects",
+    "recipes": "Recipes"
+  },
+  "settings": {
+    "saved": "Settings saved"
+  },
+  "status": {
+    "unsaved": "Unsaved"
+  },
+  "success": {
+    "generated": "Content generated"
   },
   "app": {
     "title": "Synnia"

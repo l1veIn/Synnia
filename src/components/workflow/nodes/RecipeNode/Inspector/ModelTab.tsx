@@ -215,11 +215,10 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         return providers;
     }, [settings]);
 
-    // Available providers for current model
-    const availableProviders = useMemo(() => {
-        if (!selectedModel) return [];
-        const providers = selectedModel.supportedProviders || [selectedModel.provider];
-        return providers.filter(p => configuredProviders.includes(p));
+    // Check if selected model's provider is configured
+    const isProviderAvailable = useMemo(() => {
+        if (!selectedModel) return false;
+        return configuredProviders.includes(selectedModel.provider);
     }, [selectedModel, configuredProviders]);
 
     // Handle model selection (update draft only)
@@ -227,12 +226,9 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         const model = modelRegistry.get(modelId);
         if (!model) return;
 
-        const providers = model.supportedProviders || [model.provider];
-        const availableProvider = providers.find(p => configuredProviders.includes(p));
-
         setDraftConfig({
             modelId,
-            provider: availableProvider,
+            provider: model.provider,
             params: {},
         });
         setOpen(false);
@@ -244,18 +240,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
         }
     };
 
-    // Handle provider selection (update draft only)
-    const handleProviderSelect = (modelId: string, provider: ProviderType) => {
-        if (!configuredProviders.includes(provider)) {
-            return; // Provider not configured
-        }
-        setDraftConfig({
-            modelId,
-            provider,
-            params: draftConfig?.params || {},
-        });
-        setOpen(false);
-    };
+
 
     // Handle config change (update draft only)
     const handleParamsChange = (params: any) => {
@@ -316,7 +301,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                             variant="secondary"
                                             className="px-1 py-0 h-5 text-[10px] uppercase font-normal text-muted-foreground"
                                         >
-                                            {modelConfig?.provider || (selectedModel.supportedProviders || [selectedModel.provider])[0]}
+                                            {selectedModel.provider}
                                         </Badge>
                                         <span className="truncate">{selectedModel.name}</span>
                                     </div>
@@ -333,9 +318,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                     <CommandEmpty>{t('model.noModelsFound')}</CommandEmpty>
                                     <CommandGroup heading={t('model.availableModels')}>
                                         {models.map((model) => {
-                                            const hasProvider = (model.supportedProviders || [model.provider]).some(p =>
-                                                configuredProviders.includes(p)
-                                            );
+                                            const hasProvider = configuredProviders.includes(model.provider);
                                             return (
                                                 <CommandItem
                                                     key={model.id}
@@ -351,37 +334,20 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                                         )}
                                                     />
                                                     <div className="flex flex-col gap-0.5">
-                                                        <span>{model.name}</span>
-                                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                            {(model.supportedProviders || [model.provider]).map(p => {
-                                                                const isConfigured = configuredProviders.includes(p);
-                                                                const isSelected = modelConfig?.modelId === model.id && modelConfig?.provider === p;
-                                                                return (
-                                                                    <button
-                                                                        key={p}
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (isConfigured) {
-                                                                                handleProviderSelect(model.id, p);
-                                                                            }
-                                                                        }}
-                                                                        className={cn(
-                                                                            "uppercase px-1 py-0.5 rounded transition-colors",
-                                                                            isConfigured
-                                                                                ? isSelected
-                                                                                    ? "bg-green-500/20 text-green-500 font-medium"
-                                                                                    : "text-green-500 hover:bg-green-500/10 cursor-pointer"
-                                                                                : "text-muted-foreground/50 cursor-not-allowed"
-                                                                        )}
-                                                                        disabled={!isConfigured}
-                                                                        title={isConfigured ? `Use ${p.toUpperCase()} provider` : `${p.toUpperCase()} not configured`}
-                                                                    >
-                                                                        {p}
-                                                                    </button>
-                                                                );
-                                                            })}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>{model.name}</span>
+                                                            <span className={cn(
+                                                                "text-[10px] uppercase px-1 py-0.5 rounded",
+                                                                hasProvider ? "text-green-500" : "text-muted-foreground/50"
+                                                            )}>
+                                                                {model.provider}
+                                                            </span>
                                                         </div>
+                                                        {model.description && (
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                {model.description}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </CommandItem>
                                             );
@@ -393,17 +359,17 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                     </Popover>
 
                     {/* No provider configured warning */}
-                    {selectedModel && availableProviders.length === 0 && (
+                    {selectedModel && !isProviderAvailable && (
                         <Alert variant="destructive" className="py-2">
                             <AlertCircle className="h-3 w-3" />
                             <AlertDescription className="text-xs">
-                                需要配置 {(selectedModel.supportedProviders || [selectedModel.provider]).join(' 或 ')} 的 API Key
+                                {t('model.needApiKey', { providers: selectedModel.provider })}
                             </AlertDescription>
                         </Alert>
                     )}
 
                     {/* Model's config UI */}
-                    {selectedModel && availableProviders.length > 0 && (
+                    {selectedModel && isProviderAvailable && (
                         <>
                             {selectedModel.renderConfig ? (
                                 // Model has custom config UI
@@ -411,8 +377,8 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                     value: draftConfig?.params,
                                     onChange: handleParamsChange,
                                     disabled: false,
-                                    availableProviders,
-                                    provider: draftConfig?.provider as ProviderType | undefined,
+                                    availableProviders: [selectedModel.provider],
+                                    provider: selectedModel.provider,
                                 })
                             ) : isLLMCategory ? (
                                 // LLM model without custom config: use default settings
@@ -437,7 +403,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                                 onClick={handleDiscard}
                                 className="h-7 text-xs"
                             >
-                                Discard
+                                {t('model.discard')}
                             </Button>
                         )}
                         <Button
@@ -448,7 +414,7 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
                             disabled={!hasChanges}
                         >
                             <Save className="h-3.5 w-3.5" />
-                            Save
+                            {t('model.save')}
                         </Button>
                     </div>
                 </>

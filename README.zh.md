@@ -59,9 +59,6 @@ Synnia 是一个**数字资产一致性引擎**。
 -   **MCP Bridge 集成**：AI 助手可以通过 [mcp-server-tauri](https://github.com/hypothesi/mcp-server-tauri) 截图、检查和调试运行中的应用。
 -   **TypeScript 绑定**：通过 ts-rs 从 Rust 自动生成类型。
 
-### 智能布局
--   **机架模式**：灵感来源于音乐制作软件。将节点堆叠到"机架"中，自动调整大小和布局。
-
 ## 路线图
 
 ### 近期目标
@@ -85,7 +82,7 @@ Synnia 是一个**数字资产一致性引擎**。
 
 ```bash
 # 克隆仓库
-git clone https://github.com/hypothesi/synnia.git
+git clone https://github.com/l1veIn/Synnia.git
 cd synnia
 
 # 安装依赖

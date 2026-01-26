@@ -59,9 +59,6 @@ A lot has happened since the initial release! Here's what's working now:
 -   **MCP Bridge Integration**: AI assistants can screenshot, inspect, and debug your running app via [mcp-server-tauri](https://github.com/hypothesi/mcp-server-tauri).
 -   **TypeScript Bindings**: Auto-generated types from Rust via ts-rs.
 
-### Smart Layouts
--   **Rack Mode**: Inspired by music production software. Stack nodes into "Racks" that auto-resize and handle layout for you.
-
 ## Roadmap
 
 ### Near-Term
@@ -85,7 +82,7 @@ A lot has happened since the initial release! Here's what's working now:
 
 ```bash
 # Clone the repo
-git clone https://github.com/hypothesi/synnia.git
+git clone https://github.com/l1veIn/Synnia.git
 cd synnia
 
 # Install dependencies

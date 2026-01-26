@@ -17,40 +17,83 @@ Synnia is a **Digital Asset Consistency Engine**.
 In most node-based tools (like ComfyUI), nodes are *functions* (do this -> do that).
 In Synnia, nodes are **Assets** (your images, your text, your characters).
 
-You place your assets on an infinite canvas, organize them, and use "Agents" (little helpers) to grow your project while keeping everything consistent.
+You place your assets on an infinite canvas, organize them, and use "Recipe" to grow your project while keeping everything consistent.
 
 I'm not a full-time professional developer, and I often found existing node-based tools a bit overwhelming. I started building Synnia because I wanted a workspace that felt intuitive and accessible—something with a gentle learning curve that invites you to play, rather than requiring you to study. It's designed for indie devs, writers, and world-builders who want to keep their creative universe cohesive.
 
-## Current State (What I've built so far)
+## Current State (Jan 2026)
 
-We just wrapped up a massive refactor (Architecture V4)! Here's what's working:
+A lot has happened since the initial release! Here's what's working now:
 
+### Core Architecture
 -   **Asset-Centric Architecture**: Separated the "Data" (Asset) from the "View" (Node). Your data lives independently of the canvas.
--   **Graph Engine V4**: A rewritten core that handles complex interactions, dragging, and connections much smoother than before.
--   **Smart Layouts (Rack Mode)**: Inspired by music production software. You can stack nodes into "Racks" that auto-resize and handle layout for you. No more manually aligning boxes!
--   **Dynamic Recipes**: We have a `RecipeNode` that generates input forms on the fly based on JSON Schemas.
--   **Tauri + React**: It runs locally on your machine. Fast and private.
+-   **Graph Engine V4**: A rewritten core that handles complex interactions, dragging, and connections smoothly.
+-   **SQLite Backend**: Robust local database storage with Content-Addressable Storage (CAS) for assets.
+-   **Modular Backend**: Clean Rust architecture with separated domains (assets, models, recipes).
 
-## Roadmap (The To-Do List)
+### Recipe System V2
+-   **YAML-Based Recipes**: Define workflows as declarative YAML packages with schemas, prompts, and executors.
+-   **Recipe Package Architecture**: Self-contained recipe packages with manifests, schemas, and prompt templates.
+-   **Built-in Recipe Library**: Ready-to-use recipes for creative work:
+    - 🎭 **Storyteller** - Generate complete character soul profiles
+    - 🎨 **Art Director** - Create visual blueprints and asset definitions
+    - 📦 **Product Manager** - Production manifest generation
+    - 🎬 **Media Recipes** - Image/video generation workflows
+-   **Recipe IDE**: Built-in Mini-IDE for editing and managing recipes with multi-level category navigation.
+-   **Edge Auto-Fill**: Connections automatically populate linked field values.
 
-There is still a lot to do. Here is what I am working on next:
+### Multi-Provider AI
+-   **Unified Model System**: Single interface for multiple AI providers:
+    - OpenAI (GPT-4o, DALL-E 3)
+    - Anthropic (Claude 3.5 Sonnet)
+    - Google AI (Gemini 2.0, Imagen)
+    - FAL.ai (Flux, Kling)
+    - Zhipu GLM (智谱)
+    - OpenAI-compatible endpoints
+-   **Multi-Turn Chat**: Support for conversational recipe execution.
+-   **Unified Executor**: Standardized result handling across all providers.
 
-### 1. More "LEGO Bricks" (Nodes)
--   **Markdown Editor**: For better writing and documentation inside the canvas.
--   **JSON Editor**: For tweaking raw data.
--   **Debug Nodes**: To inspect what's actually flowing through those wires.
+### Developer Experience
+-   **i18n Support**: Full internationalization with English and Chinese.
+-   **Deep Data Editor**: Rich editor for complex nested data structures.
+-   **MCP Bridge Integration**: AI assistants can screenshot, inspect, and debug your running app via [mcp-server-tauri](https://github.com/hypothesi/mcp-server-tauri).
+-   **TypeScript Bindings**: Auto-generated types from Rust via ts-rs.
 
-### 2. The Standard Kitchen (Basic Recipes)
--   Right now, you have to build everything from scratch. I want to add a standard library of "Recipes" like HTTP POST requests, text processing utils, etc., so you can start working immediately.
+### Smart Layouts
+-   **Rack Mode**: Inspired by music production software. Stack nodes into "Racks" that auto-resize and handle layout for you.
 
-### 3. Meta-Recipes (The "App Store" moment)
--   **Recipe Composition**: Allow you to combine a Recipe + another Recipe + some Assets into a *New Recipe*.
--   **Sharing**: Ideally, you should be able to export your workflow as a single file and share it with others.
+## Roadmap
 
-### 4. Upgrade the Brain (Storage)
--   Currently, everything is saved as JSON files. It works, but it's fragile.
--   **Database Migration**: Moving to a local database (SQLite?) for robust data handling.
--   **Virtual File System**: A proper system to manage files, auto-generate thumbnails, and handle large assets without lag.
+### Near-Term
+-   **More Node Types**: Markdown editor, JSON viewer, debug/inspection nodes.
+-   **Recipe Sharing**: Export recipes as shareable packages.
+-   **Performance**: Optimize for large canvases with many assets.
+
+### Future Vision
+-   **Meta-Recipes**: Compose recipes from other recipes + assets to create new workflows.
+-   **Plugin System**: Extend Synnia with community-built nodes and recipes.
+-   **Collaboration**: Real-time sync for team projects (exploring CRDTs).
+
+## Tech Stack
+
+- **Frontend**: React 19 + TypeScript + @xyflow/react + Radix UI + TailwindCSS
+- **Backend**: Rust + Tauri 2.2 + SQLite + Actix-web
+- **State**: Zustand + Zundo (undo/redo)
+- **AI**: Vercel AI SDK + provider-specific SDKs
+
+## Getting Started
+
+```bash
+# Clone the repo
+git clone https://github.com/hypothesi/synnia.git
+cd synnia
+
+# Install dependencies
+pnpm install
+
+# Run in dev mode
+pnpm tauri:dev
+```
 
 ## Contributing
 

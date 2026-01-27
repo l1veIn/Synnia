@@ -55,6 +55,9 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
+            '@core': path.resolve(__dirname, './src/core'),
+            '@features': path.resolve(__dirname, './src/features'),
+            '@/bindings': path.resolve(__dirname, './src-tauri/bindings'),
         },
     },
 });

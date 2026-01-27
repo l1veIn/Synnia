@@ -5,8 +5,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRecipeFromManifest } from '../recipeLoader';
-import type { RecipeManifest } from '@/types/recipe';
+import type { RecipeManifest, ExecutionContext } from '@/types/recipe';
 import type { FieldDefinition } from '@/types/assets';
+import type { SynniaNode } from '@/types/project';
 import { Executor } from '@features/executors';
 import { ExecutionResult } from '@/types/recipe';
 
@@ -37,6 +38,15 @@ describe('recipeLoader', () => {
         canHandle: vi.fn(() => true),
         execute: vi.fn(async () => ({ success: true, data: { result: 'test' } })),
     };
+
+    // Helper to create a mock ExecutionContext
+    const createMockContext = (manifest: RecipeManifest): ExecutionContext => ({
+        inputs: {},
+        nodeId: 'node-1',
+        engine: {} as ExecutionContext['engine'],
+        node: {} as SynniaNode,
+        manifest,
+    });
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -171,7 +181,7 @@ describe('recipeLoader', () => {
         it('should default to empty array when input is not an array or object with schema', () => {
             const manifest: RecipeManifest = {
                 ...baseManifest,
-                input: 'invalid' as any,
+                input: 'invalid' as unknown as FieldDefinition[],
             };
 
             const recipe = createRecipeFromManifest(manifest);
@@ -217,15 +227,10 @@ describe('recipeLoader', () => {
 
             const recipe = createRecipeFromManifest(baseManifest);
 
-            const mockContext = {
-                inputs: { test: 'value' },
-                nodeId: 'node-1',
-                engine: {} as any,
-                node: {} as any,
-                manifest: baseManifest,
-            };
+            const mockContext = createMockContext(baseManifest);
+            mockContext.inputs = { test: 'value' };
 
-            const result = await recipe.execute(mockContext as any);
+            const result = await recipe.execute(mockContext);
 
             expect(getExecutorForManifest).toHaveBeenCalledWith(baseManifest);
             expect(result).toEqual(mockResult);
@@ -236,15 +241,9 @@ describe('recipeLoader', () => {
 
             const recipe = createRecipeFromManifest(baseManifest);
 
-            const mockContext = {
-                inputs: {},
-                nodeId: 'node-1',
-                engine: {} as any,
-                node: {} as any,
-                manifest: baseManifest,
-            };
+            const mockContext = createMockContext(baseManifest);
 
-            const result = await recipe.execute(mockContext as any);
+            const result = await recipe.execute(mockContext);
 
             expect(result).toEqual({
                 success: false,
@@ -264,15 +263,9 @@ describe('recipeLoader', () => {
 
                 const recipe = createRecipeFromManifest(baseManifest);
 
-                const mockContext = {
-                    inputs: {},
-                    nodeId: 'node-1',
-                    engine: {} as any,
-                    node: {} as any,
-                    manifest: baseManifest,
-                };
+                const mockContext = createMockContext(baseManifest);
 
-                const result = await recipe.execute(mockContext as any);
+                const result = await recipe.execute(mockContext);
 
                 expect(result).toEqual(expected);
             }
@@ -298,15 +291,9 @@ describe('recipeLoader', () => {
 
             const recipe = createRecipeFromManifest(httpManifest);
 
-            const mockContext = {
-                inputs: {},
-                nodeId: 'node-1',
-                engine: {} as any,
-                node: {} as any,
-                manifest: httpManifest,
-            };
+            const mockContext = createMockContext(httpManifest);
 
-            await recipe.execute(mockContext as any);
+            await recipe.execute(mockContext);
 
             expect(getExecutorForManifest).toHaveBeenCalledWith(httpManifest);
             expect(httpExecutor.execute).toHaveBeenCalledWith(mockContext);
@@ -334,15 +321,9 @@ describe('recipeLoader', () => {
 
             const recipe = createRecipeFromManifest(agentManifest);
 
-            const mockContext = {
-                inputs: {},
-                nodeId: 'node-1',
-                engine: {} as any,
-                node: {} as any,
-                manifest: agentManifest,
-            };
+            const mockContext = createMockContext(agentManifest);
 
-            await recipe.execute(mockContext as any);
+            await recipe.execute(mockContext);
 
             expect(getExecutorForManifest).toHaveBeenCalledWith(agentManifest);
             expect(agentExecutor.execute).toHaveBeenCalledWith(mockContext);

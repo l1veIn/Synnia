@@ -9,7 +9,7 @@ import * as LucideIcons from 'lucide-react';
 import type { RecipeDefinition, RecipeManifest } from '@/types/recipe';
 import type { FieldDefinition } from '@/types/assets';
 import { ExecutionContext, ExecutionResult } from '@/types/recipe';
-import { ModelExecutor } from './executors/ModelExecutor';
+import { getExecutorForManifest } from '@features/executors';
 
 // ============================================================================
 // Get Lucide Icon from string name
@@ -59,9 +59,13 @@ export function createRecipeFromManifest(manifest: RecipeManifest): RecipeDefini
 // Executor - Delegates to ModelExecutor
 // ============================================================================
 
-function createExecutor(_manifest: RecipeManifest) {
+function createExecutor(manifest: RecipeManifest) {
     return async (ctx: ExecutionContext): Promise<ExecutionResult> => {
-        // Delegate to ModelExecutor (future: route based on manifest.executor?.type)
-        return ModelExecutor.execute(ctx);
+        // Route to appropriate executor based on manifest.executor?.type
+        const executor = getExecutorForManifest(manifest);
+        if (!executor) {
+            return { success: false, error: `No executor found for recipe type` };
+        }
+        return executor.execute(ctx);
     };
 }

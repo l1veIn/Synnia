@@ -342,6 +342,53 @@ describe('FormBehavior - resolveOutput - array port', () => {
 
         expect(result?.value).toEqual([]);
     });
+
+    it('should stop traversal when node not found in store', () => {
+        const node2 = createMockNode({ id: 'node-2', data: { assetId: 'asset-2', dockedTo: 'node-1' } });
+        // node-3 has dockedTo pointing to non-existent node
+        const node3 = createMockNode({ id: 'node-3', data: { assetId: 'asset-3', dockedTo: 'non-existent' } });
+
+        const asset2 = createMockAsset({ id: 'asset-2', value: { step: 2 } });
+        const asset3 = createMockAsset({ id: 'asset-3', value: { step: 3 } });
+
+        // Only include node2 and node3, not node1 (which node2 is docked to)
+        vi.mocked(useWorkflowStore.getState).mockReturnValue({
+            nodes: [node2, node3],
+            edges: [],
+            assets: {
+                'asset-2': asset2,
+                'asset-3': asset3,
+            },
+        } as any);
+        vi.mocked(getConnectedFieldValues).mockReturnValue({});
+
+        const result = FormBehavior.resolveOutput!(node3, asset3, 'array');
+
+        // Should only include node3 (node2's chain breaks when node1 is not found)
+        expect(result?.value).toEqual([{ step: 3 }]);
+    });
+
+    it('should handle missing asset in docked chain', () => {
+        const node1 = createMockNode({ id: 'node-1', data: { assetId: 'asset-1', dockedTo: null } });
+        const node2 = createMockNode({ id: 'node-2', data: { assetId: 'non-existent-asset', dockedTo: 'node-1' } });
+
+        const asset1 = createMockAsset({ id: 'asset-1', value: { step: 1 } });
+
+        vi.mocked(useWorkflowStore.getState).mockReturnValue({
+            nodes: [node1, node2],
+            edges: [],
+            assets: {
+                'asset-1': asset1,
+                // non-existent-asset is not in assets
+            },
+        } as any);
+        vi.mocked(getConnectedFieldValues).mockReturnValue({});
+
+        const result = FormBehavior.resolveOutput!(node2, undefined, 'array');
+
+        // node2 has no asset, node1 is in chain but unreachable from node2 (empty values are skipped)
+        expect(result?.value).toEqual([{ step: 1 }]);
+    });
 });
 
 // ============================================================================

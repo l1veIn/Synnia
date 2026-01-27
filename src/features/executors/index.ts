@@ -67,6 +67,8 @@ export * from './types';
 // ============================================================================
 
 import { AgentExecutor } from './agent/AgentExecutor';
+import { HttpExecutor } from './http/HttpExecutor';
 
 // Register built-in executors
 executorRegistry.register(AgentExecutor);
+executorRegistry.register(HttpExecutor);

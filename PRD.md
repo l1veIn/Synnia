@@ -43,7 +43,7 @@
 执行器是 Recipe 执行的核心，必须优先测试。
 
 ### HTTP Executor
-- [ ] `src/features/executors/http/__tests__/HttpExecutor.test.ts`
+- [x] `src/features/executors/http/__tests__/HttpExecutor.test.ts`
   - 测试 `canHandle()` 正确识别 http 类型
   - 测试 `execute()` 成功发送 GET 请求
   - 测试 `execute()` 成功发送 POST 请求

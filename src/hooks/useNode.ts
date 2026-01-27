@@ -56,8 +56,9 @@ export interface UseNodeReturn {
 /**
  * Derive view state from raw node data.
  * Centralizes all the scattered state reading logic.
+ * Exported for testing.
  */
-function deriveViewState(node: SynniaNode | undefined): Omit<NodeState, 'node' | 'asset' | 'shellClassName' | 'headerClassName'> {
+export function deriveViewState(node: SynniaNode | undefined): Omit<NodeState, 'node' | 'asset' | 'shellClassName' | 'headerClassName'> {
     if (!node) {
         return {
             title: 'Unknown',
@@ -88,8 +89,9 @@ function deriveViewState(node: SynniaNode | undefined): Omit<NodeState, 'node' |
 
 /**
  * Compute shell className based on state.
+ * Exported for testing.
  */
-function computeShellClassName(state: ReturnType<typeof deriveViewState>): string {
+export function computeShellClassName(state: ReturnType<typeof deriveViewState>): string {
     return cn(
         'min-w-[200px]',
         state.isCollapsed ? 'h-auto min-h-0' : 'h-full'
@@ -98,8 +100,9 @@ function computeShellClassName(state: ReturnType<typeof deriveViewState>): strin
 
 /**
  * Compute header className based on state.
+ * Exported for testing.
  */
-function computeHeaderClassName(state: ReturnType<typeof deriveViewState>): string {
+export function computeHeaderClassName(state: ReturnType<typeof deriveViewState>): string {
     return cn(
         state.isCollapsed && 'border-b-0',
         state.isDockedTop ? 'rounded-t-none' : 'rounded-t-xl',

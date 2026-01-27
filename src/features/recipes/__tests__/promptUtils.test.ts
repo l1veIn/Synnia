@@ -368,5 +368,20 @@ describe('promptUtils', () => {
             // Verify it's valid JSON
             expect(() => JSON.parse(repaired!)).not.toThrow();
         });
+
+        it('should return null when repair produces invalid JSON', () => {
+            // This tests the catch block when repaired JSON still fails to parse
+            // Creating a scenario where we have a } but the structure is malformed
+            const truncated = '[}';  // Invalid array with just closing brace
+            const repaired = repairTruncatedJsonArray(truncated);
+            expect(repaired).toBeNull();
+        });
+
+        it('should handle array with invalid object syntax', () => {
+            // Array start with invalid syntax that has a } but produces invalid JSON
+            const truncated = '[invalid}';
+            const repaired = repairTruncatedJsonArray(truncated);
+            expect(repaired).toBeNull();
+        });
     });
 });

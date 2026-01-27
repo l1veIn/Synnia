@@ -10,6 +10,7 @@ import { vi, beforeEach, afterEach } from 'vitest';
 // ============================================================================
 
 vi.mock('@tauri-apps/api', () => import('../__mocks__/@tauri-apps/api'));
+vi.mock('@tauri-apps/api/core', () => import('../__mocks__/@tauri-apps/api/core'));
 vi.mock('@tauri-apps/plugin-fs', () => import('../__mocks__/@tauri-apps/plugin-fs'));
 vi.mock('@tauri-apps/plugin-dialog', () => import('../__mocks__/@tauri-apps/plugin-dialog'));
 vi.mock('@tauri-apps/plugin-shell', () => import('../__mocks__/@tauri-apps/plugin-shell'));

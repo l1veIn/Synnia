@@ -35,8 +35,8 @@ function createMockContext(
         manifest,
         inputs: {},
         nodeId: 'node-1',
-        engine: {} as any,
-        node: {} as any,
+        engine: {} as never,
+        node: {} as never,
         ...overrides,
     };
 }
@@ -83,7 +83,7 @@ describe('HttpExecutor', () => {
                 version: 1,
                 id: 'test',
                 name: 'Test',
-                executor: undefined as any,
+                executor: undefined as never,
                 output: { node: 'text' },
             };
 

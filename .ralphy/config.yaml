@@ -1,0 +1,54 @@
+# Ralphy Configuration for Synnia Test Coverage
+
+project:
+  name: "synnia"
+  language: "TypeScript"
+  framework: "React + Vite + Tauri"
+
+commands:
+  test: "pnpm vitest run"
+  coverage: "pnpm vitest run --coverage"
+  lint: "pnpm lint"
+  typecheck: "pnpm tsc --noEmit"
+
+rules:
+  # Test file conventions
+  - "测试文件放在对应源文件旁边的 __tests__ 目录"
+  - "测试文件命名: xxx.test.ts 或 xxx.test.tsx"
+  - "使用 vitest 的 describe/it/expect 语法"
+  
+  # Mock strategy
+  - "完全 mock 所有 @tauri-apps/* 模块（使用 src/__mocks__/@tauri-apps/ 中的 mock）"
+  - "Mock 所有外部 API 调用（fetch、Provider API）"
+  - "使用 vi.mock() 和 vi.fn() 创建 mock"
+  
+  # Test quality
+  - "每个函数至少测试正常路径和一个错误路径"
+  - "使用 describe 块组织相关测试"
+  - "测试名称要清晰描述测试意图"
+  - "避免测试实现细节，关注行为"
+  
+  # Coverage
+  - "目标覆盖率: 60% lines"
+  - "优先测试核心逻辑（executors, recipes, behaviors）"
+  
+  # Code style
+  - "保持与项目现有代码风格一致"
+  - "使用 TypeScript 类型"
+  - "import 使用 @ 路径别名"
+
+boundaries:
+  never_touch:
+    - "src/components/ui/**"        # shadcn 组件
+    - "src/locales/**"              # i18n 翻译文件
+    - "src/main.tsx"                # 入口文件
+    - "*.lock"
+    - "node_modules/**"
+    
+  test_files_only:
+    - "src/**/__tests__/**"
+    - "src/test/**"
+    - "vitest.config.ts"
+
+capabilities:
+  browser: "false"  # 不需要浏览器自动化

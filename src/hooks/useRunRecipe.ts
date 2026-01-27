@@ -8,7 +8,7 @@ import { SmartNodeSpec } from '@core/engine/GraphMutator';
 import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
-import { inferValueType, determineOutputAction } from '@features/recipes/executors/outputStrategy';
+import { inferValueType, determineOutputAction } from '@features/executors/utils';
 
 // ============================================
 // Execution Logging (TEP #001: Operational Layer)

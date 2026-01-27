@@ -61,6 +61,7 @@ export function getAllExecutors(): Executor[] {
 // ============================================================================
 
 export * from './types';
+export * from './utils';
 
 // ============================================================================
 // Auto-register Executors

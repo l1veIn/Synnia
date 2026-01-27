@@ -6,14 +6,17 @@ import { ExecutionContext, ExecutionResult, RecipeManifest } from '@/types/recip
 import { Executor } from '../types';
 
 // ============================================================================
-// Http Config Types
+// Http Config Types (local - extends recipe.ts HttpExecutorConfig)
 // ============================================================================
 
-interface HttpExecutorConfig {
-    url: string;
+interface LocalHttpConfig {
+    type: 'http';
+    url?: string;           // Our extended field
+    endpoint?: string;      // From recipe.ts HttpExecutorConfig
     method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     headers?: Record<string, string>;
     body?: string | object;
+    timeout?: number;
 }
 
 // ============================================================================
@@ -29,22 +32,26 @@ export const HttpExecutor: Executor = {
 
     async execute(ctx: ExecutionContext): Promise<ExecutionResult> {
         const { manifest, inputs } = ctx;
-        const config = manifest.executor?.config as HttpExecutorConfig | undefined;
+        // manifest.executor is the config itself
+        const config = manifest.executor as unknown as LocalHttpConfig | undefined;
+        
+        // Support both 'url' (extended) and 'endpoint' (recipe.ts type)
+        const baseUrl = config?.url || config?.endpoint;
 
         // 1. Validate config
-        if (!config?.url) {
-            return { success: false, error: 'HTTP executor requires url in config' };
+        if (!baseUrl) {
+            return { success: false, error: 'HTTP executor requires url or endpoint in config' };
         }
 
         try {
             // 2. Build request
-            const url = interpolateTemplate(config.url, inputs);
-            const method = config.method || 'POST';
-            const headers = interpolateHeaders(config.headers || {}, inputs);
+            const url = interpolateTemplate(baseUrl, inputs);
+            const method = config?.method || 'POST';
+            const headers = interpolateHeaders(config?.headers || {}, inputs);
 
             // 3. Build body
             let body: string | undefined;
-            if (config.body) {
+            if (config?.body) {
                 if (typeof config.body === 'string') {
                     body = interpolateTemplate(config.body, inputs);
                 } else {
@@ -64,7 +71,7 @@ export const HttpExecutor: Executor = {
 
             // 5. Parse response
             const contentType = response.headers.get('content-type') || '';
-            let data: any;
+            let data: unknown;
 
             if (contentType.includes('application/json')) {
                 data = await response.json();
@@ -82,10 +89,11 @@ export const HttpExecutor: Executor = {
 
             return { success: true, data };
 
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'HTTP request failed';
             return {
                 success: false,
-                error: error.message || 'HTTP request failed',
+                error: message,
             };
         }
     }
@@ -98,8 +106,8 @@ export const HttpExecutor: Executor = {
 /**
  * Interpolate template with {{input.xxx}} or {{xxx}} syntax
  */
-function interpolateTemplate(template: string, inputs: Record<string, any>): string {
-    return template.replace(/\{\{(input\.)?(\w+)\}\}/g, (_, prefix, key) => {
+function interpolateTemplate(template: string, inputs: Record<string, unknown>): string {
+    return template.replace(/\{\{(input\.)?([\w.]+)\}\}/g, (_, _prefix, key) => {
         const val = inputs[key];
         if (val === undefined) return '';
         if (typeof val === 'object') return JSON.stringify(val);
@@ -112,7 +120,7 @@ function interpolateTemplate(template: string, inputs: Record<string, any>): str
  */
 function interpolateHeaders(
     headers: Record<string, string>,
-    inputs: Record<string, any>
+    inputs: Record<string, unknown>
 ): Record<string, string> {
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {

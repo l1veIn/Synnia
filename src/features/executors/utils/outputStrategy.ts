@@ -34,7 +34,7 @@ export function inferValueType(nodeType: string, explicit?: OutputValueType): Ou
 /**
  * Check if new data is compatible with existing schema (loose matching).
  * Compatible if all keys in new data exist in existing schema.
- * 
+ *
  * @param existingSchema - Schema of the existing asset
  * @param newData - New data to merge
  * @returns true if compatible

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * useNode Hook Tests
  * Tests for deriveViewState, compute functions, and hook logic

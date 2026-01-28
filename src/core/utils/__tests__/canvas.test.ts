@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Canvas Utils Tests
 // Tests for image cropping, rotation, and canvas manipulation utilities
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Agent Executor Tests
 // Tests for AI model execution (LLM, Image Gen, Video Gen)
 

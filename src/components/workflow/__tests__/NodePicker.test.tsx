@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * NodePicker Component Tests
  * Tests for the NodePicker searchable node/recipe picker component

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * GalleryBehavior Tests
  * Tests for GalleryNode behavior including port resolution

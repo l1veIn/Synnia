@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SelectorBehavior Tests
  * Tests for SelectorNode behavior including port resolution

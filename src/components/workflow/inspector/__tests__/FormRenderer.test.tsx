@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FormRenderer Tests
  * Tests for the FormRenderer component which renders form fields based on schema

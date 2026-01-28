@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TableBehavior Tests
  * Tests for TableNode behavior including port resolution

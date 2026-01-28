@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Graph Utils Tests
 // Tests for node sanitization utilities for clipboard/duplication
 

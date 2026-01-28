@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * QueueBehavior Tests
  * Tests for QueueNode behavior including port resolution

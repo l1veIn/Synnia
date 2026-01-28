@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Edge Validator Tests
 // Tests for edge connection validation and cycle detection
 

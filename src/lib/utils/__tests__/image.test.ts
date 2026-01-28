@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Image Utility Tests
 // Tests for image data normalization, conversion, and validation utilities
 

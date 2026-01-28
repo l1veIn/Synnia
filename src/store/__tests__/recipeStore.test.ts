@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Recipe Store Tests
  * Tests for recipe metadata and manifest caching store

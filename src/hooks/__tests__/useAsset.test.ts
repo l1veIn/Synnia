@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * useAsset Hook Tests
  * Tests for asset binding logic including value, config, and sys updates

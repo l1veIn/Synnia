@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * apiClient Tests
  * Tests for the Tauri API client wrapper

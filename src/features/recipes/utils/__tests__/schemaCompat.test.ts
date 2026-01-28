@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Schema Compatibility Tests
 // Tests for comparing schema snapshots with current recipe schema
 

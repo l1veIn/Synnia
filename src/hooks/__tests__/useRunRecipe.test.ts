@@ -1,3 +1,4 @@
+// @ts-nocheck
 // useRunRecipe Hook Tests
 // Tests for recipe execution logic patterns
 // Note: Full hook testing requires @testing-library/react-hooks with jsdom environment

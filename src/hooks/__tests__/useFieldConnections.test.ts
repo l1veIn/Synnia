@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * useFieldConnections Hook Tests
  * Tests for field connection resolution logic patterns

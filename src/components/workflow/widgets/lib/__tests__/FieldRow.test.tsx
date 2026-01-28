@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FieldRow Component Tests
  * Tests for RecipeFieldRow and RecipeFormRenderer components

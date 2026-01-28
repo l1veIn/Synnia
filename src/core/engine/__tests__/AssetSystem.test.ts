@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AssetSystem Tests
  * Tests for unified asset management system

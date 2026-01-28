@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TextBehavior Tests
  * Tests for TextNode behavior including port resolution

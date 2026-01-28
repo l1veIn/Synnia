@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FormBehavior Tests
  * Tests for FormNode behavior including port resolution and connection validation

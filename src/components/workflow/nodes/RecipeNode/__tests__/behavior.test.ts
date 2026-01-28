@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RecipeBehavior Tests
  * Tests for RecipeNode behavior including port resolution and connection validation

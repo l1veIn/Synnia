@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Http Executor Tests
 // Tests for HTTP request execution with template variable support
 

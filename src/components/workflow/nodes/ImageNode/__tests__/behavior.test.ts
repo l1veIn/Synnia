@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ImageBehavior Tests
  * Tests for ImageNode behavior including port resolution

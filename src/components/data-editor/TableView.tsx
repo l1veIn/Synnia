@@ -4,9 +4,7 @@ import { getWidget } from '@/components/workflow/widgets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Edit2, Plus, Trash2, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Trash2, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export function TableView({ data, schema, onChange, onNavigate, path }: ViewProps) {

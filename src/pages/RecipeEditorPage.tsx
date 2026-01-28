@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,11 +8,9 @@ import {
     ChevronLeft,
     Save,
     FilePlus,
-    FolderPlus,
     RefreshCw,
     Play
 } from "lucide-react";
-import { SynniaIcon } from "@/components/SynniaIcon";
 import { apiClient } from '@/lib/apiClient';
 import { FileNode } from '@/types/recipe';
 import { toast } from "sonner";

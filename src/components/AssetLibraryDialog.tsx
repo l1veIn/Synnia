@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
-import { Image as ImageIcon, FileImage, Search, MapPin, Trash2, Loader2, FolderOpen, Upload, ChevronRight, ChevronDown, Copy, Code, X, Maximize2, Sparkles, Filter } from 'lucide-react';
+import { Image as ImageIcon, FileImage, Search, MapPin, Trash2, Loader2, Upload, ChevronRight, ChevronDown, Copy, Code, X, Maximize2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';

@@ -10,12 +10,12 @@ import { useAsset } from '@/hooks/useAsset';
 import { useInspector } from '@/hooks/useInspector';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, AlertCircle, FileText, Bot, MessageSquare, ScrollText, Code } from 'lucide-react';
+import { Save, AlertCircle, FileText, Bot, MessageSquare, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 import { FormRenderer } from '../../inspector/FormRenderer';
-import type { RecipeAssetConfig, ModelConfig, ChatMessage, RecipeExtra } from '@/features/recipes/types';
+import type { RecipeAssetConfig, ModelConfig, RecipeExtra } from '@/features/recipes/types';
 
 // Tab Components
 // Tab Components

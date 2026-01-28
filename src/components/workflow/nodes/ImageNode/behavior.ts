@@ -1,7 +1,7 @@
 import { NodeBehavior } from '@core/engine/types/behavior';
 import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import type { SynniaNode } from '@/types/project';
-import type { Asset, isRecordAsset } from '@/types/assets';
+import type { Asset } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
 
 /**

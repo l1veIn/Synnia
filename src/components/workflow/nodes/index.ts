@@ -6,8 +6,7 @@ import { FileText } from 'lucide-react';
 import { getSettings, getDefaultModel, isProviderConfigured } from '@/lib/settings';
 import { modelRegistry } from '@features/models';
 import type { ModelConfig } from '@/features/recipes/types';
-import type { RecipeManifest, RecipeDefinition } from '@/types/recipe';
-import type { FieldDefinition } from '@/types/assets';
+import type { RecipeManifest } from '@/types/recipe';
 
 // Import node definitions directly to avoid circular dependency
 import { definition as selectorDef } from './SelectorNode/definition';
@@ -16,7 +15,7 @@ import { definition as galleryDef } from './GalleryNode/definition';
 import { definition as formDef } from './FormNode/definition';
 import { definition as textDef } from './TextNode/definition';
 import { definition as imageDef } from './ImageNode/definition';
-import { definition as queueDef } from './QueueNode/definition';
+// import { definition as queueDef } from './QueueNode/definition';
 import { RecipeBehavior } from './RecipeNode/behavior';
 import { useRecipeStore } from '@/store/recipeStore';
 import { registerRecipe } from '@/features/recipes';
@@ -33,7 +32,7 @@ const staticDefinitions = [
     formDef,
     textDef,
     imageDef,
-    queueDef,
+    // queueDef,
 ];
 
 for (const def of staticDefinitions) {

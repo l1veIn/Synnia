@@ -9,7 +9,6 @@ import { Table as TableIcon, Trash2, ChevronDown, ChevronUp, Edit } from 'lucide
 import { DataEditorDialog } from '@/components/data-editor/DataEditorDialog';
 import { toast } from 'sonner';
 import { getWidget } from '@/components/workflow/widgets';
-import { cn } from '@/lib/utils';
 
 import { FieldDefinition } from '@/types/assets';
 

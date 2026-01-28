@@ -10,7 +10,6 @@ import "./index.css";
 import "@/lib/i18n";
 import { HashRouter, Route, Routes } from "react-router-dom"; // Import Navigate
 import { loadSettings } from "@/lib/settings";
-import { invoke } from "@tauri-apps/api/core";
 
 // Ignore ResizeObserver loop limit exceeded error
 const resizeObserverLoopErr = 'ResizeObserver loop completed with undelivered notifications.';

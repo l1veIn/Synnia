@@ -2,7 +2,7 @@
 // Visual display for array input fields with schema-based validation
 // Used when field.type === 'array' with connection input
 
-import { Link2, Check, AlertCircle, Table2, Plus } from 'lucide-react';
+import { Check, AlertCircle, Table2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WidgetDefinition, WidgetProps, FieldContentProps } from '../lib/types';
 import { graphEngine } from '@core/engine/GraphEngine';

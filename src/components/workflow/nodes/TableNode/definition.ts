@@ -1,6 +1,5 @@
 import { Table as TableIcon } from 'lucide-react';
 import { NodeType } from '@/types/project';
-import { FieldDefinition } from '@/types/assets';
 import type { NodeDefinition, CreateContext } from '@core/registry/NodeRegistry';
 import { TableNode } from './index';
 import { Inspector } from './Inspector';

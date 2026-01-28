@@ -5,7 +5,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { NodeType } from '@/types/project';
 import { open } from '@tauri-apps/plugin-dialog';
 import { graphEngine } from '@core/engine/GraphEngine';
-import { importHeavyNode, importHeavyNodeWithToast } from '@/lib/importHeavyNode';
+import { importHeavyNodeWithToast } from '@/lib/importHeavyNode';
 
 export function useCanvasLogic() {
   const setContextMenuTarget = useWorkflowStore(s => s.setContextMenuTarget);

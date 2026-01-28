@@ -13,7 +13,6 @@ import { lightTheme } from '@uiw/react-json-view/light';
 import { darkTheme } from '@uiw/react-json-view/dark';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface PortsDebugSectionProps {
     nodeId: string;

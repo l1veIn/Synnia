@@ -6,7 +6,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { NodePicker, NodePickerItem } from '../NodePicker';
+import { NodePickerItem } from '../NodePicker';
 import { Box, FileText, Wand2 } from 'lucide-react';
 
 // ============================================================================

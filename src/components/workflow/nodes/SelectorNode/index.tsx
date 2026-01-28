@@ -14,15 +14,13 @@ import { cn } from '@/lib/utils';
 import type {
     SelectorContent,
     SelectorOption,
-    ViewMode,
 } from './types';
 import {
     DEFAULT_OPTION_SCHEMA,
-    DEFAULT_FIELD_MAPPING,
     DEFAULT_CARD_LAYOUT,
     detectFieldMapping,
 } from './types';
-import { getViewComponent, BulkActions } from './views';
+import { viewRegistry, BulkActions } from './views';
 
 // Re-export for backward compatibility
 export type { SelectorOption, SelectorContent as SelectorAssetContent } from './types';
@@ -144,8 +142,8 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
         });
     }, [content.options, content.selected, state.asset?.config, updateConfig]);
 
-    // Get view component
-    const ViewComponent = getViewComponent(content.viewMode);
+    // Get view component - memoized to avoid creating during render
+    const ViewComponent = viewRegistry[content.viewMode] || viewRegistry.list;
 
     return (
         <NodeShell

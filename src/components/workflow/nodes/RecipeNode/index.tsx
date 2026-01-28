@@ -13,7 +13,6 @@ import { RecipeNodeInspector } from './Inspector';
 import { RecipeBehavior } from './behavior';
 import { getResolvedRecipe } from '@features/recipes';
 import { checkSchemaCompatibility } from '@features/recipes/utils/schemaCompat';
-import { modelRegistry } from '@features/models';
 import { portRegistry } from '@core/engine/ports';
 import { RecipeFormRenderer } from '@/components/workflow/widgets';
 

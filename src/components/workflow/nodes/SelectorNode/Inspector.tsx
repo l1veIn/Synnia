@@ -1,10 +1,9 @@
 import { useAsset } from '@/hooks/useAsset';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Save, AlertCircle } from 'lucide-react';
 import { DEFAULT_OPTION_SCHEMA, ViewMode, FieldMapping, CardLayoutConfig, DEFAULT_CARD_LAYOUT, detectFieldMapping } from './types';
-import type { SelectorOption, SelectorContent as SelectorAssetContent } from './types';
+import type { SelectorOption } from './types';
 import { FormRenderer } from '@/components/workflow/inspector/FormRenderer';
 import { FieldDefinition } from '@/types/assets';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';

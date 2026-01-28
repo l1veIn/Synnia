@@ -2,7 +2,7 @@
 // Visual display for object input fields with schema-based validation
 // Used when field.type === 'object' with connection input
 
-import { Link2, Check, X, AlertCircle, Braces, Plus } from 'lucide-react';
+import { Check, X, AlertCircle, Braces, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WidgetDefinition, WidgetProps, FieldContentProps } from '../lib/types';
 import { graphEngine } from '@core/engine/GraphEngine';

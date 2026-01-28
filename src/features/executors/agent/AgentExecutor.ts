@@ -4,7 +4,7 @@
 
 import { ExecutionContext, ExecutionResult, RecipeManifest } from '@/types/recipe';
 import { modelRegistry } from '@features/models';
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult } from '@features/models/types';
+import { ModelExecutionInput, ModelExecutionResult } from '@features/models/types';
 import { getSettings, getProviderCredentials } from '@/lib/settings';
 import { interpolate } from '@features/recipes/promptUtils';
 import { extractJson } from '@features/models/utils';

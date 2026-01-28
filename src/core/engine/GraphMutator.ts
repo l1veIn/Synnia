@@ -1,5 +1,5 @@
 import { GraphEngine } from './GraphEngine';
-import { SynniaNode, NodeType } from '@/types/project';
+import { SynniaNode } from '@/types/project';
 import { ValueType, FieldDefinition } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';

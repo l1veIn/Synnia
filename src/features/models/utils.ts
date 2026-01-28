@@ -58,7 +58,7 @@ export function extractJson(text: string): { data: any; success: boolean } {
 // Recipe V2: Model Capability Utilities
 // ============================================================================
 
-import type { ModelPlugin, ModelCapability } from './types';
+import type { ModelCapability } from './types';
 import { modelRegistry } from './index';
 
 /**

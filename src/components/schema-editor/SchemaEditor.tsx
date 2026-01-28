@@ -5,13 +5,10 @@ import { SchemaEditorProps } from './types';
 import { SchemaEditorDialog } from './SchemaEditorDialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-    Maximize2, Edit2, LayoutList,
+import { Edit2, LayoutList,
     ArrowDownToLine, ArrowUpFromLine
 } from 'lucide-react';
 import { widgetRegistry } from '@/components/workflow/widgets';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { FieldDefinition } from '@/types/assets';
 import { useTranslation } from 'react-i18next';
 

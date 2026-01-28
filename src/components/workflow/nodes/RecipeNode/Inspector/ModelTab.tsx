@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { modelRegistry, ModelCategory, ProviderType } from '@features/models';
 import { PROVIDER_INFO } from '@features/models/providers';
-import { useSettings, ProviderKey, isProviderConfigured, getDefaultModel } from '@/lib/settings';
+import { useSettings, ProviderKey, isProviderConfigured } from '@/lib/settings';
 import type { ModelConfig } from '@/features/recipes/types';
 import type { ModelCapability } from '@features/models/types';
 import { hasAllCapabilities } from '@features/models/utils';

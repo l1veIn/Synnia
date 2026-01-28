@@ -1,11 +1,11 @@
 // SchemaEditorDialog - Full screen split configuration dialog
 
-import { PanelProps, SchemaEditorProps } from './types';
+import { SchemaEditorProps } from './types';
 import { SchemaJsonPanel } from './SchemaJsonPanel';
 import { SchemaVisualPanel } from './SchemaVisualPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { Maximize2, Minimize2, PanelLeftClose, PanelLeft, Code2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Code2 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';

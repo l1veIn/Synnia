@@ -1,7 +1,7 @@
 // Model Plugin Registry
 // Central registry for all model plugins (LLM + Media unified)
 
-import { ModelPlugin, ModelCategory, ModelCapability, ModelRegistry, ProviderType } from './types';
+import { ModelPlugin, ModelCategory, ModelCapability, ModelRegistry } from './types';
 
 // ============================================================================
 // Registry Implementation

@@ -15,7 +15,7 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useWorkflowStore } from "@/store/workflowStore";
 import { useReactFlow } from "@xyflow/react";
-import { NodeType, SynniaNode } from "@/types/project";
+import { SynniaNode } from "@/types/project";
 import { useNavigate } from "react-router-dom";
 import { Home, Image } from "lucide-react";
 import { toast } from "sonner";

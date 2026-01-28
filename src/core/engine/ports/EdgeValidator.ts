@@ -5,7 +5,7 @@ import { useWorkflowStore } from '@/store/workflowStore';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import type { ConnectionValidation } from './types';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
-import type { ConnectionContext, EngineContext } from '@core/engine/types/behavior';
+import type { ConnectionContext } from '@core/engine/types/behavior';
 
 // ============================================================================
 // Semantic Handle Constants

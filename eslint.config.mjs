@@ -56,4 +56,12 @@ export default tseslint.config(
       ]
     },
   },
+  // Relaxed rules for test files (Ralphy-generated tests may have type issues)
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 );

@@ -1,0 +1,27 @@
+# Progress Tracker
+
+## [2025-01-28] Task: src/components/workflow/__tests__/NodePicker.test.tsx
+
+### Completed Work
+- Implemented comprehensive test suite for NodePicker component
+- Created 43 tests covering:
+  - NodePickerItem interface validation
+  - Component props handling
+  - UI Preferences Store mock behavior
+  - NodeRegistry mock behavior
+  - Recipe Tree mock behavior
+  - Translation mock behavior
+  - Filtering logic (case-insensitive, by label/description/category)
+  - Recent nodes logic
+  - Recipe tree navigation
+  - Base node filtering (excluding hidden nodes, recipe: prefixed nodes)
+  - Search state management
+  - Handle select logic
+  - Folder navigation handlers
+
+### Test Results
+- All 43 tests passing
+- Linting completed with no errors (only pre-existing warnings)
+
+### Files Modified
+- src/components/workflow/__tests__/NodePicker.test.tsx (created)

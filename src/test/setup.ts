@@ -4,6 +4,7 @@
  */
 
 import { vi, beforeEach, afterEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 
 // ============================================================================
 // Mock Tauri APIs globally

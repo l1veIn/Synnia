@@ -27,8 +27,7 @@ export const definition: NodeDefinition = {
         const schemaFields = schema || DEFAULT_OPTION_SCHEMA;
         return {
             data: {
-                // Only UI state in node.data
-                selected: [] as string[],
+                // UI state only - all selection state is in asset.config.extra
             },
             asset: {
                 valueType: 'array' as const,
@@ -41,8 +40,18 @@ export const definition: NodeDefinition = {
                 config: {
                     schema: schemaFields,
                     extra: {
+                        // Selection
                         mode: 'multi' as const,
+                        selected: [] as string[],
+                        // View
+                        viewMode: 'list' as const,
+                        // UI toggles
                         showSearch: true,
+                        showBulkActions: false,
+                        // Field mapping (auto-detected, user can override)
+                        fieldMapping: undefined,
+                        // CardView layout
+                        cardLayout: undefined,
                     },
                 },
             },

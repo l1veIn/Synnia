@@ -23,14 +23,15 @@ export const SelectorBehavior: NodeBehavior = {
     ): PortValue | null => {
         if (!asset?.value) return null;
 
-        // Parse items and selectedIds from different asset formats
+        // Parse items and selectedIds from asset
         let items: any[] = [];
         let selectedIds: string[] = [];
 
         if (Array.isArray(asset.value)) {
-            // V3 format: items in asset.value, selected in node.data
+            // Current format: items in asset.value, selected in asset.config.extra
             items = asset.value;
-            selectedIds = (node.data as any)?.selected || [];
+            const config = asset.config as any;
+            selectedIds = config?.extra?.selected || [];
         } else {
             // Legacy format: options and selected in asset.value
             const content = asset.value as any;

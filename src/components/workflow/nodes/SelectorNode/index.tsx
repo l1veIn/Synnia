@@ -5,39 +5,49 @@ import { NodeShell } from '../primitives/NodeShell';
 import { NodeHeader, NodeHeaderAction } from '../primitives/NodeHeader';
 import { NodePort } from '../primitives/NodePort';
 import { useNode } from '@/hooks/useNode';
-import { List, Trash2, ChevronDown, ChevronUp, Check, Search } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useAsset } from '@/hooks/useAsset';
+import { List, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+// Import types and views
+import type {
+    SelectorContent,
+    SelectorOption,
+    ViewMode,
+} from './types';
+import {
+    DEFAULT_OPTION_SCHEMA,
+    DEFAULT_FIELD_MAPPING,
+    DEFAULT_CARD_LAYOUT,
+    detectFieldMapping,
+} from './types';
+import { getViewComponent, BulkActions } from './views';
 
-
-// Import types for local use
-import { SelectorOption, SelectorAssetContent, DEFAULT_OPTION_SCHEMA } from './types';
-
-// Re-export types for backward compatibility
-export type { SelectorOption, SelectorAssetContent } from './types';
+// Re-export for backward compatibility
+export type { SelectorOption, SelectorContent as SelectorAssetContent } from './types';
 export { DEFAULT_OPTION_SCHEMA } from './types';
 
 // --- Node Component ---
 export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
     const { state, actions } = useNode(id);
+    const assetId = state.node?.data.assetId;
+    const { updateConfig } = useAsset(assetId);
     const updateNodeInternals = useUpdateNodeInternals();
-    const [expandedOptions, setExpandedOptions] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         updateNodeInternals(id);
     }, [state.isCollapsed, id, updateNodeInternals]);
 
-    // Get content with defaults - normalized: value is options[], config.extra has settings
-    const content: SelectorAssetContent = useMemo(() => {
+    // Get content with full defaults
+    const content: SelectorContent = useMemo(() => {
         const raw = state.asset?.value;
         const config = (state.asset?.config as any) || {};
         const extra = config.extra || {};
-        const nodeData = state.node?.data as any;
+        const schema = config.schema ?? DEFAULT_OPTION_SCHEMA;
 
-        // value is always the options array
+        // Parse options
         let options: SelectorOption[] = [];
         if (Array.isArray(raw)) {
             options = raw.map((item: any, i: number) => ({
@@ -46,30 +56,25 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
             }));
         }
 
-        // settings from config.extra
+        // Auto-detect field mapping if not set
+        const detectedMapping = detectFieldMapping(schema);
+        const userMapping = extra.fieldMapping || {};
+
         return {
             mode: extra.mode ?? 'multi',
+            viewMode: extra.viewMode ?? 'list',
             showSearch: extra.showSearch ?? true,
-            schema: config.schema ?? DEFAULT_OPTION_SCHEMA,
+            showBulkActions: extra.showBulkActions ?? false,
+            schema,
             options,
-            selected: nodeData?.selected || [],
+            selected: extra.selected || [],
+            fieldMapping: { ...detectedMapping, ...userMapping },
+            cardLayout: { ...DEFAULT_CARD_LAYOUT, ...extra.cardLayout },
         };
-    }, [state.asset?.value, state.asset?.config, state.node?.data]);
+    }, [state.asset?.value, state.asset?.config]);
 
     // Local search state
     const [searchQuery, setSearchQuery] = useState('');
-
-    // Get display label for an option (first string field in schema, or id)
-    const getOptionLabel = useCallback((option: SelectorOption): string => {
-        const schema = content.schema;
-        // Find first string field value
-        for (const field of schema) {
-            if (field.type === 'string' && option[field.key]) {
-                return String(option[field.key]);
-            }
-        }
-        return option.id;
-    }, [content.schema]);
 
     // Filter options by search
     const filteredOptions = useMemo(() => {
@@ -88,7 +93,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     }, [content.options, content.schema, searchQuery]);
 
     // Toggle option selection
-    const toggleOption = (optionId: string) => {
+    const handleSelect = useCallback((optionId: string) => {
         if (state.isReference) return;
 
         let newSelected: string[];
@@ -100,27 +105,47 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
                 : [...content.selected, optionId];
         }
 
-        actions.updateData({ selected: newSelected });
-    };
-
-    // Toggle option expansion
-    const toggleExpand = (optionId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setExpandedOptions(prev => {
-            const next = new Set(prev);
-            if (next.has(optionId)) {
-                next.delete(optionId);
-            } else {
-                next.add(optionId);
-            }
-            return next;
+        // Update config.extra with new selected
+        const config = (state.asset?.config as any) || {};
+        updateConfig({
+            ...config,
+            extra: {
+                ...config.extra,
+                selected: newSelected,
+            },
         });
-    };
+    }, [state.isReference, content.mode, content.selected, state.asset?.config, updateConfig]);
 
-    // Check if option has extra data to show
-    const hasExtraData = useMemo(() => {
-        return content.schema.length > 1;
-    }, [content.schema]);
+    // Bulk actions
+    const handleSelectAll = useCallback(() => {
+        const allIds = content.options.map(o => o.id);
+        const config = (state.asset?.config as any) || {};
+        updateConfig({
+            ...config,
+            extra: { ...config.extra, selected: allIds },
+        });
+    }, [content.options, state.asset?.config, updateConfig]);
+
+    const handleSelectNone = useCallback(() => {
+        const config = (state.asset?.config as any) || {};
+        updateConfig({
+            ...config,
+            extra: { ...config.extra, selected: [] },
+        });
+    }, [state.asset?.config, updateConfig]);
+
+    const handleInvertSelection = useCallback(() => {
+        const currentSet = new Set(content.selected);
+        const inverted = content.options.filter(o => !currentSet.has(o.id)).map(o => o.id);
+        const config = (state.asset?.config as any) || {};
+        updateConfig({
+            ...config,
+            extra: { ...config.extra, selected: inverted },
+        });
+    }, [content.options, content.selected, state.asset?.config, updateConfig]);
+
+    // Get view component
+    const ViewComponent = getViewComponent(content.viewMode);
 
     return (
         <NodeShell
@@ -139,7 +164,7 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
                 onResizeEnd={(_e, params) => actions.resize(params.width, params.height)}
             />
 
-            {/* Origin Handle - shown when this is a recipe product */}
+            {/* Origin Handle */}
             <NodePort.Origin show={state.hasProductHandle} />
 
             <NodeHeader
@@ -160,104 +185,57 @@ export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
 
             {!state.isCollapsed && (
                 <div className="p-2 flex-1 flex flex-col overflow-hidden gap-2">
-                    {/* Search */}
-                    {content.showSearch && (
-                        <div className="relative shrink-0">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="h-7 pl-7 text-xs"
-                            />
+                    {/* Toolbar: Search + Bulk Actions */}
+                    {(content.showSearch || content.showBulkActions) && content.viewMode !== 'combobox' && (
+                        <div className="flex items-center justify-between gap-2 shrink-0 px-1 pt-1 pb-2">
+                            {content.showSearch && (
+                                <div className="relative flex-1 min-w-0">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
+                                    <Input
+                                        placeholder="Search options..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="h-8 pl-8 pr-2 w-full text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background transition-colors rounded-md"
+                                    />
+                                </div>
+                            )}
+
+                            {content.showBulkActions && content.mode === 'multi' && (
+                                <BulkActions
+                                    onSelectAll={handleSelectAll}
+                                    onSelectNone={handleSelectNone}
+                                    onInvertSelection={handleInvertSelection}
+                                    selectedCount={content.selected.length}
+                                    totalCount={content.options.length}
+                                    mode={content.mode}
+                                    className="shrink-0"
+                                />
+                            )}
                         </div>
                     )}
 
-                    {/* Options list */}
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
-                        {filteredOptions.length === 0 ? (
-                            <div className="text-xs text-muted-foreground text-center py-4">
-                                {content.options.length === 0 ? 'No options. Configure in Inspector.' : 'No matches found'}
-                            </div>
-                        ) : (
-                            filteredOptions.map((option) => {
-                                const isSelected = content.selected.includes(option.id);
-                                const isExpanded = expandedOptions.has(option.id);
-
-                                return (
-                                    <div key={option.id} className="border rounded overflow-hidden">
-                                        {/* Option row */}
-                                        <div
-                                            className={cn(
-                                                "flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-muted/50 transition-colors",
-                                                isSelected && "bg-primary/10"
-                                            )}
-                                            onClick={() => toggleOption(option.id)}
-                                        >
-                                            {content.mode === 'multi' ? (
-                                                <Checkbox checked={isSelected} className="h-3.5 w-3.5" />
-                                            ) : (
-                                                <div className={cn(
-                                                    "h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center",
-                                                    isSelected ? "border-primary bg-primary" : "border-muted-foreground"
-                                                )}>
-                                                    {isSelected && <Check className="h-2 w-2 text-primary-foreground" />}
-                                                </div>
-                                            )}
-
-                                            <span className="text-xs flex-1 truncate">{getOptionLabel(option)}</span>
-
-                                            {/* Expand button when there's extra data */}
-                                            {hasExtraData && (
-                                                <button
-                                                    className="p-0.5 hover:bg-muted rounded text-muted-foreground"
-                                                    onClick={(e) => toggleExpand(option.id, e)}
-                                                    title="Show details"
-                                                >
-                                                    <ChevronDown className={cn(
-                                                        "h-3.5 w-3.5 transition-transform",
-                                                        isExpanded && "rotate-180"
-                                                    )} />
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Expanded details */}
-                                        {isExpanded && hasExtraData && (
-                                            <div className="px-2 py-1.5 bg-muted/30 border-t space-y-1">
-                                                {content.schema.slice(1).map(field => {
-                                                    const val = option[field.key];
-                                                    if (val === undefined || val === null || val === '') return null;
-
-                                                    return (
-                                                        <div key={field.key} className="flex items-start gap-2 text-[10px]">
-                                                            <span className="text-muted-foreground shrink-0">{field.label}:</span>
-                                                            {field.widget === 'color' ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <div
-                                                                        className="h-3 w-3 rounded border"
-                                                                        style={{ backgroundColor: String(val) }}
-                                                                    />
-                                                                    <span className="font-mono">{String(val)}</span>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="truncate">{String(val)}</span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
+                    {/* View Content */}
+                    <div className={cn(
+                        'flex-1 min-h-0 overflow-y-auto',
+                        content.viewMode !== 'combobox' && 'pr-1' // Scrollbar padding for non-combobox
+                    )}>
+                        <ViewComponent
+                            options={filteredOptions}
+                            selected={content.selected}
+                            onSelect={handleSelect}
+                            mode={content.mode}
+                            schema={content.schema}
+                            fieldMapping={content.fieldMapping}
+                            searchQuery={searchQuery}
+                            isDisabled={state.isReference}
+                            cardLayout={content.cardLayout}
+                        />
                     </div>
 
                     {/* Footer */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground shrink-0 pt-1 border-t">
                         <span>{content.selected.length} selected</span>
-                        <span className="opacity-50">{content.mode}</span>
+                        <span className="opacity-50 capitalize">{content.viewMode}</span>
                     </div>
                 </div>
             )}
@@ -279,4 +257,3 @@ SelectorNode.displayName = 'SelectorNode';
 export { Inspector } from './Inspector';
 export { definition } from './definition';
 export { SelectorNode as Node };
-

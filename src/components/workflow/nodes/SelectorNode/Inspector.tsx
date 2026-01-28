@@ -1,11 +1,10 @@
 import { useAsset } from '@/hooks/useAsset';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Save, AlertCircle, Trash2, Edit, GripVertical } from 'lucide-react';
-import { SelectorAssetContent, SelectorOption, DEFAULT_OPTION_SCHEMA } from './types';
-import { SchemaBuilder } from '@/components/workflow/inspector/SchemaBuilder';
+import { Save, AlertCircle } from 'lucide-react';
+import { DEFAULT_OPTION_SCHEMA, ViewMode, FieldMapping, CardLayoutConfig, DEFAULT_CARD_LAYOUT, detectFieldMapping } from './types';
+import type { SelectorOption, SelectorContent as SelectorAssetContent } from './types';
 import { FormRenderer } from '@/components/workflow/inspector/FormRenderer';
 import { FieldDefinition } from '@/types/assets';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -13,8 +12,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { AutoGenerateButton } from '@/components/ui/auto-generate-button';
 import { useTranslation } from 'react-i18next';
+import { OptionsTab, SchemaTab, SettingsTab } from './Inspector/index';
+import type { SelectorInspectorContext } from './Inspector/types';
 
 interface InspectorProps {
     assetId: string;
@@ -25,14 +25,21 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     const { t } = useTranslation('inspector');
     const { asset, setValue, updateConfig } = useAsset(assetId);
 
-    // Get config from normalized structure: schema at top level, settings in extra
+    // Get config from normalized structure
     const config = useMemo(() => {
         const cfg = (asset?.config as any) || {};
         const extra = cfg.extra || {};
+        const schema = cfg.schema ?? DEFAULT_OPTION_SCHEMA;
+        const detectedMapping = detectFieldMapping(schema);
+
         return {
             mode: extra.mode ?? 'multi' as 'single' | 'multi',
+            viewMode: extra.viewMode ?? 'list' as ViewMode,
             showSearch: extra.showSearch ?? true,
-            schema: cfg.schema ?? DEFAULT_OPTION_SCHEMA,
+            showBulkActions: extra.showBulkActions ?? false,
+            schema,
+            fieldMapping: { ...detectedMapping, ...extra.fieldMapping } as FieldMapping,
+            cardLayout: { ...DEFAULT_CARD_LAYOUT, ...extra.cardLayout } as CardLayoutConfig,
         };
     }, [asset?.config]);
 
@@ -47,18 +54,13 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         return [];
     }, [asset?.value]);
 
-    // For backward compatibility with savedContent usage in existing code
-    const savedContent: SelectorAssetContent = useMemo(() => ({
-        mode: config.mode,
-        showSearch: config.showSearch,
-        schema: config.schema,
-        options,
-        selected: [],  // Selected is now in node.data, not asset
-    }), [config, options]);
-
     // Draft state for settings
     const [draftMode, setDraftMode] = useState<'single' | 'multi'>('multi');
+    const [draftViewMode, setDraftViewMode] = useState<ViewMode>('list');
     const [draftShowSearch, setDraftShowSearch] = useState(true);
+    const [draftShowBulkActions, setDraftShowBulkActions] = useState(false);
+    const [draftFieldMapping, setDraftFieldMapping] = useState<Partial<FieldMapping>>({});
+    const [draftCardLayout, setDraftCardLayout] = useState<Partial<CardLayoutConfig>>({});
     const [draftSchema, setDraftSchema] = useState<FieldDefinition[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
 
@@ -70,38 +72,55 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     // Initialize draft from saved
     useEffect(() => {
         if (!isInitialized && asset) {
-            setDraftMode(savedContent.mode);
-            setDraftShowSearch(savedContent.showSearch);
-            setDraftSchema(savedContent.schema);
+            setDraftMode(config.mode);
+            setDraftViewMode(config.viewMode);
+            setDraftShowSearch(config.showSearch);
+            setDraftShowBulkActions(config.showBulkActions);
+            setDraftFieldMapping(config.fieldMapping);
+            setDraftCardLayout(config.cardLayout);
+            setDraftSchema(config.schema);
             setIsInitialized(true);
         }
-    }, [savedContent, isInitialized, asset]);
+    }, [config, isInitialized, asset]);
 
     // Reset on asset change
     useEffect(() => {
-        setDraftMode(savedContent.mode);
-        setDraftShowSearch(savedContent.showSearch);
-        setDraftSchema(savedContent.schema);
+        setDraftMode(config.mode);
+        setDraftViewMode(config.viewMode);
+        setDraftShowSearch(config.showSearch);
+        setDraftShowBulkActions(config.showBulkActions);
+        setDraftFieldMapping(config.fieldMapping);
+        setDraftCardLayout(config.cardLayout);
+        setDraftSchema(config.schema);
         setIsInitialized(true);
     }, [assetId]);
 
     // Check for settings changes
     const hasSettingsChanges = useMemo(() => {
         if (!isInitialized) return false;
-        return draftMode !== savedContent.mode ||
-            draftShowSearch !== savedContent.showSearch ||
-            JSON.stringify(draftSchema) !== JSON.stringify(savedContent.schema);
-    }, [draftMode, draftShowSearch, draftSchema, savedContent, isInitialized]);
+        return draftMode !== config.mode ||
+            draftViewMode !== config.viewMode ||
+            draftShowSearch !== config.showSearch ||
+            draftShowBulkActions !== config.showBulkActions ||
+            JSON.stringify(draftFieldMapping) !== JSON.stringify(config.fieldMapping) ||
+            JSON.stringify(draftCardLayout) !== JSON.stringify(config.cardLayout) ||
+            JSON.stringify(draftSchema) !== JSON.stringify(config.schema);
+    }, [draftMode, draftViewMode, draftShowSearch, draftShowBulkActions, draftFieldMapping, draftCardLayout, draftSchema, config, isInitialized]);
 
-    // Save settings - schema at top level, mode/showSearch in extra
+    // Save settings
     const handleSaveSettings = () => {
         const currentConfig = asset?.config as any || {};
         updateConfig({
             ...currentConfig,
             schema: draftSchema,
             extra: {
+                ...currentConfig.extra,
                 mode: draftMode,
+                viewMode: draftViewMode,
                 showSearch: draftShowSearch,
+                showBulkActions: draftShowBulkActions,
+                fieldMapping: draftFieldMapping,
+                cardLayout: draftCardLayout,
             },
         });
         toast.success(t('changesSaved'));
@@ -109,17 +128,20 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
     // Discard settings
     const handleDiscardSettings = () => {
-        setDraftMode(savedContent.mode);
-        setDraftShowSearch(savedContent.showSearch);
-        setDraftSchema(savedContent.schema);
+        setDraftMode(config.mode);
+        setDraftViewMode(config.viewMode);
+        setDraftShowSearch(config.showSearch);
+        setDraftShowBulkActions(config.showBulkActions);
+        setDraftFieldMapping(config.fieldMapping);
+        setDraftCardLayout(config.cardLayout);
+        setDraftSchema(config.schema);
         toast.info(t('changesDiscarded'));
     };
 
-    // Add new option
+    // Option handlers
     const handleAddOption = () => {
         const newOption: SelectorOption = { id: uuidv4() };
-        // Set defaults from schema
-        savedContent.schema.forEach(field => {
+        config.schema.forEach((field: FieldDefinition) => {
             newOption[field.key] = field.defaultValue ?? '';
         });
         setEditingOption(newOption);
@@ -127,7 +149,6 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         setIsOptionDialogOpen(true);
     };
 
-    // Edit existing option
     const handleEditOption = (optionId: string) => {
         const option = options.find(o => o.id === optionId);
         if (option) {
@@ -137,14 +158,12 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         }
     };
 
-    // Delete option - saves only options array to asset.value
     const handleDeleteOption = (optionId: string) => {
         const newOptions = options.filter(o => o.id !== optionId);
         setValue(newOptions);
         toast.success(t('selector.optionDeleted'));
     };
 
-    // Save option from dialog - saves only options array to asset.value
     const handleSaveOption = () => {
         if (!editingOption) return;
 
@@ -166,9 +185,8 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
         toast.success(exists ? t('selector.optionUpdated') : t('selector.optionAdded'));
     };
 
-    // Get display label for an option
     const getOptionLabel = (option: SelectorOption): string => {
-        for (const field of savedContent.schema) {
+        for (const field of config.schema) {
             if (field.type === 'string' && option[field.key]) {
                 return String(option[field.key]);
             }
@@ -177,6 +195,25 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
     };
 
     if (!asset) return <div className="p-4 text-xs">{t('assetNotFound')}</div>;
+
+    // Build context for tab components
+    const ctx: SelectorInspectorContext = {
+        options,
+        schema: config.schema,
+        draftMode, setDraftMode,
+        draftViewMode, setDraftViewMode,
+        draftShowSearch, setDraftShowSearch,
+        draftShowBulkActions, setDraftShowBulkActions,
+        draftFieldMapping, setDraftFieldMapping,
+        draftCardLayout, setDraftCardLayout,
+        draftSchema, setDraftSchema,
+        setValue,
+        updateConfig,
+        onAddOption: handleAddOption,
+        onEditOption: handleEditOption,
+        onDeleteOption: handleDeleteOption,
+        getOptionLabel,
+    };
 
     return (
         <div className="flex flex-col h-full">
@@ -187,131 +224,16 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
                     <TabsTrigger value="settings" className="flex-1 text-xs">{t('selector.settings')}</TabsTrigger>
                 </TabsList>
 
-                {/* Options Tab */}
                 <TabsContent value="options" className="flex-1 flex flex-col min-h-0 m-0">
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {/* Add buttons */}
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                className="flex-1"
-                                onClick={handleAddOption}
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                {t('selector.addOption')}
-                            </Button>
-                            <AutoGenerateButton
-                                mode="table-full"
-                                count={30}
-                                onGenerate={(result) => {
-                                    // Map table-full result to selector format
-                                    const { columns, rows } = result;
-                                    const newSchema = columns.map((c: any) => ({
-                                        id: c.key,
-                                        key: c.key,
-                                        label: c.label,
-                                        type: c.type || 'string',
-                                    }));
-                                    const newOptions = rows.map((r: any, idx: number) => ({
-                                        id: uuidv4(),
-                                        ...r,
-                                    }));
-                                    setDraftSchema(newSchema);
-                                    updateConfig({ schema: newSchema });
-                                    setValue([...options, ...newOptions]);
-                                    toast.success(t('selector.addedOptions', { count: newOptions.length }));
-                                }}
-                                placeholder="Describe the selector options (e.g., 'color options with name and hex code')..."
-                                buttonLabel="+ Generate"
-                                buttonVariant="outline"
-                                buttonSize="default"
-                            />
-                        </div>
-
-                        {/* Options list */}
-                        <div className="space-y-1">
-                            {options.length === 0 ? (
-                                <div className="text-xs text-muted-foreground text-center py-8 border rounded-md border-dashed">
-                                    {t('selector.noOptions')}
-                                </div>
-                            ) : (
-                                options.map((option, idx) => (
-                                    <div
-                                        key={option.id}
-                                        className="flex items-center gap-2 p-2 border rounded-md bg-muted/30 hover:bg-muted/50"
-                                    >
-                                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab shrink-0" />
-                                        <span className="text-xs flex-1 truncate">{getOptionLabel(option)}</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0"
-                                            onClick={() => handleEditOption(option.id)}
-                                        >
-                                            <Edit className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0 hover:text-destructive"
-                                            onClick={() => handleDeleteOption(option.id)}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        {/* Selection info */}
-                        <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                            {t('selector.selectedOf', { selected: 0, total: options.length })}
-                        </div>
-                    </div>
+                    <OptionsTab ctx={ctx} />
                 </TabsContent>
 
-                {/* Schema Tab */}
                 <TabsContent value="schema" className="flex-1 flex flex-col min-h-0 m-0">
-                    <div className="flex-1 overflow-y-auto p-4">
-                        <SchemaBuilder
-                            schema={draftSchema}
-                            onChange={setDraftSchema}
-                        />
-                    </div>
+                    <SchemaTab ctx={ctx} />
                 </TabsContent>
 
-                {/* Settings Tab */}
                 <TabsContent value="settings" className="flex-1 flex flex-col min-h-0 m-0">
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {/* Mode */}
-                        <div className="space-y-2">
-                            <Label className="text-xs">{t('selector.selectionMode')}</Label>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant={draftMode === 'single' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    className="flex-1 h-8 text-xs"
-                                    onClick={() => setDraftMode('single')}
-                                >
-                                    {t('selector.single')}
-                                </Button>
-                                <Button
-                                    variant={draftMode === 'multi' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    className="flex-1 h-8 text-xs"
-                                    onClick={() => setDraftMode('multi')}
-                                >
-                                    {t('selector.multiple')}
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Show Search */}
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs">{t('selector.showSearch')}</Label>
-                            <Switch checked={draftShowSearch} onCheckedChange={setDraftShowSearch} />
-                        </div>
-                    </div>
+                    <SettingsTab ctx={ctx} />
                 </TabsContent>
             </Tabs>
 
@@ -358,7 +280,7 @@ export function Inspector({ assetId, nodeId }: InspectorProps) {
 
                     <div className="py-4">
                         <FormRenderer
-                            schema={savedContent.schema}
+                            schema={config.schema}
                             values={draftOptionValues}
                             onChange={setDraftOptionValues}
                         />

@@ -60,7 +60,7 @@ pub struct ToolDefinition {
 }
 
 /// Request payload for bot chat
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BotChatRequest {
     pub messages: Vec<BotMessage>,
     pub system_prompt: String,

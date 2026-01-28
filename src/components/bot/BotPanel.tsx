@@ -1,10 +1,12 @@
 import { useBotStore } from '@/store/botStore';
-import { MessageSquare, X, HelpCircle } from 'lucide-react';
+import { MessageSquare, X, HelpCircle, Palette } from 'lucide-react';
 import { BotChat } from './BotChat';
 import { BotHandle } from './BotHandle';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShortcutsModal } from './ShortcutsModal';
-import { BotRuntimeProvider } from '@/features/bot';
+import { BotRuntimeProvider, BotThemeProvider, BotThemeCustomizer } from '@/features/bot';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 /**
  * BotPanel - Left-side collapsible panel for AI Assistant
@@ -16,6 +18,7 @@ import { BotRuntimeProvider } from '@/features/bot';
  */
 export function BotPanel() {
   const { isPanelOpen, closePanel, openShortcutsModal } = useBotStore();
+  const [themeCustomizerOpen, setThemeCustomizerOpen] = useState(false);
 
   // When closed, only show the handle
   if (!isPanelOpen) {
@@ -25,8 +28,9 @@ export function BotPanel() {
   return (
     <>
       <BotRuntimeProvider>
-        {/* Panel */}
-        <aside
+        <BotThemeProvider>
+          {/* Panel */}
+          <aside
           className="
             fixed left-0 top-0 h-full w-[400px]
             bg-background border-r shadow-lg
@@ -68,6 +72,19 @@ export function BotPanel() {
           <div className="flex-1 overflow-hidden">
             <BotChat />
           </div>
+
+          {/* Theme Customizer Button */}
+          <div className="p-2 border-t flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setThemeCustomizerOpen(true)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Palette className="w-3 h-3 mr-1" />
+              Customize Theme
+            </Button>
+          </div>
         </aside>
 
         {/* Handle (visible on the edge for quick access) */}
@@ -87,12 +104,16 @@ export function BotPanel() {
           </button>
         </div>
 
-        {/* Confirmation Dialog for dangerous operations */}
-        <ConfirmDialog />
+          {/* Confirmation Dialog for dangerous operations */}
+          <ConfirmDialog />
+        </BotThemeProvider>
       </BotRuntimeProvider>
 
       {/* Shortcuts Modal (rendered outside BotRuntimeProvider) */}
       <ShortcutsModal />
+
+      {/* Theme Customizer Modal (rendered outside providers) */}
+      <BotThemeCustomizer open={themeCustomizerOpen} onOpenChange={setThemeCustomizerOpen} />
     </>
   );
 }

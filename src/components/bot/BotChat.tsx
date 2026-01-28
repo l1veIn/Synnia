@@ -3,8 +3,9 @@
  *
  * Provides the chat UI for the AI Assistant Bot.
  * Uses the BotRuntime context for message management.
+ * Supports theme customization via BotThemeProvider.
  *
- * Phase 4: Basic chat interface with message display and input
+ * Phase 9: Added theme customization support
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -13,9 +14,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBotRuntime } from '@/features/bot';
+import { useBotTheme } from '@/features/bot/theme';
 
 export function BotChat() {
     const { messages, sendMessage, isLoading } = useBotRuntime();
+    const { theme, userMessageStyle, assistantMessageStyle } = useBotTheme();
     const [inputValue, setInputValue] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -81,13 +84,31 @@ export function BotChat() {
                             <div
                                 key={message.id}
                                 className={cn(
-                                    'p-3 rounded-lg max-w-[85%] text-sm',
-                                    message.role === 'user'
-                                        ? 'bg-primary text-primary-foreground ml-auto'
-                                        : 'bg-muted'
+                                    'rounded-lg max-w-[85%] text-sm',
+                                    message.role === 'user' ? 'ml-auto' : ''
                                 )}
+                                style={
+                                    theme.useCustomColors
+                                        ? message.role === 'user'
+                                            ? userMessageStyle
+                                            : assistantMessageStyle
+                                        : undefined
+                                }
                             >
-                                <div className="whitespace-pre-wrap break-words">
+                                <div
+                                    className={cn(
+                                        'whitespace-pre-wrap break-words',
+                                        !theme.useCustomColors &&
+                                            (message.role === 'user'
+                                                ? 'bg-primary text-primary-foreground p-3 rounded-lg'
+                                                : 'bg-muted p-3 rounded-lg')
+                                    )}
+                                    style={{
+                                        padding: theme.useCustomColors ? 'var(--bot-message-padding)' : undefined,
+                                        fontSize: theme.useCustomColors ? 'var(--bot-font-size)' : undefined,
+                                        fontFamily: theme.useCustomColors ? 'var(--bot-font-family)' : undefined,
+                                    }}
+                                >
                                     {message.content}
                                 </div>
                             </div>
@@ -96,10 +117,20 @@ export function BotChat() {
 
                     {/* AI Typing Indicator */}
                     {isLoading && (
-                        <div className="p-3 rounded-lg max-w-[85%] bg-muted text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Thinking...</span>
+                        <div
+                            className="rounded-lg max-w-[85%] text-sm"
+                            style={theme.useCustomColors ? assistantMessageStyle : undefined}
+                        >
+                            <div
+                                className={cn(!theme.useCustomColors && 'bg-muted p-3 rounded-lg')}
+                                style={{
+                                    padding: theme.useCustomColors ? 'var(--bot-message-padding)' : undefined,
+                                }}
+                            >
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Thinking...</span>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -107,7 +138,10 @@ export function BotChat() {
             </ScrollArea>
 
             {/* Input Area */}
-            <div className="border-t p-3 flex items-end gap-2 bg-background">
+            <div
+                className="border-t flex items-end gap-2 bg-background"
+                style={{ padding: theme.useCustomColors ? 'var(--bot-input-padding)' : undefined }}
+            >
                 <textarea
                     ref={textareaRef}
                     value={inputValue}
@@ -117,14 +151,16 @@ export function BotChat() {
                     disabled={isLoading}
                     rows={1}
                     className={cn(
-                        "flex-1 resize-none rounded-md border bg-muted/50 px-3 py-2 text-sm",
-                        "placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                        isLoading && "opacity-50 cursor-not-allowed"
+                        'flex-1 resize-none rounded-md border bg-muted/50 px-3 py-2',
+                        'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                     style={{
                         minHeight: '36px',
                         maxHeight: '80px',
-                        overflowY: inputValue.split('\n').length > 4 ? 'auto' : 'hidden'
+                        overflowY: inputValue.split('\n').length > 4 ? 'auto' : 'hidden',
+                        fontSize: theme.useCustomColors ? 'var(--bot-input-font-size)' : undefined,
+                        fontFamily: theme.useCustomColors ? 'var(--bot-font-family)' : undefined,
                     }}
                 />
 

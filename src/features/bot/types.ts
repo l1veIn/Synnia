@@ -36,6 +36,7 @@ export interface ToolCall {
   name: string;
   arguments: Record<string, unknown>;
   result?: unknown;
+  error?: string;
 }
 
 // ============================================================================

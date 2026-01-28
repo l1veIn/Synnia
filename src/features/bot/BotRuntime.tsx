@@ -2,19 +2,18 @@
  * Bot Runtime - AI Assistant Runtime Provider
  *
  * Provides the runtime context for the AI Bot feature using assistant-ui.
- * For Phase 4, this is a simplified implementation that will be extended
- * in later phases with full tool calling and persistence.
  *
- * Phase 4 Scope:
+ * Phase 5 Scope:
  * - Basic chat interface with Thread component
- * - Simple echo response from backend
- * - No tools yet (Phase 5)
+ * - Tool calling support with 6 core tools
+ * - Integration with BotToolkit
  * - No persistence yet (Phase 6)
  */
 
 import { ReactNode, createContext, useContext, useCallback, useState } from 'react';
 import { apiClient } from '@/lib/apiClient';
 import { DEFAULT_SYSTEM_PROMPT, type BotMessage, type BotMessageRole } from './types';
+import { getAllBotToolDefinitions, executeBotTool } from './BotToolkit';
 
 // ============================================
 // Context Types
@@ -53,13 +52,40 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
         setIsLoading(true);
 
         try {
+            // Get tool definitions for this request
+            const tools = getAllBotToolDefinitions();
+
             // Call the backend bot_chat command
             const response = await apiClient.botChat({
                 messages: [...messages, userMessage],
                 systemPrompt: DEFAULT_SYSTEM_PROMPT,
-                tools: [], // Tools will be added in Phase 5
+                tools,
                 modelId: undefined,
             });
+
+            // Process tool calls if present
+            let processedToolCalls: BotMessage['toolCalls'] = [];
+            if (response.toolCalls && response.toolCalls.length > 0) {
+                processedToolCalls = await Promise.all(
+                    response.toolCalls.map(async (toolCall: unknown) => {
+                        const tc = toolCall as { name: string; arguments: Record<string, unknown>; id: string };
+                        try {
+                            const result = await executeBotTool(tc.name, tc.arguments);
+                            return {
+                                ...tc,
+                                result,
+                            };
+                        } catch (error) {
+                            return {
+                                ...tc,
+                                result: {
+                                    error: error instanceof Error ? error.message : String(error),
+                                },
+                            };
+                        }
+                    })
+                );
+            }
 
             // Add assistant message
             const assistantMessage: BotMessage = {
@@ -67,7 +93,7 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
                 role: response.message.role as BotMessageRole,
                 content: response.message.content,
                 timestamp: response.message.timestamp,
-                toolCalls: response.toolCalls as BotMessage['toolCalls'],
+                toolCalls: processedToolCalls,
             };
 
             setMessages(prev => [...prev, assistantMessage]);

@@ -6,3 +6,4 @@
 
 export { BotRuntimeProvider, useBotRuntime } from './BotRuntime';
 export * from './types';
+export * from './BotToolkit';

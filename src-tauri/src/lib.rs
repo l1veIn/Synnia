@@ -175,6 +175,9 @@ pub fn run() {
             features::operations::logs::get_log_entries,
             features::operations::logs::clear_execution_logs,
 
+            // Bot commands
+            features::bot::bot_chat,
+
             // Recipe commands
             features::recipe::commands::list_recipe_directory,
             features::recipe::commands::get_recipe_file_tree,

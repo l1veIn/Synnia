@@ -260,6 +260,40 @@ export const apiClient = {
      */
     fetchImageAsBase64: (url: string): Promise<{ success: boolean; data?: string; error?: string; contentType?: string }> =>
         apiClient.invoke('fetch_image_as_base64', { url }),
+
+    // ========================================
+    // Bot Commands
+    // ========================================
+
+    /**
+     * Send a chat request to the AI Bot.
+     * Returns a response message with optional tool calls.
+     */
+    botChat: (request: {
+        messages: Array<{
+            id: string;
+            role: 'user' | 'assistant' | 'system';
+            content: string;
+            timestamp: number;
+            toolCalls?: unknown[];
+            metadata?: Record<string, unknown>;
+        }>;
+        systemPrompt: string;
+        tools: Array<{
+            name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+        }>;
+        modelId?: string;
+    }): Promise<{
+        message: {
+            id: string;
+            role: 'user' | 'assistant' | 'system';
+            content: string;
+            timestamp: number;
+        };
+        toolCalls?: unknown[];
+    }> => apiClient.invoke('bot_chat', { request }),
 };
 
 // ============================================

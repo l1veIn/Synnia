@@ -2,12 +2,15 @@ import { useBotStore } from '@/store/botStore';
 import { MessageSquare, X } from 'lucide-react';
 import { BotChat } from './BotChat';
 import { BotHandle } from './BotHandle';
+import { BotRuntimeProvider } from '@/features/bot';
 
 /**
  * BotPanel - Left-side collapsible panel for AI Assistant
  *
  * When closed: Shows BotHandle (icon button on left edge)
  * When open: Slides in from left with 400px width
+ *
+ * Wraps the chat interface with BotRuntimeProvider for state management.
  */
 export function BotPanel() {
   const { isPanelOpen, closePanel } = useBotStore();
@@ -18,7 +21,7 @@ export function BotPanel() {
   }
 
   return (
-    <>
+    <BotRuntimeProvider>
       {/* Panel */}
       <aside
         className={`
@@ -69,6 +72,6 @@ export function BotPanel() {
           <X className="w-4 h-4" />
         </button>
       </div>
-    </>
+    </BotRuntimeProvider>
   );
 }

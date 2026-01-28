@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { useHistory } from '@/hooks/useHistory';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { useBotStore } from '@/store/botStore';
 
 export function useGlobalShortcuts(onSave?: () => void) {
   const { getNodes, getEdges, deleteElements } = useReactFlow();
@@ -38,6 +39,16 @@ export function useGlobalShortcuts(onSave?: () => void) {
       }
 
       if (event.metaKey || event.ctrlKey) {
+        // Toggle Bot Panel (Cmd+K / Ctrl+K)
+        if (event.code === 'KeyK') {
+          event.preventDefault();
+          useBotStore.getState().togglePanel();
+        }
+        // Show Shortcuts Modal (Cmd+/ / Ctrl+/)
+        else if (event.key === '/') {
+          event.preventDefault();
+          useBotStore.getState().openShortcutsModal();
+        }
         // Save (Cmd+S)
         if (event.code === 'KeyS') {
           event.preventDefault();

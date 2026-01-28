@@ -28,11 +28,14 @@ const mockStore = {
         onConfirm: null as (() => void) | null,
         onCancel: null as (() => void) | null,
     },
+    shortcutsModalOpen: false,
     closeConfirmDialog: mockCloseConfirmDialog,
     togglePanel: vi.fn(),
     openPanel: vi.fn(),
     closePanel: vi.fn(),
     showConfirmDialog: vi.fn(),
+    openShortcutsModal: vi.fn(),
+    closeShortcutsModal: vi.fn(),
 };
 
 vi.mocked(useBotStore).mockImplementation((selector) => {

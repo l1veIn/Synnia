@@ -2,6 +2,7 @@ import { useBotStore } from '@/store/botStore';
 import { MessageSquare, X } from 'lucide-react';
 import { BotChat } from './BotChat';
 import { BotHandle } from './BotHandle';
+import { ConfirmDialog } from './ConfirmDialog';
 import { BotRuntimeProvider } from '@/features/bot';
 
 /**
@@ -72,6 +73,9 @@ export function BotPanel() {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Confirmation Dialog for dangerous operations */}
+      <ConfirmDialog />
     </BotRuntimeProvider>
   );
 }

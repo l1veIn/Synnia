@@ -7,13 +7,18 @@
  * - Basic chat interface with Thread component
  * - Tool calling support with 6 core tools
  * - Integration with BotToolkit
- * - No persistence yet (Phase 6)
+ *
+ * Phase 6 Scope:
+ * - Chat history persistence
+ * - Auto-save on message changes
+ * - Load history on mount
  */
 
-import { ReactNode, createContext, useContext, useCallback, useState } from 'react';
+import { ReactNode, createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/apiClient';
 import { DEFAULT_SYSTEM_PROMPT, type BotMessage, type BotMessageRole } from './types';
 import { getAllBotToolDefinitions, executeBotTool } from './BotToolkit';
+import { botHistoryAdapter } from './persistence';
 
 // ============================================
 // Context Types
@@ -23,6 +28,8 @@ interface BotRuntimeContextValue {
     messages: BotMessage[];
     sendMessage: (content: string) => Promise<void>;
     isLoading: boolean;
+    clearHistory: () => Promise<void>;
+    sessionId: string | null;
 }
 
 const BotRuntimeContext = createContext<BotRuntimeContextValue | null>(null);
@@ -35,9 +42,48 @@ interface BotRuntimeProviderProps {
     children: ReactNode;
 }
 
+// Track if we're in the middle of loading/saving to prevent loops
+let isInitializing = false;
+
 export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
     const [messages, setMessages] = useState<BotMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const isMountedRef = useRef(true);
+
+    // Initialize: load history on mount
+    useEffect(() => {
+        if (isMountedRef.current && !isInitializing) {
+            isInitializing = true;
+
+            botHistoryAdapter.init()
+                .then(() => {
+                    if (!isMountedRef.current) return;
+
+                    const loadedMessages = botHistoryAdapter.getCurrentMessages();
+                    const currentSessionId = botHistoryAdapter.getCurrentSessionId();
+
+                    setMessages(loadedMessages);
+                    setSessionId(currentSessionId);
+
+                    console.log('[BotRuntime] Initialized with session:', currentSessionId, 'messages:', loadedMessages.length);
+                })
+                .catch((error) => {
+                    console.error('[BotRuntime] Failed to initialize persistence:', error);
+                })
+                .finally(() => {
+                    isInitializing = false;
+                });
+        }
+
+        // Cleanup on unmount
+        return () => {
+            isMountedRef.current = false;
+            botHistoryAdapter.cleanup();
+            // Force save on unmount
+            botHistoryAdapter.forceSave().catch(console.error);
+        };
+    }, []);
 
     const sendMessage = useCallback(async (content: string) => {
         // Add user message
@@ -48,7 +94,9 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
             timestamp: Date.now(),
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        const updatedMessages = [...messages, userMessage];
+        setMessages(updatedMessages);
+        botHistoryAdapter.addMessage(userMessage);
         setIsLoading(true);
 
         try {
@@ -57,7 +105,7 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
 
             // Call the backend bot_chat command
             const response = await apiClient.botChat({
-                messages: [...messages, userMessage],
+                messages: updatedMessages,
                 systemPrompt: DEFAULT_SYSTEM_PROMPT,
                 tools,
                 modelId: undefined,
@@ -97,6 +145,7 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
             };
 
             setMessages(prev => [...prev, assistantMessage]);
+            botHistoryAdapter.addMessage(assistantMessage);
         } catch (error) {
             console.error('[BotRuntime] Failed to send message:', error);
 
@@ -109,15 +158,24 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
             };
 
             setMessages(prev => [...prev, errorMessage]);
+            botHistoryAdapter.addMessage(errorMessage);
         } finally {
             setIsLoading(false);
         }
     }, [messages]);
 
+    const clearHistory = useCallback(async () => {
+        await botHistoryAdapter.clearCurrentSession();
+        setMessages([]);
+        setSessionId(botHistoryAdapter.getCurrentSessionId());
+    }, []);
+
     const value: BotRuntimeContextValue = {
         messages,
         sendMessage,
         isLoading,
+        clearHistory,
+        sessionId,
     };
 
     return (

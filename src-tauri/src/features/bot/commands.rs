@@ -4,10 +4,13 @@
 //! with the Synnia canvas.
 
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+use tauri::State;
 
-use crate::core::AppError;
+use crate::core::{AppError, AppState};
+use super::persistence::{self, BotHistorySession};
 
 // ============================================
 // Types
@@ -23,8 +26,8 @@ pub enum BotMessageRole {
 }
 
 /// A single message in the bot conversation
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+/// Note: Does not derive TS because serde_json::Value doesn't implement TS
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BotMessage {
     pub id: String,
     pub role: BotMessageRole,
@@ -37,8 +40,8 @@ pub struct BotMessage {
 }
 
 /// A tool call made by the AI
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+/// Note: Does not derive TS because serde_json::Value doesn't implement TS
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub id: String,
     pub name: String,
@@ -48,8 +51,8 @@ pub struct ToolCall {
 }
 
 /// Tool definition passed to the AI
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
+/// Note: Does not derive TS because serde_json::Value doesn't implement TS
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
@@ -57,8 +60,7 @@ pub struct ToolDefinition {
 }
 
 /// Request payload for bot chat
-#[derive(Debug, Deserialize, TS)]
-#[ts(export)]
+#[derive(Debug, Deserialize)]
 pub struct BotChatRequest {
     pub messages: Vec<BotMessage>,
     pub system_prompt: String,
@@ -68,12 +70,24 @@ pub struct BotChatRequest {
 }
 
 /// Response from bot chat
-#[derive(Debug, Serialize, TS)]
-#[ts(export)]
+#[derive(Debug, Serialize)]
 pub struct BotChatResponse {
     pub message: BotMessage,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
+}
+
+/// Request to save bot history
+#[derive(Debug, Deserialize)]
+pub struct SaveBotHistoryRequest {
+    pub session_id: String,
+    pub messages: Vec<BotMessage>,
+}
+
+/// Response from loading bot history
+#[derive(Debug, Serialize)]
+pub struct LoadBotHistoryResponse {
+    pub session: Option<BotHistorySession>,
 }
 
 // ============================================
@@ -123,6 +137,97 @@ pub async fn bot_chat(request: BotChatRequest) -> Result<BotChatResponse, AppErr
         message: response_message,
         tool_calls: None,
     })
+}
+
+/// Save bot chat history to disk.
+///
+/// Stores the conversation in `{project}/.synnia/chat/{session_id}.json`.
+///
+/// Phase 6: Persistence implementation.
+#[tauri::command]
+pub async fn save_bot_history(
+    state: State<'_, AppState>,
+    request: SaveBotHistoryRequest,
+) -> Result<(), AppError> {
+    let project_path_guard = state.current_project_path.lock().unwrap();
+    let project_path = project_path_guard
+        .as_ref()
+        .ok_or_else(|| AppError::NotFound("No project loaded".to_string()))?;
+
+    let project_root = std::path::Path::new(project_path);
+    persistence::save_chat_history(project_root, &request.session_id, &request.messages)
+        .map_err(|e| AppError::Database(e))?;
+
+    Ok(())
+}
+
+/// Load bot chat history from disk.
+///
+/// Phase 6: Persistence implementation.
+#[tauri::command]
+pub async fn load_bot_history(
+    state: State<'_, AppState>,
+    session_id: Option<String>,
+) -> Result<LoadBotHistoryResponse, AppError> {
+    let project_path_guard = state.current_project_path.lock().unwrap();
+    let project_path = project_path_guard
+        .as_ref()
+        .ok_or_else(|| AppError::NotFound("No project loaded".to_string()))?;
+
+    let project_root = std::path::Path::new(project_path);
+
+    let session = if let Some(sid) = session_id {
+        // Load specific session
+        Some(persistence::load_chat_history(project_root, &sid)
+            .map_err(|e| AppError::Database(e))?)
+    } else {
+        // Load most recent session
+        persistence::load_recent_chat_history(project_root)
+            .map_err(|e| AppError::Database(e))?
+    };
+
+    Ok(LoadBotHistoryResponse { session })
+}
+
+/// List all bot chat sessions.
+///
+/// Returns metadata for all chat sessions in the project.
+///
+/// Phase 6: Persistence implementation.
+#[tauri::command]
+pub async fn list_bot_sessions(
+    state: State<'_, AppState>,
+) -> Result<Vec<persistence::BotSessionMeta>, AppError> {
+    let project_path_guard = state.current_project_path.lock().unwrap();
+    let project_path = project_path_guard
+        .as_ref()
+        .ok_or_else(|| AppError::NotFound("No project loaded".to_string()))?;
+
+    let project_root = std::path::Path::new(project_path);
+    let sessions = persistence::list_chat_sessions(project_root)
+        .map_err(|e| AppError::Database(e))?;
+
+    Ok(sessions)
+}
+
+/// Delete a bot chat session.
+///
+/// Phase 6: Persistence implementation.
+#[tauri::command]
+pub async fn delete_bot_session(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<(), AppError> {
+    let project_path_guard = state.current_project_path.lock().unwrap();
+    let project_path = project_path_guard
+        .as_ref()
+        .ok_or_else(|| AppError::NotFound("No project loaded".to_string()))?;
+
+    let project_root = std::path::Path::new(project_path);
+    persistence::delete_chat_session(project_root, &session_id)
+        .map_err(|e| AppError::Database(e))?;
+
+    Ok(())
 }
 
 // ============================================

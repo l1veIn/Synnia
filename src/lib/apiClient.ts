@@ -294,6 +294,58 @@ export const apiClient = {
         };
         toolCalls?: unknown[];
     }> => apiClient.invoke('bot_chat', { request }),
+
+    /**
+     * Save bot chat history to disk.
+     * Stores conversation in {project}/.synnia/chat/{session_id}.json
+     */
+    saveBotHistory: (request: {
+        sessionId: string;
+        messages: Array<{
+            id: string;
+            role: 'user' | 'assistant' | 'system';
+            content: string;
+            timestamp: number;
+            toolCalls?: unknown[];
+            metadata?: Record<string, unknown>;
+        }>;
+    }): Promise<void> => apiClient.invoke('save_bot_history', { request }),
+
+    /**
+     * Load bot chat history from disk.
+     * If sessionId is not provided, loads the most recent session.
+     */
+    loadBotHistory: (sessionId?: string): Promise<{
+        session: {
+            id: string;
+            createdAt: number;
+            updatedAt: number;
+            messages: Array<{
+                id: string;
+                role: 'user' | 'assistant' | 'system';
+                content: string;
+                timestamp: number;
+                toolCalls?: unknown[];
+                metadata?: Record<string, unknown>;
+            }>;
+        } | null;
+    } | null> => apiClient.invoke('load_bot_history', { sessionId }),
+
+    /**
+     * List all bot chat sessions.
+     */
+    listBotSessions: (): Promise<Array<{
+        id: string;
+        createdAt: number;
+        updatedAt: number;
+        messageCount: number;
+    }>> => apiClient.invoke('list_bot_sessions'),
+
+    /**
+     * Delete a bot chat session.
+     */
+    deleteBotSession: (sessionId: string): Promise<void> =>
+        apiClient.invoke('delete_bot_session', { sessionId }),
 };
 
 // ============================================

@@ -105,6 +105,9 @@ export interface HttpExecutorConfig {
     method?: 'GET' | 'POST';
     timeout?: number;
     headers?: Record<string, string>;
+    body?: string | object;
+    /** Use Tauri backend proxy to bypass CORS restrictions */
+    useProxy?: boolean;
 }
 
 // Discriminated union - TypeScript auto-narrows based on `type`

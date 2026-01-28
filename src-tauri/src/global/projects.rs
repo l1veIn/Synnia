@@ -206,3 +206,14 @@ pub fn get_project_by_path(conn: &Connection, path: &str) -> Result<Option<Proje
         Err(e) => Err(AppError::Database(format!("Failed to get project: {}", e))),
     }
 }
+
+/// Update the thumbnail for a project.
+/// The thumbnail should be a base64-encoded data URL (e.g., "data:image/png;base64,...").
+pub fn update_thumbnail(conn: &Connection, path: &str, thumbnail: Option<&str>) -> Result<(), AppError> {
+    conn.execute(
+        "UPDATE projects SET thumbnail = ?1 WHERE path = ?2",
+        params![thumbnail, path]
+    ).map_err(|e| AppError::Database(format!("Failed to update thumbnail: {}", e)))?;
+    
+    Ok(())
+}

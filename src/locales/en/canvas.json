@@ -8,7 +8,14 @@
     "duplicate": "Duplicate",
     "nodeActions": "Node Actions",
     "paste": "Paste",
-    "selectionActions": "Selection Actions"
+    "selectionActions": "Selection Actions",
+    "setAsThumbnail": "Set as Project Thumbnail",
+    "settingThumbnail": "Setting as project thumbnail...",
+    "thumbnailSet": "Project thumbnail updated!",
+    "thumbnailFailed": "Failed to set thumbnail",
+    "noAssetFound": "No asset found",
+    "assetMissing": "Asset missing",
+    "invalidAsset": "Invalid asset"
   },
   "nodePicker": {
     "basicNodes": "Basic Nodes",

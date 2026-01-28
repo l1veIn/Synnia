@@ -282,7 +282,7 @@ Zustand store 测试。
   - 测试值绑定
 
 ### Node Picker
-- [ ] `src/components/workflow/__tests__/NodePicker.test.tsx`
+- [x] `src/components/workflow/__tests__/NodePicker.test.tsx`
   - 测试节点搜索
   - 测试节点分类
 

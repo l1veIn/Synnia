@@ -205,22 +205,20 @@ async function processOutput(
                 const imageId = `gen-${Date.now()}-${idx}`;
                 const caption = (prompt || '').slice(0, 50);
                 try {
-                    let saveResult;
-                    if (img.url.startsWith('data:')) {
-                        saveResult = await apiClient.saveProcessedImage(img.url);
-                    } else if (img.url.startsWith('http')) {
-                        saveResult = await apiClient.downloadAndSaveImage(img.url);
+                    // Use unified importResource for both data: URLs and http: URLs
+                    if (img.url.startsWith('data:') || img.url.startsWith('http')) {
+                        const saveResult = await apiClient.importResource(img.url);
+                        // Use assetId for GalleryNode reference pattern
+                        return {
+                            id: imageId,
+                            mediaAssetId: saveResult.assetId,
+                            starred: false,
+                            caption
+                        };
                     } else {
                         // Local path - no asset created, fallback to legacy format
                         return { id: imageId, src: img.url, starred: false, caption };
                     }
-                    // Use assetId for GalleryNode reference pattern
-                    return {
-                        id: imageId,
-                        mediaAssetId: saveResult.assetId,
-                        starred: false,
-                        caption
-                    };
                 } catch (err) {
                     console.error('Failed to save image:', err);
                     // Fallback to URL on error

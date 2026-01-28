@@ -65,3 +65,21 @@ pub struct CleanupOrphansResult {
     pub deleted_count: u32,
     pub deleted_asset_ids: Vec<String>,
 }
+
+/// Unified response from import_resource command
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportResourceResult {
+    /// Asset ID in the database
+    pub asset_id: String,
+    /// Media type category: "image", "audio", "video", "document", "unknown"
+    pub media_type: String,
+    /// MIME type: "image/png", "audio/mp3", etc.
+    pub mime_type: String,
+    /// Relative path within the project (e.g., "assets/xxx.png")
+    pub relative_path: String,
+    /// Thumbnail path if generated
+    pub thumbnail_path: Option<String>,
+    /// Type-specific metadata (width/height for images, duration for audio/video, etc.)
+    pub metadata: serde_json::Value,
+}

@@ -17,7 +17,7 @@ pub fn create_media_asset(
     let asset_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
     
-    let value_json = serde_json::json!(relative_path).to_string();
+    let value_json = serde_json::json!({ "src": relative_path }).to_string();
     let value_hash = hash::compute_content_hash(&value_json);
     
     let config_json = serde_json::json!({

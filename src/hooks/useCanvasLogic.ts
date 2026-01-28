@@ -3,10 +3,9 @@ import { useReactFlow, XYPosition } from '@xyflow/react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useHistory } from '@/hooks/useHistory';
 import { NodeType } from '@/types/project';
-import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-dialog';
-import { apiClient } from '@/lib/apiClient';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { importHeavyNode, importHeavyNodeWithToast } from '@/lib/importHeavyNode';
 
 export function useCanvasLogic() {
   const setContextMenuTarget = useWorkflowStore(s => s.setContextMenuTarget);
@@ -69,47 +68,17 @@ export function useCanvasLogic() {
 
   /**
    * Unified image addition handler.
+   * Uses the new importHeavyNode interface for all import scenarios.
+   * 
    * @param pos - Optional position for the new image node
    * @param file - Optional File object (for drag-drop scenarios). If provided, skips file dialog.
    */
   const handleAddImage = useCallback(async (pos?: XYPosition, file?: File) => {
-    const STD_WIDTH = 240;
-    const STD_HEIGHT = 240;
     const targetPos = pos || { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 };
 
-    // Helper: process a File object (browser File API)
-    const processFile = async (fileToProcess: File) => {
-      const toastId = toast.loading(`Importing ${fileToProcess.name}...`);
-      try {
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target?.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsDataURL(fileToProcess);
-        });
-
-        // Save via backend (creates asset in DB and returns assetId)
-        const result = await apiClient.saveProcessedImage(base64, fileToProcess.name);
-
-        // IMPORTANT: Backend already created the asset. Use assetId to reference it.
-        graphEngine.mutator.createSmart({
-          assetId: result.assetId,  // Reuse backend-created asset
-          node: 'image',
-          name: fileToProcess.name,
-          position: targetPos,
-          style: { width: STD_WIDTH, height: STD_HEIGHT }
-        });
-
-        toast.success(`Imported ${fileToProcess.name}`, { id: toastId });
-      } catch (err) {
-        console.error('Failed to import image:', err);
-        toast.error(`Failed to import image`, { id: toastId });
-      }
-    };
-
-    // If a File is provided (drag-drop), process it directly
+    // If a File is provided (drag-drop from web), use unified import
     if (file) {
-      await processFile(file);
+      await importHeavyNodeWithToast(file, { position: targetPos });
       return;
     }
 
@@ -117,35 +86,16 @@ export function useCanvasLogic() {
     const isTauri = !!(window as any).__TAURI_INTERNALS__;
 
     if (isTauri) {
-      try {
-        const selected = await open({
-          multiple: false,
-          filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
-        });
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      });
 
-        if (!selected) return;
-        const filePath = selected as string;
+      if (!selected) return;
+      const filePath = selected as string;
 
-        const toastId = toast.loading("Processing image...");
-
-        // Import file via backend (saves file, generates thumbnail, AND creates asset in DB)
-        const result = await apiClient.importFile(filePath);
-
-        // IMPORTANT: Backend already created the asset. Use assetId to reference it,
-        // don't create a new one via createSmart with value.
-        graphEngine.mutator.createSmart({
-          assetId: result.assetId,  // Reuse backend-created asset
-          node: 'image',
-          name: filePath.split(/[/\\]/).pop(),
-          position: targetPos,
-          style: { width: STD_WIDTH, height: STD_HEIGHT }
-        });
-
-        toast.success("Image imported", { id: toastId });
-      } catch (e) {
-        console.error(e);
-        toast.error("Import failed: " + String(e));
-      }
+      // Use unified import with toast
+      await importHeavyNodeWithToast(filePath, { position: targetPos });
     } else {
       // Web fallback: use file input dialog
       const input = document.createElement('input');
@@ -154,7 +104,7 @@ export function useCanvasLogic() {
       input.onchange = async (e) => {
         const selectedFile = (e.target as HTMLInputElement).files?.[0];
         if (selectedFile) {
-          await processFile(selectedFile);
+          await importHeavyNodeWithToast(selectedFile, { position: targetPos });
         }
       };
       input.click();

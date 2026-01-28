@@ -3,8 +3,7 @@ import { useReactFlow } from '@xyflow/react';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { useCanvasLogic } from './useCanvasLogic';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { apiClient } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { importHeavyNodeWithToast } from '@/lib/importHeavyNode';
 
 interface DragDropPayload {
   paths: string[];
@@ -41,7 +40,6 @@ export function useFileUploadDrag() {
         if (!paths || paths.length === 0) return;
 
         // Use viewport center as default position for dropped files
-        // Access via ref to get the latest function
         const centerPosition = screenToFlowPositionRef.current({
           x: window.innerWidth / 2,
           y: window.innerHeight / 2,
@@ -54,32 +52,13 @@ export function useFileUploadDrag() {
           const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext);
 
           if (isImage) {
-            const fileName = filePath.split(/[/\\]/).pop() || 'image';
-            const toastId = toast.loading(`Importing ${fileName}...`);
-
-            try {
-              // Use backend import_file command
-              const result = await apiClient.importFile(filePath);
-
-              // Sync backend-created asset to frontend store before creating node
-              await syncAssetFromBackend(result.assetId);
-
-              graphEngine.mutator.createSmart({
-                assetId: result.assetId,
-                node: 'image',
-                name: fileName,
-                position: { x: centerPosition.x + offset, y: centerPosition.y + offset },
-                style: { width: 240, height: 240 }
-              });
-
-              toast.success(`Imported ${fileName}`, { id: toastId });
-              offset += 30;
-            } catch (e) {
-              console.error('Failed to import image:', e);
-              toast.error(`Failed to import ${fileName}`, { id: toastId });
-            }
+            // Use unified import with toast
+            await importHeavyNodeWithToast(filePath, {
+              position: { x: centerPosition.x + offset, y: centerPosition.y + offset },
+            });
+            offset += 30;
           }
-          // TODO: Add text file support when @tauri-apps/plugin-fs is installed
+          // TODO: Add audio/video support using importHeavyNode
         }
       });
     };
@@ -87,7 +66,6 @@ export function useFileUploadDrag() {
     setupListener();
 
     // Cleanup: only unregister if this is a real unmount (not Strict Mode remount)
-    // Note: We don't reset globalListenerSetup here to prevent re-registration
     return () => {
       // In development with Strict Mode, this cleanup will run between mount cycles
       // We intentionally don't call globalUnlisten here to keep the listener active
@@ -161,56 +139,4 @@ export function useFileUploadDrag() {
   );
 
   return { onDragOver, onDrop };
-}
-
-/**
- * Sync a single asset from backend to frontend Zustand store.
- * Called after import_file creates an asset that doesn't exist in the frontend.
- */
-async function syncAssetFromBackend(assetId: string): Promise<void> {
-  try {
-    // Fetch asset details from backend
-    const resp = await apiClient.getMediaAssets({ ids: [assetId] });
-    const assetInfo = resp.items[0];
-
-    if (!assetInfo) {
-      console.warn('[syncAssetFromBackend] Asset not found in backend:', assetId);
-      return;
-    }
-
-    // Create the asset in frontend store with the backend data
-    const { useWorkflowStore } = await import('@/store/workflowStore');
-    const { assets } = useWorkflowStore.getState();
-
-    // Only add if not already present
-    if (!assets[assetId]) {
-      useWorkflowStore.setState({
-        assets: {
-          ...assets,
-          [assetId]: {
-            id: assetId,
-            valueType: 'record',
-            value: { src: assetInfo.content },
-            config: {
-              meta: {
-                preview: assetInfo.thumbnailPath,
-                width: assetInfo.width,
-                height: assetInfo.height,
-              }
-            },
-            sys: {
-              name: assetInfo.name,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-              source: 'import',
-              isLibraryAsset: true,
-            }
-          } as any  // Type assertion to bypass complex config type checking
-        }
-      });
-      console.log('[syncAssetFromBackend] Synced asset to store:', assetId);
-    }
-  } catch (e) {
-    console.error('[syncAssetFromBackend] Failed:', e);
-  }
 }

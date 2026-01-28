@@ -8,7 +8,14 @@
     "duplicate": "创建副本",
     "nodeActions": "节点操作",
     "paste": "粘贴",
-    "selectionActions": "选区操作"
+    "selectionActions": "选区操作",
+    "setAsThumbnail": "设为项目封面",
+    "settingThumbnail": "正在设置项目封面...",
+    "thumbnailSet": "项目封面已更新！",
+    "thumbnailFailed": "设置封面失败",
+    "noAssetFound": "未找到资产",
+    "assetMissing": "资产丢失",
+    "invalidAsset": "无效资产"
   },
   "nodePicker": {
     "basicNodes": "基础节点",

@@ -3,7 +3,9 @@
 use tauri::{State, AppHandle, Emitter};
 use tauri::Manager;
 use std::path::PathBuf;
+use std::io::Cursor;
 use serde::{Deserialize, Serialize};
+use image::GenericImageView;
 
 use crate::core::{AppError, AppState};
 use crate::domain::SynniaProject;
@@ -20,6 +22,7 @@ use super::persistence;
 pub struct RecentProjectInfo {
     pub name: String,
     pub path: String,
+    pub thumbnail: Option<String>, // Base64 data URL
     pub last_opened: String, // ISO string for frontend
     pub is_pinned: bool,
     pub status: String,
@@ -30,6 +33,7 @@ impl From<projects::ProjectInfo> for RecentProjectInfo {
         RecentProjectInfo {
             name: p.name,
             path: p.path,
+            thumbnail: p.thumbnail,
             last_opened: chrono::DateTime::from_timestamp_millis(p.last_opened)
                 .map(|dt| dt.to_rfc3339())
                 .unwrap_or_default(),
@@ -339,9 +343,9 @@ pub fn open_in_browser(url: String) -> Result<(), AppError> {
 }
 
 #[tauri::command]
-pub fn set_thumbnail(
+pub async fn set_thumbnail(
     image_relative_path: String, 
-    state: State<AppState>
+    state: State<'_, AppState>
 ) -> Result<(), AppError> {
     let project_path = {
         let path_guard = state.current_project_path.lock()
@@ -349,16 +353,48 @@ pub fn set_thumbnail(
         path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
     };
 
-    let src = PathBuf::from(&project_path).join(&image_relative_path);
-    let dest = PathBuf::from(&project_path).join("thumbnail.png");
-    
-    if src.exists() {
-        std::fs::copy(src, dest)?;
-    } else {
-        return Err(AppError::NotFound("Image file not found".to_string()));
-    }
+    let project_path_clone = project_path.clone();
+    let image_path_clone = image_relative_path.clone();
 
-    Ok(())
+    tokio::task::spawn_blocking(move || {
+        let src = PathBuf::from(&project_path_clone).join(&image_path_clone);
+        
+        if !src.exists() {
+            return Err(AppError::NotFound("Image file not found".to_string()));
+        }
+
+        // Load the image
+        let img = image::open(&src)
+            .map_err(|e| AppError::Unknown(format!("Failed to open image: {}", e)))?;
+        
+        // Resize to 500x500 (cover mode - crop to square then resize)
+        let (w, h) = img.dimensions();
+        let min_dim = w.min(h);
+        let cropped = img.crop_imm(
+            (w - min_dim) / 2,
+            (h - min_dim) / 2,
+            min_dim,
+            min_dim
+        );
+        let resized = cropped.resize_exact(500, 500, image::imageops::FilterType::Lanczos3);
+        
+        // Encode to PNG and then base64
+        let mut buffer = Cursor::new(Vec::new());
+        resized.write_to(&mut buffer, image::ImageFormat::Png)
+            .map_err(|e| AppError::Unknown(format!("Failed to encode image: {}", e)))?;
+        
+        let base64_data = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            buffer.into_inner()
+        );
+        let data_url = format!("data:image/png;base64,{}", base64_data);
+        
+        // Save to global database
+        let conn = database::init_global_db()?;
+        projects::update_thumbnail(&conn, &project_path_clone, Some(&data_url))?;
+        
+        Ok(())
+    }).await.map_err(|e| AppError::Unknown(format!("Task panicked: {}", e)))?
 }
 
 // ============================================

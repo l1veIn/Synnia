@@ -131,13 +131,11 @@ pub fn run() {
             features::project::commands::rename_project,
 
             // Asset commands
-            features::asset::commands::import_file,
-            features::asset::commands::save_processed_image,
-            features::asset::commands::download_and_save_image,
-            features::asset::commands::batch_import_images,
-            features::asset::commands::get_media_assets,
-            features::asset::commands::delete_media_asset,
-            features::asset::commands::cleanup_orphan_assets,
+            features::asset::commands::import::import_resource,
+            features::asset::commands::import::batch_import_images,
+            features::asset::commands::query::get_media_assets,
+            features::asset::commands::delete::delete_media_asset,
+            features::asset::commands::delete::cleanup_orphan_assets,
 
             // History commands
             features::history::commands::save_asset,
@@ -163,12 +161,6 @@ pub fn run() {
             features::settings::commands::set_user_recipes_directory,
             features::settings::commands::get_setting,
             features::settings::commands::set_setting,
-
-            // Agent commands
-            features::agent::commands::run_agent,
-            features::agent::commands::get_agents,
-            features::agent::commands::save_agent,
-            features::agent::commands::delete_agent,
 
             // Operations: Chat
             features::operations::chat::get_chat_messages,

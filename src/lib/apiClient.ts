@@ -170,16 +170,19 @@ export const apiClient = {
     // Asset Commands
     // ========================================
 
-    /** Result from saving an image file */
-    importFile: (filePath: string): Promise<SaveImageResult> =>
-        apiClient.invoke('import_file', { filePath }),
-
     /**
-     * Save a processed image from base64 data.
-     * After image editing (crop, rotate, bg removal), call this to persist.
+     * Unified resource import command.
+     * @param source - File path, base64 data URL, or HTTP/HTTPS URL
+     * @param name - Optional custom name for the asset
      */
-    saveProcessedImage: (base64Data: string, filename?: string): Promise<SaveImageResult> =>
-        apiClient.invoke('save_processed_image', { base64Data, filename }),
+    importResource: (source: string, name?: string): Promise<{
+        assetId: string;
+        mediaType: string;
+        mimeType: string;
+        relativePath: string;
+        thumbnailPath: string | null;
+        metadata: { width?: number; height?: number;[key: string]: unknown };
+    }> => apiClient.invoke('import_resource', { source, name }),
 
     /**
      * Get all media assets (images, videos, audio) for the asset library.
@@ -189,14 +192,7 @@ export const apiClient = {
         apiClient.invoke('get_media_assets', { params }),
 
     /**
-     * Download an image from a URL and save it to the assets folder.
-     * Used for AI-generated images returned as HTTP URLs.
-     */
-    downloadAndSaveImage: (url: string, filename?: string): Promise<SaveImageResult> =>
-        apiClient.invoke('download_and_save_image', { url, filename }),
-
-    /**
-     * Batch import multiple image files from file system.
+     * Batch import multiple files from file system.
      * Returns results for each file, including errors.
      */
     batchImportImages: (filePaths: string[]): Promise<BatchImportResult[]> =>

@@ -46,15 +46,15 @@ export const Inspector = ({ assetId }: { assetId: string }) => {
                 const base64data = reader.result as string;
 
                 const { apiClient } = await import('@/lib/apiClient');
-                const result = await apiClient.saveProcessedImage(base64data);
+                const result = await apiClient.importResource(base64data);
 
                 // Update asset value with new src and dimensions
                 const currentValue = asset?.value as Record<string, any> || {};
                 setValue({
                     ...currentValue,
                     src: result.relativePath,
-                    width: result.width,
-                    height: result.height
+                    width: result.metadata.width,
+                    height: result.metadata.height
                 });
             };
         } catch (e) {

@@ -11,31 +11,16 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { SynniaIcon } from "@/components/SynniaIcon";
 import { SynniaSticker } from "@/components/SynniaSticker";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { apiClient } from '@/lib/apiClient';
 
 interface RecentProject {
     name: string;
     path: string;
+    thumbnail?: string; // Base64 data URL
     last_opened: string;
 }
 
 function ProjectCard({ project, onClick, onDelete, onRename }: { project: RecentProject, onClick: () => void, onDelete: () => void, onRename: () => void }) {
-    const [imgSrc, setImgSrc] = useState<string | null>(null);
-    const [hasError, setHasError] = useState(false);
-
-    useEffect(() => {
-        // Only try to load real file src if NOT in pure mock mode
-        // For now, in mock mode, convertFileSrc might fail or return invalid URL
-        try {
-            const thumbPath = `${project.path}/thumbnail.png`;
-            const url = convertFileSrc(thumbPath);
-            setImgSrc(url);
-        } catch (e) {
-            setHasError(true);
-        }
-    }, [project.path]);
-
     const stickerIndex = project.name.length % 9;
 
     return (
@@ -70,12 +55,11 @@ function ProjectCard({ project, onClick, onDelete, onRename }: { project: Recent
             </div>
 
             <div className="h-32 bg-gradient-to-br from-muted/50 to-transparent p-0 relative overflow-hidden group-hover:scale-105 transition-transform duration-500 flex items-center justify-center">
-                {!hasError && imgSrc ? (
+                {project.thumbnail ? (
                     <img
-                        src={imgSrc}
+                        src={project.thumbnail}
                         alt={project.name}
                         className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                        onError={() => { setHasError(true); }}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-secondary/30">

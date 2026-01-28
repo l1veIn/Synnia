@@ -17,12 +17,13 @@ import { useWorkflowStore } from "@/store/workflowStore";
 import { useReactFlow } from "@xyflow/react";
 import { NodeType, SynniaNode } from "@/types/project";
 import { useNavigate } from "react-router-dom";
-import { Home } from "lucide-react";
+import { Home, Image } from "lucide-react";
 import { toast } from "sonner";
 import { graphEngine } from "@core/engine/GraphEngine";
 import { NodePicker, NodePickerItem } from "./NodePicker";
 import { useTranslation } from "react-i18next";
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
+import { apiClient } from "@/lib/apiClient";
 
 interface EditorContextMenuProps {
   children: React.ReactNode;
@@ -135,6 +136,45 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
     setNodePickerOpen(false);
   };
 
+  // Check if target node is an image node
+  const isImageNode = targetNode?.type === 'image';
+  const assets = useWorkflowStore((state) => state.assets);
+
+  const handleSetAsThumbnail = async () => {
+    if (!targetNode?.data?.assetId) {
+      toast.error(t('contextMenu.noAssetFound'));
+      return;
+    }
+
+    const asset = assets[targetNode.data.assetId];
+    if (!asset) {
+      toast.error(t('contextMenu.assetMissing'));
+      return;
+    }
+
+    // Get the image path from asset.value (supports both { src: ... } and string formats)
+    let imagePath: string | undefined;
+    if (typeof asset.value === 'object' && asset.value !== null && 'src' in asset.value) {
+      imagePath = (asset.value as any).src;
+    } else if (typeof asset.value === 'string') {
+      imagePath = asset.value;
+    }
+
+    if (!imagePath) {
+      toast.error(t('contextMenu.invalidAsset'));
+      return;
+    }
+
+    const toastId = toast.loading(t('contextMenu.settingThumbnail'));
+    try {
+      await apiClient.invoke('set_thumbnail', { imageRelativePath: imagePath });
+      toast.success(t('contextMenu.thumbnailSet'), { id: toastId });
+    } catch (e) {
+      console.error('Failed to set thumbnail:', e);
+      toast.error(t('contextMenu.thumbnailFailed'), { id: toastId });
+    }
+  };
+
   return (
     <>
       <ContextMenu>
@@ -173,6 +213,15 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
             <>
               <ContextMenuLabel>{t('contextMenu.nodeActions')}</ContextMenuLabel>
               <ContextMenuSeparator />
+              {isImageNode && (
+                <>
+                  <ContextMenuItem onSelect={handleSetAsThumbnail}>
+                    <Image className="w-4 h-4 mr-2" />
+                    {t('contextMenu.setAsThumbnail')}
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                </>
+              )}
               <ContextMenuItem onSelect={handleDuplicate}>{t('contextMenu.duplicate')}</ContextMenuItem>
               <ContextMenuItem onSelect={handleCopy}>{t('contextMenu.copy')}</ContextMenuItem>
               <ContextMenuSeparator />

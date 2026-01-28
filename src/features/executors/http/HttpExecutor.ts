@@ -4,6 +4,7 @@
 
 import { ExecutionContext, ExecutionResult, RecipeManifest } from '@/types/recipe';
 import { Executor } from '../types';
+import { invoke } from '@tauri-apps/api/core';
 
 // ============================================================================
 // Http Config Types (local - extends recipe.ts HttpExecutorConfig)
@@ -17,6 +18,14 @@ interface LocalHttpConfig {
     headers?: Record<string, string>;
     body?: string | object;
     timeout?: number;
+    useProxy?: boolean;     // Use Tauri backend proxy
+}
+
+// Tauri proxy response type
+interface ProxyResponse {
+    status: number;
+    headers: Record<string, string>;
+    body: string;
 }
 
 // ============================================================================
@@ -34,7 +43,7 @@ export const HttpExecutor: Executor = {
         const { manifest, inputs } = ctx;
         // manifest.executor is the config itself
         const config = manifest.executor as unknown as LocalHttpConfig | undefined;
-        
+
         // Support both 'url' (extended) and 'endpoint' (recipe.ts type)
         const baseUrl = config?.url || config?.endpoint;
 
@@ -59,35 +68,12 @@ export const HttpExecutor: Executor = {
                 }
             }
 
-            // 4. Send request
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...headers,
-                },
-                body: method !== 'GET' ? body : undefined,
-            });
-
-            // 5. Parse response
-            const contentType = response.headers.get('content-type') || '';
-            let data: unknown;
-
-            if (contentType.includes('application/json')) {
-                data = await response.json();
+            // 4. Choose request method based on useProxy
+            if (config?.useProxy) {
+                return await executeViaProxy(url, method, headers, body);
             } else {
-                data = await response.text();
+                return await executeViaFetch(url, method, headers, body);
             }
-
-            // 6. Check status
-            if (!response.ok) {
-                return {
-                    success: false,
-                    error: `HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`,
-                };
-            }
-
-            return { success: true, data };
 
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'HTTP request failed';
@@ -98,6 +84,89 @@ export const HttpExecutor: Executor = {
         }
     }
 };
+
+// ============================================================================
+// Request Execution Methods
+// ============================================================================
+
+/**
+ * Execute via browser fetch API (default)
+ */
+async function executeViaFetch(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body?: string
+): Promise<ExecutionResult> {
+    const response = await fetch(url, {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+        },
+        body: method !== 'GET' ? body : undefined,
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    let data: unknown;
+
+    if (contentType.includes('application/json')) {
+        data = await response.json();
+    } else {
+        data = await response.text();
+    }
+
+    if (!response.ok) {
+        return {
+            success: false,
+            error: `HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`,
+        };
+    }
+
+    return { success: true, data };
+}
+
+/**
+ * Execute via Tauri backend proxy (bypasses CORS)
+ */
+async function executeViaProxy(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body?: string
+): Promise<ExecutionResult> {
+    const proxyResponse = await invoke<ProxyResponse>('proxy_request', {
+        url,
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+        },
+        body: method !== 'GET' ? body : null,
+    });
+
+    const contentType = proxyResponse.headers['content-type'] || '';
+    let data: unknown;
+
+    if (contentType.includes('application/json')) {
+        try {
+            data = JSON.parse(proxyResponse.body);
+        } catch {
+            data = proxyResponse.body;
+        }
+    } else {
+        data = proxyResponse.body;
+    }
+
+    if (proxyResponse.status >= 400) {
+        return {
+            success: false,
+            error: `HTTP ${proxyResponse.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`,
+        };
+    }
+
+    return { success: true, data };
+}
 
 // ============================================================================
 // Template Utilities

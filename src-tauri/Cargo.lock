@@ -2040,7 +2040,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -4978,13 +4978,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp-bridge"
-version = "0.3.1"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8025b05744a6ae221dc59c5f91b22961539b788056b8e0f6cfc58c8e56854fe"
+checksum = "65b6a784f19214f2007b000576fe905e6e78e0574a0240a93a5cf34e04460960"
 dependencies = [
  "base64 0.22.1",
  "block2 0.5.1",
  "futures-util",
+ "image",
  "jni",
  "objc2 0.5.2",
  "objc2-app-kit 0.2.2",
@@ -6044,7 +6045,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

@@ -27,7 +27,7 @@ async fn serve_asset(
 
     if let Some(project_path_str) = project_path_opt {
         let project_path = PathBuf::from(project_path_str);
-        
+
         // Resolve Project Root (Handle .json file case)
         let project_root = if project_path.extension().is_some() {
             project_path.parent().unwrap_or(&project_path).to_path_buf()

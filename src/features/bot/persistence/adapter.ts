@@ -19,8 +19,8 @@ import type { BotMessage } from '../types';
  */
 export interface BotHistorySession {
     id: string;
-    created_at: number;
-    updated_at: number;
+    createdAt: number;
+    updatedAt: number;
     messages: BotMessage[];
 }
 
@@ -29,9 +29,9 @@ export interface BotHistorySession {
  */
 export interface BotSessionMeta {
     id: string;
-    created_at: number;
-    updated_at: number;
-    message_count: number;
+    createdAt: number;
+    updatedAt: number;
+    messageCount: number;
 }
 
 // ============================================================================
@@ -183,6 +183,7 @@ export function setMessages(messages: BotMessage[]): void {
 
 /**
  * Clear the current session (start fresh)
+ * Note: Does not save to disk - the session will be saved when user sends first message
  */
 export async function clearCurrentSession(): Promise<void> {
     currentSessionId = generateSessionId();
@@ -191,7 +192,7 @@ export async function clearCurrentSession(): Promise<void> {
         clearTimeout(autoSaveTimer);
         autoSaveTimer = null;
     }
-    await saveCurrentSession();
+    // Don't save empty session to disk - will be saved on first message
 }
 
 /**
@@ -238,8 +239,8 @@ export async function loadSession(sessionId: string): Promise<BotHistorySession 
             currentMessages = convertedMessages;
             return {
                 id: response.session.id,
-                created_at: response.session.createdAt,
-                updated_at: response.session.updatedAt,
+                createdAt: response.session.createdAt,
+                updatedAt: response.session.updatedAt,
                 messages: convertedMessages,
             };
         }
@@ -256,12 +257,8 @@ export async function loadSession(sessionId: string): Promise<BotHistorySession 
 export async function listSessions(): Promise<BotSessionMeta[]> {
     try {
         const sessions = await apiClient.listBotSessions();
-        return sessions.map(s => ({
-            id: s.id,
-            created_at: s.createdAt,
-            updated_at: s.updatedAt,
-            message_count: s.messageCount,
-        }));
+        // API now returns camelCase, so we can just cast directly
+        return sessions as unknown as BotSessionMeta[];
     } catch (error) {
         console.error('[BotPersistence] Failed to list sessions:', error);
         return [];

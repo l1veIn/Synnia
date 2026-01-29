@@ -1,11 +1,12 @@
 import { useBotStore } from '@/store/botStore';
-import { MessageSquare, X, HelpCircle, Palette } from 'lucide-react';
+import { MessageSquare, X, HelpCircle, Palette, History } from 'lucide-react';
 import { BotChat } from './BotChat';
 import { BotHandle } from './BotHandle';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ShortcutsModal } from './ShortcutsModal';
 import { BotRuntimeProvider, BotThemeProvider, BotThemeCustomizer } from '@/features/bot';
-import { Button } from '@/components/ui/button';
+import { BotHistorySidebar } from './ui/BotHistorySidebar';
+import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
 /**
@@ -19,6 +20,7 @@ import { useState } from 'react';
 export function BotPanel() {
   const { isPanelOpen, closePanel, openShortcutsModal } = useBotStore();
   const [themeCustomizerOpen, setThemeCustomizerOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // When closed, only show the handle
   if (!isPanelOpen) {
@@ -31,78 +33,72 @@ export function BotPanel() {
         <BotThemeProvider>
           {/* Panel */}
           <aside
-          className="
-            fixed left-0 top-0 h-full w-[400px]
-            bg-background border-r shadow-lg
+            className="
+            fixed left-0 top-9 h-[calc(100vh-2.25rem)] w-[400px]
+            bg-background/90 backdrop-blur-xl border-r shadow-2xl
             flex flex-col
             transform transition-transform duration-300 ease-in-out
             z-40
             translate-x-0
           "
-          data-testid="bot-panel"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b shrink-0">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">AI Assistant</h2>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={openShortcutsModal}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                aria-label="Keyboard Shortcuts"
-                title="Keyboard Shortcuts (Cmd+/)"
-                type="button"
-              >
-                <HelpCircle className="w-4 h-4 text-muted-foreground" />
-              </button>
-              <button
-                onClick={closePanel}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                aria-label="Close Bot Panel"
-                type="button"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Chat Area */}
-          <div className="flex-1 overflow-hidden">
-            <BotChat />
-          </div>
-
-          {/* Theme Customizer Button */}
-          <div className="p-2 border-t flex justify-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setThemeCustomizerOpen(true)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Palette className="w-3 h-3 mr-1" />
-              Customize Theme
-            </Button>
-          </div>
-        </aside>
-
-        {/* Handle (visible on the edge for quick access) */}
-        <div className="absolute left-[400px] top-1/2 -translate-y-1/2 z-40">
-          <button
-            onClick={closePanel}
-            className="
-              bg-primary text-primary-foreground
-              p-2 rounded-r-md shadow-lg
-              hover:bg-primary/90
-              transition-colors
-            "
-            aria-label="Close Bot Panel"
-            type="button"
+            data-testid="bot-panel"
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b shrink-0 bg-background/50 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="font-semibold text-sm">AI Assistant</h2>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  className={cn(
+                    "p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all",
+                    historyOpen && "bg-muted text-foreground"
+                  )}
+                  aria-label="History"
+                  title="Chat History"
+                  type="button"
+                >
+                  <History className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setThemeCustomizerOpen(true)}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                  aria-label="Customize Theme"
+                  title="Customize Theme"
+                  type="button"
+                >
+                  <Palette className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={openShortcutsModal}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
+                  aria-label="Keyboard Shortcuts"
+                  title="Keyboard Shortcuts (Cmd+/)"
+                  type="button"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={closePanel}
+                  className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-all ml-1"
+                  aria-label="Close Bot Panel"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-1 overflow-hidden relative">
+              <BotHistorySidebar open={historyOpen} onClose={() => setHistoryOpen(false)} />
+              <BotChat />
+            </div>
+          </aside>
 
           {/* Confirmation Dialog for dangerous operations */}
           <ConfirmDialog />

@@ -142,8 +142,61 @@ export interface ModelPlugin {
     // Validation
     validate?: (config: any) => { valid: boolean; errors?: string[] };
 
-    // Execution: The Black Box
+    // Execution: The Black Box (for Recipe single-shot execution)
     execute: (input: ModelExecutionInput) => Promise<ModelExecutionResult>;
+
+    // Chat: Multi-turn conversation (for Bot chat)
+    // Only models with 'chat' capability should implement this
+    chat?: (input: ChatInput, callbacks?: ChatCallbacks) => Promise<ChatResult>;
+}
+
+// ============================================================================
+// Chat Types (for Bot integration)
+// ============================================================================
+
+export interface ChatMessage {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
+export interface ChatInput {
+    messages: ChatMessage[];
+    systemPrompt?: string;
+    tools?: ChatToolDefinition[];
+    toolResults?: ChatToolResult[];
+    credentials: ProviderCredentials;
+    temperature?: number;
+    maxTokens?: number;
+}
+
+export interface ChatToolDefinition {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+}
+
+export interface ChatToolResult {
+    callId: string;
+    result: unknown;
+}
+
+export interface ChatCallbacks {
+    onChunk?: (text: string) => void;
+    onToolCall?: (call: ChatToolCall) => void;
+}
+
+export interface ChatToolCall {
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+}
+
+export interface ChatResult {
+    success: boolean;
+    message?: ChatMessage;
+    toolCalls?: ChatToolCall[];
+    usage?: { promptTokens: number; completionTokens: number };
+    error?: string;
 }
 
 // ============================================================================

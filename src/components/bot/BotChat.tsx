@@ -4,178 +4,126 @@
  * Provides the chat UI for the AI Assistant Bot.
  * Uses the BotRuntime context for message management.
  * Supports theme customization via BotThemeProvider.
- *
- * Phase 9: Added theme customization support
+ * Refactored: UI/UX Pro Max upgrade (Glassmorphism, Components)
  */
 
-import { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useRef, useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useBotRuntime } from '@/features/bot';
 import { useBotTheme } from '@/features/bot/theme';
+import { MessageBubble } from './ui/MessageBubble';
+import { WelcomeScreen } from './ui/WelcomeScreen';
+import { ChatInput } from './ui/ChatInput';
+import { TypingIndicator } from './ui/TypingIndicator';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export function BotChat() {
-    const { messages, sendMessage, isLoading } = useBotRuntime();
+    const { messages, sendMessage, isLoading, selectedModelId, setSelectedModelId } = useBotRuntime();
     const { theme, userMessageStyle, assistantMessageStyle } = useBotTheme();
     const [inputValue, setInputValue] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const bottomRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        if (bottomRef.current) {
+            bottomRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, isLoading]);
 
-    // Auto-resize textarea (1-4 lines)
-    useEffect(() => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        textarea.style.height = 'auto';
-
-        const lineHeight = 20;
-        const minHeight = lineHeight;
-        const maxHeight = lineHeight * 4;
-
-        const scrollHeight = textarea.scrollHeight;
-        const newHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight);
-        textarea.style.height = `${newHeight}px`;
-    }, [inputValue]);
-
     const handleSend = async () => {
         if (!inputValue.trim() || isLoading) return;
-
-        const message = inputValue.trim();
+        const msg = inputValue;
         setInputValue('');
-        await sendMessage(message);
+        await sendMessage(msg);
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
+    const handleQuickAction = (text: string) => {
+        sendMessage(text);
     };
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full bg-background/30 relative overflow-hidden">
+            {/* Background Gradient Mesh - Subtle */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background pointer-events-none z-0" />
+
             {/* Message List */}
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-                <div className="space-y-3">
+            <ScrollArea className="flex-1 p-4 z-10" ref={scrollRef}>
+                <div className="space-y-6 pb-4">
                     {messages.length === 0 ? (
-                        <div className="text-center text-muted-foreground text-sm py-8">
-                            <p className="mb-2">👋 Welcome to Synnia AI Assistant!</p>
-                            <p className="text-xs">Ask me anything about your canvas. I can help you:</p>
-                            <ul className="text-xs mt-2 space-y-1 inline-block text-left">
-                                <li>• View and list all nodes</li>
-                                <li>• Create new nodes</li>
-                                <li>• Update existing nodes</li>
-                            </ul>
-                            <p className="text-xs mt-3 text-muted-foreground/70">
-                                (Full AI capabilities will be available in Phase 5)
-                            </p>
-                        </div>
+                        <WelcomeScreen onQuickAction={handleQuickAction} />
                     ) : (
-                        messages.map((message) => (
-                            <div
+                        messages.map((message, index) => (
+                            <motion.div
                                 key={message.id}
-                                className={cn(
-                                    'rounded-lg max-w-[85%] text-sm',
-                                    message.role === 'user' ? 'ml-auto' : ''
-                                )}
-                                style={
-                                    theme.useCustomColors
-                                        ? message.role === 'user'
-                                            ? userMessageStyle
-                                            : assistantMessageStyle
-                                        : undefined
-                                }
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
                             >
-                                <div
-                                    className={cn(
-                                        'whitespace-pre-wrap break-words',
-                                        !theme.useCustomColors &&
-                                            (message.role === 'user'
-                                                ? 'bg-primary text-primary-foreground p-3 rounded-lg'
-                                                : 'bg-muted p-3 rounded-lg')
-                                    )}
-                                    style={{
-                                        padding: theme.useCustomColors ? 'var(--bot-message-padding)' : undefined,
-                                        fontSize: theme.useCustomColors ? 'var(--bot-font-size)' : undefined,
-                                        fontFamily: theme.useCustomColors ? 'var(--bot-font-family)' : undefined,
-                                    }}
-                                >
-                                    {message.content}
-                                </div>
-                            </div>
+                                <MessageBubble
+                                    role={message.role}
+                                    content={message.content}
+                                    style={
+                                        theme.useCustomColors
+                                            ? message.role === 'user'
+                                                ? userMessageStyle
+                                                : assistantMessageStyle
+                                            : undefined
+                                    }
+                                    customStyle={theme.useCustomColors}
+                                />
+                            </motion.div>
                         ))
                     )}
 
                     {/* AI Typing Indicator */}
-                    {isLoading && (
-                        <div
-                            className="rounded-lg max-w-[85%] text-sm"
-                            style={theme.useCustomColors ? assistantMessageStyle : undefined}
-                        >
-                            <div
-                                className={cn(!theme.useCustomColors && 'bg-muted p-3 rounded-lg')}
-                                style={{
-                                    padding: theme.useCustomColors ? 'var(--bot-message-padding)' : undefined,
-                                }}
+                    <AnimatePresence>
+                        {isLoading && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                className="flex justify-start"
                             >
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span>Thinking...</span>
+                                <div
+                                    className={cn(
+                                        "bg-muted/50 rounded-2xl rounded-bl-sm px-4 py-2",
+                                        theme.useCustomColors && "bg-transparent p-0"
+                                    )}
+                                    style={theme.useCustomColors ? assistantMessageStyle : undefined}
+                                >
+                                    <TypingIndicator />
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <div ref={bottomRef} className="h-1" />
                 </div>
             </ScrollArea>
 
             {/* Input Area */}
             <div
-                className="border-t flex items-end gap-2 bg-background"
-                style={{ padding: theme.useCustomColors ? 'var(--bot-input-padding)' : undefined }}
+                className={cn(
+                    "p-4 bg-background/80 backdrop-blur-lg border-t z-20",
+                    theme.useCustomColors ? "bg-transparent border-t-0 p-2" : ""
+                )}
+                style={theme.useCustomColors ? { padding: 'var(--bot-input-padding)' } : undefined}
             >
-                <textarea
-                    ref={textareaRef}
+                <ChatInput
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Type a message..."
-                    disabled={isLoading}
-                    rows={1}
-                    className={cn(
-                        'flex-1 resize-none rounded-md border bg-muted/50 px-3 py-2',
-                        'placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                        isLoading && 'opacity-50 cursor-not-allowed'
-                    )}
-                    style={{
-                        minHeight: '36px',
-                        maxHeight: '80px',
-                        overflowY: inputValue.split('\n').length > 4 ? 'auto' : 'hidden',
-                        fontSize: theme.useCustomColors ? 'var(--bot-input-font-size)' : undefined,
-                        fontFamily: theme.useCustomColors ? 'var(--bot-font-family)' : undefined,
-                    }}
+                    onChange={setInputValue}
+                    onSend={handleSend}
+                    isLoading={isLoading}
+                    themeStyle={theme.useCustomColors ? {
+                        fontSize: 'var(--bot-input-font-size)',
+                        fontFamily: 'var(--bot-font-family)'
+                    } : undefined}
+                    useCustomTheme={theme.useCustomColors}
+                    selectedModelId={selectedModelId}
+                    onModelSelect={setSelectedModelId}
                 />
-
-                <Button
-                    onClick={handleSend}
-                    disabled={!inputValue.trim() || isLoading}
-                    size="icon"
-                    className="h-9 w-9 shrink-0"
-                >
-                    {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <Send className="h-4 w-4" />
-                    )}
-                </Button>
             </div>
         </div>
     );

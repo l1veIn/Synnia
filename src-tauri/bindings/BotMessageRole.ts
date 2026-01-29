@@ -3,4 +3,4 @@
 /**
  * Message role in the conversation
  */
-export type BotMessageRole = "User" | "Assistant" | "System";
+export type BotMessageRole = "user" | "assistant" | "system";

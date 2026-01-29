@@ -15,10 +15,12 @@
  */
 
 import { ReactNode, createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
-import { apiClient } from '@/lib/apiClient';
 import { DEFAULT_SYSTEM_PROMPT, type BotMessage, type BotMessageRole } from './types';
 import { getAllBotToolDefinitions, executeBotTool } from './BotToolkit';
-import { botHistoryAdapter } from './persistence';
+import { botHistoryAdapter, type BotSessionMeta } from './persistence';
+import { modelRegistry } from '@/features/models';
+import { loadSettings, getProviderCredentials, ProviderKey } from '@/lib/settings';
+import type { ChatMessage } from '@/features/models/types';
 
 // ============================================
 // Context Types
@@ -30,6 +32,12 @@ interface BotRuntimeContextValue {
     isLoading: boolean;
     clearHistory: () => Promise<void>;
     sessionId: string | null;
+    createNewSession: () => Promise<void>;
+    loadSession: (sessionId: string) => Promise<void>;
+    listSessions: () => Promise<BotSessionMeta[]>;
+    deleteSession: (sessionId: string) => Promise<void>;
+    selectedModelId: string | null;
+    setSelectedModelId: (modelId: string) => void;
 }
 
 const BotRuntimeContext = createContext<BotRuntimeContextValue | null>(null);
@@ -49,31 +57,46 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
     const [messages, setMessages] = useState<BotMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [selectedModelId, setSelectedModelId] = useState<string | null>(() => {
+        return localStorage.getItem('bot_selected_model_id') || null;
+    });
     const isMountedRef = useRef(true);
 
     // Initialize: load history on mount
     useEffect(() => {
-        if (isMountedRef.current && !isInitializing) {
+        // Reset mounted flag on each mount
+        isMountedRef.current = true;
+
+        const syncState = () => {
+            if (!isMountedRef.current) return;
+
+            const loadedMessages = botHistoryAdapter.getCurrentMessages();
+            const currentSessionId = botHistoryAdapter.getCurrentSessionId();
+
+            setMessages(loadedMessages);
+            setSessionId(currentSessionId);
+
+            console.log('[BotRuntime] Synced state - session:', currentSessionId, 'messages:', loadedMessages.length);
+        };
+
+        if (!isInitializing) {
             isInitializing = true;
 
             botHistoryAdapter.init()
                 .then(() => {
-                    if (!isMountedRef.current) return;
-
-                    const loadedMessages = botHistoryAdapter.getCurrentMessages();
-                    const currentSessionId = botHistoryAdapter.getCurrentSessionId();
-
-                    setMessages(loadedMessages);
-                    setSessionId(currentSessionId);
-
-                    console.log('[BotRuntime] Initialized with session:', currentSessionId, 'messages:', loadedMessages.length);
+                    syncState();
                 })
                 .catch((error) => {
                     console.error('[BotRuntime] Failed to initialize persistence:', error);
+                    // Still try to sync in case adapter has cached state
+                    syncState();
                 })
                 .finally(() => {
                     isInitializing = false;
                 });
+        } else {
+            // If already initializing (from another mount), just sync current adapter state
+            syncState();
         }
 
         // Cleanup on unmount
@@ -100,32 +123,67 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
         setIsLoading(true);
 
         try {
-            // Get tool definitions for this request
+            // Get model and validate chat capability
+            if (!selectedModelId) {
+                throw new Error('Please select a model');
+            }
+
+            const model = modelRegistry.get(selectedModelId);
+            if (!model) {
+                throw new Error(`Model not found: ${selectedModelId}`);
+            }
+
+            if (!model.chat) {
+                throw new Error(`Model "${model.name}" does not support chat`);
+            }
+
+            // Get credentials for the model's provider
+            const settings = await loadSettings();
+            const credentials = getProviderCredentials(settings, model.provider as ProviderKey);
+
+            if (!credentials || !credentials.apiKey) {
+                throw new Error(`API key not configured for ${model.provider}`);
+            }
+
+            // Convert BotMessage[] to ChatMessage[]
+            const chatMessages: ChatMessage[] = updatedMessages.map(msg => ({
+                role: msg.role as 'user' | 'assistant' | 'system',
+                content: msg.content,
+            }));
+
+            // Get tool definitions
             const tools = getAllBotToolDefinitions();
 
-            // Call the backend bot_chat command
-            const response = await apiClient.botChat({
-                messages: updatedMessages,
+            // Call model.chat() directly
+            const result = await model.chat({
+                messages: chatMessages,
                 systemPrompt: DEFAULT_SYSTEM_PROMPT,
                 tools,
-                modelId: undefined,
+                credentials,
             });
+
+            if (!result.success) {
+                throw new Error(result.error || 'Chat failed');
+            }
 
             // Process tool calls if present
             let processedToolCalls: BotMessage['toolCalls'] = [];
-            if (response.toolCalls && response.toolCalls.length > 0) {
+            if (result.toolCalls && result.toolCalls.length > 0) {
                 processedToolCalls = await Promise.all(
-                    response.toolCalls.map(async (toolCall: unknown) => {
-                        const tc = toolCall as { name: string; arguments: Record<string, unknown>; id: string };
+                    result.toolCalls.map(async (tc) => {
                         try {
-                            const result = await executeBotTool(tc.name, tc.arguments);
+                            const toolResult = await executeBotTool(tc.name, tc.arguments);
                             return {
-                                ...tc,
-                                result,
+                                id: tc.id,
+                                name: tc.name,
+                                arguments: tc.arguments,
+                                result: toolResult,
                             };
                         } catch (error) {
                             return {
-                                ...tc,
+                                id: tc.id,
+                                name: tc.name,
+                                arguments: tc.arguments,
                                 result: {
                                     error: error instanceof Error ? error.message : String(error),
                                 },
@@ -137,11 +195,11 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
 
             // Add assistant message
             const assistantMessage: BotMessage = {
-                id: response.message.id,
-                role: response.message.role as BotMessageRole,
-                content: response.message.content,
-                timestamp: response.message.timestamp,
-                toolCalls: processedToolCalls,
+                id: `msg_${Date.now()}_assistant`,
+                role: 'assistant',
+                content: result.message?.content || '',
+                timestamp: Date.now(),
+                toolCalls: processedToolCalls.length > 0 ? processedToolCalls : undefined,
             };
 
             setMessages(prev => [...prev, assistantMessage]);
@@ -162,7 +220,7 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [messages]);
+    }, [messages, selectedModelId]);
 
     const clearHistory = useCallback(async () => {
         await botHistoryAdapter.clearCurrentSession();
@@ -170,12 +228,47 @@ export function BotRuntimeProvider({ children }: BotRuntimeProviderProps) {
         setSessionId(botHistoryAdapter.getCurrentSessionId());
     }, []);
 
+    const createNewSession = useCallback(async () => {
+        await botHistoryAdapter.clearCurrentSession();
+        setMessages([]);
+        setSessionId(botHistoryAdapter.getCurrentSessionId());
+    }, []);
+
+    const loadSession = useCallback(async (sid: string) => {
+        const session = await botHistoryAdapter.loadSession(sid);
+        if (session) {
+            setMessages(session.messages);
+            setSessionId(session.id);
+        }
+    }, []);
+
+    const listSessions = useCallback(async () => {
+        return await botHistoryAdapter.listSessions();
+    }, []);
+
+    const deleteSession = useCallback(async (sid: string) => {
+        await botHistoryAdapter.deleteSession(sid);
+        // If current session was deleted, create a new one
+        if (sid === sessionId) {
+            await createNewSession();
+        }
+    }, [sessionId, createNewSession]);
+
     const value: BotRuntimeContextValue = {
         messages,
         sendMessage,
         isLoading,
         clearHistory,
         sessionId,
+        createNewSession,
+        loadSession,
+        listSessions,
+        deleteSession,
+        selectedModelId,
+        setSelectedModelId: (id: string) => {
+            setSelectedModelId(id);
+            localStorage.setItem('bot_selected_model_id', id);
+        },
     };
 
     return (

@@ -2,7 +2,7 @@
 // GLM models via Tauri backend proxy (bypassing browser restrictions)
 
 import { invoke } from '@tauri-apps/api/core';
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec, ChatInput, ChatCallbacks, ChatResult, ChatMessage } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -113,6 +113,86 @@ async function executeZhipu(
 }
 
 // ============================================================================
+// Chat Function for Bot Integration
+// ============================================================================
+
+async function chatZhipu(
+    input: ChatInput,
+    modelId: string,
+    callbacks?: ChatCallbacks
+): Promise<ChatResult> {
+    const { messages, systemPrompt, credentials, temperature, maxTokens } = input;
+
+    if (!credentials.apiKey) {
+        return { success: false, error: 'Zhipu API key not configured' };
+    }
+
+    if (!credentials.baseUrl) {
+        return { success: false, error: 'Zhipu API endpoint not configured' };
+    }
+
+    try {
+        // Build messages with system prompt
+        const apiMessages: ZhipuMessage[] = [];
+        if (systemPrompt) {
+            apiMessages.push({ role: 'system', content: systemPrompt });
+        }
+        // Add conversation messages
+        for (const msg of messages) {
+            apiMessages.push({ role: msg.role, content: msg.content });
+        }
+
+        const apiUrl = `${credentials.baseUrl}/chat/completions`;
+
+        // Use Tauri backend proxy to bypass browser restrictions
+        const response = await invoke<ProxyResponse>('proxy_request', {
+            url: apiUrl,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${credentials.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: modelId,
+                messages: apiMessages,
+                temperature: temperature ?? 0.7,
+                max_tokens: maxTokens ?? 2048,
+            }),
+        });
+
+        if (response.status !== 200) {
+            console.error('[Zhipu Chat] HTTP Error:', response.status, response.body);
+            return { success: false, error: `Zhipu API error: ${response.status} - ${response.body}` };
+        }
+
+        const data: ZhipuResponse = JSON.parse(response.body);
+
+        if (data.error) {
+            return { success: false, error: data.error.message };
+        }
+
+        if (!data.choices || data.choices.length === 0) {
+            return { success: false, error: 'No response from Zhipu API' };
+        }
+
+        const responseText = data.choices[0].message.content;
+        const assistantMessage: ChatMessage = {
+            role: 'assistant',
+            content: responseText,
+        };
+
+        return {
+            success: true,
+            message: assistantMessage,
+            // TODO: Handle tool_calls when Zhipu returns them
+        };
+    } catch (error: any) {
+        console.error('[Zhipu Chat] Failed:', error);
+        return { success: false, error: error.message || 'Zhipu chat failed' };
+    }
+}
+
+// ============================================================================
 // Factory Function for Zhipu Models
 // ============================================================================
 
@@ -157,6 +237,9 @@ const createZhipuModel = (config: ZhipuModelConfig): ModelPlugin => ({
         : undefined,
 
     execute: (input) => executeZhipu(input as ModelExecutionInput, config.id),
+
+    // Chat method for Bot integration
+    chat: (input, callbacks) => chatZhipu(input, config.id, callbacks),
 });
 
 // ============================================================================

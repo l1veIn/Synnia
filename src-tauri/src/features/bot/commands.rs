@@ -18,6 +18,7 @@ use super::persistence::{self, BotHistorySession};
 
 /// Message role in the conversation
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum BotMessageRole {
     User,
@@ -28,6 +29,7 @@ pub enum BotMessageRole {
 /// A single message in the bot conversation
 /// Note: Does not derive TS because serde_json::Value doesn't implement TS
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BotMessage {
     pub id: String,
     pub role: BotMessageRole,
@@ -61,6 +63,7 @@ pub struct ToolDefinition {
 
 /// Request payload for bot chat
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BotChatRequest {
     pub messages: Vec<BotMessage>,
     pub system_prompt: String,
@@ -71,6 +74,7 @@ pub struct BotChatRequest {
 
 /// Response from bot chat
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BotChatResponse {
     pub message: BotMessage,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,6 +83,7 @@ pub struct BotChatResponse {
 
 /// Request to save bot history
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveBotHistoryRequest {
     pub session_id: String,
     pub messages: Vec<BotMessage>,

@@ -329,7 +329,7 @@ export const apiClient = {
                 metadata?: Record<string, unknown>;
             }>;
         } | null;
-    } | null> => apiClient.invoke('load_bot_history', { sessionId }),
+    } | null> => apiClient.invoke('load_bot_history', sessionId ? { sessionId } : {}),
 
     /**
      * List all bot chat sessions.

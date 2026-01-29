@@ -17,6 +17,7 @@ const CHAT_FILE_EXT: &str = "json";
 
 /// Bot chat history session stored on disk
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BotHistorySession {
     pub id: String,
     pub created_at: i64,
@@ -26,6 +27,7 @@ pub struct BotHistorySession {
 
 /// Bot session metadata (for listing sessions)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BotSessionMeta {
     pub id: String,
     pub created_at: i64,

@@ -1,54 +1,109 @@
-# Ralphy Configuration for Synnia Test Coverage
+# Ralphy Configuration for Synnia Bot Feature
+# PRD: prd/PRD-bot.md
+# Examples: prd/PRD-bot-examples.md
 
 project:
   name: "synnia"
   language: "TypeScript"
   framework: "React + Vite + Tauri"
 
+prd:
+  path: "prd/PRD-bot.md"
+  examples: "prd/PRD-bot-examples.md"
+
 commands:
-  test: "pnpm vitest run"
-  coverage: "pnpm vitest run --coverage"
+  dev: "pnpm tauri dev"
+  build: "pnpm tauri build"
   lint: "pnpm lint"
   typecheck: "pnpm tsc --noEmit"
+  test: "pnpm vitest run"
 
 rules:
-  # Test file conventions
-  - "测试文件放在对应源文件旁边的 __tests__ 目录"
-  - "测试文件命名: xxx.test.ts 或 xxx.test.tsx"
-  - "使用 vitest 的 describe/it/expect 语法"
-  
-  # Mock strategy
-  - "完全 mock 所有 @tauri-apps/* 模块（使用 src/__mocks__/@tauri-apps/ 中的 mock）"
-  - "Mock 所有外部 API 调用（fetch、Provider API）"
-  - "使用 vi.mock() 和 vi.fn() 创建 mock"
-  
-  # Test quality
-  - "每个函数至少测试正常路径和一个错误路径"
-  - "使用 describe 块组织相关测试"
-  - "测试名称要清晰描述测试意图"
-  - "避免测试实现细节，关注行为"
-  
-  # Coverage
-  - "目标覆盖率: 60% lines"
-  - "优先测试核心逻辑（executors, recipes, behaviors）"
+  # Implementation guidelines
+  - "严格按照 PRD-bot.md 中的 Phase 顺序实现"
+  - "代码示例参考 PRD-bot-examples.md"
+  - "使用 assistant-ui 框架，不使用 CopilotKit"
+  - "复用现有的 modelRegistry（src/features/models/）"
   
   # Code style
   - "保持与项目现有代码风格一致"
-  - "使用 TypeScript 类型"
+  - "使用 TypeScript 严格类型"
   - "import 使用 @ 路径别名"
+  - "组件使用函数式组件 + hooks"
+  
+  # Architecture
+  - "Bot 相关功能代码放在 src/features/bot/"
+  - "Bot UI 组件放在 src/components/bot/"
+  - "Bot 状态管理放在 src/store/botStore.ts"
+  - "Tauri 命令放在 src-tauri/src/commands/bot.rs"
+  
+  # Testing
+  - "每完成一个 Phase，验证 pnpm lint 和 pnpm tsc --noEmit 通过"
+  - "使用 MCP 截图验证 UI 效果（如果可用）"
 
 boundaries:
   never_touch:
     - "src/components/ui/**"        # shadcn 组件
     - "src/locales/**"              # i18n 翻译文件
-    - "src/main.tsx"                # 入口文件
+    - "src/main.tsx"                # 入口文件（除非需要添加 Provider）
     - "*.lock"
     - "node_modules/**"
+    - "prd/**"                      # PRD 文档只读
     
-  test_files_only:
-    - "src/**/__tests__/**"
-    - "src/test/**"
-    - "vitest.config.ts"
+  focus_areas:
+    - "src/features/bot/**"         # Bot 核心逻辑
+    - "src/components/bot/**"       # Bot UI 组件
+    - "src/store/botStore.ts"       # Bot 状态
+    - "src-tauri/src/commands/bot.rs"  # Tauri 命令
+
+phases:
+  - name: "Phase 1: 依赖安装"
+    tasks:
+      - "pnpm add @assistant-ui/react @assistant-ui/react-ai-sdk zod"
+      - "验证 pnpm tsc --noEmit 通过"
+      
+  - name: "Phase 2: Bot Store 和基础 UI"
+    tasks:
+      - "创建 src/store/botStore.ts"
+      - "创建 src/components/bot/BotHandle.tsx"
+      - "创建 src/components/bot/BotPanel.tsx"
+      - "创建 src/components/bot/BotChat.tsx（占位）"
+      - "在 Canvas.tsx 中集成 BotPanel"
+      
+  - name: "Phase 3: 面板互斥逻辑"
+    tasks:
+      - "修改 botStore togglePanel 关闭 Properties Panel"
+      - "修改 workflowStore 选中节点时关闭 Bot Panel"
+      
+  - name: "Phase 4: Bot Runtime 配置"
+    tasks:
+      - "创建 src/features/bot/types.ts"
+      - "创建 src/features/bot/BotRuntime.tsx"
+      - "更新 BotChat.tsx 使用 assistant-ui Thread"
+      
+  - name: "Phase 5: Bot Toolkit 实现"
+    tasks:
+      - "创建 src/features/bot/BotToolkit.ts"
+      - "实现 6 个核心工具"
+      
+  - name: "Phase 6: 持久化实现"
+    tasks:
+      - "创建 src/features/bot/persistence/historyAdapter.ts"
+      - "创建 Tauri 命令 save_bot_history / load_bot_history"
+      
+  - name: "Phase 7: 危险操作确认流程"
+    tasks:
+      - "创建 src/components/bot/ConfirmDialog.tsx"
+      - "在 delete_nodes 工具中集成确认逻辑"
+      
+  - name: "Phase 8: 快捷键集成"
+    tasks:
+      - "添加 Cmd+K 快捷键监听"
+      
+  - name: "Phase 9: UI 主题自定义"
+    tasks:
+      - "自定义 assistant-ui 主题样式"
 
 capabilities:
-  browser: "false"  # 不需要浏览器自动化
+  browser: false
+  tauri_mcp: true  # 如果有 Tauri MCP 可用于截图验证

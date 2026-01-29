@@ -65,7 +65,7 @@ export type FontSize = 'small' | 'medium' | 'large';
  * Font size mapping in pixels
  */
 export const FONT_SIZE_MAP: Record<FontSize, { message: number; input: number }> = {
-  small: { message: 13, input: 13 },
+  small: { message: 12, input: 12 },
   medium: { message: 14, input: 14 },
   large: { message: 16, input: 16 },
 } as const;
@@ -86,9 +86,9 @@ export const SPACING_MAP: Record<
   SpacingPreset,
   { messagePadding: string; inputPadding: string; gap: string }
 > = {
-  compact: { messagePadding: '8px 12px', inputPadding: '8px 12px', gap: '8px' },
+  compact: { messagePadding: '6px 10px', inputPadding: '6px 10px', gap: '6px' },
   comfortable: { messagePadding: '12px 16px', inputPadding: '12px 16px', gap: '12px' },
-  spacious: { messagePadding: '16px 20px', inputPadding: '16px 20px', gap: '16px' },
+  spacious: { messagePadding: '20px 24px', inputPadding: '16px 20px', gap: '20px' },
 } as const;
 
 // ============================================================================

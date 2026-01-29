@@ -25,3 +25,12 @@
 
 ### Files Modified
 - src/components/workflow/__tests__/NodePicker.test.tsx (created)
+- [✓] 2026-01-28 15:37 - Phase 1: 依赖安装和项目配置
+- [✓] 2026-01-28 16:26 - Phase 2: Bot Store 和基础 UI
+- [✓] 2026-01-28 16:30 - Phase 3: 面板互斥逻辑
+- [✓] 2026-01-28 16:36 - Phase 4: Bot Runtime 配置
+- [✓] 2026-01-28 17:18 - Phase 5: Bot Toolkit 实现（6 个核心工具）
+- [✓] 2026-01-28 17:25 - Phase 6: 持久化实现
+- [✓] 2026-01-28 17:30 - Phase 7: 危险操作确认流程
+- [✓] 2026-01-28 17:34 - Phase 8: 快捷键集成
+- [✓] 2026-01-28 17:41 - Phase 9: UI 主题自定义

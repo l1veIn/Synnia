@@ -145,59 +145,38 @@ export interface ModelPlugin {
     // Execution: The Black Box (for Recipe single-shot execution)
     execute: (input: ModelExecutionInput) => Promise<ModelExecutionResult>;
 
-    // Chat: Multi-turn conversation (for Bot chat)
-    // Only models with 'chat' capability should implement this
-    chat?: (input: ChatInput, callbacks?: ChatCallbacks) => Promise<ChatResult>;
+
+
+    // Chat Adapter: Returns a ChatModelAdapter for integration with chat UI frameworks
+    // This follows the adapter pattern from the design document
+    getChatAdapter?: (credentials: ProviderCredentials, config?: any) => ChatModelAdapter;
 }
 
 // ============================================================================
-// Chat Types (for Bot integration)
+// Chat Model Adapter (for Chat UI Integration)
 // ============================================================================
 
-export interface ChatMessage {
+export interface ThreadMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
 }
 
-export interface ChatInput {
-    messages: ChatMessage[];
-    systemPrompt?: string;
-    tools?: ChatToolDefinition[];
-    toolResults?: ChatToolResult[];
-    credentials: ProviderCredentials;
-    temperature?: number;
-    maxTokens?: number;
+export interface ChatModelRunResult {
+    content: Array<
+        | { type: 'text'; text: string }
+        | { type: 'tool-call'; toolCallId: string; toolName: string; args: any; result?: any }
+    >;
 }
 
-export interface ChatToolDefinition {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
+export interface ChatModelAdapter {
+    run(options: {
+        messages: ThreadMessage[];
+        abortSignal?: AbortSignal;
+        config?: Record<string, any>;
+    }): AsyncGenerator<ChatModelRunResult> | Promise<ChatModelRunResult>;
 }
 
-export interface ChatToolResult {
-    callId: string;
-    result: unknown;
-}
 
-export interface ChatCallbacks {
-    onChunk?: (text: string) => void;
-    onToolCall?: (call: ChatToolCall) => void;
-}
-
-export interface ChatToolCall {
-    id: string;
-    name: string;
-    arguments: Record<string, unknown>;
-}
-
-export interface ChatResult {
-    success: boolean;
-    message?: ChatMessage;
-    toolCalls?: ChatToolCall[];
-    usage?: { promptTokens: number; completionTokens: number };
-    error?: string;
-}
 
 // ============================================================================
 // Registry Interface

@@ -1,9 +1,9 @@
 // Google Gemini LLM Plugins
 // Unified with ModelPlugin interface
 
-import { generateText } from 'ai';
+import { generateText, streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec, ChatModelAdapter, ThreadMessage } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -109,6 +109,38 @@ const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
         : undefined,
 
     execute: (input) => executeGoogle(input as ModelExecutionInput, config.id),
+
+    getChatAdapter: (credentials, modelConfig) => ({
+        async *run({ messages, abortSignal, config: runtimeConfig }) {
+            const google = createGoogleGenerativeAI({
+                apiKey: credentials.apiKey,
+                baseURL: credentials.baseUrl?.includes('generativelanguage.googleapis.com')
+                    ? undefined
+                    : credentials.baseUrl,
+            });
+
+            const model = google(config.id);
+
+            // Convert ThreadMessage to AI SDK message format
+            const aiMessages = messages.map(msg => ({
+                role: msg.role,
+                content: msg.content,
+            }));
+
+            const result = streamText({
+                model,
+                messages: aiMessages,
+                temperature: runtimeConfig?.temperature ?? modelConfig?.temperature ?? 0.7,
+                maxOutputTokens: runtimeConfig?.maxTokens ?? modelConfig?.maxTokens ?? config.maxOutputTokens,
+                abortSignal,
+            });
+
+            // Stream text chunks
+            for await (const chunk of result.textStream) {
+                yield { content: [{ type: 'text', text: chunk }] };
+            }
+        }
+    }),
 });
 
 // ============================================================================

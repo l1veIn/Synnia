@@ -175,13 +175,6 @@ pub fn run() {
             features::operations::logs::get_log_entries,
             features::operations::logs::clear_execution_logs,
 
-            // Bot commands
-            features::bot::bot_chat,
-            features::bot::save_bot_history,
-            features::bot::load_bot_history,
-            features::bot::list_bot_sessions,
-            features::bot::delete_bot_session,
-
             // Recipe commands
             features::recipe::commands::list_recipe_directory,
             features::recipe::commands::get_recipe_file_tree,

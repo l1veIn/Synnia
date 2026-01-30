@@ -24,7 +24,6 @@ import { dirname } from '@tauri-apps/api/path';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
 import { NodePicker } from '@/components/workflow/NodePicker';
-import { BotPanel } from '@/components/bot/BotPanel';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
@@ -186,9 +185,6 @@ function CanvasFlow() {
 
   return (
     <div className="h-screen w-screen bg-background text-foreground overflow-hidden">
-      {/* Bot Panel (left side) */}
-      <BotPanel />
-
       <div
         className="relative h-full w-full"
       >

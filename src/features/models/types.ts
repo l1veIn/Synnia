@@ -2,6 +2,7 @@
 // Unified architecture: All models are "Compute Units" (JSON-in -> JSON-out)
 
 import { ReactNode } from 'react';
+import type { ChatModelAdapter } from '@assistant-ui/react';
 
 // ============================================================================
 // Category & Capability Types
@@ -147,33 +148,9 @@ export interface ModelPlugin {
 
 
 
-    // Chat Adapter: Returns a ChatModelAdapter for integration with chat UI frameworks
-    // This follows the adapter pattern from the design document
+    // Chat Adapter: Returns a ChatModelAdapter for integration with assistant-ui
+    // Uses the ChatModelAdapter type from @assistant-ui/react
     getChatAdapter?: (credentials: ProviderCredentials, config?: any) => ChatModelAdapter;
-}
-
-// ============================================================================
-// Chat Model Adapter (for Chat UI Integration)
-// ============================================================================
-
-export interface ThreadMessage {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-}
-
-export interface ChatModelRunResult {
-    content: Array<
-        | { type: 'text'; text: string }
-        | { type: 'tool-call'; toolCallId: string; toolName: string; args: any; result?: any }
-    >;
-}
-
-export interface ChatModelAdapter {
-    run(options: {
-        messages: ThreadMessage[];
-        abortSignal?: AbortSignal;
-        config?: Record<string, any>;
-    }): AsyncGenerator<ChatModelRunResult> | Promise<ChatModelRunResult>;
 }
 
 

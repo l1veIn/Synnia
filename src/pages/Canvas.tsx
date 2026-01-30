@@ -7,6 +7,7 @@ import { getNodeTypes, ensureRecipeNodesRegistered } from '@/components/workflow
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Plus, Save, Home, FolderOpen } from 'lucide-react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useFileUploadDrag } from '@/hooks/useFileUploadDrag';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -24,12 +25,17 @@ import { dirname } from '@tauri-apps/api/path';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
 import { NodePicker } from '@/components/workflow/NodePicker';
+import { AssistantModal } from '@/components/assistant-ui/assistant-modal';
+import { AssistantFullscreen } from '@/components/assistant-ui/assistant-fullscreen';
+import { ChatRuntimeProvider } from '@/features/chat';
 
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {
   const navigate = useNavigate();
   const [assetLibraryOpen, setAssetLibraryOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHydrating, setIsHydrating] = useState(true); // Block render until hydration complete
   const nodes = useWorkflowStore(s => s.nodes);
   const edges = useWorkflowStore(s => s.edges);
@@ -289,6 +295,27 @@ function CanvasFlow() {
           }}
         />
       </div>
+      <TooltipProvider>
+        <ChatRuntimeProvider>
+          {!isFullscreen && (
+            <AssistantModal
+              isOpen={isModalOpen}
+              onOpenChange={setIsModalOpen}
+              onExpand={() => {
+                setIsModalOpen(false);
+                setIsFullscreen(true);
+              }}
+            />
+          )}
+          <AssistantFullscreen
+            isOpen={isFullscreen}
+            onClose={() => {
+              setIsFullscreen(false);
+              setIsModalOpen(true);
+            }}
+          />
+        </ChatRuntimeProvider>
+      </TooltipProvider>
     </div>
   );
 }

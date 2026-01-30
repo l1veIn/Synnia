@@ -3,7 +3,7 @@
 
 import { generateText, streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec, ChatModelAdapter, ThreadMessage } from '../types';
+import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
@@ -111,7 +111,7 @@ const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
     execute: (input) => executeGoogle(input as ModelExecutionInput, config.id),
 
     getChatAdapter: (credentials, modelConfig) => ({
-        async *run({ messages, abortSignal, config: runtimeConfig }) {
+        async *run({ messages, abortSignal }) {
             const google = createGoogleGenerativeAI({
                 apiKey: credentials.apiKey,
                 baseURL: credentials.baseUrl?.includes('generativelanguage.googleapis.com')
@@ -121,23 +121,29 @@ const createGeminiModel = (config: GeminiModelConfig): ModelPlugin => ({
 
             const model = google(config.id);
 
-            // Convert ThreadMessage to AI SDK message format
+            // Convert assistant-ui ThreadMessage to AI SDK message format
+            // assistant-ui content is ContentPart[], we need to extract text
             const aiMessages = messages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
+                role: msg.role as 'user' | 'assistant' | 'system',
+                content: msg.content
+                    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+                    .map(part => part.text)
+                    .join(''),
             }));
 
             const result = streamText({
                 model,
                 messages: aiMessages,
-                temperature: runtimeConfig?.temperature ?? modelConfig?.temperature ?? 0.7,
-                maxOutputTokens: runtimeConfig?.maxTokens ?? modelConfig?.maxTokens ?? config.maxOutputTokens,
+                temperature: modelConfig?.temperature ?? 0.7,
+                maxOutputTokens: modelConfig?.maxTokens ?? config.maxOutputTokens,
                 abortSignal,
             });
 
-            // Stream text chunks
+            // Stream text chunks - assistant-ui expects cumulative content
+            let accumulatedText = '';
             for await (const chunk of result.textStream) {
-                yield { content: [{ type: 'text', text: chunk }] };
+                accumulatedText += chunk;
+                yield { content: [{ type: 'text' as const, text: accumulatedText }] };
             }
         }
     }),

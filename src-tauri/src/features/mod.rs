@@ -7,6 +7,7 @@
 //! - recipe: Recipe management
 //! - settings: Application settings
 //! - operations: Runtime operations (chat, logs)
+//! - chat: Chat persistence
 
 pub mod project;
 pub mod asset;
@@ -14,3 +15,5 @@ pub mod history;
 pub mod recipe;
 pub mod settings;
 pub mod operations;
+pub mod chat;
+

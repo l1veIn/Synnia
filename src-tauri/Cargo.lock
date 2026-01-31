@@ -4799,6 +4799,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
+ "futures",
  "image",
  "kamadak-exif",
  "log",

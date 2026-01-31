@@ -38,8 +38,16 @@ pub use types::{
     ProviderCredentials,
 };
 
+// Re-export state module types
+pub use state::{
+    AgentState,
+    ChatSession,
+    SessionNotFoundError,
+};
+
 // Submodules (to be implemented in later phases)
 pub mod commands;
 pub mod providers;
 pub mod tools;
 pub mod storage;
+pub mod state;

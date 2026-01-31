@@ -48,6 +48,7 @@ rig-core = "0.5"
 
 [dev-dependencies]
 tempfile = "3"
+futures = "0.3"
 
 [features]
 default = ["new_features"]

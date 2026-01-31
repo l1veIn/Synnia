@@ -206,6 +206,13 @@ pub fn run() {
             // HTTP Proxy
             infrastructure::http::proxy_request,
             infrastructure::http::fetch_image_as_base64,
+
+            // Chat persistence
+            features::chat::chat_get_index,
+            features::chat::chat_save_index,
+            features::chat::chat_get_thread,
+            features::chat::chat_save_thread,
+            features::chat::chat_delete_thread,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

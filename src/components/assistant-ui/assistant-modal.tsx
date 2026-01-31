@@ -2,6 +2,7 @@
 
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { type FC, forwardRef, useState, useEffect, useCallback } from "react";
+import { useAui } from "@assistant-ui/react";
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -18,6 +19,8 @@ export const AssistantModal: FC<AssistantModalProps> = ({
   onOpenChange,
   onExpand
 }) => {
+  const aui = useAui();
+
   // Support both controlled and uncontrolled modes
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -93,10 +96,10 @@ export const AssistantModal: FC<AssistantModalProps> = ({
     };
   }, [isResizing, position]);
 
+  // New chat - switches to a new thread (lazy creation on first message)
   const handleNewChat = useCallback(() => {
-    // TODO: Implement new chat - for now just a placeholder
-    console.log("New chat requested");
-  }, []);
+    aui.threads().switchToNewThread();
+  }, [aui]);
 
   const handleExpand = useCallback(() => {
     setIsOpen(false);

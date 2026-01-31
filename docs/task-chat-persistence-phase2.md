@@ -11,15 +11,31 @@
 - ❌ 消息内容搜索（不需要）
 - ❌ 自动标题生成（可选，后续实现）
 
+## 必读参考 Skills
+
+实现前**必须**阅读以下 skills：
+
+- `.agents/skills/runtime/SKILL.md` - Runtime 系统和状态管理
+  - `.agents/skills/runtime/references/thread-list.md` - **重点**：`useRemoteThreadListRuntime` 和 `RemoteThreadListAdapter` 的完整 API
+  - `.agents/skills/runtime/references/local-runtime.md` - `useLocalRuntime` 和 `ThreadHistoryAdapter`
+- `.agents/skills/thread-list/SKILL.md` - Thread List 管理
+  - `.agents/skills/thread-list/references/management.md` - CRUD 操作 API
+
 ## 存储结构
 
+**重要**：聊天记录存储在**项目目录**下，而不是全局 `~/.synnia/`：
+
 ```
-~/.synnia/chat/
+{projectDir}/chat/
 ├── index.json              # 会话索引（元数据列表）
 └── threads/
     ├── {threadId}.json     # 单个会话完整内容
     └── ...
 ```
+
+例如：`/Users/yangchen/Documents/SynniaProjects/test/chat/`
+
+**原因**：每个项目的聊天记录应该独立，不混在一起。
 
 ### index.json 结构
 
@@ -131,20 +147,30 @@ impl Default for ChatIndex {
 
 #### commands.rs
 
+**关键**：使用当前项目路径，而不是全局 app_data_dir：
+
 ```rust
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 use std::fs;
 use std::path::PathBuf;
 use super::types::{ChatIndex, ThreadData, ThreadMetadata};
+use crate::core::AppState;
 
-fn get_chat_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let data_dir = app.path().app_data_dir()
-        .map_err(|e| e.to_string())?;
-    Ok(data_dir.join("chat"))
+/// 获取当前项目的 chat 目录
+/// 路径：{projectDir}/chat/
+fn get_chat_dir(state: &State<AppState>) -> Result<PathBuf, String> {
+    let project_path = state.current_project_path.lock()
+        .map_err(|e| format!("Failed to lock project path: {}", e))?;
+    
+    let project_dir = project_path
+        .as_ref()
+        .ok_or("No project is currently open")?;
+    
+    Ok(PathBuf::from(project_dir).join("chat"))
 }
 
-fn ensure_chat_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let chat_dir = get_chat_dir(app)?;
+fn ensure_chat_dir(state: &State<AppState>) -> Result<PathBuf, String> {
+    let chat_dir = get_chat_dir(state)?;
     let threads_dir = chat_dir.join("threads");
     
     if !chat_dir.exists() {
@@ -158,8 +184,8 @@ fn ensure_chat_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-pub async fn chat_get_index(app: AppHandle) -> Result<ChatIndex, String> {
-    let chat_dir = ensure_chat_dir(&app)?;
+pub async fn chat_get_index(state: State<'_, AppState>) -> Result<ChatIndex, String> {
+    let chat_dir = ensure_chat_dir(&state)?;
     let index_path = chat_dir.join("index.json");
     
     if !index_path.exists() {
@@ -171,8 +197,8 @@ pub async fn chat_get_index(app: AppHandle) -> Result<ChatIndex, String> {
 }
 
 #[tauri::command]
-pub async fn chat_save_index(app: AppHandle, index: ChatIndex) -> Result<(), String> {
-    let chat_dir = ensure_chat_dir(&app)?;
+pub async fn chat_save_index(state: State<'_, AppState>, index: ChatIndex) -> Result<(), String> {
+    let chat_dir = ensure_chat_dir(&state)?;
     let index_path = chat_dir.join("index.json");
     
     let content = serde_json::to_string_pretty(&index).map_err(|e| e.to_string())?;
@@ -186,8 +212,8 @@ pub async fn chat_save_index(app: AppHandle, index: ChatIndex) -> Result<(), Str
 }
 
 #[tauri::command]
-pub async fn chat_get_thread(app: AppHandle, thread_id: String) -> Result<Option<ThreadData>, String> {
-    let chat_dir = get_chat_dir(&app)?;
+pub async fn chat_get_thread(state: State<'_, AppState>, thread_id: String) -> Result<Option<ThreadData>, String> {
+    let chat_dir = get_chat_dir(&state)?;
     let thread_path = chat_dir.join("threads").join(format!("{}.json", thread_id));
     
     if !thread_path.exists() {
@@ -200,8 +226,8 @@ pub async fn chat_get_thread(app: AppHandle, thread_id: String) -> Result<Option
 }
 
 #[tauri::command]
-pub async fn chat_save_thread(app: AppHandle, thread: ThreadData) -> Result<(), String> {
-    let chat_dir = ensure_chat_dir(&app)?;
+pub async fn chat_save_thread(state: State<'_, AppState>, thread: ThreadData) -> Result<(), String> {
+    let chat_dir = ensure_chat_dir(&state)?;
     let thread_path = chat_dir.join("threads").join(format!("{}.json", &thread.id));
     
     let content = serde_json::to_string_pretty(&thread).map_err(|e| e.to_string())?;
@@ -215,8 +241,8 @@ pub async fn chat_save_thread(app: AppHandle, thread: ThreadData) -> Result<(), 
 }
 
 #[tauri::command]
-pub async fn chat_delete_thread(app: AppHandle, thread_id: String) -> Result<(), String> {
-    let chat_dir = get_chat_dir(&app)?;
+pub async fn chat_delete_thread(state: State<'_, AppState>, thread_id: String) -> Result<(), String> {
+    let chat_dir = get_chat_dir(&state)?;
     let thread_path = chat_dir.join("threads").join(format!("{}.json", thread_id));
     
     if thread_path.exists() {
@@ -496,6 +522,29 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
 
 ## 边界访问逻辑
 
+### 0. 「当前会话」概念
+
+**定义**：用户最后选中并停留的会话就是「当前会话」。
+
+**存储**：当前会话 ID 存储在 `localStorage`（每个项目独立 key）：
+
+```typescript
+// 使用项目 ID 作为 key 的一部分，确保每个项目有独立的当前会话
+const STORAGE_KEY = `synnia-chat-lastActiveThread-${projectId}`;
+
+// 保存当前会话
+localStorage.setItem(STORAGE_KEY, threadId);
+
+// 读取当前会话
+const lastThreadId = localStorage.getItem(STORAGE_KEY);
+```
+
+**行为**：
+- ✅ 切换会话时，立即更新 localStorage
+- ✅ 再次打开聊天框时，自动恢复到当前会话
+- ✅ 删除当前会话后，清除缓存并切换到下一个会话
+- ❌ 不需要后端参与，纯前端缓存
+
 ### 1. 启动加载逻辑
 
 ```
@@ -505,14 +554,33 @@ ChatRuntimeProvider 初始化
     ↓
 读取 index.json（一次性）
     ↓
-如果有历史会话 → 自动加载最近一个（updatedAt 最新）
-如果没有会话 → 显示初始引导界面（Welcome）
+读取 localStorage 获取 lastActiveThreadId
+    ↓
+如果 lastActiveThreadId 存在且有效 → 自动加载该会话
+如果 lastActiveThreadId 无效或不存在 → 加载最近一个（updatedAt 最新）
+如果没有任何会话 → 显示初始引导界面（Welcome）
 ```
 
 **实现要点：**
 - `index.json` 在 Provider 初始化时读取一次，缓存在内存中
-- 默认选中 `threads[0]`（按 updatedAt 降序排列）
+- 优先使用 localStorage 中的 `lastActiveThreadId`
+- 如果 `lastActiveThreadId` 对应的会话已被删除，则 fallback 到 `threads[0]`
 - Thread 消息在选中时才从文件加载
+
+**切换会话时更新缓存：**
+
+```typescript
+// 在 useRemoteThreadListRuntime 的 onSwitchThread 或类似回调中
+useEffect(() => {
+  const unsubscribe = runtime.subscribe(() => {
+    const { mainThreadId } = runtime.getState().threadList;
+    if (mainThreadId) {
+      localStorage.setItem(STORAGE_KEY, mainThreadId);
+    }
+  });
+  return unsubscribe;
+}, [runtime]);
+```
 
 ### 2. 显示/隐藏聊天框（不触发 IO）
 
@@ -653,7 +721,7 @@ async function saveThread(thread: ThreadData): Promise<void> {
 - [ ] 可以重命名会话
 - [ ] 可以归档/取消归档会话
 - [ ] 切换会话时正确加载历史消息
-- [ ] 会话文件存储在 `~/.synnia/chat/` 目录
+- [ ] 会话文件存储在 `{projectDir}/chat/` 目录
 
 ## 注意事项
 

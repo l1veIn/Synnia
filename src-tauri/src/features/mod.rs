@@ -14,4 +14,5 @@ pub mod history;
 pub mod recipe;
 pub mod settings;
 pub mod operations;
+pub mod chat;
 

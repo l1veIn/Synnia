@@ -45,9 +45,20 @@ pub use state::{
     SessionNotFoundError,
 };
 
+// Re-export engine types
+pub use engine::{
+    AgentEngine,
+    AgentResponse,
+    EngineConfig,
+    StreamEvent,
+    TokenUsage,
+    ToolCallInfo,
+};
+
 // Submodules (to be implemented in later phases)
 pub mod commands;
 pub mod providers;
 pub mod tools;
 pub mod storage;
 pub mod state;
+pub mod engine;

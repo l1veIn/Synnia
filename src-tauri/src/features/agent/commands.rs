@@ -1,0 +1,382 @@
+//! Tauri command handlers for the agent module.
+//!
+//! This module exposes the agent functionality to the frontend through Tauri commands.
+
+use crate::features::agent::engine::AgentEngine;
+use crate::features::agent::state::{AgentState, ChatSession};
+use crate::features::agent::types::{Message, ProviderType};
+use crate::global::database;
+use tauri::{AppHandle, State};
+
+use std::sync::{Arc, Mutex};
+
+// ============================================================================
+// Chat Commands
+// ============================================================================
+
+/// Response from sending a chat message.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMessageResponse {
+    /// The message ID of the assistant's response
+    pub message_id: String,
+    /// The full response content
+    pub content: String,
+    /// Model used for generation
+    pub model_id: String,
+    /// Provider used
+    pub provider: ProviderType,
+}
+
+/// Send a message in a chat session (non-streaming).
+#[tauri::command]
+pub async fn chat_send_message(
+    state: State<'_, Arc<Mutex<AgentState>>>,
+    _app_handle: AppHandle,
+    session_id: Option<String>,
+    content: String,
+    model_id: String,
+    provider: String,
+) -> Result<SendMessageResponse, String> {
+    let provider_type = ProviderType::parse(&provider)
+        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
+
+    let session_id = session_id.unwrap_or_else(|| {
+        uuid::Uuid::new_v4().to_string()
+    });
+
+    // Check if session exists in runtime state
+    let session_exists = {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.get_session(&session_id).is_some()
+    };
+
+    let _session = if !session_exists {
+        load_or_create_session(&session_id, &model_id, provider_type).await?
+    } else {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.get_session(&session_id)
+            .ok_or_else(|| format!("Session not found: {}", session_id))?
+    };
+
+    // Update session model if needed
+    {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.switch_model(&session_id, &model_id, provider_type).ok();
+    }
+
+    // Create and save user message
+    let user_message = Message::user(&content);
+    {
+        let conn = database::init_global_db().map_err(|e| e.to_string())?;
+        crate::features::agent::storage::save_message(&conn, &session_id, &user_message)
+            .map_err(|e| e.to_string())?;
+    }
+
+    {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.add_message(&session_id, user_message.clone()).ok();
+    }
+
+    // Execute agent
+    let engine = AgentEngine::default();
+    let agent_session = {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.get_session(&session_id)
+            .ok_or_else(|| format!("Session not found: {}", session_id))?
+    };
+
+    let response = engine.run_sync(&agent_session, &content).await
+        .map_err(|e| e.to_string())?;
+
+    // Create and save assistant message
+    let assistant_message = Message {
+        id: response.message_id.clone(),
+        role: crate::features::agent::types::MessageRole::Assistant,
+        content: response.content.clone(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        model_id: Some(response.model_id.clone()),
+        provider: Some(response.provider),
+        tool_call_id: None,
+        tool_name: None,
+        tool_args_json: None,
+        tool_result_json: None,
+    };
+
+    {
+        let conn = database::init_global_db().map_err(|e| e.to_string())?;
+        crate::features::agent::storage::save_message(&conn, &session_id, &assistant_message)
+            .map_err(|e| e.to_string())?;
+        crate::features::agent::storage::update_session_model(&conn, &session_id, &response.model_id, &response.provider.to_string())
+            .map_err(|e| e.to_string())?;
+    }
+
+    {
+        let agent_state = state.lock().map_err(|e| e.to_string())?;
+        agent_state.add_message(&session_id, assistant_message).ok();
+    }
+
+    Ok(SendMessageResponse {
+        message_id: response.message_id,
+        content: response.content,
+        model_id: response.model_id,
+        provider: response.provider,
+    })
+}
+
+/// Load a session from the database or create a new one.
+async fn load_or_create_session(
+    session_id: &str,
+    model_id: &str,
+    provider: ProviderType,
+) -> Result<ChatSession, String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+
+    if let Some(session_info) = crate::features::agent::storage::get_session(&conn, session_id)
+        .map_err(|e| e.to_string())?
+    {
+        let messages = crate::features::agent::storage::get_messages(&conn, session_id)
+            .map_err(|e| e.to_string())?;
+
+        Ok(ChatSession::with_history(
+            session_id,
+            session_info.title,
+            messages,
+            model_id,
+            provider,
+            true,
+        ))
+    } else {
+        let title = "New Chat".to_string();
+        crate::features::agent::storage::create_session(&conn, session_id, &title)
+            .map_err(|e| e.to_string())?;
+
+        Ok(ChatSession::new(title, model_id, provider, true))
+    }
+}
+
+/// Send a message with streaming response (fallback to non-streaming).
+#[tauri::command]
+pub async fn chat_stream(
+    state: State<'_, Arc<Mutex<AgentState>>>,
+    app_handle: AppHandle,
+    session_id: Option<String>,
+    content: String,
+    model_id: String,
+    provider: String,
+) -> Result<SendMessageResponse, String> {
+    chat_send_message(state, app_handle, session_id, content, model_id, provider).await
+}
+
+/// Switch the model for an active chat session.
+#[tauri::command]
+pub fn chat_switch_model(
+    state: State<'_, Arc<Mutex<AgentState>>>,
+    session_id: String,
+    model_id: String,
+    provider: String,
+) -> Result<(), String> {
+    let provider_type = ProviderType::parse(&provider)
+        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
+
+    let agent_state = state.lock().map_err(|e| e.to_string())?;
+    agent_state
+        .switch_model(&session_id, &model_id, provider_type)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ============================================================================
+// Session Commands
+// ============================================================================
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSessionRequest {
+    pub title: Option<String>,
+    pub model_id: String,
+    pub provider: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSessionResponse {
+    pub session_id: String,
+    pub title: String,
+}
+
+#[tauri::command]
+pub fn get_sessions(_app_handle: AppHandle) -> Result<Vec<crate::features::agent::types::SessionInfo>, String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    crate::features::agent::storage::get_sessions(&conn)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_session_messages(
+    _app_handle: AppHandle,
+    session_id: String,
+) -> Result<Vec<Message>, String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    crate::features::agent::storage::get_messages(&conn, &session_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn create_session(
+    state: State<'_, Arc<Mutex<AgentState>>>,
+    _app_handle: AppHandle,
+    request: CreateSessionRequest,
+) -> Result<CreateSessionResponse, String> {
+    let provider_type = ProviderType::parse(&request.provider)
+        .ok_or_else(|| format!("Invalid provider: '{}'", request.provider))?;
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let title = request.title.unwrap_or_else(|| "New Chat".to_string());
+
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    crate::features::agent::storage::create_session(&conn, &session_id, &title)
+        .map_err(|e| e.to_string())?;
+    crate::features::agent::storage::update_session_model(&conn, &session_id, &request.model_id, &request.provider)
+        .map_err(|e| e.to_string())?;
+
+    let session = ChatSession::new(&title, request.model_id, provider_type, true);
+    let agent_state = state.lock().map_err(|e| e.to_string())?;
+    agent_state.add_session(session);
+
+    Ok(CreateSessionResponse { session_id, title })
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSessionRequest {
+    pub session_id: String,
+    pub title: Option<String>,
+}
+
+#[tauri::command]
+pub fn update_session(
+    _app_handle: AppHandle,
+    request: UpdateSessionRequest,
+) -> Result<(), String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    if let Some(title) = request.title {
+        crate::features::agent::storage::update_session_title(&conn, &request.session_id, &title)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_session(
+    state: State<'_, Arc<Mutex<AgentState>>>,
+    _app_handle: AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    crate::features::agent::storage::delete_session(&conn, &session_id)
+        .map_err(|e| e.to_string())?;
+
+    let agent_state = state.lock().map_err(|e| e.to_string())?;
+    agent_state.remove_session(&session_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_session(
+    _app_handle: AppHandle,
+    session_id: String,
+) -> Result<Option<crate::features::agent::types::SessionInfo>, String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    crate::features::agent::storage::get_session(&conn, &session_id)
+        .map_err(|e| e.to_string())
+}
+
+// ============================================================================
+// Model Commands
+// ============================================================================
+
+#[tauri::command]
+pub fn get_models(
+    category: Option<String>,
+    capabilities: Option<Vec<String>>,
+    configured_only: Option<bool>,
+) -> Result<Vec<crate::features::agent::types::ModelInfo>, String> {
+    use crate::features::agent::types::{ModelCapability, ModelCategory};
+    use crate::features::agent::providers::ModelRegistry;
+
+    let cat = match category.as_deref() {
+        Some("llm") => Some(ModelCategory::Llm),
+        Some("image-generation") => Some(ModelCategory::ImageGeneration),
+        Some("video-generation") => Some(ModelCategory::VideoGeneration),
+        Some(other) => {
+            return Err(format!("Unknown category: '{}'", other))
+        }
+        None => None,
+    };
+
+    let caps = match capabilities {
+        Some(cap_strings) => {
+            let parsed: Option<Vec<ModelCapability>> = cap_strings
+                .iter()
+                .map(|s| match s.as_str() {
+                    "chat" => Some(ModelCapability::Chat),
+                    "vision" => Some(ModelCapability::Vision),
+                    "json-mode" => Some(ModelCapability::JsonMode),
+                    "function-calling" => Some(ModelCapability::FunctionCalling),
+                    "streaming" => Some(ModelCapability::Streaming),
+                    _ => None,
+                })
+                .collect();
+
+            match parsed {
+                Some(caps) => Some(caps),
+                None => return Ok(vec![]),
+            }
+        }
+        None => None,
+    };
+
+    Ok(ModelRegistry::get_models(cat, caps, configured_only.unwrap_or(false)))
+}
+
+#[tauri::command]
+pub fn get_model(id: String) -> Result<crate::features::agent::types::ModelInfo, String> {
+    use crate::features::agent::providers::ModelRegistry;
+    ModelRegistry::get_model(&id)
+        .ok_or_else(|| format!("Model not found: '{}'", id))
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::features::agent::types::ProviderType;
+
+    #[test]
+    fn test_send_message_response_serialization() {
+        let response = SendMessageResponse {
+            message_id: "msg-123".to_string(),
+            content: "Hello, world!".to_string(),
+            model_id: "gemini-2.5-flash".to_string(),
+            provider: ProviderType::Google,
+        };
+
+        let json = serde_json::to_string(&response).unwrap();
+        assert!(json.contains("messageId"));
+    }
+
+    #[test]
+    fn test_parse_provider_valid() {
+        assert_eq!(ProviderType::parse("google"), Some(ProviderType::Google));
+        assert_eq!(ProviderType::parse("zhipu"), Some(ProviderType::Zhipu));
+    }
+
+    #[test]
+    fn test_parse_provider_invalid() {
+        assert_eq!(ProviderType::parse("invalid"), None);
+    }
+}

@@ -1,5 +1,5 @@
 //! Application setup and initialization.
-//! 
+//!
 //! NOTE: This module contains the app builder for future use.
 //! Currently, lib.rs has its own run() function that handles setup.
 
@@ -8,6 +8,7 @@ use std::sync::{Mutex, Arc};
 
 use crate::core::AppState;
 use crate::infrastructure::server;
+use crate::features::agent::AgentState;
 
 // ============================================
 // Application Builder (for future use)
@@ -18,11 +19,13 @@ use crate::infrastructure::server;
 pub fn build_app() -> tauri::Builder<tauri::Wry> {
     let current_project_path = Arc::new(Mutex::new(None));
     let server_port = server::init(current_project_path.clone());
+    let agent_state = Arc::new(Mutex::new(AgentState::new()));
 
     tauri::Builder::default()
         .manage(AppState {
             current_project_path,
             server_port,
+            agent_state,
         })
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;

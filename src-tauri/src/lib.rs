@@ -13,6 +13,7 @@ use std::sync::{Mutex, Arc};
 use tauri::{Manager, State};
 use serde::{Serialize, Deserialize};
 use ts_rs::TS;
+use crate::features::agent::AgentState;
 
 // ============================================
 // NEW Modular Architecture
@@ -76,10 +77,14 @@ pub fn run() {
     // Start Local File Server
     let server_port = infrastructure::server::init(current_project_path.clone());
 
+    // Initialize Agent State
+    let agent_state = Arc::new(Mutex::new(AgentState::new()));
+
     tauri::Builder::default()
         .manage(core::AppState {
             current_project_path,
             server_port,
+            agent_state,
         })
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
@@ -213,6 +218,19 @@ pub fn run() {
             features::chat::chat_get_thread,
             features::chat::chat_save_thread,
             features::chat::chat_delete_thread,
+
+            // Agent module commands
+            features::agent::commands::chat_send_message,
+            features::agent::commands::chat_stream,
+            features::agent::commands::chat_switch_model,
+            features::agent::commands::get_sessions,
+            features::agent::commands::get_session_messages,
+            features::agent::commands::create_session,
+            features::agent::commands::update_session,
+            features::agent::commands::delete_session,
+            features::agent::commands::get_session,
+            features::agent::commands::get_models,
+            features::agent::commands::get_model,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

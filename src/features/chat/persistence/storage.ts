@@ -30,3 +30,31 @@ export async function writeThread(thread: ThreadData): Promise<void> {
 export async function deleteThread(threadId: string): Promise<void> {
     await invoke('chat_delete_thread', { threadId });
 }
+
+/** Get a tool confirmation from a thread */
+export async function getToolConfirmation(
+    threadId: string,
+    confirmationId: string
+): Promise<import('./types').ToolConfirmation | null> {
+    const thread = await readThread(threadId);
+    if (!thread) return null;
+    return thread.toolConfirmations?.[confirmationId] ?? null;
+}
+
+/** Save a tool confirmation to a thread */
+export async function saveToolConfirmation(
+    threadId: string,
+    confirmationId: string,
+    confirmation: import('./types').ToolConfirmation
+): Promise<void> {
+    const thread = await readThread(threadId);
+    if (!thread) {
+        console.warn(`[storage] Cannot save confirmation - thread ${threadId} not found`);
+        return;
+    }
+
+    thread.toolConfirmations = thread.toolConfirmations || {};
+    thread.toolConfirmations[confirmationId] = confirmation;
+    thread.updatedAt = new Date().toISOString();
+    await writeThread(thread);
+}

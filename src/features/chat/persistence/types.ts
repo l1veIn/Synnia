@@ -21,6 +21,13 @@ export interface ThreadMetadata {
     modelId?: string;
 }
 
+/** Tool confirmation result (for human-in-the-loop tools) */
+export interface ToolConfirmation {
+    state: 'confirmed' | 'cancelled';
+    deletedCount?: number;
+    timestamp: string;
+}
+
 /** Full thread data including messages (stored in {threadId}.json) */
 export interface ThreadData {
     id: string;
@@ -30,4 +37,7 @@ export interface ThreadData {
     modelId?: string;
     /** Messages in assistant-ui format */
     messages: unknown[];
+    /** Tool confirmation results, keyed by confirmation ID */
+    toolConfirmations?: Record<string, ToolConfirmation>;
 }
+

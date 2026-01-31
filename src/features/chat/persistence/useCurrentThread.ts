@@ -34,10 +34,20 @@ export function useCurrentThread(): void {
     const currentThreadId = useAuiState(s => s.threadListItem?.remoteId);
     const previousThreadIdRef = useRef<string | undefined>(undefined);
 
-    // Save thread ID to localStorage when it changes
+    // Save thread ID to localStorage when it changes, or clear if no thread
     useEffect(() => {
         const storageKey = getStorageKey(projectRoot);
-        if (!storageKey || !currentThreadId) return;
+        if (!storageKey) return;
+
+        // If there's no current thread (all threads deleted), clear the cache
+        if (!currentThreadId) {
+            if (previousThreadIdRef.current) {
+                console.log('[useCurrentThread] No active thread, clearing cache');
+                localStorage.removeItem(storageKey);
+                previousThreadIdRef.current = undefined;
+            }
+            return;
+        }
 
         // Only save if it actually changed
         if (currentThreadId !== previousThreadIdRef.current) {

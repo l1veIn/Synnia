@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo, useEffect, useRef } from 'react';
+import { ReactNode, useMemo, useEffect } from 'react';
 import {
     AssistantRuntimeProvider,
     useLocalRuntime,
@@ -10,6 +10,7 @@ import {
 import { useChatModelAdapter } from './useChatModelAdapter';
 import { createChatThreadListAdapter, useCurrentThread } from './persistence';
 import { createThreadBoundHistoryAdapter } from './persistence/ThreadHistoryAdapter';
+import { ChatToolsProvider } from './tools';
 
 interface ChatRuntimeProviderProps {
     children: ReactNode;
@@ -73,9 +74,12 @@ export function ChatRuntimeProvider({ children }: ChatRuntimeProviderProps) {
 
     return (
         <AssistantRuntimeProvider runtime={runtime}>
-            <CurrentThreadTracker>
-                {children}
-            </CurrentThreadTracker>
+            <ChatToolsProvider>
+                <CurrentThreadTracker>
+                    {children}
+                </CurrentThreadTracker>
+            </ChatToolsProvider>
         </AssistantRuntimeProvider>
     );
 }
+

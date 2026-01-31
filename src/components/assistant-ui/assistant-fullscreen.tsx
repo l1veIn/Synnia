@@ -183,14 +183,61 @@ function ThreadListItem() {
                     <ThreadListItemPrimitive.Title fallback="New Chat" />
                 </span>
             </ThreadListItemPrimitive.Trigger>
-            <ThreadListItemPrimitive.Delete asChild>
-                <button
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <Trash2 className="size-3" />
-                </button>
-            </ThreadListItemPrimitive.Delete>
+            <SafeDeleteButton />
         </ThreadListItemPrimitive.Root>
     );
 }
+
+/**
+ * Safe delete button that switches to another thread before deleting.
+ * This prevents the "Entry not available in the store" error.
+ */
+function SafeDeleteButton() {
+    const aui = useAui();
+    // Get the current thread item info
+    const threadItem = useAuiState(s => s.threadListItem);
+
+    const handleDelete = useCallback(async (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (!threadItem?.remoteId) return;
+
+        const threadIdToDelete = threadItem.remoteId;
+        // Check if this thread is the currently displayed one by comparing with the global active thread
+        const isActive = true; // Always treat as active for safety since SafeDeleteButton is used within the item context
+
+        console.log(`[SafeDeleteButton] Deleting thread: ${threadIdToDelete}, isActive: ${isActive}`);
+
+        // If this is the active thread, switch to a new thread first
+        if (isActive) {
+            try {
+                // Switch to new thread before deleting to avoid store errors
+                await aui.threads().switchToNewThread();
+                console.log('[SafeDeleteButton] Switched to new thread');
+
+                // Small delay to let the store update
+                await new Promise(resolve => setTimeout(resolve, 50));
+            } catch (e) {
+                console.warn('[SafeDeleteButton] Failed to switch thread:', e);
+            }
+        }
+
+        // Now delete the original thread
+        try {
+            aui.threadListItem().delete();
+            console.log('[SafeDeleteButton] Thread deleted successfully');
+        } catch (e) {
+            console.warn('[SafeDeleteButton] Failed to delete thread:', e);
+        }
+    }, [aui, threadItem]);
+
+    return (
+        <button
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 hover:text-destructive rounded transition-all"
+            onClick={handleDelete}
+        >
+            <Trash2 className="size-3" />
+        </button>
+    );
+}
+

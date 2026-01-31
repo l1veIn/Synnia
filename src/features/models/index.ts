@@ -83,10 +83,12 @@ modelRegistry.register(gpt4oMini);
 modelRegistry.register(dallE3);
 
 // Google (LLM + Image)
-import { gemini2Flash, gemini25Flash } from './google/google';
+import { gemini2Flash, gemini25Flash, gemini3Pro, gemini3Flash } from './google/google';
 import { geminiImage } from './google/gemini-image';
 modelRegistry.register(gemini2Flash);
 modelRegistry.register(gemini25Flash);
+modelRegistry.register(gemini3Pro);
+modelRegistry.register(gemini3Flash);
 modelRegistry.register(geminiImage);
 
 // Anthropic

@@ -38,6 +38,19 @@ pub struct ThreadData {
     pub model_id: Option<String>,
     /// Messages in assistant-ui format (stored as raw JSON).
     pub messages: Vec<serde_json::Value>,
+    /// Tool confirmation results, keyed by confirmation ID.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tool_confirmations: Option<std::collections::HashMap<String, ToolConfirmation>>,
+}
+
+/// Tool confirmation result (for human-in-the-loop tools).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolConfirmation {
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_count: Option<u32>,
+    pub timestamp: String,
 }
 
 impl Default for ChatIndex {
@@ -48,3 +61,4 @@ impl Default for ChatIndex {
         }
     }
 }
+

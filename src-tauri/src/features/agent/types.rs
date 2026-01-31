@@ -352,6 +352,20 @@ impl From<rusqlite::Error> for AgentError {
     }
 }
 
+// Convert AppError to AgentError for interop with settings module
+impl From<crate::core::AppError> for AgentError {
+    fn from(err: crate::core::AppError) -> Self {
+        match err {
+            crate::core::AppError::Io(msg) => AgentError::IoError(msg),
+            crate::core::AppError::Database(msg) => AgentError::DatabaseError(msg),
+            crate::core::AppError::Serialization(msg) => AgentError::SerializationError(msg),
+            crate::core::AppError::Validation(msg) => AgentError::Validation(msg),
+            crate::core::AppError::Agent(msg) => AgentError::LlmError(msg),
+            _ => AgentError::LlmError(err.to_string()),
+        }
+    }
+}
+
 // ============================================================================
 // AI Config Types (for reading from settings)
 // ============================================================================

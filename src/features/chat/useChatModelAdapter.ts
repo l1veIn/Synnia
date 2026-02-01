@@ -1,8 +1,9 @@
 import { useMemo, useEffect, useState } from 'react';
 import type { ChatModelAdapter } from '@assistant-ui/react';
 import { modelRegistry } from '@/features/models';
-import { loadSettings, getProviderCredentials, ProviderKey } from '@/lib/settings';
+import { loadSettings } from '@/lib/settings';
 import { useChatModelSelector } from './useChatModelSelector';
+import { createBackendChatAdapter } from './BackendChatModelAdapter';
 
 // Fallback adapter for error states
 function createFallbackAdapter(message: string): ChatModelAdapter {
@@ -35,35 +36,39 @@ export function useChatModelAdapter(): ChatModelAdapter {
             return createFallbackAdapter(`⚠️ Model "${selectedModelId}" not found. Please select a different model.`);
         }
 
-        // 2. Check if model supports chat
-        if (!model.getChatAdapter) {
-            console.warn(`[Chat] Model ${selectedModelId} does not support chat`);
-            return createFallbackAdapter(`⚠️ Model "${model.name}" does not support chat.`);
-        }
-
-        // 3. Get credentials
+        // 2. Check if settings loaded
         if (!settings) {
             return createFallbackAdapter(`⏳ Loading settings...`);
         }
 
+        // 3. Get provider
         const provider = model.provider || model.supportedProviders?.[0];
         if (!provider) {
             return createFallbackAdapter(`⚠️ Model "${model.name}" has no provider configured.`);
         }
 
-        const creds = getProviderCredentials(settings, provider as ProviderKey);
-
-        if (!creds?.apiKey) {
-            return createFallbackAdapter(
-                `🔑 API key for ${provider} not configured.\n\nPlease add your API key in Settings → Models.`
-            );
-        }
-
-        // 4. Return real adapter
-        return model.getChatAdapter(creds, {
-            temperature: 0.7,
-            maxTokens: 4096,
+        // 4. Use Backend ChatModelAdapter
+        // This calls the Rust backend `chat_stream` command
+        console.log(`[Chat] Using backend adapter for ${model.name} (${provider})`);
+        return createBackendChatAdapter({
+            modelId: selectedModelId,
+            provider: provider,
         });
+
+        // TODO: Legacy frontend adapter (commented out for Phase 8)
+        // if (model.getChatAdapter) {
+        //     const creds = getProviderCredentials(settings, provider as ProviderKey);
+        //     if (!creds?.apiKey) {
+        //         return createFallbackAdapter(
+        //             `🔑 API key for ${provider} not configured.\n\nPlease add your API key in Settings → Models.`
+        //         );
+        //     }
+        //     return model.getChatAdapter(creds, {
+        //         temperature: 0.7,
+        //         maxTokens: 4096,
+        //     });
+        // }
+
     }, [selectedModelId, settings]);
 
     return adapter;

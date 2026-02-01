@@ -6,7 +6,8 @@ use crate::features::agent::engine::AgentEngine;
 use crate::features::agent::state::{AgentState, ChatSession};
 use crate::features::agent::types::{Message, ProviderType};
 use crate::global::database;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, State, Emitter};
+use futures::StreamExt;
 
 use std::sync::{Arc, Mutex};
 
@@ -155,17 +156,181 @@ async fn load_or_create_session(
     }
 }
 
-/// Send a message with streaming response (fallback to non-streaming).
+/// Send a message with streaming response.
+/// Tokens are emitted via Tauri events "chat-stream-{session_id}".
 #[tauri::command]
 pub async fn chat_stream(
-    state: State<'_, Arc<Mutex<AgentState>>>,
-    app_handle: AppHandle,
+    // NOTE: state parameter removed while backend persistence is disabled
+    // _state: State<'_, Arc<Mutex<AgentState>>>,
+    window: tauri::Window,
     session_id: Option<String>,
     content: String,
     model_id: String,
     provider: String,
-) -> Result<SendMessageResponse, String> {
-    chat_send_message(state, app_handle, session_id, content, model_id, provider).await
+) -> Result<String, String> {
+    use crate::features::agent::engine::StreamEvent;
+    use futures::StreamExt;
+    
+    let provider_type = ProviderType::parse(&provider)
+        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
+
+    let session_id = session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let event_name = format!("chat-stream-{}", session_id);
+
+    // TODO: Re-enable backend persistence after frontend migration
+    // Currently using frontend JSON file persistence strategy
+    
+    // // Check if session exists
+    // let session_exists = {
+    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
+    //     agent_state.get_session(&session_id).is_some()
+    // };
+
+    // let _session = if !session_exists {
+    //     load_or_create_session(&session_id, &model_id, provider_type).await?
+    // } else {
+    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
+    //     agent_state.get_session(&session_id)
+    //         .ok_or_else(|| format!("Session not found: {}", session_id))?
+    // };
+
+    // // Update session model if needed
+    // {
+    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
+    //     agent_state.switch_model(&session_id, &model_id, provider_type).ok();
+    // }
+
+    // // Create and save user message
+    // let user_message = Message::user(&content);
+    // {
+    //     let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    //     crate::features::agent::storage::save_message(&conn, &session_id, &user_message)
+    //         .map_err(|e| e.to_string())?;
+    // }
+    // {
+    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
+    //     agent_state.add_message(&session_id, user_message.clone()).ok();
+    // }
+
+    // // Get session with history for streaming
+    // let agent_session = {
+    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
+    //     agent_state.get_session(&session_id)
+    //         .ok_or_else(|| format!("Session not found: {}", session_id))?
+    // };
+
+    // Create a temporary session for streaming (no persistence)
+    let agent_session = ChatSession::new("Temp".to_string(), &model_id, provider_type, false);
+
+    // Spawn streaming task
+    let window_clone = window.clone();
+    let event_name_clone = event_name.clone();
+    let _model_id_clone = model_id.clone();
+    let _session_id_clone = session_id.clone();
+    
+    tokio::spawn(async move {
+        match stream_chat_internal(&agent_session, &content).await {
+            Ok(mut stream) => {
+                use rig_core::agent::MultiTurnStreamItem;
+                use rig_core::streaming::StreamedAssistantContent;
+                
+                let mut _full_text = String::new();
+                
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text))) => {
+                            _full_text.push_str(&text.text);
+                            let _ = window_clone.emit(&event_name_clone, StreamEvent::token(&text.text));
+                        }
+                        Ok(MultiTurnStreamItem::FinalResponse(_)) => {
+                            // Final response received, we're done
+                            break;
+                        }
+                        Ok(_) => {
+                            // Ignore tool calls and other content for now
+                        }
+                        Err(e) => {
+                            let _ = window_clone.emit(&event_name_clone, StreamEvent::error(e.to_string()));
+                            break;
+                        }
+                    }
+                }
+                
+                // TODO: Re-enable backend persistence
+                // // Save complete message
+                // let message_id = uuid::Uuid::new_v4().to_string();
+                // let assistant_message = Message {
+                //     id: message_id.clone(),
+                //     role: crate::features::agent::types::MessageRole::Assistant,
+                //     content: full_text.clone(),
+                //     created_at: chrono::Utc::now().to_rfc3339(),
+                //     model_id: Some(model_id_clone.clone()),
+                //     provider: Some(ProviderType::parse(&agent_session.current_provider.to_string()).unwrap_or(ProviderType::Google)),
+                //     tool_call_id: None,
+                //     tool_name: None,
+                //     tool_args_json: None,
+                //     tool_result_json: None,
+                // };
+
+                // if let Ok(conn) = database::init_global_db() {
+                //     let _ = crate::features::agent::storage::save_message(&conn, &session_id_clone, &assistant_message);
+                // }
+                
+                let _ = window_clone.emit(&event_name_clone, StreamEvent::Complete);
+            }
+            Err(e) => {
+                let _ = window_clone.emit(&event_name_clone, StreamEvent::error(e.to_string()));
+            }
+        }
+    });
+
+    Ok(session_id)
+}
+
+/// Internal streaming chat implementation.
+/// Returns a stream of MultiTurnStreamItem.
+async fn stream_chat_internal(
+    session: &ChatSession,
+    user_message: &str,
+) -> Result<rig_core::agent::StreamingResult<rig_core::providers::gemini::streaming::StreamingCompletionResponse>, String> {
+    use crate::features::agent::providers::registry::ProviderClient;
+    use rig_core::streaming::StreamingChat;
+    use rig_core::completion::Message as RigMessage;
+    use rig_core::client::CompletionClient;
+    
+    let provider_client = ProviderClient::from_settings(session.current_provider)
+        .map_err(|e| e.to_string())?;
+    
+    // Convert history
+    let rig_history: Vec<RigMessage> = session.history.iter()
+        .filter_map(|msg| {
+            match msg.role {
+                crate::features::agent::types::MessageRole::User => Some(RigMessage::user(&msg.content)),
+                crate::features::agent::types::MessageRole::Assistant => Some(RigMessage::assistant(&msg.content)),
+                _ => None,
+            }
+        })
+        .collect();
+    
+    match provider_client {
+        ProviderClient::Google(client) => {
+            let agent = client.inner()
+                .agent(&session.current_model)
+                .preamble("You are a helpful AI assistant.")
+                .build();
+            
+            // stream_chat returns StreamingPromptRequest, .await returns StreamingResult
+            let stream = agent
+                .stream_chat(user_message, rig_history)
+                .await;
+            
+            Ok(stream)
+        }
+        ProviderClient::Zhipu(_client) => {
+            // Zhipu streaming needs different handling - fallback for now
+            Err("Zhipu streaming not yet implemented".to_string())
+        }
+    }
 }
 
 /// Switch the model for an active chat session.

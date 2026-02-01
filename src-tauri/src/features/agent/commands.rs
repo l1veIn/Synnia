@@ -160,8 +160,7 @@ async fn load_or_create_session(
 /// Tokens are emitted via Tauri events "chat-stream-{session_id}".
 #[tauri::command]
 pub async fn chat_stream(
-    // NOTE: state parameter removed while backend persistence is disabled
-    // _state: State<'_, Arc<Mutex<AgentState>>>,
+    app_state: State<'_, crate::core::AppState>,
     window: tauri::Window,
     session_id: Option<String>,
     content: String,
@@ -176,6 +175,13 @@ pub async fn chat_stream(
 
     let session_id = session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let event_name = format!("chat-stream-{}", session_id);
+
+    // Get project path from AppState for tool execution
+    let project_path = {
+        let path_guard = app_state.current_project_path.lock()
+            .map_err(|e| format!("Failed to lock project path: {}", e))?;
+        path_guard.clone()
+    };
 
     // TODO: Re-enable backend persistence after frontend migration
     // Currently using frontend JSON file persistence strategy
@@ -219,8 +225,9 @@ pub async fn chat_stream(
     //         .ok_or_else(|| format!("Session not found: {}", session_id))?
     // };
 
-    // Create a temporary session for streaming (no persistence)
-    let agent_session = ChatSession::new("Temp".to_string(), &model_id, provider_type, false);
+    // Create a temporary session for streaming with project path for tools
+    let agent_session = ChatSession::new("Temp".to_string(), &model_id, provider_type, false)
+        .with_project_path(project_path);
 
     // Spawn streaming task
     let window_clone = window.clone();
@@ -294,6 +301,7 @@ async fn stream_chat_internal(
     user_message: &str,
 ) -> Result<rig_core::agent::StreamingResult<rig_core::providers::gemini::streaming::StreamingCompletionResponse>, String> {
     use crate::features::agent::providers::registry::ProviderClient;
+    use crate::features::agent::tools::nodes::GetNodesListTool;
     use rig_core::streaming::StreamingChat;
     use rig_core::completion::Message as RigMessage;
     use rig_core::client::CompletionClient;
@@ -311,20 +319,30 @@ async fn stream_chat_internal(
             }
         })
         .collect();
+
+    // Create tool if project path is available
+    let nodes_tool = session.project_path.as_ref().map(|path| GetNodesListTool::new(path));
     
     match provider_client {
         ProviderClient::Google(client) => {
-            let agent = client.inner()
+            let builder = client.inner()
                 .agent(&session.current_model)
-                .preamble("You are a helpful AI assistant.")
-                .build();
-            
-            // stream_chat returns StreamingPromptRequest, .await returns StreamingResult
-            let stream = agent
-                .stream_chat(user_message, rig_history)
-                .await;
-            
-            Ok(stream)
+                .preamble("You are a helpful AI assistant. You have access to tools to query canvas nodes.");
+
+            // Register tools if available
+            if let Some(tool) = nodes_tool {
+                let agent = builder.tool(tool).build();
+                let stream = agent
+                    .stream_chat(user_message, rig_history)
+                    .await;
+                Ok(stream)
+            } else {
+                let agent = builder.build();
+                let stream = agent
+                    .stream_chat(user_message, rig_history)
+                    .await;
+                Ok(stream)
+            }
         }
         ProviderClient::Zhipu(_client) => {
             // Zhipu streaming needs different handling - fallback for now

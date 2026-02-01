@@ -20,6 +20,7 @@
 
 use crate::features::agent::providers::registry::ProviderClient;
 use crate::features::agent::state::ChatSession;
+use crate::features::agent::tools::nodes::GetNodesListTool;
 use crate::features::agent::types::{
     AgentError, AgentResult, Message, MessageRole, ProviderType,
 };
@@ -250,6 +251,9 @@ impl AgentEngine {
         // Build the prompt with history
         let rig_history = Self::convert_history_to_rig(&session.history)?;
 
+        // Create tools if project path is available
+        let nodes_tool = session.project_path.as_ref().map(|path| GetNodesListTool::new(path));
+
         let response = match &provider_client {
             ProviderClient::Google(client) => {
                 let builder = client
@@ -263,20 +267,35 @@ impl AgentEngine {
                     builder
                 };
 
-                let agent = builder.build();
+                // Register tools if available
+                if let Some(tool) = nodes_tool.clone() {
+                    let agent = builder.tool(tool).build();
+                    let result = agent.chat(user_message, rig_history).await.map_err(|e| {
+                        AgentError::LlmError(format!("Google agent chat failed: {}", e))
+                    })?;
 
-                // Use chat method for non-streaming with history
-                let result = agent.chat(user_message, rig_history).await.map_err(|e| {
-                    AgentError::LlmError(format!("Google agent chat failed: {}", e))
-                })?;
+                    AgentResponse {
+                        message_id: uuid::Uuid::new_v4().to_string(),
+                        content: result,
+                        model_id: session.current_model.clone(),
+                        provider: ProviderType::Google,
+                        tool_calls: Vec::new(),
+                        usage: None,
+                    }
+                } else {
+                    let agent = builder.build();
+                    let result = agent.chat(user_message, rig_history).await.map_err(|e| {
+                        AgentError::LlmError(format!("Google agent chat failed: {}", e))
+                    })?;
 
-                AgentResponse {
-                    message_id: uuid::Uuid::new_v4().to_string(),
-                    content: result,
-                    model_id: session.current_model.clone(),
-                    provider: ProviderType::Google,
-                    tool_calls: Vec::new(),
-                    usage: None,
+                    AgentResponse {
+                        message_id: uuid::Uuid::new_v4().to_string(),
+                        content: result,
+                        model_id: session.current_model.clone(),
+                        provider: ProviderType::Google,
+                        tool_calls: Vec::new(),
+                        usage: None,
+                    }
                 }
             }
             ProviderClient::Zhipu(client) => {
@@ -291,20 +310,35 @@ impl AgentEngine {
                     builder
                 };
 
-                let agent = builder.build();
+                // Register tools if available
+                if let Some(tool) = nodes_tool {
+                    let agent = builder.tool(tool).build();
+                    let result = agent.chat(user_message, rig_history).await.map_err(|e| {
+                        AgentError::LlmError(format!("Zhipu agent chat failed: {}", e))
+                    })?;
 
-                // Use chat method for non-streaming with history
-                let result = agent.chat(user_message, rig_history).await.map_err(|e| {
-                    AgentError::LlmError(format!("Zhipu agent chat failed: {}", e))
-                })?;
+                    AgentResponse {
+                        message_id: uuid::Uuid::new_v4().to_string(),
+                        content: result,
+                        model_id: session.current_model.clone(),
+                        provider: ProviderType::Zhipu,
+                        tool_calls: Vec::new(),
+                        usage: None,
+                    }
+                } else {
+                    let agent = builder.build();
+                    let result = agent.chat(user_message, rig_history).await.map_err(|e| {
+                        AgentError::LlmError(format!("Zhipu agent chat failed: {}", e))
+                    })?;
 
-                AgentResponse {
-                    message_id: uuid::Uuid::new_v4().to_string(),
-                    content: result,
-                    model_id: session.current_model.clone(),
-                    provider: ProviderType::Zhipu,
-                    tool_calls: Vec::new(),
-                    usage: None,
+                    AgentResponse {
+                        message_id: uuid::Uuid::new_v4().to_string(),
+                        content: result,
+                        model_id: session.current_model.clone(),
+                        provider: ProviderType::Zhipu,
+                        tool_calls: Vec::new(),
+                        usage: None,
+                    }
                 }
             }
         };

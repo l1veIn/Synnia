@@ -17,52 +17,57 @@ async function executeGoogle(
     input: ModelExecutionInput,
     modelId: string
 ): Promise<ModelExecutionResult> {
-    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const { systemPrompt, temperature, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
-    if (!credentials.apiKey) {
-        return { success: false, error: 'Google API key not configured' };
-    }
-
     try {
-        const google = createGoogleGenerativeAI({
-            apiKey: credentials.apiKey,
-            // Only set baseURL for non-default endpoints (custom proxies)
-            baseURL: credentials.baseUrl?.includes('generativelanguage.googleapis.com')
-                ? undefined
-                : credentials.baseUrl,
-        });
+        console.log('[Google]: Calling backend execute_model');
+        const { invoke } = await import('@tauri-apps/api/core');
 
-        const model = google(modelId);
-
+        // Build the prompt including system prompt if present
         let prompt = userPrompt;
         if (systemPrompt) {
             prompt = `System: ${systemPrompt}\n\nUser: ${userPrompt}`;
         }
 
-        const result = await generateText({
-            model,
-            prompt,
-            temperature: temperature ?? 0.7,
-            maxOutputTokens: maxTokens ?? 2048,
+        // Call backend execute_model
+        const result = await invoke<{
+            success: boolean;
+            error?: string;
+            text?: string;
+            images?: { url: string; width?: number; height?: number }[];
+            videoUrl?: string;
+        }>('execute_model', {
+            provider: 'google',
+            modelId: modelId,
+            input: {
+                prompt: prompt,
+                config: {
+                    temperature: temperature ?? 0.7,
+                },
+                category: 'llm',
+            }
         });
 
-        const responseText = result.text;
-        const wasTruncated = result.finishReason === 'length';
+        if (!result.success) {
+            return { success: false, error: result.error || 'Backend execution failed' };
+        }
+
+        const responseText = result.text || '';
 
         if (jsonMode) {
             const { data, success } = extractJson(responseText);
             if (success) {
-                return { success: true, text: responseText, data, wasTruncated };
+                return { success: true, text: responseText, data };
             } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON', wasTruncated };
+                return { success: false, text: responseText, error: 'Failed to parse JSON' };
             }
         }
 
-        return { success: true, text: responseText, wasTruncated };
+        return { success: true, text: responseText };
     } catch (error: any) {
-        console.error('[Google] Call failed:', error);
-        return { success: false, error: error.message || 'Google call failed' };
+        console.error('[Google] Backend call failed:', error);
+        return { success: false, error: error.message || 'Google backend call failed' };
     }
 }
 

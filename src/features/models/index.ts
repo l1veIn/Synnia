@@ -60,6 +60,110 @@ export function getAllModels(): ModelPlugin[] {
 }
 
 // ============================================================================
+// Provider Registry (from backend - single source of truth)
+// ============================================================================
+
+/**
+ * Provider information from backend.
+ * This is the single source of truth for which providers Synnia supports.
+ */
+export interface BackendProviderInfo {
+    key: string;
+    name: string;
+    description: string;
+    providerType: 'cloud' | 'local';
+    placeholder: string;
+    defaultBaseUrl?: string;
+    requiresApiKey: boolean;
+}
+
+let cachedAllProviders: BackendProviderInfo[] | null = null;
+
+/**
+ * Get all supported providers from backend.
+ * This is the single source of truth.
+ */
+export async function getAllProviders(): Promise<BackendProviderInfo[]> {
+    if (cachedAllProviders !== null) {
+        return cachedAllProviders;
+    }
+
+    try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const providers = await invoke<BackendProviderInfo[]>('get_all_providers');
+        cachedAllProviders = providers;
+        return providers;
+    } catch (error) {
+        console.error('[Models] Failed to get all providers:', error);
+        return [];
+    }
+}
+
+/**
+ * Refresh the cached providers.
+ * Call this after provider configuration changes.
+ */
+export function refreshAllProviders(): void {
+    cachedAllProviders = null;
+}
+
+// ============================================================================
+// Available Models (filtered by configured providers)
+// ============================================================================
+
+/**
+ * Get list of providers that have API keys configured in the backend.
+ * Caches the result for the session.
+ */
+let cachedAvailableProviders: string[] | null = null;
+
+export async function getAvailableProviders(): Promise<string[]> {
+    if (cachedAvailableProviders !== null) {
+        return cachedAvailableProviders;
+    }
+
+    try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const providers = await invoke<string[]>('get_available_providers');
+        cachedAvailableProviders = providers;
+        return providers;
+    } catch (error) {
+        console.error('[Models] Failed to get available providers:', error);
+        return [];
+    }
+}
+
+/**
+ * Refresh the cached available providers.
+ * Call this after API key changes.
+ */
+export function refreshAvailableProviders(): void {
+    cachedAvailableProviders = null;
+}
+
+/**
+ * Get models that are available (their provider has API key configured).
+ */
+export async function getAvailableModels(category?: ModelCategory): Promise<ModelPlugin[]> {
+    const providers = await getAvailableProviders();
+
+    let models = category
+        ? modelRegistry.getByCategory(category)
+        : modelRegistry.getAll();
+
+    // Filter to only models from available providers
+    return models.filter(model => providers.includes(model.provider));
+}
+
+/**
+ * Check if a specific provider is available (has API key configured).
+ */
+export async function isProviderAvailable(provider: string): Promise<boolean> {
+    const providers = await getAvailableProviders();
+    return providers.includes(provider);
+}
+
+// ============================================================================
 // New Default LLM API (unified)
 // ============================================================================
 

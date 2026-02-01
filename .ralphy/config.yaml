@@ -1,109 +1,110 @@
-# Ralphy Configuration for Synnia Bot Feature
-# PRD: prd/PRD-bot.md
-# Examples: prd/PRD-bot-examples.md
+# Ralphy Configuration for Agent Module Development
+# PRD: docs/agent-module-design.md
 
 project:
-  name: "synnia"
-  language: "TypeScript"
-  framework: "React + Vite + Tauri"
+  name: "synnia-agent"
+  language: "Rust"
+  framework: "Tauri + Rig.rs"
 
 prd:
-  path: "prd/PRD-bot.md"
-  examples: "prd/PRD-bot-examples.md"
+  path: "docs/agent-module-design.md"
+
+docs:
+  rig: "docs/rig_doc.md"
+  rig_examples: "docs/rig/rig/rig-core/examples/"
+  zhipu: "https://docs.bigmodel.cn/cn/guide/develop/openai/introduction.md"
 
 commands:
   dev: "pnpm tauri dev"
-  build: "pnpm tauri build"
-  lint: "pnpm lint"
-  typecheck: "pnpm tsc --noEmit"
-  test: "pnpm vitest run"
+  check: "cargo check -p synnia"
+  test: "cargo test -p synnia"
+  test_real: "cargo test -p synnia -- --ignored"
+  clippy: "cargo clippy -p synnia"
 
 rules:
   # Implementation guidelines
-  - "严格按照 PRD-bot.md 中的 Phase 顺序实现"
-  - "代码示例参考 PRD-bot-examples.md"
-  - "使用 assistant-ui 框架，不使用 CopilotKit"
-  - "复用现有的 modelRegistry（src/features/models/）"
+  - "严格按照 agent-module-design.md 中的 Phase 顺序实现"
+  - "参考 docs/rig/rig/rig-core/examples/ 中的示例代码"
+  - "只实现 Google 和 Zhipu 两种 provider"
+  - "复用现有的 settings 模块读取 API keys"
   
   # Code style
-  - "保持与项目现有代码风格一致"
-  - "使用 TypeScript 严格类型"
-  - "import 使用 @ 路径别名"
-  - "组件使用函数式组件 + hooks"
+  - "保持与项目现有 Rust 代码风格一致"
+  - "使用 thiserror 处理错误"
+  - "代码注释使用英文"
   
   # Architecture
-  - "Bot 相关功能代码放在 src/features/bot/"
-  - "Bot UI 组件放在 src/components/bot/"
-  - "Bot 状态管理放在 src/store/botStore.ts"
-  - "Tauri 命令放在 src-tauri/src/commands/bot.rs"
+  - "Agent 模块放在 src-tauri/src/features/agent/"
+  - "不重复定义 UserConfig，复用 settings 模块"
+  - "History 和 Model 分离管理"
   
   # Testing
-  - "每完成一个 Phase，验证 pnpm lint 和 pnpm tsc --noEmit 通过"
-  - "使用 MCP 截图验证 UI 效果（如果可用）"
+  - "每个 Phase 完成后运行 cargo check 和 cargo clippy"
+  - "Phase 6 使用真实 API 测试（#[ignore] 标记）"
 
 boundaries:
   never_touch:
-    - "src/components/ui/**"        # shadcn 组件
-    - "src/locales/**"              # i18n 翻译文件
-    - "src/main.tsx"                # 入口文件（除非需要添加 Provider）
+    - "src/**"                       # 前端代码（本阶段不涉及）
+    - "src-tauri/src/features/settings/**"  # 只读取，不修改
+    - "src-tauri/src/global/**"      # 只读取，不修改
     - "*.lock"
     - "node_modules/**"
-    - "prd/**"                      # PRD 文档只读
+    - "target/**"
     
   focus_areas:
-    - "src/features/bot/**"         # Bot 核心逻辑
-    - "src/components/bot/**"       # Bot UI 组件
-    - "src/store/botStore.ts"       # Bot 状态
-    - "src-tauri/src/commands/bot.rs"  # Tauri 命令
+    - "src-tauri/src/features/agent/**"  # Agent 核心模块
+    - "src-tauri/Cargo.toml"              # 添加依赖
+
+  reference:
+    - "src/features/models/types.ts"     # 模型类型定义参考
+    - "src-tauri/src/global/database.rs" # 全局 DB 访问
+    - "projects/test/"                   # 测试项目
 
 phases:
-  - name: "Phase 1: 依赖安装"
+  - name: "Phase 1: 基础设施"
     tasks:
-      - "pnpm add @assistant-ui/react @assistant-ui/react-ai-sdk zod"
-      - "验证 pnpm tsc --noEmit 通过"
+      - "创建 src-tauri/src/features/agent/mod.rs"
+      - "创建 src-tauri/src/features/agent/types.rs"
+      - "cargo check 通过"
       
-  - name: "Phase 2: Bot Store 和基础 UI"
+  - name: "Phase 2: 存储层"
     tasks:
-      - "创建 src/store/botStore.ts"
-      - "创建 src/components/bot/BotHandle.tsx"
-      - "创建 src/components/bot/BotPanel.tsx"
-      - "创建 src/components/bot/BotChat.tsx（占位）"
-      - "在 Canvas.tsx 中集成 BotPanel"
+      - "创建 storage/schema.sql"
+      - "创建 storage/repository.rs"
+      - "内存 DB 单元测试通过"
       
-  - name: "Phase 3: 面板互斥逻辑"
+  - name: "Phase 3: Provider 层"
     tasks:
-      - "修改 botStore togglePanel 关闭 Properties Panel"
-      - "修改 workflowStore 选中节点时关闭 Bot Panel"
+      - "创建 providers/registry.rs"
+      - "创建 providers/google.rs"
+      - "创建 providers/zhipu.rs"
+      - "验证 Rig OpenAI client base_url 配置"
       
-  - name: "Phase 4: Bot Runtime 配置"
+  - name: "Phase 4: 模型注册"
     tasks:
-      - "创建 src/features/bot/types.ts"
-      - "创建 src/features/bot/BotRuntime.tsx"
-      - "更新 BotChat.tsx 使用 assistant-ui Thread"
+      - "实现 ModelRegistry"
+      - "实现 get_models 命令"
+      - "过滤逻辑单元测试通过"
       
-  - name: "Phase 5: Bot Toolkit 实现"
+  - name: "Phase 5: 状态管理"
     tasks:
-      - "创建 src/features/bot/BotToolkit.ts"
-      - "实现 6 个核心工具"
+      - "创建 state.rs (ChatSession, AgentState)"
+      - "并发读写测试通过"
       
-  - name: "Phase 6: 持久化实现"
+  - name: "Phase 6: Agent Engine"
     tasks:
-      - "创建 src/features/bot/persistence/historyAdapter.ts"
-      - "创建 Tauri 命令 save_bot_history / load_bot_history"
+      - "创建 engine.rs"
+      - "创建 tools/nodes.rs"
+      - "流式/非流式输出测试"
+      - "真实 API 集成测试（cargo test -- --ignored）"
       
-  - name: "Phase 7: 危险操作确认流程"
+  - name: "Phase 7: Tauri Commands"
     tasks:
-      - "创建 src/components/bot/ConfirmDialog.tsx"
-      - "在 delete_nodes 工具中集成确认逻辑"
-      
-  - name: "Phase 8: 快捷键集成"
-    tasks:
-      - "添加 Cmd+K 快捷键监听"
-      
-  - name: "Phase 9: UI 主题自定义"
-    tasks:
-      - "自定义 assistant-ui 主题样式"
+      - "创建 commands/chat.rs"
+      - "创建 commands/sessions.rs"
+      - "注册到 lib.rs"
+      - "编译通过"
 
 capabilities:
   browser: false
-  tauri_mcp: true  # 如果有 Tauri MCP 可用于截图验证
+  real_api_test: true  # 可使用真实 API 测试

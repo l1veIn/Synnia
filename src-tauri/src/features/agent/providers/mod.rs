@@ -23,4 +23,4 @@ pub mod zhipu;
 // Re-export commonly used types
 pub use registry::{ProviderClient, parse_provider, ModelRegistry};
 pub use google::GeminiClient;
-pub use zhipu::{ZhipuClient, ZHIPU_BASE_URL};
+pub use zhipu::ZhipuClient;

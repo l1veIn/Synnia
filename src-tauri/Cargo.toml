@@ -44,7 +44,7 @@ base64 = "0.22"
 tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
 dirs = "5"
 serde_yaml = "0.9"
-rig-core = "0.5"
+rig-core = { git = "https://github.com/Serein-sz/rig", package = "rig-core" }
 
 [dev-dependencies]
 tempfile = "3"

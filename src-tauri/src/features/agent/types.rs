@@ -8,6 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
+use ts_rs::TS;
 
 // ============================================================================
 // Model Category & Capability Types
@@ -106,6 +107,64 @@ impl ProviderType {
     pub fn all() -> &'static [ProviderType] {
         &[ProviderType::Google, ProviderType::Zhipu]
     }
+    
+    /// Get detailed information about this provider.
+    pub fn info(&self) -> ProviderInfo {
+        match self {
+            Self::Google => ProviderInfo {
+                key: "google".to_string(),
+                name: "Google AI".to_string(),
+                description: "Gemini 2.0/2.5/3.0, Imagen".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "AIza...".to_string(),
+                default_base_url: Some("https://generativelanguage.googleapis.com/v1beta".to_string()),
+                requires_api_key: true,
+            },
+            Self::Zhipu => ProviderInfo {
+                key: "zhipu".to_string(),
+                name: "Zhipu AI".to_string(),
+                description: "GLM-4.7, GLM-4.6v, CogView".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "your-zhipu-api-key".to_string(),
+                default_base_url: Some("https://open.bigmodel.cn/api/paas/v4".to_string()),
+                requires_api_key: true,
+            },
+        }
+    }
+    
+    /// Get info for all providers.
+    pub fn all_info() -> Vec<ProviderInfo> {
+        Self::all().iter().map(|p| p.info()).collect()
+    }
+}
+
+/// Detailed information about a provider.
+///
+/// This struct contains all metadata needed for UI display and configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderInfo {
+    /// Unique key for the provider (e.g., "google", "zhipu")
+    pub key: String,
+    
+    /// Human-readable name
+    pub name: String,
+    
+    /// Short description of available models
+    pub description: String,
+    
+    /// Provider type: "cloud" or "local"
+    pub provider_type: String,
+    
+    /// Placeholder text for API key input
+    pub placeholder: String,
+    
+    /// Default base URL for the provider
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_base_url: Option<String>,
+    
+    /// Whether an API key is required
+    pub requires_api_key: bool,
 }
 
 /// Information about a specific model.
@@ -422,4 +481,123 @@ impl AiConfig {
             .base_url
             .clone()
     }
+}
+
+// ============================================================================
+// Unified Model Execution Types
+// ============================================================================
+
+/// Input for unified model execution.
+///
+/// This struct represents the input to any model (LLM, image generation, etc).
+/// Fields are optional because different model types use different inputs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelInput {
+    /// Text prompt for the model
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+
+    /// Chat messages for LLM
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub messages: Option<Vec<Message>>,
+
+    /// Input images (base64 data URLs)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<String>>,
+
+    /// Model-specific configuration (temperature, aspect_ratio, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config: Option<serde_json::Value>,
+
+    /// Model category hint (llm, image-generation, video-generation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<ModelCategory>,
+}
+
+impl Default for ModelInput {
+    fn default() -> Self {
+        Self {
+            prompt: None,
+            messages: None,
+            images: None,
+            config: None,
+            category: None,
+        }
+    }
+}
+
+/// Output from unified model execution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelOutput {
+    /// Whether execution succeeded
+    pub success: bool,
+
+    /// Error message if failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+
+    /// Text output (for LLM responses)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+
+    /// Generated images
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<ImageOutput>>,
+
+    /// Generated video URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video_url: Option<String>,
+}
+
+impl ModelOutput {
+    /// Create a successful text response
+    pub fn text(content: String) -> Self {
+        Self {
+            success: true,
+            error: None,
+            text: Some(content),
+            images: None,
+            video_url: None,
+        }
+    }
+
+    /// Create a successful image response
+    pub fn images(images: Vec<ImageOutput>) -> Self {
+        Self {
+            success: true,
+            error: None,
+            text: None,
+            images: Some(images),
+            video_url: None,
+        }
+    }
+
+    /// Create an error response
+    pub fn error(message: String) -> Self {
+        Self {
+            success: false,
+            error: Some(message),
+            text: None,
+            images: None,
+            video_url: None,
+        }
+    }
+}
+
+/// Image output from generation models.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageOutput {
+    /// Image URL or data URL
+    pub url: String,
+
+    /// Image width in pixels
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+
+    /// Image height in pixels
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
 }

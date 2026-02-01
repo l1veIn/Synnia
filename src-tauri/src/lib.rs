@@ -231,6 +231,9 @@ pub fn run() {
             features::agent::commands::get_session,
             features::agent::commands::get_models,
             features::agent::commands::get_model,
+            features::agent::commands::get_available_providers,
+            features::agent::commands::get_all_providers,
+            features::agent::commands::execute_model,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

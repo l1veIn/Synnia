@@ -1,24 +1,21 @@
 //! Zhipu AI provider implementation.
 //!
-//! This module provides a wrapper around rig-core's OpenAI-compatible client
-//! for Zhipu AI's GLM models.
+//! This module provides a wrapper around rig-core's native Zhipu client.
+//! Uses the official Zhipu provider from the Serein-sz/rig fork.
 //!
-//! Zhipu AI provides an OpenAI-compatible API at:
+//! Zhipu AI provides GLM models at:
 //! Base URL: https://open.bigmodel.cn/api/paas/v4/
 
-use rig::providers::openai;
+use rig_core::providers::zhipu;
 
 use crate::features::agent::types::{AgentError, AgentResult, AiConfig};
 use crate::global::database;
 use crate::global::settings;
 
-/// Base URL for Zhipu AI OpenAI-compatible API.
-pub const ZHIPU_BASE_URL: &str = "https://open.bigmodel.cn/api/paas/v4/";
-
-/// Wrapper for Zhipu AI client using OpenAI-compatible API.
+/// Wrapper for Zhipu AI client using native rig-core Zhipu provider.
 pub struct ZhipuClient {
-    /// The underlying rig-core OpenAI client configured for Zhipu
-    client: openai::Client,
+    /// The underlying rig-core Zhipu client
+    client: zhipu::Client,
 }
 
 impl ZhipuClient {
@@ -28,18 +25,20 @@ impl ZhipuClient {
             return Err(AgentError::ApiKeyMissing("zhipu".to_string()));
         }
 
-        // Use OpenAI-compatible client with Zhipu base URL
-        let client = openai::Client::from_url(&api_key, ZHIPU_BASE_URL);
+        // Use native Zhipu client
+        let client = zhipu::Client::new(&api_key)
+            .map_err(|e| AgentError::LlmError(format!("Failed to create Zhipu client: {}", e)))?;
 
         Ok(Self { client })
     }
 
     /// Create a new Zhipu client from global settings.
     ///
-    /// Reads the API key from the global database's ai_config.
+    /// Reads the API key from the global database's app_settings.
     pub fn from_settings() -> AgentResult<Self> {
         let conn = database::init_global_db()?;
-        let ai_config_json: Option<String> = settings::get_setting(&conn, "ai_config")?;
+        // Note: The key is "app_settings", not "ai_config"
+        let ai_config_json: Option<String> = settings::get_setting(&conn, "app_settings")?;
 
         let api_key = ai_config_json
             .and_then(|json| {
@@ -51,27 +50,86 @@ impl ZhipuClient {
         Self::new(api_key)
     }
 
-    /// Create a new Zhipu client with a custom base URL.
-    ///
-    /// This is useful for testing or when using a proxy.
-    pub fn with_base_url(api_key: String, base_url: String) -> AgentResult<Self> {
-        if api_key.is_empty() {
-            return Err(AgentError::ApiKeyMissing("zhipu".to_string()));
-        }
-
-        let client = openai::Client::from_url(&api_key, &base_url);
-
-        Ok(Self { client })
-    }
-
-    /// Get a reference to the underlying OpenAI client.
-    pub fn inner(&self) -> &openai::Client {
+    /// Get a reference to the underlying Zhipu client.
+    pub fn inner(&self) -> &zhipu::Client {
         &self.client
     }
 
-    /// Consume and return the underlying OpenAI client.
-    pub fn into_inner(self) -> openai::Client {
+    /// Consume and return the underlying Zhipu client.
+    pub fn into_inner(self) -> zhipu::Client {
         self.client
+    }
+}
+
+// ============================================================================
+// Unified Execute Interface
+// ============================================================================
+
+use rig_core::client::CompletionClient;
+use rig_core::completion::Chat;
+use crate::features::agent::types::{ModelInput, ModelOutput, ModelCategory};
+
+/// Execute a model with the given input.
+///
+/// Currently only supports LLM chat completion.
+pub async fn execute(model_id: &str, input: ModelInput) -> AgentResult<ModelOutput> {
+    let client = ZhipuClient::from_settings()?;
+    
+    // Zhipu currently only supports LLM
+    let category = input.category.unwrap_or(ModelCategory::Llm);
+    
+    match category {
+        ModelCategory::Llm => execute_chat(&client, model_id, input).await,
+        _ => Err(AgentError::LlmError(
+            "Zhipu only supports LLM models".to_string()
+        )),
+    }
+}
+
+/// Execute LLM chat completion.
+async fn execute_chat(client: &ZhipuClient, model_id: &str, input: ModelInput) -> AgentResult<ModelOutput> {
+    use rig_core::completion::Message as RigMessage;
+    
+    let prompt = input.prompt.unwrap_or_default();
+    
+    let temperature: f64 = input
+        .config
+        .as_ref()
+        .and_then(|c| c.get("temperature"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.7);
+    
+    let history: Vec<RigMessage> = input
+        .messages
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|msg| {
+            match msg.role {
+                crate::features::agent::types::MessageRole::User => {
+                    Some(RigMessage::user(&msg.content))
+                }
+                crate::features::agent::types::MessageRole::Assistant => {
+                    Some(RigMessage::assistant(&msg.content))
+                }
+                _ => None,
+            }
+        })
+        .collect();
+    
+    let agent = client.inner()
+        .agent(model_id)
+        .temperature(temperature)
+        .build();
+    
+    let response = if history.is_empty() {
+        agent.chat(&prompt, vec![]).await
+    } else {
+        agent.chat(&prompt, history).await
+    };
+    
+    match response {
+        Ok(text) => Ok(ModelOutput::text(text)),
+        Err(e) => Err(AgentError::LlmError(format!("Zhipu chat error: {}", e))),
     }
 }
 
@@ -93,19 +151,5 @@ mod tests {
         // The key format doesn't matter for client creation
         let result = ZhipuClient::new("test-api-key".to_string());
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_client_with_custom_base_url() {
-        let result = ZhipuClient::with_base_url(
-            "test-api-key".to_string(),
-            "https://custom.example.com/v1/".to_string(),
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_zhipu_base_url_constant() {
-        assert_eq!(ZHIPU_BASE_URL, "https://open.bigmodel.cn/api/paas/v4/");
     }
 }

@@ -25,9 +25,8 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { modelRegistry, ModelCategory, ProviderType } from '@features/models';
-import { PROVIDER_INFO } from '@features/models/providers';
-import { useSettings, ProviderKey, isProviderConfigured } from '@/lib/settings';
+import { modelRegistry, ModelCategory, ProviderType, getAvailableProviders, getAvailableModels, type ModelPlugin } from '@features/models';
+import { useSettings } from '@/lib/settings';
 import type { ModelConfig } from '@/features/recipes/types';
 import type { ModelCapability } from '@features/models/types';
 import { hasAllCapabilities } from '@features/models/utils';
@@ -178,42 +177,44 @@ export function ModelTab({ modelConfig, onModelConfigChange, filterCategory = 'l
 
     // ========================================================================
 
-    // Get available models for this category, filtered by required capabilities
-    const models = useMemo(() => {
-        let categoryModels = isLLMCategory
-            ? modelRegistry.getByCategory('llm')
-            : modelRegistry.getByCategory(filterCategory as ModelCategory);
+    // Get available models for this category from backend (filtered by configured providers)
+    const [models, setModels] = useState<ModelPlugin[]>([]);
+    const [configuredProviders, setConfiguredProviders] = useState<string[]>([]);
+    const [loadingModels, setLoadingModels] = useState(true);
 
-        // Filter by required capabilities if specified
-        if (requiredCapabilities.length > 0) {
-            categoryModels = categoryModels.filter(model =>
-                hasAllCapabilities(model.id, requiredCapabilities)
-            );
+    useEffect(() => {
+        async function loadModels() {
+            setLoadingModels(true);
+            try {
+                const [availableModels, providers] = await Promise.all([
+                    getAvailableModels(isLLMCategory ? 'llm' : filterCategory as ModelCategory),
+                    getAvailableProviders()
+                ]);
+
+                // Filter by required capabilities if specified
+                let filteredModels = availableModels;
+                if (requiredCapabilities.length > 0) {
+                    filteredModels = availableModels.filter(model =>
+                        hasAllCapabilities(model.id, requiredCapabilities)
+                    );
+                }
+
+                setModels(filteredModels);
+                setConfiguredProviders(providers);
+            } catch (error) {
+                console.error('[ModelTab] Failed to load models:', error);
+            } finally {
+                setLoadingModels(false);
+            }
         }
-
-        return categoryModels;
+        loadModels();
     }, [filterCategory, isLLMCategory, requiredCapabilities]);
 
     // Current selected model (from draft)
     const selectedModel = useMemo(() => {
         if (!draftConfig?.modelId) return null;
-        return modelRegistry.get(draftConfig.modelId);
-    }, [draftConfig?.modelId]);
-
-    // Get providers user has configured
-    const configuredProviders = useMemo(() => {
-        const providers: ProviderType[] = [];
-        if (settings) {
-            // Dynamically get all provider keys from PROVIDER_INFO
-            const allProviderKeys = PROVIDER_INFO.map(p => p.key);
-            allProviderKeys.forEach(key => {
-                if (isProviderConfigured(settings, key as ProviderKey)) {
-                    providers.push(key as ProviderType);
-                }
-            });
-        }
-        return providers;
-    }, [settings]);
+        return models.find(m => m.id === draftConfig.modelId) || modelRegistry.get(draftConfig.modelId) || null;
+    }, [draftConfig?.modelId, models]);
 
     // Check if selected model's provider is configured
     const isProviderAvailable = useMemo(() => {

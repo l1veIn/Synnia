@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { useSettings, isProviderConfigured, ProviderKey } from "@/lib/settings";
-import { modelRegistry } from "@features/models";
+import { useSettings } from "@/lib/settings";
+import { modelRegistry, getAvailableModels, type ModelPlugin } from "@features/models";
 import { useTranslation } from "react-i18next";
 import { Thermometer, Hash } from "lucide-react";
 
@@ -12,20 +12,29 @@ export function GeneralSettingsPage() {
     const { t, i18n } = useTranslation('settings');
     const { settings, loading, setDefaultModel, setDefaultLLMParams } = useSettings();
 
-    // Get all LLM models from unified registry, filter by configured providers
-    const availableLLMOptions = useMemo(() => {
-        const allModels = modelRegistry.getByCategory('llm');
-        return allModels.filter(m => {
-            const providers = m.supportedProviders || [m.provider];
-            return providers.some(p => isProviderConfigured(settings, p as ProviderKey));
-        });
-    }, [settings]);
+    // Get available LLM models from backend (only configured providers)
+    const [availableLLMOptions, setAvailableLLMOptions] = useState<ModelPlugin[]>([]);
+    const [loadingModels, setLoadingModels] = useState(true);
+
+    useEffect(() => {
+        async function loadModels() {
+            setLoadingModels(true);
+            try {
+                const models = await getAvailableModels('llm');
+                setAvailableLLMOptions(models);
+            } catch (error) {
+                console.error('[Settings] Failed to load available models:', error);
+            } finally {
+                setLoadingModels(false);
+            }
+        }
+        loadModels();
+    }, []);
 
     // Get current selected model for max tokens limit
-    const selectedModel = useMemo(() => {
-        const modelId = settings?.defaultModels?.['llm'];
-        return modelId ? modelRegistry.get(modelId) : null;
-    }, [settings?.defaultModels]);
+    const selectedModel = availableLLMOptions.find(
+        m => m.id === settings?.defaultModels?.['llm']
+    ) || (settings?.defaultModels?.['llm'] ? modelRegistry.get(settings.defaultModels['llm']) : null);
 
     const maxOutputTokens = (selectedModel as any)?.maxOutputTokens || 4096;
 

@@ -348,6 +348,70 @@ pub fn get_model(id: String) -> Result<crate::features::agent::types::ModelInfo,
 }
 
 // ============================================================================
+// Unified Execution Commands
+// ============================================================================
+
+use crate::features::agent::providers::{google, zhipu};
+use crate::features::agent::types::{ModelInput, ModelOutput, AiConfig, ProviderInfo};
+
+/// Get information about all supported providers.
+///
+/// This is the single source of truth for which providers Synnia supports.
+#[tauri::command]
+pub fn get_all_providers() -> Vec<ProviderInfo> {
+    ProviderType::all_info()
+}
+
+/// Get list of providers that have API keys configured.
+///
+/// Returns only providers that can be used (have valid API keys).
+#[tauri::command]
+pub async fn get_available_providers() -> Result<Vec<ProviderType>, String> {
+    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+    
+    let ai_config_json: Option<String> = crate::global::settings::get_setting(&conn, "app_settings")
+        .map_err(|e| e.to_string())?;
+    
+    let config = ai_config_json
+        .and_then(|json| serde_json::from_str::<AiConfig>(&json).ok())
+        .unwrap_or_default();
+    
+    let mut available = Vec::new();
+    
+    for provider in ProviderType::all() {
+        let provider_key = match provider {
+            ProviderType::Google => "google",
+            ProviderType::Zhipu => "zhipu",
+        };
+        
+        if let Some(key) = config.get_api_key(provider_key) {
+            if !key.is_empty() {
+                available.push(*provider);
+            }
+        }
+    }
+    
+    Ok(available)
+}
+
+/// Execute a model with unified input/output interface.
+///
+/// Routes to appropriate provider based on the provider type.
+#[tauri::command]
+pub async fn execute_model(
+    provider: ProviderType,
+    model_id: String,
+    input: ModelInput,
+) -> Result<ModelOutput, String> {
+    let result = match provider {
+        ProviderType::Google => google::execute(&model_id, input).await,
+        ProviderType::Zhipu => zhipu::execute(&model_id, input).await,
+    };
+    
+    result.map_err(|e| e.to_string())
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 

@@ -16,6 +16,18 @@ interface StreamEventToken {
     text: string;
 }
 
+interface StreamEventToolCall {
+    type: 'toolCall';
+    toolName: string;
+    args: string; // JSON string
+}
+
+interface StreamEventToolResult {
+    type: 'toolResult';
+    toolName: string;
+    result: string; // JSON string
+}
+
 interface StreamEventComplete {
     type: 'complete';
 }
@@ -25,7 +37,7 @@ interface StreamEventError {
     message: string;
 }
 
-type StreamEvent = StreamEventToken | StreamEventComplete | StreamEventError;
+type StreamEvent = StreamEventToken | StreamEventToolCall | StreamEventToolResult | StreamEventComplete | StreamEventError;
 
 export interface BackendChatAdapterOptions {
     modelId: string;
@@ -66,11 +78,29 @@ export function createBackendChatAdapter(options: BackendChatAdapterOptions): Ch
             }
 
             let unlisten: UnlistenFn | null = null;
-            let accumulatedText = '';
             let resolveNext: (() => void) | null = null;
             let pendingEvents: StreamEvent[] = [];
             let isComplete = false;
             let errorMessage: string | null = null;
+
+            // Track content parts in chronological order
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const contentParts: any[] = [];
+
+            // Current text part index (-1 means no current text part)
+            let currentTextPartIndex = -1;
+
+            // Tool call tracking for updating results
+            interface ToolCallState {
+                toolCallId: string;
+                toolName: string;
+                contentIndex: number; // index in contentParts array
+            }
+            const toolCallsByName = new Map<string, ToolCallState>();
+            let toolCallCounter = 0;
+
+            // Helper to get current content snapshot
+            const getContent = () => [...contentParts];
 
             try {
                 // Call backend to start streaming
@@ -130,10 +160,60 @@ export function createBackendChatAdapter(options: BackendChatAdapterOptions): Ch
                         const event = pendingEvents.shift()!;
 
                         if (event.type === 'token') {
-                            accumulatedText += event.text;
-                            yield {
-                                content: [{ type: 'text', text: accumulatedText }],
-                            };
+                            // Append to current text part or create new one
+                            if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === 'text') {
+                                contentParts[currentTextPartIndex].text += event.text;
+                            } else {
+                                // Create new text part
+                                currentTextPartIndex = contentParts.length;
+                                contentParts.push({ type: 'text', text: event.text });
+                            }
+                            yield { content: getContent() };
+                        } else if (event.type === 'toolCall') {
+                            // Tool call interrupts current text - next text will be new part
+                            currentTextPartIndex = -1;
+
+                            // Create new tool-call part
+                            const toolCallId = `tc_${++toolCallCounter}`;
+                            let args: Record<string, unknown> = {};
+                            try {
+                                args = JSON.parse(event.args) as Record<string, unknown>;
+                            } catch {
+                                args = {};
+                            }
+
+                            const contentIndex = contentParts.length;
+                            contentParts.push({
+                                type: 'tool-call',
+                                toolCallId,
+                                toolName: event.toolName,
+                                args,
+                                argsText: event.args,
+                            });
+
+                            // Track for result update
+                            toolCallsByName.set(event.toolName, {
+                                toolCallId,
+                                toolName: event.toolName,
+                                contentIndex,
+                            });
+
+                            console.log(`[BackendChatAdapter] Tool call: ${event.toolName}`, args);
+                            yield { content: getContent() };
+                        } else if (event.type === 'toolResult') {
+                            // Update existing tool call part with result
+                            const tracked = toolCallsByName.get(event.toolName);
+                            if (tracked && contentParts[tracked.contentIndex]) {
+                                let result: unknown;
+                                try {
+                                    result = JSON.parse(event.result);
+                                } catch {
+                                    result = event.result;
+                                }
+                                contentParts[tracked.contentIndex].result = result;
+                                console.log(`[BackendChatAdapter] Tool result: ${event.toolName}`, result);
+                                yield { content: getContent() };
+                            }
                         } else if (event.type === 'error') {
                             yield {
                                 content: [{ type: 'text', text: `❌ Error: ${event.message}` }],
@@ -143,7 +223,7 @@ export function createBackendChatAdapter(options: BackendChatAdapterOptions): Ch
                         } else if (event.type === 'complete') {
                             // Final yield with complete status
                             yield {
-                                content: [{ type: 'text', text: accumulatedText }],
+                                content: getContent(),
                                 status: { type: 'complete', reason: 'stop' },
                             };
                             return;
@@ -153,7 +233,7 @@ export function createBackendChatAdapter(options: BackendChatAdapterOptions): Ch
                     // Check abort
                     if (abortSignal?.aborted) {
                         yield {
-                            content: [{ type: 'text', text: accumulatedText }],
+                            content: getContent(),
                             status: { type: 'incomplete', reason: 'cancelled' },
                         };
                         return;

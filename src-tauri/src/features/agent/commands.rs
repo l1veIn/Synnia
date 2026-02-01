@@ -249,12 +249,30 @@ pub async fn chat_stream(
                             _full_text.push_str(&text.text);
                             let _ = window_clone.emit(&event_name_clone, StreamEvent::token(&text.text));
                         }
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ToolCall(tool_call))) => {
+                            // Emit tool call event for frontend Tool UI
+                            let args_json = serde_json::to_string(&tool_call.function.arguments)
+                                .unwrap_or_else(|_| "{}".to_string());
+                            let _ = window_clone.emit(&event_name_clone, StreamEvent::tool_call(
+                                &tool_call.function.name,
+                                &args_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::StreamUserItem(rig_core::streaming::StreamedUserContent::ToolResult(tool_result))) => {
+                            // Emit tool result event for frontend Tool UI
+                            let result_json = serde_json::to_string(&tool_result.content)
+                                .unwrap_or_else(|_| "null".to_string());
+                            let _ = window_clone.emit(&event_name_clone, StreamEvent::tool_result(
+                                &tool_result.id,
+                                &result_json,
+                            ));
+                        }
                         Ok(MultiTurnStreamItem::FinalResponse(_)) => {
                             // Final response received, we're done
                             break;
                         }
                         Ok(_) => {
-                            // Ignore tool calls and other content for now
+                            // Ignore other content types (reasoning, etc.)
                         }
                         Err(e) => {
                             let _ = window_clone.emit(&event_name_clone, StreamEvent::error(e.to_string()));

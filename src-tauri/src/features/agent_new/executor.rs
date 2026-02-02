@@ -174,6 +174,65 @@ impl Default for StreamBuffer {
 }
 
 // ============================================================================
+// Message JSON Builders (assistant-ui format)
+// ============================================================================
+
+/// Build a user message in assistant-ui format.
+///
+/// Example output:
+/// ```json
+/// {
+///   "id": "msg_123",
+///   "role": "user",
+///   "content": [{"type": "text", "text": "Hello"}],
+///   "createdAt": "2026-02-01T12:00:00Z",
+///   "attachments": [],
+///   "metadata": {"custom": {}}
+/// }
+/// ```
+fn build_user_message_json(message_id: &str, text: &str) -> String {
+    let now = chrono::Utc::now().to_rfc3339();
+    serde_json::json!({
+        "id": message_id,
+        "role": "user",
+        "content": [{"type": "text", "text": text}],
+        "createdAt": now,
+        "attachments": [],
+        "metadata": {"custom": {}}
+    }).to_string()
+}
+
+/// Build an assistant message in assistant-ui format.
+///
+/// Example output:
+/// ```json
+/// {
+///   "id": "msg_456",
+///   "role": "assistant",
+///   "content": [{"type": "text", "text": "Hi there!"}],
+///   "createdAt": "2026-02-01T12:00:01Z",
+///   "status": {"type": "complete", "reason": "stop"},
+///   "metadata": {"custom": {}, "steps": [], "unstable_annotations": [], "unstable_data": []}
+/// }
+/// ```
+fn build_assistant_message_json(message_id: &str, text: &str) -> String {
+    let now = chrono::Utc::now().to_rfc3339();
+    serde_json::json!({
+        "id": message_id,
+        "role": "assistant",
+        "content": [{"type": "text", "text": text}],
+        "createdAt": now,
+        "status": {"type": "complete", "reason": "stop"},
+        "metadata": {
+            "custom": {},
+            "steps": [],
+            "unstable_annotations": [],
+            "unstable_data": []
+        }
+    }).to_string()
+}
+
+// ============================================================================
 // Executor Error
 // ============================================================================
 
@@ -321,13 +380,15 @@ impl AgentExecutor {
 
         // Save user message (WAL - Write Ahead Logging)
         let user_message_id = uuid::Uuid::new_v4().to_string();
+        let user_content_json = build_user_message_json(&user_message_id, user_message);
         save_message(
             &self.project_path,
             thread_id,
             &user_message_id,
             "user",
-            user_message,
-            None,
+            &user_content_json,
+            None,  // User messages don't need model_id
+            None,  // User messages don't need provider
         )
         .map_err(|e| ExecutorError::Database(e.to_string()))?;
 
@@ -340,14 +401,16 @@ impl AgentExecutor {
                 .await?
         };
 
-        // Save assistant message
+        // Save assistant message with model/provider info
+        let assistant_content_json = build_assistant_message_json(&response.message_id, &response.content);
         save_message(
             &self.project_path,
             thread_id,
             &response.message_id,
             "assistant",
-            &response.content,
-            None,
+            &assistant_content_json,
+            Some(model_id),
+            Some(provider),
         )
         .map_err(|e| ExecutorError::Database(e.to_string()))?;
 
@@ -483,13 +546,41 @@ impl AgentExecutor {
     }
 
     /// Convert our message history to Rig's message format.
+    /// 
+    /// Parses content_json to extract the text content for each message.
     fn convert_history_to_rig(&self, history: &[MessageInfo]) -> ExecutorResult<Vec<RigMessage>> {
         let mut rig_messages = Vec::new();
 
         for msg in history {
+            // Parse content_json to extract text
+            let content_text = match serde_json::from_str::<serde_json::Value>(&msg.content_json) {
+                Ok(json) => {
+                    // Extract text from content array: [{"type": "text", "text": "..."}]
+                    if let Some(content_arr) = json.get("content").and_then(|c| c.as_array()) {
+                        content_arr
+                            .iter()
+                            .filter_map(|part| {
+                                if part.get("type")?.as_str()? == "text" {
+                                    part.get("text")?.as_str().map(|s| s.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join("")
+                    } else {
+                        String::new()
+                    }
+                }
+                Err(_) => {
+                    // Fallback: treat content_json as plain text (legacy support)
+                    msg.content_json.clone()
+                }
+            };
+
             let rig_msg = match msg.role.as_str() {
-                "user" => RigMessage::user(&msg.content),
-                "assistant" => RigMessage::assistant(&msg.content),
+                "user" => RigMessage::user(&content_text),
+                "assistant" => RigMessage::assistant(&content_text),
                 _ => {
                     // Skip system and tool messages for now
                     continue;
@@ -728,8 +819,9 @@ mod tests {
         let history = vec![MessageInfo {
             id: "msg1".to_string(),
             role: "user".to_string(),
-            content: "Hello".to_string(),
-            tool_calls: None,
+            content_json: r#"{"content":[{"type":"text","text":"Hello"}]}"#.to_string(),
+            model_id: None,
+            provider: None,
             created_at: "2024-01-01T00:00:00Z".to_string(),
         }];
         let rig_messages = executor.convert_history_to_rig(&history).unwrap();
@@ -743,15 +835,17 @@ mod tests {
             MessageInfo {
                 id: "msg1".to_string(),
                 role: "user".to_string(),
-                content: "Question".to_string(),
-                tool_calls: None,
+                content_json: r#"{"content":[{"type":"text","text":"Question"}]}"#.to_string(),
+                model_id: None,
+                provider: None,
                 created_at: "2024-01-01T00:00:00Z".to_string(),
             },
             MessageInfo {
                 id: "msg2".to_string(),
                 role: "assistant".to_string(),
-                content: "Answer".to_string(),
-                tool_calls: None,
+                content_json: r#"{"content":[{"type":"text","text":"Answer"}]}"#.to_string(),
+                model_id: Some("gemini-2.5-flash".to_string()),
+                provider: Some("google".to_string()),
                 created_at: "2024-01-01T00:00:01Z".to_string(),
             },
         ];
@@ -765,8 +859,9 @@ mod tests {
         let history = vec![MessageInfo {
             id: "msg1".to_string(),
             role: "system".to_string(),
-            content: "System prompt".to_string(),
-            tool_calls: None,
+            content_json: r#"{"content":[{"type":"text","text":"System prompt"}]}"#.to_string(),
+            model_id: None,
+            provider: None,
             created_at: "2024-01-01T00:00:00Z".to_string(),
         }];
         let rig_messages = executor.convert_history_to_rig(&history).unwrap();
@@ -780,8 +875,9 @@ mod tests {
         let history = vec![MessageInfo {
             id: "msg1".to_string(),
             role: "tool".to_string(),
-            content: "Tool result".to_string(),
-            tool_calls: None,
+            content_json: r#"{"content":[{"type":"text","text":"Tool result"}]}"#.to_string(),
+            model_id: None,
+            provider: None,
             created_at: "2024-01-01T00:00:00Z".to_string(),
         }];
         let rig_messages = executor.convert_history_to_rig(&history).unwrap();

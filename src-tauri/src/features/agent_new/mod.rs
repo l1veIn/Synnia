@@ -11,6 +11,7 @@ pub mod storage;
 pub mod providers;
 pub mod tools;
 pub mod executor;
+pub mod commands;
 
 // Re-export storage types and functions
 pub use storage::{
@@ -57,4 +58,27 @@ pub use executor::{
     ExecutorResult,
     ExecutorResponse,
     ToolCallInfo,
+};
+
+// Re-export commands
+pub use commands::{
+    // Thread commands
+    get_threads_command,
+    get_thread_command,
+    create_thread_command,
+    update_thread_command,
+    delete_thread_command,
+    // Message commands
+    get_messages_command,
+    // Chat commands
+    chat_send_command,
+    chat_stream_command,
+    // Provider commands
+    get_available_providers_command,
+    // Request/Response types
+    CreateThreadRequest,
+    CreateThreadResponse,
+    ChatRequest,
+    ChatResponse,
+    UpdateThreadRequest,
 };

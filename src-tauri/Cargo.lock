@@ -4808,6 +4808,7 @@ dependencies = [
  "image",
  "kamadak-exif",
  "log",
+ "once_cell",
  "reqwest",
  "rig-core",
  "rusqlite",

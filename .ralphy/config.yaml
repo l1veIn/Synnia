@@ -1,110 +1,114 @@
-# Ralphy Configuration for Agent Module Development
-# PRD: docs/agent-module-design.md
+# Ralphy Configuration for Agent Module Reimplementation
+# PRD: docs/agent-reimpl-task.md
 
 project:
-  name: "synnia-agent"
-  language: "Rust"
-  framework: "Tauri + Rig.rs"
+  name: "synnia-agent-new"
+  language: "Rust + TypeScript"
+  framework: "Tauri + Rig.rs + assistant-ui"
 
 prd:
-  path: "docs/agent-module-design.md"
+  path: "docs/agent-reimpl-task.md"
 
 docs:
-  rig: "docs/rig_doc.md"
+  task: "docs/agent-reimpl-task.md"
+  code_reference: "docs/agent-reimpl-code-reference.md"
   rig_examples: "docs/rig/rig/rig-core/examples/"
-  zhipu: "https://docs.bigmodel.cn/cn/guide/develop/openai/introduction.md"
+  models_types: "src/features/models/types.ts"
+  models_registry: "src/features/models/index.ts"
 
 commands:
-  dev: "pnpm tauri dev"
   check: "cargo check -p synnia"
-  test: "cargo test -p synnia"
-  test_real: "cargo test -p synnia -- --ignored"
+  test: "cargo test -p synnia features::agent_new"
   clippy: "cargo clippy -p synnia"
+  tsc: "pnpm tsc --noEmit"
 
 rules:
   # Implementation guidelines
-  - "严格按照 agent-module-design.md 中的 Phase 顺序实现"
-  - "参考 docs/rig/rig/rig-core/examples/ 中的示例代码"
-  - "只实现 Google 和 Zhipu 两种 provider"
-  - "复用现有的 settings 模块读取 API keys"
-  
-  # Code style
-  - "保持与项目现有 Rust 代码风格一致"
-  - "使用 thiserror 处理错误"
-  - "代码注释使用英文"
+  - "严格按照 agent-reimpl-task.md 中的 Phase 顺序实现"
+  - "参考 agent-reimpl-code-reference.md 中的示例代码"
+  - "随时查看旧模块 src-tauri/src/features/agent/ 作为参考"
+  - "不删除旧的 agent 和 chat 模块"
   
   # Architecture
-  - "Agent 模块放在 src-tauri/src/features/agent/"
-  - "不重复定义 UserConfig，复用 settings 模块"
-  - "History 和 Model 分离管理"
+  - "模型注册在前端 (src/features/models/)，Provider 注册在后端"
+  - "后端实现 get_available_providers 命令供前端过滤可用模型"
+  - "执行器需支持流式/非流式 Fallback"
+  - "使用数据库连接池避免重复连接"
+  - "流式输出使用缓冲机制"
+  
+  # Code style
+  - "代码注释使用英文"
+  - "保持与项目现有代码风格一致"
   
   # Testing
-  - "每个 Phase 完成后运行 cargo check 和 cargo clippy"
-  - "Phase 6 使用真实 API 测试（#[ignore] 标记）"
+  - "每个 Phase 完成后运行 cargo test 验证"
+  - "前端完成后运行 pnpm tsc --noEmit 验证"
+  - "只需单元测试通过，不需要接入系统"
 
 boundaries:
   never_touch:
-    - "src/**"                       # 前端代码（本阶段不涉及）
-    - "src-tauri/src/features/settings/**"  # 只读取，不修改
-    - "src-tauri/src/global/**"      # 只读取，不修改
+    - "src-tauri/src/features/agent/**"   # 旧模块，不删除
+    - "src-tauri/src/features/chat/**"    # 旧模块，不删除
+    - "src/features/chat/**"              # 旧模块，不删除
     - "*.lock"
     - "node_modules/**"
     - "target/**"
     
   focus_areas:
-    - "src-tauri/src/features/agent/**"  # Agent 核心模块
-    - "src-tauri/Cargo.toml"              # 添加依赖
+    - "src-tauri/src/features/agent_new/**"  # 新后端模块
+    - "src/features/chat_new/**"              # 新前端模块
 
   reference:
-    - "src/features/models/types.ts"     # 模型类型定义参考
-    - "src-tauri/src/global/database.rs" # 全局 DB 访问
-    - "projects/test/"                   # 测试项目
+    - "src-tauri/src/features/agent/**"   # 旧后端模块参考
+    - "src/features/chat/**"              # 旧前端模块参考
+    - "src/features/models/types.ts"      # 模型类型定义
+    - "src/features/models/index.ts"      # 模型注册逻辑
+    - "docs/agent-reimpl-code-reference.md"  # 代码示例
 
 phases:
-  - name: "Phase 1: 基础设施"
+  - name: "Phase 1: 后端基础设施"
     tasks:
-      - "创建 src-tauri/src/features/agent/mod.rs"
-      - "创建 src-tauri/src/features/agent/types.rs"
-      - "cargo check 通过"
+      - "创建 agent_new/ 目录结构"
+      - "实现 storage/mod.rs + repository.rs (带连接池)"
+      - "添加 schema.sql (agent_threads, agent_messages)"
+      - "编写 storage 单元测试"
       
-  - name: "Phase 2: 存储层"
+  - name: "Phase 2: Provider 层"
     tasks:
-      - "创建 storage/schema.sql"
-      - "创建 storage/repository.rs"
-      - "内存 DB 单元测试通过"
+      - "实现 providers/mod.rs (Provider 工厂)"
+      - "实现 providers/gemini.rs"
+      - "编写 provider 单元测试"
       
-  - name: "Phase 3: Provider 层"
+  - name: "Phase 3: 工具层"
     tasks:
-      - "创建 providers/registry.rs"
-      - "创建 providers/google.rs"
-      - "创建 providers/zhipu.rs"
-      - "验证 Rig OpenAI client base_url 配置"
+      - "实现 tools/mod.rs (工具注册表)"
+      - "实现 tools/get_nodes.rs"
+      - "编写工具单元测试"
       
-  - name: "Phase 4: 模型注册"
+  - name: "Phase 4: 执行器"
     tasks:
-      - "实现 ModelRegistry"
-      - "实现 get_models 命令"
-      - "过滤逻辑单元测试通过"
+      - "实现 executor.rs (StreamEvent + AgentExecutor)"
+      - "实现流式输出缓冲机制"
+      - "实现流式/非流式 Fallback"
+      - "编写执行器单元测试"
       
-  - name: "Phase 5: 状态管理"
+  - name: "Phase 5: Tauri 命令"
     tasks:
-      - "创建 state.rs (ChatSession, AgentState)"
-      - "并发读写测试通过"
+      - "实现 commands.rs"
+      - "实现 mod.rs"
+      - "实现 get_available_providers 命令"
+      - "编写命令单元测试"
       
-  - name: "Phase 6: Agent Engine"
+  - name: "Phase 6: 前端模块"
     tasks:
-      - "创建 engine.rs"
-      - "创建 tools/nodes.rs"
-      - "流式/非流式输出测试"
-      - "真实 API 集成测试（cargo test -- --ignored）"
-      
-  - name: "Phase 7: Tauri Commands"
-    tasks:
-      - "创建 commands/chat.rs"
-      - "创建 commands/sessions.rs"
-      - "注册到 lib.rs"
-      - "编译通过"
+      - "创建 chat_new/ 目录结构"
+      - "实现 types.ts"
+      - "实现 BackendAdapter.ts"
+      - "实现 PersistenceAdapter.ts"
+      - "实现 ChatProvider.tsx"
+      - "实现 tools/ToolUIRegistry.tsx"
+      - "验证 TypeScript 编译通过"
 
 capabilities:
   browser: false
-  real_api_test: true  # 可使用真实 API 测试
+  real_api_test: false  # 只需单元测试

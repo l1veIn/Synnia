@@ -28,7 +28,7 @@ import { NodePicker } from '@/components/workflow/NodePicker';
 import { AssistantModal } from '@/components/assistant-ui/assistant-modal';
 import { AssistantFullscreen } from '@/components/assistant-ui/assistant-fullscreen';
 import { ChatRuntimeProvider } from '@/features/chat';
-
+import { ChatProvider } from '@/features/chat_new';
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {
@@ -296,7 +296,7 @@ function CanvasFlow() {
         />
       </div>
       <TooltipProvider>
-        <ChatRuntimeProvider>
+        <ChatProvider>
           {!isFullscreen && (
             <AssistantModal
               isOpen={isModalOpen}
@@ -314,7 +314,7 @@ function CanvasFlow() {
               setIsModalOpen(true);
             }}
           />
-        </ChatRuntimeProvider>
+        </ChatProvider>
       </TooltipProvider>
     </div>
   );

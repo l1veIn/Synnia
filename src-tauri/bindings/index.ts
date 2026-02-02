@@ -26,3 +26,6 @@ export type { SynniaEdge } from './SynniaEdge';
 
 // Agent Types
 export type { AgentDefinition } from './AgentDefinition';
+
+// Provider Types
+export type { ProviderType } from './ProviderType';

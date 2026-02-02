@@ -23,24 +23,15 @@ export type ModelCapability =
     | 'streaming';          // Stream responses
 
 // ============================================================================
-// Provider Types
+// Provider Types (synced from backend via ts-rs)
 // ============================================================================
 
-export type ProviderType =
-    | 'openai'
-    | 'anthropic'
-    | 'google'
-    | 'deepseek'
-    | 'zhipu'
-    | 'fal'
-    | 'replicate'
-    | 'ppio'
-    | 'ollama'
-    | 'lmstudio'
-    | 'comfyui'
-    | 'g4f';
+// Import from ts-rs generated bindings - backend is single source of truth
+export type { ProviderType } from '@/bindings/ProviderType';
+import type { ProviderType } from '@/bindings/ProviderType';
 
 export type ProviderKey = ProviderType;
+
 
 export interface ProviderInfo {
     key: ProviderKey;

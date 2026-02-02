@@ -1,65 +1,60 @@
 // OpenAI LLM Plugins
-// Unified with ModelPlugin interface
+// Simplified for backend-only execution
 
-import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
-// Shared OpenAI Execution Logic
+// Shared OpenAI Execution Logic (Backend)
 // ============================================================================
 
 async function executeOpenAI(
     input: ModelExecutionInput,
     modelId: string
 ): Promise<ModelExecutionResult> {
-    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const { systemPrompt, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
-    if (!credentials.apiKey) {
-        return { success: false, error: 'OpenAI API key not configured' };
-    }
-
     try {
-        const openai = createOpenAI({
-            apiKey: credentials.apiKey,
-            baseURL: credentials.baseUrl,
+        console.log('[OpenAI]: Calling backend execute_model_command');
+        const { invoke } = await import('@tauri-apps/api/core');
+
+        const result = await invoke<{
+            success: boolean;
+            error?: string;
+            text?: string;
+        }>('execute_model_command', {
+            request: {
+                provider: 'openai',
+                modelId: modelId,
+                prompt: userPrompt,
+                systemPrompt: systemPrompt,
+            }
         });
 
-        const model = openai(modelId);
-
-        let prompt = userPrompt;
-        if (systemPrompt) {
-            prompt = `System: ${systemPrompt}\n\nUser: ${userPrompt}`;
+        if (!result.success) {
+            return { success: false, error: result.error || 'Backend execution failed' };
         }
 
-        const result = await generateText({
-            model,
-            prompt,
-            temperature: temperature ?? 0.7,
-            maxOutputTokens: maxTokens ?? 2048,
-        });
-
-        const responseText = result.text;
-        const wasTruncated = result.finishReason === 'length';
+        const responseText = result.text || '';
 
         if (jsonMode) {
             const { data, success } = extractJson(responseText);
             if (success) {
-                return { success: true, text: responseText, data, wasTruncated };
+                return { success: true, text: responseText, data };
             } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON', wasTruncated };
+                return { success: false, text: responseText, error: 'Failed to parse JSON' };
             }
         }
 
-        return { success: true, text: responseText, wasTruncated };
+        return { success: true, text: responseText };
     } catch (error: any) {
-        console.error('[OpenAI] Call failed:', error);
-        return { success: false, error: error.message || 'OpenAI call failed' };
+        console.error('[OpenAI] Backend call failed:', error);
+        return { success: false, error: error.message || 'OpenAI backend call failed' };
     }
 }
+
 
 // ============================================================================
 // Factory Function for OpenAI Models

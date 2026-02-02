@@ -44,9 +44,7 @@ next-env.d.ts
 
 /src-tauri/gen
 
-/models
-
-/src-tauri/models
+/projects
 
 /dist
 

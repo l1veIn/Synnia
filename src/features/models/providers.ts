@@ -1,5 +1,7 @@
-import { ProviderInfo } from './types';
+import { ProviderInfo, ProviderKey } from './types';
 
+// Static provider info - synced with backend ProviderType
+// Used as fallback when backend is not available
 export const PROVIDER_INFO: ProviderInfo[] = [
     // Cloud providers
     {
@@ -39,15 +41,6 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         requiresApiKey: true,
     },
     {
-        key: 'replicate',
-        name: 'Replicate',
-        description: 'Various open models',
-        type: 'cloud',
-        placeholder: 'r8_...',
-        defaultBaseUrl: 'https://api.replicate.com/v1',
-        requiresApiKey: true,
-    },
-    {
         key: 'deepseek',
         name: 'DeepSeek',
         description: 'DeepSeek V3',
@@ -63,15 +56,6 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         type: 'cloud',
         placeholder: 'your-zhipu-api-key',
         defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-        requiresApiKey: true,
-    },
-    {
-        key: 'ppio',
-        name: 'PPIO',
-        description: 'PPIO Cloud GPU',
-        type: 'cloud',
-        placeholder: 'pp_...',
-        defaultBaseUrl: 'https://api.ppinfra.com/v3/openai',
         requiresApiKey: true,
     },
     // Local providers
@@ -94,15 +78,6 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         requiresApiKey: false,
     },
     {
-        key: 'comfyui',
-        name: 'ComfyUI',
-        description: 'Local image generation',
-        type: 'local',
-        placeholder: 'Optional API key',
-        defaultBaseUrl: 'http://localhost:8188',
-        requiresApiKey: false,
-    },
-    {
         key: 'g4f',
         name: 'GPT4Free',
         description: 'Local proxy (Gemini Imagen, etc.)',
@@ -112,3 +87,57 @@ export const PROVIDER_INFO: ProviderInfo[] = [
         requiresApiKey: false,
     },
 ];
+
+// ============================================================================
+// Backend API Functions
+// ============================================================================
+
+interface BackendProviderInfo {
+    key: string;
+    name: string;
+    description: string;
+    providerType: string;  // camelCase from backend
+    placeholder: string;
+    defaultBaseUrl?: string;
+    requiresApiKey: boolean;
+}
+
+/**
+ * Fetch all providers from backend.
+ * Falls back to static PROVIDER_INFO if backend is unavailable.
+ */
+export async function fetchAllProviders(): Promise<ProviderInfo[]> {
+    try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const backendProviders = await invoke<BackendProviderInfo[]>('get_all_providers_command');
+
+        // Map backend format to frontend format
+        return backendProviders.map(p => ({
+            key: p.key as ProviderKey,
+            name: p.name,
+            description: p.description,
+            type: p.providerType as 'cloud' | 'local',
+            placeholder: p.placeholder,
+            defaultBaseUrl: p.defaultBaseUrl,
+            requiresApiKey: p.requiresApiKey,
+        }));
+    } catch (error) {
+        console.warn('[providers] Backend unavailable, using static fallback:', error);
+        return PROVIDER_INFO;
+    }
+}
+
+/**
+ * Get all provider keys.
+ */
+export function getAllProviderKeys(): ProviderKey[] {
+    return PROVIDER_INFO.map(p => p.key);
+}
+
+/**
+ * Find provider info by key.
+ */
+export function getProviderByKey(key: ProviderKey): ProviderInfo | undefined {
+    return PROVIDER_INFO.find(p => p.key === key);
+}
+

@@ -86,6 +86,7 @@ pub fn run() {
             server_port,
             agent_state,
         })
+        // Note: agent_new uses AppState directly instead of its own state
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_mcp_bridge::init())?;
@@ -234,6 +235,19 @@ pub fn run() {
             features::agent::commands::get_available_providers,
             features::agent::commands::get_all_providers,
             features::agent::commands::execute_model,
+
+            // Agent_new module commands (simplified reimplementation)
+            features::agent_new::commands::get_threads_command,
+            features::agent_new::commands::get_thread_command,
+            features::agent_new::commands::create_thread_command,
+            features::agent_new::commands::update_thread_command,
+            features::agent_new::commands::delete_thread_command,
+            features::agent_new::commands::get_messages_command,
+            features::agent_new::commands::chat_send_command,
+            features::agent_new::commands::chat_stream_command,
+            features::agent_new::commands::get_available_providers_command,
+            features::agent_new::commands::get_all_providers_command,
+            features::agent_new::commands::execute_model_command,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

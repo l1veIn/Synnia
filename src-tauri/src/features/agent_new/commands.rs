@@ -4,11 +4,12 @@
 //! It provides thread management, message persistence, and agent execution capabilities.
 
 use crate::core::AppState;  // Use global AppState instead of custom state
-use crate::features::agent_new::executor::{AgentExecutor, ExecutorError, StreamEvent};
+use crate::features::agent_new::executor::{AgentExecutor, StreamEvent};
 use crate::features::agent_new::storage::{
     create_thread, delete_thread, get_messages, get_thread, get_threads, save_message,
     thread_exists, update_thread_title, ThreadInfo,
 };
+use futures::StreamExt;
 use tauri::{Emitter, State, Window};
 
 // ============================================================================
@@ -240,6 +241,17 @@ pub async fn chat_stream_command(
     window: Window,
     request: ChatRequest,
 ) -> Result<String, String> {
+    use crate::features::agent_new::providers::{ProviderClient, ProviderType};
+    use crate::features::agent_new::storage::MessageInfo;
+    use crate::features::agent_new::tools::{
+        GetNodesListTool, CreateNodeSmartTool, UpdateNodesTool, DeleteNodesTool,
+        GetAssetsListTool, UpdateAssetsTool,
+    };
+    use rig_core::agent::MultiTurnStreamItem;
+    use rig_core::client::CompletionClient;
+    use rig_core::completion::Message as RigMessage;
+    use rig_core::streaming::{StreamedAssistantContent, StreamingChat};
+
     let project_path = get_project_path_from_state(&state)?;
 
     // Get or create thread
@@ -256,65 +268,298 @@ pub async fn chat_stream_command(
     };
 
     let event_name = format!("agent-stream-{}", thread_id);
-    let thread_id_for_spawn = thread_id.clone();
+    let thread_id_clone = thread_id.clone();
     let content = request.content.clone();
     let model_id = request.model_id.clone();
     let provider = request.provider.clone();
-    let supports_streaming = request.supports_streaming.unwrap_or(false);
     let project_path_clone = project_path.clone();
 
     // Spawn streaming task
     tokio::spawn(async move {
-        let executor = AgentExecutor::new(&project_path_clone);
+        eprintln!("[chat_stream] Starting streaming for thread: {}", thread_id_clone);
 
-        // Note: User message is saved by executor.execute() - no need to save here
-        eprintln!("[chat_stream] Starting execution for thread: {}", thread_id_for_spawn);
+        // Load message history FIRST (before saving current message)
+        let history = match get_messages(&project_path_clone, &thread_id_clone) {
+            Ok(msgs) => msgs,
+            Err(e) => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Failed to load history: {}", e)));
+                return;
+            }
+        };
 
-        // Execute with streaming (simplified - for full streaming need executor refactoring)
-        match executor
-            .execute(&thread_id_for_spawn, &content, &model_id, &provider, supports_streaming)
-            .await
-        {
-            Ok(response) => {
-                // Emit the full response as tokens
-                let _ = window.emit(&event_name, StreamEvent::token(&response.content));
+        // Save user message (WAL pattern - after loading history to avoid duplication)
+        let user_message_id = uuid::Uuid::new_v4().to_string();
+        let user_content_json = serde_json::json!({
+            "id": user_message_id,
+            "role": "user",
+            "content": [{"type": "text", "text": content}],
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+            "attachments": [],
+            "metadata": {"custom": {}}
+        }).to_string();
 
-                // Emit tool calls if any
-                for tool_call in &response.tool_calls {
-                    let _ = window.emit(
-                        &event_name,
-                        StreamEvent::tool_call(
-                            &tool_call.id,
-                            &tool_call.name,
-                            &tool_call.args,
-                        ),
-                    );
+        if let Err(e) = save_message(
+            &project_path_clone,
+            &thread_id_clone,
+            &user_message_id,
+            "user",
+            &user_content_json,
+            None,
+            None,
+        ) {
+            eprintln!("[chat_stream] Failed to save user message: {}", e);
+            let _ = window.emit(&event_name, StreamEvent::error(format!("Database error: {}", e)));
+            return;
+        }
 
-                    // Emit tool result if available
-                    if let Some(ref result) = tool_call.result {
-                        let _ = window.emit(
-                            &event_name,
-                            StreamEvent::tool_result(&tool_call.id, &tool_call.name, result),
-                        );
+        // Convert history to Rig format
+        let rig_history: Vec<RigMessage> = history
+            .iter()
+            .filter_map(|msg: &MessageInfo| {
+                // Parse content_json to extract text
+                let text = match serde_json::from_str::<serde_json::Value>(&msg.content_json) {
+                    Ok(json) => {
+                        if let Some(content_arr) = json.get("content").and_then(|c| c.as_array()) {
+                            content_arr
+                                .iter()
+                                .filter_map(|part| {
+                                    if part.get("type")?.as_str()? == "text" {
+                                        part.get("text")?.as_str().map(|s| s.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join("")
+                        } else {
+                            String::new()
+                        }
+                    }
+                    Err(_) => msg.content_json.clone(),
+                };
+
+                match msg.role.as_str() {
+                    "user" => Some(RigMessage::user(&text)),
+                    "assistant" => Some(RigMessage::assistant(&text)),
+                    _ => None,
+                }
+            })
+            .collect();
+
+        // Create provider client dynamically based on provider parameter
+        let provider_type = match ProviderType::parse(&provider) {
+            Some(pt) => pt,
+            None => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Unknown provider: {}", provider)));
+                return;
+            }
+        };
+
+        let provider_client = match ProviderClient::from_env(provider_type) {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Provider error: {}", e)));
+                return;
+            }
+        };
+
+        // Create all tools for this agent
+        let get_nodes = GetNodesListTool::new(&project_path_clone);
+        let create_node = CreateNodeSmartTool::new(&project_path_clone);
+        let update_nodes = UpdateNodesTool::new(&project_path_clone);
+        let delete_nodes = DeleteNodesTool::new(&project_path_clone);
+        let get_assets = GetAssetsListTool::new(&project_path_clone);
+        let update_assets = UpdateAssetsTool::new(&project_path_clone);
+        
+        // Start streaming based on provider type
+        let mut full_text = String::new();
+        let mut tool_calls_json = Vec::<serde_json::Value>::new();
+        let mut stream_error: Option<String> = None;
+
+        match provider_client {
+            ProviderClient::Google(client) => {
+                let agent = client
+                    .inner()
+                    .agent(&model_id)
+                    .preamble("You are a helpful AI assistant that can interact with the Synnia canvas.")
+                    .default_max_depth(5)
+                    .tool(get_nodes)
+                    .tool(create_node)
+                    .tool(update_nodes)
+                    .tool(delete_nodes)
+                    .tool(get_assets)
+                    .tool(update_assets)
+                    .build();
+
+                let mut stream = agent.stream_chat(&content, rig_history).await;
+
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text))) => {
+                            full_text.push_str(&text.text);
+                            let _ = window.emit(&event_name, StreamEvent::token(&text.text));
+                        }
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ToolCall(tool_call))) => {
+                            let args_json = serde_json::to_string(&tool_call.function.arguments)
+                                .unwrap_or_else(|_| "{}".to_string());
+                            let tool_call_id = format!("tc_{}", uuid::Uuid::new_v4());
+                            
+                            tool_calls_json.push(serde_json::json!({
+                                "type": "tool-call",
+                                "toolCallId": tool_call_id,
+                                "toolName": tool_call.function.name,
+                                "args": tool_call.function.arguments
+                            }));
+                            
+                            let _ = window.emit(&event_name, StreamEvent::tool_call(
+                                &tool_call_id,
+                                &tool_call.function.name,
+                                &args_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::StreamUserItem(rig_core::streaming::StreamedUserContent::ToolResult(tool_result))) => {
+                            let result_json = serde_json::to_string(&tool_result.content)
+                                .unwrap_or_else(|_| "null".to_string());
+                            let _ = window.emit(&event_name, StreamEvent::tool_result(
+                                &tool_result.id,
+                                "tool",
+                                &result_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::FinalResponse(_)) => {
+                            break;
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("[chat_stream] Stream error: {}", e);
+                            stream_error = Some(e.to_string());
+                            break;
+                        }
                     }
                 }
-
-                let _ = window.emit(&event_name, StreamEvent::Complete);
             }
-            Err(e) => {
-                eprintln!("[chat_stream] Error occurred: {:?}", e);
-                let error_msg = match e {
-                    ExecutorError::Provider(ref pe) => format!("Provider error: {}", pe),
-                    ExecutorError::Database(ref de) => format!("Database error: {}", de),
-                    ExecutorError::Llm(ref le) => format!("LLM error: {}", le),
-                    ExecutorError::Tool(ref te) => format!("Tool error: {}", te),
-                    ExecutorError::InvalidConfig(ref ie) => format!("Config error: {}", ie),
-                    ExecutorError::ThreadNotFound(ref tf) => format!("Thread not found: {}", tf),
-                    ExecutorError::Other(ref oe) => format!("Error: {}", oe),
-                };
-                let _ = window.emit(&event_name, StreamEvent::error(error_msg));
+            ProviderClient::Zhipu(client) => {
+                // Create all tools for Zhipu branch (due to ownership)
+                let get_nodes2 = GetNodesListTool::new(&project_path_clone);
+                let create_node2 = CreateNodeSmartTool::new(&project_path_clone);
+                let update_nodes2 = UpdateNodesTool::new(&project_path_clone);
+                let delete_nodes2 = DeleteNodesTool::new(&project_path_clone);
+                let get_assets2 = GetAssetsListTool::new(&project_path_clone);
+                let update_assets2 = UpdateAssetsTool::new(&project_path_clone);
+                let agent = client
+                    .inner()
+                    .agent(&model_id)
+                    .preamble("You are a helpful AI assistant that can interact with the Synnia canvas.")
+                    .default_max_depth(5)
+                    .tool(get_nodes2)
+                    .tool(create_node2)
+                    .tool(update_nodes2)
+                    .tool(delete_nodes2)
+                    .tool(get_assets2)
+                    .tool(update_assets2)
+                    .build();
+
+                let mut stream = agent.stream_chat(&content, rig_history).await;
+
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text))) => {
+                            full_text.push_str(&text.text);
+                            let _ = window.emit(&event_name, StreamEvent::token(&text.text));
+                        }
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ToolCall(tool_call))) => {
+                            let args_json = serde_json::to_string(&tool_call.function.arguments)
+                                .unwrap_or_else(|_| "{}".to_string());
+                            let tool_call_id = format!("tc_{}", uuid::Uuid::new_v4());
+                            
+                            tool_calls_json.push(serde_json::json!({
+                                "type": "tool-call",
+                                "toolCallId": tool_call_id,
+                                "toolName": tool_call.function.name,
+                                "args": tool_call.function.arguments
+                            }));
+                            
+                            let _ = window.emit(&event_name, StreamEvent::tool_call(
+                                &tool_call_id,
+                                &tool_call.function.name,
+                                &args_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::StreamUserItem(rig_core::streaming::StreamedUserContent::ToolResult(tool_result))) => {
+                            let result_json = serde_json::to_string(&tool_result.content)
+                                .unwrap_or_else(|_| "null".to_string());
+                            let _ = window.emit(&event_name, StreamEvent::tool_result(
+                                &tool_result.id,
+                                "tool",
+                                &result_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::FinalResponse(_)) => {
+                            break;
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("[chat_stream] Stream error: {}", e);
+                            stream_error = Some(e.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            // OpenAI, Anthropic, DeepSeek not yet supported for streaming chat
+            // They are available for execute_model_command (one-shot)
+            _ => {
+                let _ = window.emit(&event_name, StreamEvent::error(
+                    format!("Provider {} not yet supported for streaming chat. Use execute_model_command instead.", provider)
+                ));
+                return;
             }
         }
+
+
+        // Handle stream error
+        if let Some(error_msg) = stream_error {
+            let _ = window.emit(&event_name, StreamEvent::error(error_msg));
+            return;
+        }
+
+        // Save assistant message
+        let assistant_message_id = uuid::Uuid::new_v4().to_string();
+        
+        let mut content_parts: Vec<serde_json::Value> = vec![];
+        if !full_text.is_empty() {
+            content_parts.push(serde_json::json!({"type": "text", "text": full_text}));
+        }
+        content_parts.extend(tool_calls_json);
+        
+        let assistant_content_json = serde_json::json!({
+            "id": assistant_message_id,
+            "role": "assistant",
+            "content": content_parts,
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+            "status": {"type": "complete", "reason": "stop"},
+            "metadata": {
+                "custom": {},
+                "steps": [],
+                "unstable_annotations": [],
+                "unstable_data": []
+            }
+        }).to_string();
+
+        if let Err(e) = save_message(
+            &project_path_clone,
+            &thread_id_clone,
+            &assistant_message_id,
+            "assistant",
+            &assistant_content_json,
+            Some(&model_id),
+            Some(&provider),
+        ) {
+            eprintln!("[chat_stream] Failed to save assistant message: {}", e);
+        }
+
+        let _ = window.emit(&event_name, StreamEvent::Complete);
+        eprintln!("[chat_stream] Streaming complete for thread: {}", thread_id_clone);
     });
 
     Ok(thread_id)
@@ -331,6 +576,109 @@ pub async fn chat_stream_command(
 pub fn get_available_providers_command() -> Vec<String> {
     crate::features::agent_new::get_available_providers()
 }
+
+/// Get information about all supported providers.
+///
+/// Returns static list of all providers the system can support,
+/// regardless of whether they are configured.
+#[tauri::command]
+pub fn get_all_providers_command() -> Vec<ProviderInfo> {
+    use crate::features::agent_new::providers::ProviderType;
+    
+    ProviderType::all()
+        .iter()
+        .map(|p| p.info())
+        .collect()
+}
+
+/// Provider information for frontend display.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderInfo {
+    /// Unique key for the provider
+    pub key: String,
+    /// Human-readable name
+    pub name: String,
+    /// Short description
+    pub description: String,
+    /// Provider type: "cloud" or "local"
+    pub provider_type: String,
+    /// Placeholder text for API key input
+    pub placeholder: String,
+    /// Default base URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_base_url: Option<String>,
+    /// Whether an API key is required
+    pub requires_api_key: bool,
+}
+
+/// Input for execute_model_command.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelExecuteRequest {
+    /// Provider to use
+    pub provider: String,
+    /// Model ID
+    pub model_id: String,
+    /// Text prompt
+    pub prompt: String,
+    /// Optional system prompt
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<String>,
+}
+
+/// Output from execute_model_command.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelExecuteResponse {
+    /// Whether execution succeeded
+    pub success: bool,
+    /// Response text
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Error message if failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Execute a model with a single prompt (non-streaming).
+///
+/// This is used for simple one-shot executions like recipe nodes.
+#[tauri::command]
+pub async fn execute_model_command(
+    request: ModelExecuteRequest,
+) -> Result<ModelExecuteResponse, String> {
+    use crate::features::agent_new::providers::{ProviderClient, ProviderType};
+
+    let provider_type = ProviderType::parse(&request.provider)
+        .ok_or_else(|| format!("Unknown provider: {}", request.provider))?;
+
+    let provider_client = ProviderClient::from_env(provider_type)
+        .map_err(|e| format!("Provider error: {}", e))?;
+
+    let result = provider_client
+        .execute_prompt(
+            &request.model_id,
+            &request.prompt,
+            request.system_prompt.as_deref(),
+        )
+        .await;
+
+    match result {
+        Ok(response) => Ok(ModelExecuteResponse {
+            success: true,
+            text: Some(response),
+            error: None,
+        }),
+        Err(e) => Ok(ModelExecuteResponse {
+            success: false,
+            text: None,
+            error: Some(e.to_string()),
+        }),
+    }
+}
+
+
 
 // Note: set_project_path and get_project_path commands removed.
 // agent_new now uses AppState.current_project_path managed by project module.

@@ -11,34 +11,212 @@
 //! - Frontend uses this to filter available models
 
 pub mod gemini;
+pub mod zhipu;
+pub mod openai;
+pub mod anthropic;
+pub mod deepseek;
 
 // Re-export commonly used types and functions
 pub use gemini::GeminiClient;
+pub use zhipu::ZhipuClient;
+pub use openai::OpenAIClient;
+pub use anthropic::AnthropicClient;
+pub use deepseek::DeepSeekClient;
+
+/// Unified provider client enum.
+///
+/// This enum wraps all available provider clients, allowing for
+/// polymorphic usage throughout the application.
+pub enum ProviderClient {
+    /// Google Gemini provider
+    Google(GeminiClient),
+    /// Zhipu AI provider
+    Zhipu(ZhipuClient),
+    /// OpenAI provider
+    OpenAI(OpenAIClient),
+    /// Anthropic provider
+    Anthropic(AnthropicClient),
+    /// DeepSeek provider
+    DeepSeek(DeepSeekClient),
+}
+
+impl ProviderClient {
+    /// Create a provider client from environment variables.
+    ///
+    /// This reads the API key from the environment and
+    /// initializes the appropriate client based on the provider type.
+    pub fn from_env(provider: ProviderType) -> ProviderResult<Self> {
+        match provider {
+            ProviderType::Google => {
+                let client = GeminiClient::from_env()?;
+                Ok(Self::Google(client))
+            }
+            ProviderType::Zhipu => {
+                let client = ZhipuClient::from_env()?;
+                Ok(Self::Zhipu(client))
+            }
+            ProviderType::OpenAI => {
+                let client = OpenAIClient::from_env()?;
+                Ok(Self::OpenAI(client))
+            }
+            ProviderType::Anthropic => {
+                let client = AnthropicClient::from_env()?;
+                Ok(Self::Anthropic(client))
+            }
+            ProviderType::DeepSeek => {
+                let client = DeepSeekClient::from_env()?;
+                Ok(Self::DeepSeek(client))
+            }
+            _ => Err(ProviderError::UnsupportedProvider(provider.as_str().to_string())),
+        }
+    }
+
+    /// Get the provider type of this client.
+    pub fn provider_type(&self) -> ProviderType {
+        match self {
+            Self::Google(_) => ProviderType::Google,
+            Self::Zhipu(_) => ProviderType::Zhipu,
+            Self::OpenAI(_) => ProviderType::OpenAI,
+            Self::Anthropic(_) => ProviderType::Anthropic,
+            Self::DeepSeek(_) => ProviderType::DeepSeek,
+        }
+    }
+
+    /// Get a reference to the underlying Gemini client, if this is a Google provider.
+    pub fn as_google(&self) -> Option<&GeminiClient> {
+        match self {
+            Self::Google(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    /// Get a reference to the underlying Zhipu client, if this is a Zhipu provider.
+    pub fn as_zhipu(&self) -> Option<&ZhipuClient> {
+        match self {
+            Self::Zhipu(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    /// Get a reference to the underlying OpenAI client, if this is an OpenAI provider.
+    pub fn as_openai(&self) -> Option<&OpenAIClient> {
+        match self {
+            Self::OpenAI(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    /// Get a reference to the underlying Anthropic client, if this is an Anthropic provider.
+    pub fn as_anthropic(&self) -> Option<&AnthropicClient> {
+        match self {
+            Self::Anthropic(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    /// Get a reference to the underlying DeepSeek client, if this is a DeepSeek provider.
+    pub fn as_deepseek(&self) -> Option<&DeepSeekClient> {
+        match self {
+            Self::DeepSeek(client) => Some(client),
+            _ => None,
+        }
+    }
+
+    /// Execute a one-shot prompt with optional system prompt.
+    ///
+    /// This is a unified method that handles agent building for all providers.
+    pub async fn execute_prompt(
+        &self,
+        model_id: &str,
+        prompt: &str,
+        system_prompt: Option<&str>,
+    ) -> Result<String, ProviderError> {
+        use rig_core::client::CompletionClient;
+        use rig_core::completion::Prompt;
+
+        match self {
+            Self::Google(client) => {
+                let agent = match system_prompt {
+                    Some(sys) => client.inner().agent(model_id).preamble(sys).build(),
+                    None => client.inner().agent(model_id).build(),
+                };
+                agent.prompt(prompt).await.map_err(|e| {
+                    ProviderError::ExecutionError("google".to_string(), e.to_string())
+                })
+            }
+            Self::Zhipu(client) => {
+                let agent = match system_prompt {
+                    Some(sys) => client.inner().agent(model_id).preamble(sys).build(),
+                    None => client.inner().agent(model_id).build(),
+                };
+                agent.prompt(prompt).await.map_err(|e| {
+                    ProviderError::ExecutionError("zhipu".to_string(), e.to_string())
+                })
+            }
+            Self::OpenAI(client) => {
+                let agent = match system_prompt {
+                    Some(sys) => client.inner().agent(model_id).preamble(sys).build(),
+                    None => client.inner().agent(model_id).build(),
+                };
+                agent.prompt(prompt).await.map_err(|e| {
+                    ProviderError::ExecutionError("openai".to_string(), e.to_string())
+                })
+            }
+            Self::Anthropic(client) => {
+                let agent = match system_prompt {
+                    Some(sys) => client.inner().agent(model_id).preamble(sys).build(),
+                    None => client.inner().agent(model_id).build(),
+                };
+                agent.prompt(prompt).await.map_err(|e| {
+                    ProviderError::ExecutionError("anthropic".to_string(), e.to_string())
+                })
+            }
+            Self::DeepSeek(client) => {
+                let agent = match system_prompt {
+                    Some(sys) => client.inner().agent(model_id).preamble(sys).build(),
+                    None => client.inner().agent(model_id).build(),
+                };
+                agent.prompt(prompt).await.map_err(|e| {
+                    ProviderError::ExecutionError("deepseek".to_string(), e.to_string())
+                })
+            }
+        }
+    }
+}
+
 
 /// Provider type identifiers.
 ///
 /// These correspond to the provider types used in the frontend model registry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Exported to TypeScript via ts-rs for frontend type safety.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "lowercase")]
 pub enum ProviderType {
     /// Google Gemini provider
     Google,
     /// Zhipu AI provider (GLM models)
     Zhipu,
     /// OpenAI provider
+    #[serde(rename = "openai")]
     OpenAI,
     /// Anthropic provider (Claude models)
     Anthropic,
     /// DeepSeek provider
+    #[serde(rename = "deepseek")]
     DeepSeek,
     /// FAL provider
     Fal,
     /// Ollama provider (local)
     Ollama,
     /// LM Studio provider (local)
+    #[serde(rename = "lmstudio")]
     LmStudio,
     /// G4F provider (local)
+    #[serde(rename = "g4f")]
     G4f,
 }
+
 
 impl ProviderType {
     /// Get all provider types.
@@ -108,6 +286,95 @@ impl ProviderType {
             ProviderType::G4f => None,
         }
     }
+
+    /// Get detailed information about this provider.
+    pub fn info(&self) -> crate::features::agent_new::commands::ProviderInfo {
+        use crate::features::agent_new::commands::ProviderInfo;
+        
+        match self {
+            ProviderType::Google => ProviderInfo {
+                key: "google".to_string(),
+                name: "Google AI".to_string(),
+                description: "Gemini 2.0/2.5/3.0, Imagen".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "AIza...".to_string(),
+                default_base_url: Some("https://generativelanguage.googleapis.com/v1beta".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::Zhipu => ProviderInfo {
+                key: "zhipu".to_string(),
+                name: "Zhipu AI".to_string(),
+                description: "GLM-4.7, GLM-4.6v, CogView".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "your-zhipu-api-key".to_string(),
+                default_base_url: Some("https://open.bigmodel.cn/api/paas/v4".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::OpenAI => ProviderInfo {
+                key: "openai".to_string(),
+                name: "OpenAI".to_string(),
+                description: "GPT-4o, GPT-4, DALL-E".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "sk-...".to_string(),
+                default_base_url: Some("https://api.openai.com/v1".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::Anthropic => ProviderInfo {
+                key: "anthropic".to_string(),
+                name: "Anthropic".to_string(),
+                description: "Claude 3.5 Sonnet, Claude 3 Opus".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "sk-ant-...".to_string(),
+                default_base_url: Some("https://api.anthropic.com".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::DeepSeek => ProviderInfo {
+                key: "deepseek".to_string(),
+                name: "DeepSeek".to_string(),
+                description: "DeepSeek V3, DeepSeek Coder".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "sk-...".to_string(),
+                default_base_url: Some("https://api.deepseek.com".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::Fal => ProviderInfo {
+                key: "fal".to_string(),
+                name: "FAL".to_string(),
+                description: "FLUX, Stable Diffusion".to_string(),
+                provider_type: "cloud".to_string(),
+                placeholder: "your-fal-api-key".to_string(),
+                default_base_url: Some("https://fal.run".to_string()),
+                requires_api_key: true,
+            },
+            ProviderType::Ollama => ProviderInfo {
+                key: "ollama".to_string(),
+                name: "Ollama".to_string(),
+                description: "Local LLMs (Llama, Mistral, etc.)".to_string(),
+                provider_type: "local".to_string(),
+                placeholder: "".to_string(),
+                default_base_url: Some("http://localhost:11434".to_string()),
+                requires_api_key: false,
+            },
+            ProviderType::LmStudio => ProviderInfo {
+                key: "lmstudio".to_string(),
+                name: "LM Studio".to_string(),
+                description: "Local LLMs via LM Studio".to_string(),
+                provider_type: "local".to_string(),
+                placeholder: "".to_string(),
+                default_base_url: Some("http://localhost:1234/v1".to_string()),
+                requires_api_key: false,
+            },
+            ProviderType::G4f => ProviderInfo {
+                key: "g4f".to_string(),
+                name: "G4F".to_string(),
+                description: "GPT4Free providers".to_string(),
+                provider_type: "local".to_string(),
+                placeholder: "".to_string(),
+                default_base_url: None,
+                requires_api_key: false,
+            },
+        }
+    }
 }
 
 /// Check if a provider has a configured API key.
@@ -152,10 +419,15 @@ pub enum ProviderError {
     #[error("Failed to create {0} client: {1}")]
     ClientCreationError(String, String),
 
+    /// Execution error during model invocation
+    #[error("Execution error for {0}: {1}")]
+    ExecutionError(String, String),
+
     /// Other provider-related errors
     #[error("Provider error: {0}")]
     Other(String),
 }
+
 
 /// Result type for provider operations.
 pub type ProviderResult<T> = Result<T, ProviderError>;

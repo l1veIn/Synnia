@@ -1,65 +1,60 @@
 // Anthropic Claude LLM Plugins
-// Unified with ModelPlugin interface
+// Simplified for backend-only execution
 
-import { generateText } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
 import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
 import { extractJson } from '../utils';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
 
 // ============================================================================
-// Shared Anthropic Execution Logic
+// Shared Anthropic Execution Logic (Backend)
 // ============================================================================
 
 async function executeAnthropic(
     input: ModelExecutionInput,
     modelId: string
 ): Promise<ModelExecutionResult> {
-    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
+    const { systemPrompt, jsonMode } = input;
     const userPrompt = input.userPrompt || input.prompt || '';
 
-    if (!credentials.apiKey) {
-        return { success: false, error: 'Anthropic API key not configured' };
-    }
-
     try {
-        const anthropic = createAnthropic({
-            apiKey: credentials.apiKey,
-            baseURL: credentials.baseUrl,
+        console.log('[Anthropic]: Calling backend execute_model_command');
+        const { invoke } = await import('@tauri-apps/api/core');
+
+        const result = await invoke<{
+            success: boolean;
+            error?: string;
+            text?: string;
+        }>('execute_model_command', {
+            request: {
+                provider: 'anthropic',
+                modelId: modelId,
+                prompt: userPrompt,
+                systemPrompt: systemPrompt,
+            }
         });
 
-        const model = anthropic(modelId);
-
-        let prompt = userPrompt;
-        if (systemPrompt) {
-            prompt = `System: ${systemPrompt}\n\nUser: ${userPrompt}`;
+        if (!result.success) {
+            return { success: false, error: result.error || 'Backend execution failed' };
         }
 
-        const result = await generateText({
-            model,
-            prompt,
-            temperature: temperature ?? 0.7,
-            maxOutputTokens: maxTokens ?? 2048,
-        });
-
-        const responseText = result.text;
-        const wasTruncated = result.finishReason === 'length';
+        const responseText = result.text || '';
 
         if (jsonMode) {
             const { data, success } = extractJson(responseText);
             if (success) {
-                return { success: true, text: responseText, data, wasTruncated };
+                return { success: true, text: responseText, data };
             } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON', wasTruncated };
+                return { success: false, text: responseText, error: 'Failed to parse JSON' };
             }
         }
 
-        return { success: true, text: responseText, wasTruncated };
+        return { success: true, text: responseText };
     } catch (error: any) {
-        console.error('[Anthropic] Call failed:', error);
-        return { success: false, error: error.message || 'Anthropic call failed' };
+        console.error('[Anthropic] Backend call failed:', error);
+        return { success: false, error: error.message || 'Anthropic backend call failed' };
     }
 }
+
 
 // ============================================================================
 // Factory Function for Claude Models

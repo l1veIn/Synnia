@@ -1,9 +1,30 @@
-//! Tool definitions for agent_new module.
+//! Agent tools module.
 //!
-//! This module provides tools that can be used by AI agents
-//! to interact with the application and user's projects.
+//! Each tool is in its own file for better organization.
 
-pub mod get_nodes;
+mod common;
+mod create_node_smart;
+mod delete_nodes;
+mod get_assets_list;
+mod get_nodes_list;
+mod registry;
+mod update_assets;
+mod update_nodes;
 
 // Re-export common types
-pub use get_nodes::{GetNodesListTool, NodeInfo, NodesToolError, GetNodesListArgs};
+pub use common::{AssetsToolError, NodePosition, NodesToolError};
+
+// Re-export all tools
+pub use create_node_smart::{CreateNodeResult, CreateNodeSmartArgs, CreateNodeSmartTool};
+pub use delete_nodes::{DeleteNodeInfo, DeleteNodesArgs, DeleteNodesResult, DeleteNodesTool};
+pub use get_assets_list::{AssetInfo, GetAssetsListArgs, GetAssetsListTool};
+pub use get_nodes_list::{GetNodesListArgs, GetNodesListTool, NodeInfo};
+pub use update_assets::{
+    AssetUpdate, SingleAssetUpdateResult, UpdateAssetsArgs, UpdateAssetsResult, UpdateAssetsTool,
+};
+pub use update_nodes::{
+    NodeUpdate, SingleUpdateResult, UpdateNodesArgs, UpdateNodesResult, UpdateNodesTool,
+};
+
+// Re-export registry
+pub use registry::{AgentTool, ToolRegistry};

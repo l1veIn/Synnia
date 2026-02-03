@@ -6,4 +6,4 @@
  * These correspond to the provider types used in the frontend model registry.
  * Exported to TypeScript via ts-rs for frontend type safety.
  */
-export type ProviderType = "google" | "zhipu" | "openai" | "anthropic" | "deepseek" | "fal" | "ollama" | "lmstudio" | "g4f";
+export type ProviderType = "google" | "zhipu" | "openai" | "anthropic" | "deepseek" | "fal" | "ollama" | "lmstudio" | "g4f" | "modelscope" | "runninghub";

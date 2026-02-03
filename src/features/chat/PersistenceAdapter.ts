@@ -1,10 +1,10 @@
 /**
- * PersistenceAdapter - Backend persistence calls for agent_new module.
+ * PersistenceAdapter - Backend persistence calls for agent module.
  *
  * This module provides functions to call backend Tauri commands for
  * thread and message persistence operations.
  *
- * Reference: src/features/chat/persistence/ThreadHistoryAdapter.ts
+ *
  */
 
 import { invoke } from '@tauri-apps/api/core';
@@ -114,7 +114,7 @@ export async function getAvailableProviders(): Promise<string[]> {
 }
 
 // Note: setProjectPath and getProjectPath removed.
-// agent_new now uses AppState.current_project_path managed by project module.
+// agent now uses AppState.current_project_path managed by project module.
 
 // =============================================================================
 // Thread History Adapter for assistant-ui

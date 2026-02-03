@@ -3,7 +3,9 @@
   "identifier": "default",
   "description": "Default permissions for Synnia.",
   "local": true,
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-show",
@@ -14,14 +16,22 @@
     "core:window:allow-minimize",
     "core:window:allow-maximize",
     "core:window:allow-toggle-maximize",
-    "dialog:default",
-    "mcp-bridge:default"
+    "dialog:default"
   ],
   "scopes": [
     {
       "name": "fs-scope",
-      "platforms": ["windows", "linux", "macOS"],
-      "allow": ["$HOME/**", "$DESKTOP/**", "$DOWNLOADS/**", "$DOCUMENT/**"]
+      "platforms": [
+        "windows",
+        "linux",
+        "macOS"
+      ],
+      "allow": [
+        "$HOME/**",
+        "$DESKTOP/**",
+        "$DOWNLOADS/**",
+        "$DOCUMENT/**"
+      ]
     }
   ]
 }

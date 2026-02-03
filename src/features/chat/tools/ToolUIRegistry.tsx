@@ -1,10 +1,10 @@
 /**
- * ToolUIRegistry - Tool UI components for agent_new module.
+ * ToolUIRegistry - Tool UI components for agent module.
  *
  * This module registers all tool UI components for rendering tool calls
  * and their results in the chat interface.
  *
- * Reference: src/features/chat/tools/ChatToolsProvider.tsx
+ *
  */
 
 import { ReactNode } from 'react';

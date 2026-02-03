@@ -1,7 +1,7 @@
 /**
- * Type definitions for chat_new module.
+ * Type definitions for chat module.
  *
- * SYNC: src-tauri/src/features/agent_new/executor.rs
+ * SYNC: src-tauri/src/features/agent/executor.rs
  *
  * This file contains type definitions that must match the backend
  * StreamEvent and related types in executor.rs.
@@ -17,7 +17,7 @@
  * These events are emitted via Tauri events with the pattern `agent-stream-{thread_id}`.
  * They correspond to the StreamEvent enum in executor.rs.
  *
- * @see src-tauri/src/features/agent_new/executor.rs:StreamEvent
+ * @see src-tauri/src/features/agent/executor.rs:StreamEvent
  */
 export type StreamEvent =
   | { type: 'token'; text: string }

@@ -7,9 +7,7 @@
 //! - recipe: Recipe management
 //! - settings: Application settings
 //! - operations: Runtime operations (chat, logs)
-//! - chat: Chat persistence
-//! - agent: AI Agent system (Rig.rs)
-//! - agent_new: New simplified AI agent implementation
+//! - agent: AI Agent system
 
 pub mod project;
 pub mod asset;
@@ -17,7 +15,4 @@ pub mod history;
 pub mod recipe;
 pub mod settings;
 pub mod operations;
-pub mod chat;
 pub mod agent;
-pub mod agent_new;
-

@@ -2,7 +2,6 @@
 
 use tauri::State;
 use rusqlite::params;
-use std::path::PathBuf;
 use std::collections::HashSet;
 
 use crate::core::{AppError, AppState};

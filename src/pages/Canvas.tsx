@@ -27,8 +27,7 @@ import { AssetLibraryDialog } from '@/components/AssetLibraryDialog';
 import { NodePicker } from '@/components/workflow/NodePicker';
 import { AssistantModal } from '@/components/assistant-ui/assistant-modal';
 import { AssistantFullscreen } from '@/components/assistant-ui/assistant-fullscreen';
-import { ChatRuntimeProvider } from '@/features/chat';
-import { ChatProvider } from '@/features/chat_new';
+import { ChatProvider } from '@/features/chat';
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {

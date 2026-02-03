@@ -2,7 +2,7 @@
  * useCurrentThread - Hook for tracking and persisting the current active thread.
  * Stores the last active thread ID in localStorage per project.
  *
- * Reference: src/features/chat/persistence/useCurrentThread.ts
+ *
  */
 
 import { useEffect, useRef, useCallback } from 'react';

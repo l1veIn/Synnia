@@ -1,60 +1,8 @@
 // OpenAI LLM Plugins
-// Simplified for backend-only execution
+// Model definitions only - execution handled by AgentExecutor
 
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
-import { extractJson } from '../utils';
+import { ModelPlugin, HandleSpec } from '../types';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
-
-// ============================================================================
-// Shared OpenAI Execution Logic (Backend)
-// ============================================================================
-
-async function executeOpenAI(
-    input: ModelExecutionInput,
-    modelId: string
-): Promise<ModelExecutionResult> {
-    const { systemPrompt, jsonMode } = input;
-    const userPrompt = input.userPrompt || input.prompt || '';
-
-    try {
-        console.log('[OpenAI]: Calling backend execute_model_command');
-        const { invoke } = await import('@tauri-apps/api/core');
-
-        const result = await invoke<{
-            success: boolean;
-            error?: string;
-            text?: string;
-        }>('execute_model_command', {
-            request: {
-                provider: 'openai',
-                modelId: modelId,
-                prompt: userPrompt,
-                systemPrompt: systemPrompt,
-            }
-        });
-
-        if (!result.success) {
-            return { success: false, error: result.error || 'Backend execution failed' };
-        }
-
-        const responseText = result.text || '';
-
-        if (jsonMode) {
-            const { data, success } = extractJson(responseText);
-            if (success) {
-                return { success: true, text: responseText, data };
-            } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON' };
-            }
-        }
-
-        return { success: true, text: responseText };
-    } catch (error: any) {
-        console.error('[OpenAI] Backend call failed:', error);
-        return { success: false, error: error.message || 'OpenAI backend call failed' };
-    }
-}
-
 
 // ============================================================================
 // Factory Function for OpenAI Models
@@ -73,7 +21,7 @@ const createOpenAIModel = (config: OpenAIModelConfig): ModelPlugin => ({
     id: config.id,
     name: config.name,
     description: config.description,
-    category: 'llm',  // Unified LLM category
+    category: 'llm',
     supportedProviders: ['openai'],
     provider: 'openai',
     capabilities: config.hasVision
@@ -99,8 +47,7 @@ const createOpenAIModel = (config: OpenAIModelConfig): ModelPlugin => ({
             return [];
         }
         : undefined,
-
-    execute: (input) => executeOpenAI(input as ModelExecutionInput, config.id),
+    // No execute - AgentExecutor uses backend execute_model_command
 });
 
 // ============================================================================

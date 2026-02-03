@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use std::path::Path;
 
-use crate::core::AppError;
 use crate::infrastructure::database;
 use crate::features::project::persistence as project_persistence;
 

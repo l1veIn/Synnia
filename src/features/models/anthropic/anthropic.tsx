@@ -1,60 +1,8 @@
 // Anthropic Claude LLM Plugins
-// Simplified for backend-only execution
+// Model definitions only - execution handled by AgentExecutor
 
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
-import { extractJson } from '../utils';
+import { ModelPlugin, HandleSpec } from '../types';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
-
-// ============================================================================
-// Shared Anthropic Execution Logic (Backend)
-// ============================================================================
-
-async function executeAnthropic(
-    input: ModelExecutionInput,
-    modelId: string
-): Promise<ModelExecutionResult> {
-    const { systemPrompt, jsonMode } = input;
-    const userPrompt = input.userPrompt || input.prompt || '';
-
-    try {
-        console.log('[Anthropic]: Calling backend execute_model_command');
-        const { invoke } = await import('@tauri-apps/api/core');
-
-        const result = await invoke<{
-            success: boolean;
-            error?: string;
-            text?: string;
-        }>('execute_model_command', {
-            request: {
-                provider: 'anthropic',
-                modelId: modelId,
-                prompt: userPrompt,
-                systemPrompt: systemPrompt,
-            }
-        });
-
-        if (!result.success) {
-            return { success: false, error: result.error || 'Backend execution failed' };
-        }
-
-        const responseText = result.text || '';
-
-        if (jsonMode) {
-            const { data, success } = extractJson(responseText);
-            if (success) {
-                return { success: true, text: responseText, data };
-            } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON' };
-            }
-        }
-
-        return { success: true, text: responseText };
-    } catch (error: any) {
-        console.error('[Anthropic] Backend call failed:', error);
-        return { success: false, error: error.message || 'Anthropic backend call failed' };
-    }
-}
-
 
 // ============================================================================
 // Factory Function for Claude Models
@@ -73,7 +21,7 @@ const createClaudeModel = (config: ClaudeModelConfig): ModelPlugin => ({
     id: config.id,
     name: config.name,
     description: config.description,
-    category: 'llm',  // Unified LLM category
+    category: 'llm',
     supportedProviders: ['anthropic'],
     provider: 'anthropic',
     capabilities: config.hasVision
@@ -99,8 +47,7 @@ const createClaudeModel = (config: ClaudeModelConfig): ModelPlugin => ({
             return [];
         }
         : undefined,
-
-    execute: (input) => executeAnthropic(input as ModelExecutionInput, config.id),
+    // No execute - AgentExecutor uses backend execute_model_command
 });
 
 // ============================================================================

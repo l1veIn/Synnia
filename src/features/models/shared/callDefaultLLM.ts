@@ -75,12 +75,6 @@ async function executeWithModel(
         };
     }
 
-    const creds = getProviderCredentials(settings, configuredProvider as ProviderKey);
-    const credentials: ProviderCredentials = {
-        apiKey: creds?.apiKey,
-        baseUrl: creds?.baseUrl,
-    };
-
     // Map parseAs to jsonMode for backward compatibility
     const jsonMode = options.jsonMode ?? (options.parseAs === 'json');
 
@@ -90,17 +84,63 @@ async function executeWithModel(
     // Use settings default params as fallback
     const defaultParams = settings.defaultLLMParams || {};
 
-    return model.execute({
-        prompt: promptText,
-        userPrompt: promptText,
-        systemPrompt: options.systemPrompt,
-        temperature: options.temperature ?? defaultParams.temperature ?? (model as any).defaultTemperature ?? 0.7,
-        maxTokens: options.maxTokens ?? defaultParams.maxTokens ?? 2048,
-        jsonMode,
-        credentials,
-        provider: configuredProvider as ProviderType,
-    });
+    // If model has custom execute (e.g., for image/video gen), use it
+    if (model.execute) {
+        const creds = getProviderCredentials(settings, configuredProvider as ProviderKey);
+        return model.execute({
+            prompt: promptText,
+            userPrompt: promptText,
+            systemPrompt: options.systemPrompt,
+            temperature: options.temperature ?? defaultParams.temperature ?? (model as any).defaultTemperature ?? 0.7,
+            maxTokens: options.maxTokens ?? defaultParams.maxTokens ?? 2048,
+            jsonMode,
+            credentials: { apiKey: creds?.apiKey, baseUrl: creds?.baseUrl },
+            provider: configuredProvider as ProviderType,
+        });
+    }
+
+    // Default: use backend execute_model_command for LLMs
+    try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const result = await invoke<{
+            success: boolean;
+            error?: string;
+            text?: string;
+        }>('execute_model_command', {
+            request: {
+                provider: configuredProvider,
+                modelId: model.id,
+                prompt: promptText,
+                systemPrompt: options.systemPrompt,
+            }
+        });
+
+        if (!result.success) {
+            return { success: false, error: result.error || 'Backend execution failed' };
+        }
+
+        const responseText = result.text || '';
+
+        if (jsonMode) {
+            // Try to parse JSON from response
+            try {
+                const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) ||
+                    responseText.match(/```\s*([\s\S]*?)\s*```/);
+                const jsonStr = jsonMatch ? jsonMatch[1] : responseText;
+                const data = JSON.parse(jsonStr);
+                return { success: true, text: responseText, data };
+            } catch {
+                return { success: false, text: responseText, error: 'Failed to parse JSON' };
+            }
+        }
+
+        return { success: true, text: responseText };
+    } catch (error: any) {
+        console.error(`[callDefaultLLM] Backend call failed:`, error);
+        return { success: false, error: error.message || 'Backend call failed' };
+    }
 }
 
 // Legacy alias for backward compatibility
 export const callLLM = callDefaultLLM;
+

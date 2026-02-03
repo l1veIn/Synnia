@@ -1,118 +1,8 @@
 // Zhipu AI (智谱 AI) LLM Plugins
-// GLM models via Tauri backend proxy (bypassing browser restrictions)
+// Model definitions only - execution handled by AgentExecutor via backend ZhipuClient
 
-import { invoke } from '@tauri-apps/api/core';
-import { ModelPlugin, ModelExecutionInput, ModelExecutionResult, HandleSpec } from '../types';
-import { extractJson } from '../utils';
+import { ModelPlugin, HandleSpec } from '../types';
 import { DefaultLLMSettings } from '../shared/DefaultLLMSettings';
-
-// ============================================================================
-// Shared Zhipu Execution Logic
-// ============================================================================
-
-// Default endpoint is now defined in providers.ts
-// credentials.baseUrl will contain the configured or default endpoint
-
-interface ZhipuMessage {
-    role: 'system' | 'user' | 'assistant';
-    content: string;
-}
-
-interface ZhipuResponse {
-    choices: Array<{
-        message: {
-            content: string;
-        };
-        finish_reason: string;
-    }>;
-    error?: {
-        message: string;
-    };
-}
-
-interface ProxyResponse {
-    status: number;
-    headers: Record<string, string>;
-    body: string;
-}
-
-async function executeZhipu(
-    input: ModelExecutionInput,
-    modelId: string
-): Promise<ModelExecutionResult> {
-    const { credentials, systemPrompt, temperature, maxTokens, jsonMode } = input;
-    const userPrompt = input.userPrompt || input.prompt || '';
-
-    if (!credentials.apiKey) {
-        return { success: false, error: 'Zhipu API key not configured' };
-    }
-
-    if (!credentials.baseUrl) {
-        return { success: false, error: 'Zhipu API endpoint not configured' };
-    }
-
-    try {
-        // Build messages array
-        const messages: ZhipuMessage[] = [];
-        if (systemPrompt) {
-            messages.push({ role: 'system', content: systemPrompt });
-        }
-        messages.push({ role: 'user', content: userPrompt });
-
-        // Build API URL from configured endpoint
-        const apiUrl = `${credentials.baseUrl}/chat/completions`;
-
-        // Use Tauri backend proxy to bypass browser restrictions
-        const response = await invoke<ProxyResponse>('proxy_request', {
-            url: apiUrl,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${credentials.apiKey}`,
-            },
-            body: JSON.stringify({
-                model: modelId,
-                messages,
-                temperature: temperature ?? 0.7,
-                max_tokens: maxTokens ?? 2048,
-            }),
-        });
-
-        if (response.status !== 200) {
-            console.error('[Zhipu] HTTP Error:', response.status, response.body);
-            return { success: false, error: `Zhipu API error: ${response.status} - ${response.body}` };
-        }
-
-        const data: ZhipuResponse = JSON.parse(response.body);
-
-        if (data.error) {
-            return { success: false, error: data.error.message };
-        }
-
-        if (!data.choices || data.choices.length === 0) {
-            return { success: false, error: 'No response from Zhipu API' };
-        }
-
-        const responseText = data.choices[0].message.content;
-        const wasTruncated = data.choices[0].finish_reason === 'length';
-
-        if (jsonMode) {
-            const { data: jsonData, success } = extractJson(responseText);
-            if (success) {
-                return { success: true, text: responseText, data: jsonData, wasTruncated };
-            } else {
-                return { success: false, text: responseText, error: 'Failed to parse JSON', wasTruncated };
-            }
-        }
-
-        return { success: true, text: responseText, wasTruncated };
-    } catch (error: any) {
-        console.error('[Zhipu] Call failed:', error);
-        return { success: false, error: error.message || 'Zhipu API call failed' };
-    }
-}
-
-
 
 // ============================================================================
 // Factory Function for Zhipu Models
@@ -157,8 +47,7 @@ const createZhipuModel = (config: ZhipuModelConfig): ModelPlugin => ({
             return [];
         }
         : undefined,
-
-    execute: (input) => executeZhipu(input as ModelExecutionInput, config.id),
+    // No execute - AgentExecutor uses backend ZhipuClient via execute_model_command
 });
 
 // ============================================================================

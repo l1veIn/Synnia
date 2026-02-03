@@ -18,9 +18,9 @@
 //! 5. Response is streamed/sent to frontend via Tauri events
 //! 6. Messages are persisted to database
 
-use crate::features::agent_new::providers::{GeminiClient, ProviderType, ProviderError};
-use crate::features::agent_new::storage::{get_connection, save_message, get_messages, MessageInfo};
-use crate::features::agent_new::tools::GetNodesListTool;
+use crate::features::agent::providers::{GeminiClient, ProviderType, ProviderError};
+use crate::features::agent::storage::{get_connection, save_message, get_messages, MessageInfo};
+use crate::features::agent::tools::GetNodesListTool;
 use rig_core::client::CompletionClient;
 use rig_core::completion::{Chat, Message as RigMessage};
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ use std::time::{Duration, Instant};
 /// These events are sent to the frontend via Tauri events
 /// to provide real-time feedback during agent execution.
 ///
-/// SYNC: src/features/chat_new/types.ts
+/// SYNC: src/features/chat/types.ts
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum StreamEvent {

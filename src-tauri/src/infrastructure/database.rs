@@ -11,7 +11,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 /// Database schema version for migrations
-pub const SCHEMA_VERSION: i32 = 5;
+pub const SCHEMA_VERSION: i32 = 6;
 
 // ============================================
 // Connection Management
@@ -75,6 +75,16 @@ fn run_migrations(conn: &Connection, from_version: i32) -> SqliteResult<()> {
     
     // Migration v4 -> v5: chat_sessions tables are created via SCHEMA_SQL
     // No special migration needed, CREATE IF NOT EXISTS handles it
+
+    // Migration to v6: remove legacy chat session tables
+    if from_version < 6 {
+        conn.execute_batch(r#"
+            DROP INDEX IF EXISTS idx_session_messages;
+            DROP INDEX IF EXISTS idx_sessions_updated;
+            DROP TABLE IF EXISTS session_messages;
+            DROP TABLE IF EXISTS chat_sessions;
+        "#)?;
+    }
     
     Ok(())
 }
@@ -250,35 +260,6 @@ CREATE TABLE IF NOT EXISTS log_entries (
 );
 CREATE INDEX IF NOT EXISTS idx_entries_run ON log_entries(run_id, timestamp ASC);
 
--- ============================================
--- Chat Sessions Layer
--- Independent chat sessions (separate from Recipe node chats)
--- ============================================
-
--- Chat sessions (thread metadata)
-CREATE TABLE IF NOT EXISTS chat_sessions (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    last_model_id TEXT,
-    last_provider TEXT,
-    is_archived INTEGER DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_sessions_updated ON chat_sessions(updated_at DESC);
-
--- Session messages
-CREATE TABLE IF NOT EXISTS session_messages (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant', 'tool')),
-    content_json TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    model_id TEXT,
-    provider TEXT,
-    FOREIGN KEY(session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_session_messages ON session_messages(session_id, created_at ASC);
 "#;
 
 // ============================================

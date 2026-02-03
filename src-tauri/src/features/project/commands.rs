@@ -1,7 +1,6 @@
 //! Project management Tauri commands.
 
 use tauri::{State, AppHandle, Emitter};
-use tauri::Manager;
 use std::path::PathBuf;
 use std::io::Cursor;
 use serde::{Deserialize, Serialize};

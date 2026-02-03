@@ -7,7 +7,7 @@
 ## 1. 数据库 Schema
 
 ```sql
--- 文件: src-tauri/src/features/agent_new/storage/schema.sql
+-- 文件: src-tauri/src/features/agent/storage/schema.sql
 
 -- 会话表
 CREATE TABLE IF NOT EXISTS agent_threads (
@@ -179,7 +179,7 @@ pub struct MessageInfo {
 // executor.rs
 
 /// 流式事件类型
-/// SYNC: src/features/chat_new/types.ts
+/// SYNC: src/features/chat/types.ts
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum StreamEvent {
@@ -277,7 +277,7 @@ export function createBackendAdapter(
 
 ```typescript
 // types.ts
-// SYNC: src-tauri/src/features/agent_new/executor.rs
+// SYNC: src-tauri/src/features/agent/executor.rs
 
 export type StreamEvent =
   | { type: 'token'; text: string }

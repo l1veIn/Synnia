@@ -9,7 +9,7 @@ use rusqlite::{Connection, params};
 use crate::core::AppError;
 
 /// Schema version for future migrations
-const SCHEMA_VERSION: i32 = 1;
+const SCHEMA_VERSION: i32 = 2;
 
 /// Complete schema SQL
 const SCHEMA_SQL: &str = r#"
@@ -139,23 +139,34 @@ pub fn init_global_db() -> Result<Connection, AppError> {
     // Execute schema
     conn.execute_batch(SCHEMA_SQL)
         .map_err(|e| AppError::Database(format!("Failed to create schema: {}", e)))?;
-    
-    // Record schema version if not exists
-    let version_exists: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_version WHERE version = ?1)",
-        params![SCHEMA_VERSION],
-        |row| row.get(0)
-    ).unwrap_or(false);
-    
-    if !version_exists {
-        let now = chrono::Utc::now().timestamp();
-        conn.execute(
-            "INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (?1, ?2)",
-            params![SCHEMA_VERSION, now]
-        ).map_err(|e| AppError::Database(format!("Failed to record schema version: {}", e)))?;
-        
-        // Initialize default settings on first run
-        init_default_settings(&conn)?;
+
+    // Determine current schema version (if any)
+    let current_version: Option<i32> = conn.query_row(
+        "SELECT MAX(version) FROM schema_version",
+        [],
+        |row| row.get(0),
+    ).ok();
+
+    match current_version {
+        None => {
+            let now = chrono::Utc::now().timestamp();
+            conn.execute(
+                "INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                params![SCHEMA_VERSION, now]
+            ).map_err(|e| AppError::Database(format!("Failed to record schema version: {}", e)))?;
+            
+            // Initialize default settings on first run
+            init_default_settings(&conn)?;
+        }
+        Some(version) if version < SCHEMA_VERSION => {
+            run_migrations(&conn, version)?;
+            let now = chrono::Utc::now().timestamp();
+            conn.execute(
+                "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                params![SCHEMA_VERSION, now]
+            ).map_err(|e| AppError::Database(format!("Failed to update schema version: {}", e)))?;
+        }
+        _ => {}
     }
     
     Ok(conn)
@@ -182,8 +193,48 @@ pub fn open_global_db() -> Result<Connection, AppError> {
     
     conn.execute_batch("PRAGMA foreign_keys=ON;")
         .map_err(|e| AppError::Database(format!("Failed to enable foreign keys: {}", e)))?;
+
+    // Ensure schema exists
+    conn.execute_batch(SCHEMA_SQL)
+        .map_err(|e| AppError::Database(format!("Failed to create schema: {}", e)))?;
+
+    // Check and migrate schema version
+    let current_version: Option<i32> = conn.query_row(
+        "SELECT MAX(version) FROM schema_version",
+        [],
+        |row| row.get(0),
+    ).ok();
+
+    if let Some(version) = current_version {
+        if version < SCHEMA_VERSION {
+            run_migrations(&conn, version)?;
+            let now = chrono::Utc::now().timestamp();
+            conn.execute(
+                "INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                params![SCHEMA_VERSION, now]
+            ).map_err(|e| AppError::Database(format!("Failed to update schema version: {}", e)))?;
+        }
+    }
     
     Ok(conn)
+}
+
+// ============================================================================
+// Migrations
+// ============================================================================
+
+fn run_migrations(conn: &Connection, from_version: i32) -> Result<(), AppError> {
+    if from_version < 2 {
+        conn.execute_batch(r#"
+            DROP INDEX IF EXISTS idx_agent_messages_tool_call;
+            DROP INDEX IF EXISTS idx_agent_messages_session;
+            DROP INDEX IF EXISTS idx_agent_sessions_updated;
+            DROP TABLE IF EXISTS agent_messages;
+            DROP TABLE IF EXISTS agent_sessions;
+        "#).map_err(|e| AppError::Database(format!("Failed to run migrations: {}", e)))?;
+    }
+
+    Ok(())
 }
 // ============================================================================
 // Default Settings

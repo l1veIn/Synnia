@@ -1,123 +1,225 @@
 //! Tauri command handlers for the agent module.
 //!
 //! This module exposes the agent functionality to the frontend through Tauri commands.
+//! It provides thread management, message persistence, and agent execution capabilities.
 
-use crate::features::agent::engine::AgentEngine;
-use crate::features::agent::state::{AgentState, ChatSession};
-use crate::features::agent::types::{Message, ProviderType};
-use crate::global::database;
-use tauri::{AppHandle, State, Emitter};
+use crate::core::AppState;  // Use global AppState instead of custom state
+use crate::features::agent::executor::{AgentExecutor, StreamEvent};
+use crate::features::agent::storage::{
+    create_thread, delete_thread, get_messages, get_thread, get_threads, save_message,
+    thread_exists, update_thread_title, ThreadInfo,
+};
 use futures::StreamExt;
-
-use std::sync::{Arc, Mutex};
+use tauri::{Emitter, State, Window};
 
 // ============================================================================
-// Chat Commands
+// Helper Functions
 // ============================================================================
 
-/// Response from sending a chat message.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SendMessageResponse {
-    /// The message ID of the assistant's response
-    pub message_id: String,
-    /// The full response content
-    pub content: String,
-    /// Model used for generation
-    pub model_id: String,
-    /// Provider used
-    pub provider: ProviderType,
+/// Get project path from AppState.
+/// 
+/// This reuses the global project path managed by the project module,
+/// avoiding duplicate state.
+fn get_project_path_from_state(state: &AppState) -> Result<String, String> {
+    let guard = state.current_project_path.lock()
+        .map_err(|_| "Failed to lock project path")?;
+    guard.clone().ok_or_else(|| "No project loaded".to_string())
 }
 
-/// Send a message in a chat session (non-streaming).
+// ============================================================================
+// Request/Response Types
+// ============================================================================
+
+/// Request to create a new thread.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateThreadRequest {
+    /// Initial title for the thread
+    pub title: Option<String>,
+    /// Model ID to use for this thread
+    pub model_id: String,
+    /// Provider name (e.g., "google", "openai")
+    pub provider: String,
+}
+
+/// Response when creating a new thread.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateThreadResponse {
+    /// The new thread ID
+    pub thread_id: String,
+    /// The thread title
+    pub title: String,
+}
+
+/// Request to send a chat message.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatRequest {
+    /// Thread ID (creates new if None)
+    pub thread_id: Option<String>,
+    /// User message content
+    pub content: String,
+    /// Model ID to use
+    pub model_id: String,
+    /// Provider name
+    pub provider: String,
+    /// Whether the model supports streaming
+    pub supports_streaming: Option<bool>,
+}
+
+/// Response when sending a non-streaming chat message.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatResponse {
+    /// The thread ID
+    pub thread_id: String,
+    /// The assistant's message ID
+    pub message_id: String,
+    /// The response content
+    pub content: String,
+    /// Model used
+    pub model_id: String,
+    /// Provider used
+    pub provider: String,
+}
+
+/// Request to update a thread.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateThreadRequest {
+    /// Thread ID to update
+    pub thread_id: String,
+    /// New title (optional)
+    pub title: Option<String>,
+}
+
+// ============================================================================
+// Thread Commands
+// ============================================================================
+
+/// Get all threads for the current project.
+///
+/// Returns threads ordered by most recently updated.
 #[tauri::command]
-pub async fn chat_send_message(
-    state: State<'_, Arc<Mutex<AgentState>>>,
-    _app_handle: AppHandle,
-    session_id: Option<String>,
-    content: String,
-    model_id: String,
-    provider: String,
-) -> Result<SendMessageResponse, String> {
-    let provider_type = ProviderType::parse(&provider)
-        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
+pub fn get_threads_command(
+    state: State<'_, AppState>,
+) -> Result<Vec<ThreadInfo>, String> {
+    let project_path = get_project_path_from_state(&state)?;
+    get_threads(&project_path).map_err(|e| e.to_string())
+}
 
-    let session_id = session_id.unwrap_or_else(|| {
-        uuid::Uuid::new_v4().to_string()
-    });
+/// Get a specific thread by ID.
+#[tauri::command]
+pub fn get_thread_command(
+    state: State<'_, AppState>,
+    thread_id: String,
+) -> Result<Option<ThreadInfo>, String> {
+    let project_path = get_project_path_from_state(&state)?;
+    get_thread(&project_path, &thread_id).map_err(|e| e.to_string())
+}
 
-    // Check if session exists in runtime state
-    let session_exists = {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.get_session(&session_id).is_some()
-    };
+/// Create a new thread.
+#[tauri::command]
+pub fn create_thread_command(
+    state: State<'_, AppState>,
+    request: CreateThreadRequest,
+) -> Result<CreateThreadResponse, String> {
+    let project_path = get_project_path_from_state(&state)?;
 
-    let _session = if !session_exists {
-        load_or_create_session(&session_id, &model_id, provider_type).await?
-    } else {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.get_session(&session_id)
-            .ok_or_else(|| format!("Session not found: {}", session_id))?
-    };
-
-    // Update session model if needed
-    {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.switch_model(&session_id, &model_id, provider_type).ok();
-    }
-
-    // Create and save user message
-    let user_message = Message::user(&content);
-    {
-        let conn = database::init_global_db().map_err(|e| e.to_string())?;
-        crate::features::agent::storage::save_message(&conn, &session_id, &user_message)
-            .map_err(|e| e.to_string())?;
-    }
-
-    {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.add_message(&session_id, user_message.clone()).ok();
-    }
-
-    // Execute agent
-    let engine = AgentEngine::default();
-    let agent_session = {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.get_session(&session_id)
-            .ok_or_else(|| format!("Session not found: {}", session_id))?
-    };
-
-    let response = engine.run_sync(&agent_session, &content).await
+    let title = request.title.unwrap_or_else(|| "New Chat".to_string());
+    let thread_id = create_thread(&project_path, &request.model_id, &request.provider)
         .map_err(|e| e.to_string())?;
 
-    // Create and save assistant message
-    let assistant_message = Message {
-        id: response.message_id.clone(),
-        role: crate::features::agent::types::MessageRole::Assistant,
-        content: response.content.clone(),
-        created_at: chrono::Utc::now().to_rfc3339(),
-        model_id: Some(response.model_id.clone()),
-        provider: Some(response.provider),
-        tool_call_id: None,
-        tool_name: None,
-        tool_args_json: None,
-        tool_result_json: None,
+    // Update title if custom one provided
+    if title != "New Chat" {
+        update_thread_title(&project_path, &thread_id, &title)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(CreateThreadResponse { thread_id, title })
+}
+
+/// Update a thread's title.
+#[tauri::command]
+pub fn update_thread_command(
+    state: State<'_, AppState>,
+    request: UpdateThreadRequest,
+) -> Result<(), String> {
+    let project_path = get_project_path_from_state(&state)?;
+
+    if let Some(title) = request.title {
+        update_thread_title(&project_path, &request.thread_id, &title)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// Delete a thread and all its messages.
+#[tauri::command]
+pub fn delete_thread_command(
+    state: State<'_, AppState>,
+    thread_id: String,
+) -> Result<(), String> {
+    let project_path = get_project_path_from_state(&state)?;
+    delete_thread(&project_path, &thread_id).map_err(|e| e.to_string())
+}
+
+// ============================================================================
+// Message Commands
+// ============================================================================
+
+/// Get all messages for a thread.
+#[tauri::command]
+pub fn get_messages_command(
+    state: State<'_, AppState>,
+    thread_id: String,
+) -> Result<Vec<crate::features::agent::MessageInfo>, String> {
+    let project_path = get_project_path_from_state(&state)?;
+    get_messages(&project_path, &thread_id).map_err(|e| e.to_string())
+}
+
+// ============================================================================
+// Chat Commands (Non-streaming)
+// ============================================================================
+
+/// Send a chat message and get a response (non-streaming).
+///
+/// This is a simplified version that returns the complete response.
+/// For streaming responses, use `chat_stream_command`.
+#[tauri::command]
+pub async fn chat_send_command(
+    state: State<'_, AppState>,
+    request: ChatRequest,
+) -> Result<ChatResponse, String> {
+    let project_path = get_project_path_from_state(&state)?;
+
+    // Get or create thread
+    let thread_id = if let Some(id) = request.thread_id {
+        if !thread_exists(&project_path, &id).map_err(|e| e.to_string())? {
+            // Create new thread if ID doesn't exist
+            create_thread(&project_path, &request.model_id, &request.provider)
+                .map_err(|e| e.to_string())?
+        } else {
+            id
+        }
+    } else {
+        create_thread(&project_path, &request.model_id, &request.provider)
+            .map_err(|e| e.to_string())?
     };
 
-    {
-        let conn = database::init_global_db().map_err(|e| e.to_string())?;
-        crate::features::agent::storage::save_message(&conn, &session_id, &assistant_message)
-            .map_err(|e| e.to_string())?;
-        crate::features::agent::storage::update_session_model(&conn, &session_id, &response.model_id, &response.provider.to_string())
-            .map_err(|e| e.to_string())?;
-    }
+    // Create executor and run
+    let executor = AgentExecutor::new(&project_path);
+    let supports_streaming = request.supports_streaming.unwrap_or(false);
 
-    {
-        let agent_state = state.lock().map_err(|e| e.to_string())?;
-        agent_state.add_message(&session_id, assistant_message).ok();
-    }
+    let response = executor
+        .execute(&thread_id, &request.content, &request.model_id, &request.provider, supports_streaming)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    Ok(SendMessageResponse {
+    Ok(ChatResponse {
+        thread_id,
         message_id: response.message_id,
         content: response.content,
         model_id: response.model_id,
@@ -125,492 +227,461 @@ pub async fn chat_send_message(
     })
 }
 
-/// Load a session from the database or create a new one.
-async fn load_or_create_session(
-    session_id: &str,
-    model_id: &str,
-    provider: ProviderType,
-) -> Result<ChatSession, String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
+// ============================================================================
+// Chat Commands (Streaming)
+// ============================================================================
 
-    if let Some(session_info) = crate::features::agent::storage::get_session(&conn, session_id)
-        .map_err(|e| e.to_string())?
-    {
-        let messages = crate::features::agent::storage::get_messages(&conn, session_id)
-            .map_err(|e| e.to_string())?;
-
-        Ok(ChatSession::with_history(
-            session_id,
-            session_info.title,
-            messages,
-            model_id,
-            provider,
-            true,
-        ))
-    } else {
-        let title = "New Chat".to_string();
-        crate::features::agent::storage::create_session(&conn, session_id, &title)
-            .map_err(|e| e.to_string())?;
-
-        Ok(ChatSession::new(title, model_id, provider, true))
-    }
-}
-
-/// Send a message with streaming response.
-/// Tokens are emitted via Tauri events "chat-stream-{session_id}".
+/// Send a chat message with streaming response.
+///
+/// Tokens are emitted via Tauri events: `agent-stream-{thread_id}`.
+/// The command returns immediately with the thread ID.
 #[tauri::command]
-pub async fn chat_stream(
-    app_state: State<'_, crate::core::AppState>,
-    window: tauri::Window,
-    session_id: Option<String>,
-    content: String,
-    model_id: String,
-    provider: String,
+pub async fn chat_stream_command(
+    state: State<'_, AppState>,
+    window: Window,
+    request: ChatRequest,
 ) -> Result<String, String> {
-    use crate::features::agent::engine::StreamEvent;
-    use futures::StreamExt;
-    
-    let provider_type = ProviderType::parse(&provider)
-        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
+    use crate::features::agent::providers::{ProviderClient, ProviderType};
+    use crate::features::agent::storage::MessageInfo;
+    use crate::features::agent::tools::{
+        GetNodesListTool, CreateNodeSmartTool, UpdateNodesTool, DeleteNodesTool,
+        GetAssetsListTool, UpdateAssetsTool,
+    };
+    use rig_core::agent::MultiTurnStreamItem;
+    use rig_core::client::CompletionClient;
+    use rig_core::completion::Message as RigMessage;
+    use rig_core::streaming::{StreamedAssistantContent, StreamingChat};
 
-    let session_id = session_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    let event_name = format!("chat-stream-{}", session_id);
+    let project_path = get_project_path_from_state(&state)?;
 
-    // Get project path from AppState for tool execution
-    let project_path = {
-        let path_guard = app_state.current_project_path.lock()
-            .map_err(|e| format!("Failed to lock project path: {}", e))?;
-        path_guard.clone()
+    // Get or create thread
+    let thread_id = if let Some(id) = request.thread_id {
+        if !thread_exists(&project_path, &id).map_err(|e| e.to_string())? {
+            create_thread(&project_path, &request.model_id, &request.provider)
+                .map_err(|e| e.to_string())?
+        } else {
+            id
+        }
+    } else {
+        create_thread(&project_path, &request.model_id, &request.provider)
+            .map_err(|e| e.to_string())?
     };
 
-    // TODO: Re-enable backend persistence after frontend migration
-    // Currently using frontend JSON file persistence strategy
-    
-    // // Check if session exists
-    // let session_exists = {
-    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
-    //     agent_state.get_session(&session_id).is_some()
-    // };
-
-    // let _session = if !session_exists {
-    //     load_or_create_session(&session_id, &model_id, provider_type).await?
-    // } else {
-    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
-    //     agent_state.get_session(&session_id)
-    //         .ok_or_else(|| format!("Session not found: {}", session_id))?
-    // };
-
-    // // Update session model if needed
-    // {
-    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
-    //     agent_state.switch_model(&session_id, &model_id, provider_type).ok();
-    // }
-
-    // // Create and save user message
-    // let user_message = Message::user(&content);
-    // {
-    //     let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    //     crate::features::agent::storage::save_message(&conn, &session_id, &user_message)
-    //         .map_err(|e| e.to_string())?;
-    // }
-    // {
-    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
-    //     agent_state.add_message(&session_id, user_message.clone()).ok();
-    // }
-
-    // // Get session with history for streaming
-    // let agent_session = {
-    //     let agent_state = state.lock().map_err(|e| e.to_string())?;
-    //     agent_state.get_session(&session_id)
-    //         .ok_or_else(|| format!("Session not found: {}", session_id))?
-    // };
-
-    // Create a temporary session for streaming with project path for tools
-    let agent_session = ChatSession::new("Temp".to_string(), &model_id, provider_type, false)
-        .with_project_path(project_path);
+    let event_name = format!("agent-stream-{}", thread_id);
+    let thread_id_clone = thread_id.clone();
+    let content = request.content.clone();
+    let model_id = request.model_id.clone();
+    let provider = request.provider.clone();
+    let project_path_clone = project_path.clone();
 
     // Spawn streaming task
-    let window_clone = window.clone();
-    let event_name_clone = event_name.clone();
-    let _model_id_clone = model_id.clone();
-    let _session_id_clone = session_id.clone();
-    
     tokio::spawn(async move {
-        match stream_chat_internal(&agent_session, &content).await {
-            Ok(mut stream) => {
-                use rig_core::agent::MultiTurnStreamItem;
-                use rig_core::streaming::StreamedAssistantContent;
-                
-                let mut _full_text = String::new();
-                
+        eprintln!("[chat_stream] Starting streaming for thread: {}", thread_id_clone);
+
+        // Load message history FIRST (before saving current message)
+        let history = match get_messages(&project_path_clone, &thread_id_clone) {
+            Ok(msgs) => msgs,
+            Err(e) => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Failed to load history: {}", e)));
+                return;
+            }
+        };
+
+        // Save user message (WAL pattern - after loading history to avoid duplication)
+        let user_message_id = uuid::Uuid::new_v4().to_string();
+        let user_content_json = serde_json::json!({
+            "id": user_message_id,
+            "role": "user",
+            "content": [{"type": "text", "text": content}],
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+            "attachments": [],
+            "metadata": {"custom": {}}
+        }).to_string();
+
+        if let Err(e) = save_message(
+            &project_path_clone,
+            &thread_id_clone,
+            &user_message_id,
+            "user",
+            &user_content_json,
+            None,
+            None,
+        ) {
+            eprintln!("[chat_stream] Failed to save user message: {}", e);
+            let _ = window.emit(&event_name, StreamEvent::error(format!("Database error: {}", e)));
+            return;
+        }
+
+        // Convert history to Rig format
+        let rig_history: Vec<RigMessage> = history
+            .iter()
+            .filter_map(|msg: &MessageInfo| {
+                // Parse content_json to extract text
+                let text = match serde_json::from_str::<serde_json::Value>(&msg.content_json) {
+                    Ok(json) => {
+                        if let Some(content_arr) = json.get("content").and_then(|c| c.as_array()) {
+                            content_arr
+                                .iter()
+                                .filter_map(|part| {
+                                    if part.get("type")?.as_str()? == "text" {
+                                        part.get("text")?.as_str().map(|s| s.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join("")
+                        } else {
+                            String::new()
+                        }
+                    }
+                    Err(_) => msg.content_json.clone(),
+                };
+
+                match msg.role.as_str() {
+                    "user" => Some(RigMessage::user(&text)),
+                    "assistant" => Some(RigMessage::assistant(&text)),
+                    _ => None,
+                }
+            })
+            .collect();
+
+        // Create provider client dynamically based on provider parameter
+        let provider_type = match ProviderType::parse(&provider) {
+            Some(pt) => pt,
+            None => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Unknown provider: {}", provider)));
+                return;
+            }
+        };
+
+        let provider_client = match ProviderClient::from_env(provider_type) {
+            Ok(c) => c,
+            Err(e) => {
+                let _ = window.emit(&event_name, StreamEvent::error(format!("Provider error: {}", e)));
+                return;
+            }
+        };
+
+        // Create all tools for this agent
+        let get_nodes = GetNodesListTool::new(&project_path_clone);
+        let create_node = CreateNodeSmartTool::new(&project_path_clone);
+        let update_nodes = UpdateNodesTool::new(&project_path_clone);
+        let delete_nodes = DeleteNodesTool::new(&project_path_clone);
+        let get_assets = GetAssetsListTool::new(&project_path_clone);
+        let update_assets = UpdateAssetsTool::new(&project_path_clone);
+        
+        // Start streaming based on provider type
+        let mut full_text = String::new();
+        let mut tool_calls_json = Vec::<serde_json::Value>::new();
+        let mut stream_error: Option<String> = None;
+
+        match provider_client {
+            ProviderClient::Google(client) => {
+                let agent = client
+                    .inner()
+                    .agent(&model_id)
+                    .preamble("You are a helpful AI assistant that can interact with the Synnia canvas.")
+                    .default_max_depth(5)
+                    .tool(get_nodes)
+                    .tool(create_node)
+                    .tool(update_nodes)
+                    .tool(delete_nodes)
+                    .tool(get_assets)
+                    .tool(update_assets)
+                    .build();
+
+                let mut stream = agent.stream_chat(&content, rig_history).await;
+
                 while let Some(chunk) = stream.next().await {
                     match chunk {
                         Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text))) => {
-                            _full_text.push_str(&text.text);
-                            let _ = window_clone.emit(&event_name_clone, StreamEvent::token(&text.text));
+                            full_text.push_str(&text.text);
+                            let _ = window.emit(&event_name, StreamEvent::token(&text.text));
                         }
                         Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ToolCall(tool_call))) => {
-                            // Emit tool call event for frontend Tool UI
                             let args_json = serde_json::to_string(&tool_call.function.arguments)
                                 .unwrap_or_else(|_| "{}".to_string());
-                            let _ = window_clone.emit(&event_name_clone, StreamEvent::tool_call(
+                            let tool_call_id = format!("tc_{}", uuid::Uuid::new_v4());
+                            
+                            tool_calls_json.push(serde_json::json!({
+                                "type": "tool-call",
+                                "toolCallId": tool_call_id,
+                                "toolName": tool_call.function.name,
+                                "args": tool_call.function.arguments
+                            }));
+                            
+                            let _ = window.emit(&event_name, StreamEvent::tool_call(
+                                &tool_call_id,
                                 &tool_call.function.name,
                                 &args_json,
                             ));
                         }
                         Ok(MultiTurnStreamItem::StreamUserItem(rig_core::streaming::StreamedUserContent::ToolResult(tool_result))) => {
-                            // Emit tool result event for frontend Tool UI
                             let result_json = serde_json::to_string(&tool_result.content)
                                 .unwrap_or_else(|_| "null".to_string());
-                            let _ = window_clone.emit(&event_name_clone, StreamEvent::tool_result(
+                            let _ = window.emit(&event_name, StreamEvent::tool_result(
                                 &tool_result.id,
+                                "tool",
                                 &result_json,
                             ));
                         }
                         Ok(MultiTurnStreamItem::FinalResponse(_)) => {
-                            // Final response received, we're done
                             break;
                         }
-                        Ok(_) => {
-                            // Ignore other content types (reasoning, etc.)
-                        }
+                        Ok(_) => {}
                         Err(e) => {
-                            let _ = window_clone.emit(&event_name_clone, StreamEvent::error(e.to_string()));
+                            eprintln!("[chat_stream] Stream error: {}", e);
+                            stream_error = Some(e.to_string());
                             break;
                         }
                     }
                 }
-                
-                // TODO: Re-enable backend persistence
-                // // Save complete message
-                // let message_id = uuid::Uuid::new_v4().to_string();
-                // let assistant_message = Message {
-                //     id: message_id.clone(),
-                //     role: crate::features::agent::types::MessageRole::Assistant,
-                //     content: full_text.clone(),
-                //     created_at: chrono::Utc::now().to_rfc3339(),
-                //     model_id: Some(model_id_clone.clone()),
-                //     provider: Some(ProviderType::parse(&agent_session.current_provider.to_string()).unwrap_or(ProviderType::Google)),
-                //     tool_call_id: None,
-                //     tool_name: None,
-                //     tool_args_json: None,
-                //     tool_result_json: None,
-                // };
-
-                // if let Ok(conn) = database::init_global_db() {
-                //     let _ = crate::features::agent::storage::save_message(&conn, &session_id_clone, &assistant_message);
-                // }
-                
-                let _ = window_clone.emit(&event_name_clone, StreamEvent::Complete);
             }
-            Err(e) => {
-                let _ = window_clone.emit(&event_name_clone, StreamEvent::error(e.to_string()));
+            ProviderClient::Zhipu(client) => {
+                // Create all tools for Zhipu branch (due to ownership)
+                let get_nodes2 = GetNodesListTool::new(&project_path_clone);
+                let create_node2 = CreateNodeSmartTool::new(&project_path_clone);
+                let update_nodes2 = UpdateNodesTool::new(&project_path_clone);
+                let delete_nodes2 = DeleteNodesTool::new(&project_path_clone);
+                let get_assets2 = GetAssetsListTool::new(&project_path_clone);
+                let update_assets2 = UpdateAssetsTool::new(&project_path_clone);
+                let agent = client
+                    .inner()
+                    .agent(&model_id)
+                    .preamble("You are a helpful AI assistant that can interact with the Synnia canvas.")
+                    .default_max_depth(5)
+                    .tool(get_nodes2)
+                    .tool(create_node2)
+                    .tool(update_nodes2)
+                    .tool(delete_nodes2)
+                    .tool(get_assets2)
+                    .tool(update_assets2)
+                    .build();
+
+                let mut stream = agent.stream_chat(&content, rig_history).await;
+
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text))) => {
+                            full_text.push_str(&text.text);
+                            let _ = window.emit(&event_name, StreamEvent::token(&text.text));
+                        }
+                        Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::ToolCall(tool_call))) => {
+                            let args_json = serde_json::to_string(&tool_call.function.arguments)
+                                .unwrap_or_else(|_| "{}".to_string());
+                            let tool_call_id = format!("tc_{}", uuid::Uuid::new_v4());
+                            
+                            tool_calls_json.push(serde_json::json!({
+                                "type": "tool-call",
+                                "toolCallId": tool_call_id,
+                                "toolName": tool_call.function.name,
+                                "args": tool_call.function.arguments
+                            }));
+                            
+                            let _ = window.emit(&event_name, StreamEvent::tool_call(
+                                &tool_call_id,
+                                &tool_call.function.name,
+                                &args_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::StreamUserItem(rig_core::streaming::StreamedUserContent::ToolResult(tool_result))) => {
+                            let result_json = serde_json::to_string(&tool_result.content)
+                                .unwrap_or_else(|_| "null".to_string());
+                            let _ = window.emit(&event_name, StreamEvent::tool_result(
+                                &tool_result.id,
+                                "tool",
+                                &result_json,
+                            ));
+                        }
+                        Ok(MultiTurnStreamItem::FinalResponse(_)) => {
+                            break;
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("[chat_stream] Stream error: {}", e);
+                            stream_error = Some(e.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            // OpenAI, Anthropic, DeepSeek not yet supported for streaming chat
+            // They are available for execute_model_command (one-shot)
+            _ => {
+                let _ = window.emit(&event_name, StreamEvent::error(
+                    format!("Provider {} not yet supported for streaming chat. Use execute_model_command instead.", provider)
+                ));
+                return;
             }
         }
+
+
+        // Handle stream error
+        if let Some(error_msg) = stream_error {
+            let _ = window.emit(&event_name, StreamEvent::error(error_msg));
+            return;
+        }
+
+        // Save assistant message
+        let assistant_message_id = uuid::Uuid::new_v4().to_string();
+        
+        let mut content_parts: Vec<serde_json::Value> = vec![];
+        if !full_text.is_empty() {
+            content_parts.push(serde_json::json!({"type": "text", "text": full_text}));
+        }
+        content_parts.extend(tool_calls_json);
+        
+        let assistant_content_json = serde_json::json!({
+            "id": assistant_message_id,
+            "role": "assistant",
+            "content": content_parts,
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+            "status": {"type": "complete", "reason": "stop"},
+            "metadata": {
+                "custom": {},
+                "steps": [],
+                "unstable_annotations": [],
+                "unstable_data": []
+            }
+        }).to_string();
+
+        if let Err(e) = save_message(
+            &project_path_clone,
+            &thread_id_clone,
+            &assistant_message_id,
+            "assistant",
+            &assistant_content_json,
+            Some(&model_id),
+            Some(&provider),
+        ) {
+            eprintln!("[chat_stream] Failed to save assistant message: {}", e);
+        }
+
+        let _ = window.emit(&event_name, StreamEvent::Complete);
+        eprintln!("[chat_stream] Streaming complete for thread: {}", thread_id_clone);
     });
 
-    Ok(session_id)
-}
-
-/// Internal streaming chat implementation.
-/// Returns a stream of MultiTurnStreamItem.
-async fn stream_chat_internal(
-    session: &ChatSession,
-    user_message: &str,
-) -> Result<rig_core::agent::StreamingResult<rig_core::providers::gemini::streaming::StreamingCompletionResponse>, String> {
-    use crate::features::agent::providers::registry::ProviderClient;
-    use crate::features::agent::tools::nodes::GetNodesListTool;
-    use rig_core::streaming::StreamingChat;
-    use rig_core::completion::Message as RigMessage;
-    use rig_core::client::CompletionClient;
-    
-    let provider_client = ProviderClient::from_settings(session.current_provider)
-        .map_err(|e| e.to_string())?;
-    
-    // Convert history
-    let rig_history: Vec<RigMessage> = session.history.iter()
-        .filter_map(|msg| {
-            match msg.role {
-                crate::features::agent::types::MessageRole::User => Some(RigMessage::user(&msg.content)),
-                crate::features::agent::types::MessageRole::Assistant => Some(RigMessage::assistant(&msg.content)),
-                _ => None,
-            }
-        })
-        .collect();
-
-    // Create tool if project path is available
-    let nodes_tool = session.project_path.as_ref().map(|path| GetNodesListTool::new(path));
-    
-    match provider_client {
-        ProviderClient::Google(client) => {
-            let builder = client.inner()
-                .agent(&session.current_model)
-                .preamble("You are a helpful AI assistant. You have access to tools to query canvas nodes.");
-
-            // Register tools if available
-            if let Some(tool) = nodes_tool {
-                let agent = builder.tool(tool).build();
-                let stream = agent
-                    .stream_chat(user_message, rig_history)
-                    .await;
-                Ok(stream)
-            } else {
-                let agent = builder.build();
-                let stream = agent
-                    .stream_chat(user_message, rig_history)
-                    .await;
-                Ok(stream)
-            }
-        }
-        ProviderClient::Zhipu(_client) => {
-            // Zhipu streaming needs different handling - fallback for now
-            Err("Zhipu streaming not yet implemented".to_string())
-        }
-    }
-}
-
-/// Switch the model for an active chat session.
-#[tauri::command]
-pub fn chat_switch_model(
-    state: State<'_, Arc<Mutex<AgentState>>>,
-    session_id: String,
-    model_id: String,
-    provider: String,
-) -> Result<(), String> {
-    let provider_type = ProviderType::parse(&provider)
-        .ok_or_else(|| format!("Invalid provider: '{}'", provider))?;
-
-    let agent_state = state.lock().map_err(|e| e.to_string())?;
-    agent_state
-        .switch_model(&session_id, &model_id, provider_type)
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(thread_id)
 }
 
 // ============================================================================
-// Session Commands
+// Provider Commands
 // ============================================================================
 
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateSessionRequest {
-    pub title: Option<String>,
-    pub model_id: String,
-    pub provider: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateSessionResponse {
-    pub session_id: String,
-    pub title: String,
-}
-
+/// Get list of available providers.
+///
+/// Returns providers that have API keys configured or are local providers.
 #[tauri::command]
-pub fn get_sessions(_app_handle: AppHandle) -> Result<Vec<crate::features::agent::types::SessionInfo>, String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    crate::features::agent::storage::get_sessions(&conn)
-        .map_err(|e| e.to_string())
+pub fn get_available_providers_command() -> Vec<String> {
+    crate::features::agent::get_available_providers()
 }
-
-#[tauri::command]
-pub fn get_session_messages(
-    _app_handle: AppHandle,
-    session_id: String,
-) -> Result<Vec<Message>, String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    crate::features::agent::storage::get_messages(&conn, &session_id)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn create_session(
-    state: State<'_, Arc<Mutex<AgentState>>>,
-    _app_handle: AppHandle,
-    request: CreateSessionRequest,
-) -> Result<CreateSessionResponse, String> {
-    let provider_type = ProviderType::parse(&request.provider)
-        .ok_or_else(|| format!("Invalid provider: '{}'", request.provider))?;
-
-    let session_id = uuid::Uuid::new_v4().to_string();
-    let title = request.title.unwrap_or_else(|| "New Chat".to_string());
-
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    crate::features::agent::storage::create_session(&conn, &session_id, &title)
-        .map_err(|e| e.to_string())?;
-    crate::features::agent::storage::update_session_model(&conn, &session_id, &request.model_id, &request.provider)
-        .map_err(|e| e.to_string())?;
-
-    let session = ChatSession::new(&title, request.model_id, provider_type, true);
-    let agent_state = state.lock().map_err(|e| e.to_string())?;
-    agent_state.add_session(session);
-
-    Ok(CreateSessionResponse { session_id, title })
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateSessionRequest {
-    pub session_id: String,
-    pub title: Option<String>,
-}
-
-#[tauri::command]
-pub fn update_session(
-    _app_handle: AppHandle,
-    request: UpdateSessionRequest,
-) -> Result<(), String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    if let Some(title) = request.title {
-        crate::features::agent::storage::update_session_title(&conn, &request.session_id, &title)
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn delete_session(
-    state: State<'_, Arc<Mutex<AgentState>>>,
-    _app_handle: AppHandle,
-    session_id: String,
-) -> Result<(), String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    crate::features::agent::storage::delete_session(&conn, &session_id)
-        .map_err(|e| e.to_string())?;
-
-    let agent_state = state.lock().map_err(|e| e.to_string())?;
-    agent_state.remove_session(&session_id);
-    Ok(())
-}
-
-#[tauri::command]
-pub fn get_session(
-    _app_handle: AppHandle,
-    session_id: String,
-) -> Result<Option<crate::features::agent::types::SessionInfo>, String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    crate::features::agent::storage::get_session(&conn, &session_id)
-        .map_err(|e| e.to_string())
-}
-
-// ============================================================================
-// Model Commands
-// ============================================================================
-
-#[tauri::command]
-pub fn get_models(
-    category: Option<String>,
-    capabilities: Option<Vec<String>>,
-    configured_only: Option<bool>,
-) -> Result<Vec<crate::features::agent::types::ModelInfo>, String> {
-    use crate::features::agent::types::{ModelCapability, ModelCategory};
-    use crate::features::agent::providers::ModelRegistry;
-
-    let cat = match category.as_deref() {
-        Some("llm") => Some(ModelCategory::Llm),
-        Some("image-generation") => Some(ModelCategory::ImageGeneration),
-        Some("video-generation") => Some(ModelCategory::VideoGeneration),
-        Some(other) => {
-            return Err(format!("Unknown category: '{}'", other))
-        }
-        None => None,
-    };
-
-    let caps = match capabilities {
-        Some(cap_strings) => {
-            let parsed: Option<Vec<ModelCapability>> = cap_strings
-                .iter()
-                .map(|s| match s.as_str() {
-                    "chat" => Some(ModelCapability::Chat),
-                    "vision" => Some(ModelCapability::Vision),
-                    "json-mode" => Some(ModelCapability::JsonMode),
-                    "function-calling" => Some(ModelCapability::FunctionCalling),
-                    "streaming" => Some(ModelCapability::Streaming),
-                    _ => None,
-                })
-                .collect();
-
-            match parsed {
-                Some(caps) => Some(caps),
-                None => return Ok(vec![]),
-            }
-        }
-        None => None,
-    };
-
-    Ok(ModelRegistry::get_models(cat, caps, configured_only.unwrap_or(false)))
-}
-
-#[tauri::command]
-pub fn get_model(id: String) -> Result<crate::features::agent::types::ModelInfo, String> {
-    use crate::features::agent::providers::ModelRegistry;
-    ModelRegistry::get_model(&id)
-        .ok_or_else(|| format!("Model not found: '{}'", id))
-}
-
-// ============================================================================
-// Unified Execution Commands
-// ============================================================================
-
-use crate::features::agent::providers::{google, zhipu};
-use crate::features::agent::types::{ModelInput, ModelOutput, AiConfig, ProviderInfo};
 
 /// Get information about all supported providers.
 ///
-/// This is the single source of truth for which providers Synnia supports.
+/// Returns static list of all providers the system can support,
+/// regardless of whether they are configured.
 #[tauri::command]
-pub fn get_all_providers() -> Vec<ProviderInfo> {
-    ProviderType::all_info()
+pub fn get_all_providers_command() -> Vec<ProviderInfo> {
+    use crate::features::agent::providers::ProviderType;
+    
+    ProviderType::all()
+        .iter()
+        .map(|p| p.info())
+        .collect()
 }
 
-/// Get list of providers that have API keys configured.
+/// Provider information for frontend display.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderInfo {
+    /// Unique key for the provider
+    pub key: String,
+    /// Human-readable name
+    pub name: String,
+    /// Short description
+    pub description: String,
+    /// Provider type: "cloud" or "local"
+    pub provider_type: String,
+    /// Placeholder text for API key input
+    pub placeholder: String,
+    /// Default base URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_base_url: Option<String>,
+    /// Whether an API key is required
+    pub requires_api_key: bool,
+}
+
+/// Input for execute_model_command.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelExecuteRequest {
+    /// Provider to use
+    pub provider: String,
+    /// Model ID
+    pub model_id: String,
+    /// Text prompt
+    pub prompt: String,
+    /// Optional system prompt
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<String>,
+}
+
+/// Output from execute_model_command.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelExecuteResponse {
+    /// Whether execution succeeded
+    pub success: bool,
+    /// Response text
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Error message if failed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Execute a model with a single prompt (non-streaming).
 ///
-/// Returns only providers that can be used (have valid API keys).
+/// This is used for simple one-shot executions like recipe nodes.
 #[tauri::command]
-pub async fn get_available_providers() -> Result<Vec<ProviderType>, String> {
-    let conn = database::init_global_db().map_err(|e| e.to_string())?;
-    
-    let ai_config_json: Option<String> = crate::global::settings::get_setting(&conn, "app_settings")
-        .map_err(|e| e.to_string())?;
-    
-    let config = ai_config_json
-        .and_then(|json| serde_json::from_str::<AiConfig>(&json).ok())
-        .unwrap_or_default();
-    
-    let mut available = Vec::new();
-    
-    for provider in ProviderType::all() {
-        let provider_key = match provider {
-            ProviderType::Google => "google",
-            ProviderType::Zhipu => "zhipu",
-        };
-        
-        if let Some(key) = config.get_api_key(provider_key) {
-            if !key.is_empty() {
-                available.push(*provider);
-            }
-        }
+pub async fn execute_model_command(
+    request: ModelExecuteRequest,
+) -> Result<ModelExecuteResponse, String> {
+    use crate::features::agent::providers::{ProviderClient, ProviderType};
+
+    let provider_type = ProviderType::parse(&request.provider)
+        .ok_or_else(|| format!("Unknown provider: {}", request.provider))?;
+
+    let provider_client = ProviderClient::from_env(provider_type)
+        .map_err(|e| format!("Provider error: {}", e))?;
+
+    let result = provider_client
+        .execute_prompt(
+            &request.model_id,
+            &request.prompt,
+            request.system_prompt.as_deref(),
+        )
+        .await;
+
+    match result {
+        Ok(response) => Ok(ModelExecuteResponse {
+            success: true,
+            text: Some(response),
+            error: None,
+        }),
+        Err(e) => Ok(ModelExecuteResponse {
+            success: false,
+            text: None,
+            error: Some(e.to_string()),
+        }),
     }
-    
-    Ok(available)
 }
 
-/// Execute a model with unified input/output interface.
-///
-/// Routes to appropriate provider based on the provider type.
-#[tauri::command]
-pub async fn execute_model(
-    provider: ProviderType,
-    model_id: String,
-    input: ModelInput,
-) -> Result<ModelOutput, String> {
-    let result = match provider {
-        ProviderType::Google => google::execute(&model_id, input).await,
-        ProviderType::Zhipu => zhipu::execute(&model_id, input).await,
-    };
-    
-    result.map_err(|e| e.to_string())
-}
+
+
+// Note: set_project_path and get_project_path commands removed.
+// agent now uses AppState.current_project_path managed by project module.
 
 // ============================================================================
 // Tests
@@ -619,29 +690,82 @@ pub async fn execute_model(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::agent::types::ProviderType;
 
     #[test]
-    fn test_send_message_response_serialization() {
-        let response = SendMessageResponse {
-            message_id: "msg-123".to_string(),
-            content: "Hello, world!".to_string(),
-            model_id: "gemini-2.5-flash".to_string(),
-            provider: ProviderType::Google,
+    fn test_create_thread_request_deserialization() {
+        let json = r#"{"title":"My Thread","modelId":"gemini-2.5-flash","provider":"google"}"#;
+        let req: CreateThreadRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.title, Some("My Thread".to_string()));
+        assert_eq!(req.model_id, "gemini-2.5-flash");
+        assert_eq!(req.provider, "google");
+    }
+
+    #[test]
+    fn test_create_thread_request_without_title() {
+        let json = r#"{"modelId":"gemini-2.5-flash","provider":"google"}"#;
+        let req: CreateThreadRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.title, None);
+        assert_eq!(req.model_id, "gemini-2.5-flash");
+    }
+
+    #[test]
+    fn test_create_thread_response_serialization() {
+        let resp = CreateThreadResponse {
+            thread_id: "thread-123".to_string(),
+            title: "My Thread".to_string(),
         };
-
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("messageId"));
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"threadId\":\"thread-123\""));
+        assert!(json.contains("\"title\":\"My Thread\""));
     }
 
     #[test]
-    fn test_parse_provider_valid() {
-        assert_eq!(ProviderType::parse("google"), Some(ProviderType::Google));
-        assert_eq!(ProviderType::parse("zhipu"), Some(ProviderType::Zhipu));
+    fn test_chat_request_deserialization() {
+        let json = r#"{"threadId":"thread-123","content":"Hello","modelId":"gemini-2.5-flash","provider":"google","supportsStreaming":true}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.thread_id, Some("thread-123".to_string()));
+        assert_eq!(req.content, "Hello");
+        assert_eq!(req.supports_streaming, Some(true));
     }
 
     #[test]
-    fn test_parse_provider_invalid() {
-        assert_eq!(ProviderType::parse("invalid"), None);
+    fn test_chat_request_minimal() {
+        let json = r#"{"content":"Hello","modelId":"gemini-2.5-flash","provider":"google"}"#;
+        let req: ChatRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.thread_id, None);
+        assert_eq!(req.supports_streaming, None);
     }
+
+    #[test]
+    fn test_chat_response_serialization() {
+        let resp = ChatResponse {
+            thread_id: "thread-123".to_string(),
+            message_id: "msg-456".to_string(),
+            content: "Hello!".to_string(),
+            model_id: "gemini-2.5-flash".to_string(),
+            provider: "google".to_string(),
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("\"threadId\":\"thread-123\""));
+        assert!(json.contains("\"messageId\":\"msg-456\""));
+        assert!(json.contains("\"content\":\"Hello!\""));
+    }
+
+    #[test]
+    fn test_update_thread_request_deserialization() {
+        let json = r#"{"threadId":"thread-123","title":"New Title"}"#;
+        let req: UpdateThreadRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.thread_id, "thread-123");
+        assert_eq!(req.title, Some("New Title".to_string()));
+    }
+
+    #[test]
+    fn test_update_thread_request_without_title() {
+        let json = r#"{"threadId":"thread-123"}"#;
+        let req: UpdateThreadRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.thread_id, "thread-123");
+        assert_eq!(req.title, None);
+    }
+
+    // Note: AgentNewState tests removed - state now comes from AppState
 }

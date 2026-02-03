@@ -1,7 +1,7 @@
 # Agent/Chat 模块重实现任务
 
 > **版本:** 1.0  
-> **目标:** 创建 `agent_new` (后端) 和 `chat_new` (前端) 精简模块  
+> **目标:** 创建 `agent` (后端) 和 `chat` (前端) 精简模块  
 > **范围:** 仅实现 + 单元测试，不接入系统
 
 ---
@@ -59,7 +59,7 @@ interface ModelPlugin {
 ## 任务列表
 
 - [x] Phase 1: 后端基础设施 (预计 30分钟)
--  创建 `src-tauri/src/features/agent_new/` 目录结构
+-  创建 `src-tauri/src/features/agent/` 目录结构
 -  实现 `storage/mod.rs` + `storage/repository.rs` (带连接池)
 -  添加 schema.sql (表名: `agent_threads`, `agent_messages`)
 -  编写 storage 单元测试
@@ -89,7 +89,7 @@ interface ModelPlugin {
 -  编写命令单元测试
 
 - [x] Phase 6: 前端模块 (预计 30分钟)
--  创建 `src/features/chat_new/` 目录结构
+-  创建 `src/features/chat/` 目录结构
 -  实现 `types.ts` (与后端 StreamEvent 同步)
 -  实现 `BackendAdapter.ts` (chronological content ordering)
 -  实现 `PersistenceAdapter.ts` (调用后端命令)
@@ -103,7 +103,7 @@ interface ModelPlugin {
 
 ### 后端 (7 文件)
 ```
-src-tauri/src/features/agent_new/
+src-tauri/src/features/agent/
 ├── mod.rs               # 模块导出
 ├── commands.rs          # Tauri 命令入口
 ├── executor.rs          # Agent 执行器 + StreamEvent
@@ -121,7 +121,7 @@ src-tauri/src/features/agent_new/
 
 ### 前端 (6 文件)
 ```
-src/features/chat_new/
+src/features/chat/
 ├── index.ts             # 模块导出
 ├── types.ts             # 类型定义 (同步后端)
 ├── ChatProvider.tsx     # Runtime 整合
@@ -176,7 +176,7 @@ fn get_connection(project_path: &str) -> Result<Connection, Error> {
 ### 后端
 ```bash
 cd src-tauri
-cargo test --lib features::agent_new
+cargo test --lib features::agent
 ```
 
 ### 前端

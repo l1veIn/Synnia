@@ -1,194 +1,159 @@
 //! Repository implementation for agent persistence.
 //!
-//! This module provides CRUD operations for agent sessions and messages
-//! stored in the global SQLite database.
+//! Provides CRUD operations for threads and messages stored in SQLite.
 
-use crate::features::agent::types::{
-    AgentError, AgentResult, Message, MessageRole, SessionInfo,
-};
-use rusqlite::{Connection, params};
+use super::get_connection;
+use rusqlite::params;
 
 // ============================================================================
-// Schema Initialization
+// Types
 // ============================================================================
 
-/// Initialize the agent storage schema in the given database connection.
-///
-/// This function creates the necessary tables and indexes if they don't exist.
-/// It should be called during database initialization.
-pub fn init_schema(conn: &Connection) -> AgentResult<()> {
-    conn.execute_batch(crate::features::agent::storage::SCHEMA_SQL)
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to init schema: {}", e)))?;
-    Ok(())
+/// Thread information returned from the database.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadInfo {
+    pub id: String,
+    pub title: String,
+    pub model_id: String,
+    pub provider: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Message information returned from the database.
+/// The content_json field contains the full assistant-ui message format.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageInfo {
+    pub id: String,
+    pub role: String,
+    pub content_json: String,
+    pub model_id: Option<String>,
+    pub provider: Option<String>,
+    pub created_at: String,
 }
 
 // ============================================================================
-// Session Operations
+// Thread Operations
 // ============================================================================
 
-/// Create a new chat session.
+/// Create a new thread (conversation).
 ///
 /// # Arguments
 ///
-/// * `conn` - Database connection
-/// * `id` - Unique session ID (use UUID)
-/// * `title` - Session title
+/// * `project_path` - Path to the project directory
+/// * `model_id` - Model identifier (e.g., "gemini-2.5-flash")
+/// * `provider` - Provider name (e.g., "google", "openai")
 ///
 /// # Returns
 ///
-/// The session ID if successful
-pub fn create_session(conn: &Connection, id: &str, title: &str) -> AgentResult<String> {
-    let now = chrono::Utc::now().timestamp();
+/// The new thread ID if successful
+pub fn create_thread(
+    project_path: &str,
+    model_id: &str,
+    provider: &str,
+) -> Result<String, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO agent_sessions (id, title, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?3)",
-        params![id, title, now],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to create session: {}", e)))?;
-
-    Ok(id.to_string())
-}
-
-/// Get all sessions ordered by most recently updated.
-pub fn get_sessions(conn: &Connection) -> AgentResult<Vec<SessionInfo>> {
-    let mut stmt = conn.prepare(
-        "SELECT s.id, s.title, s.created_at, s.updated_at, s.last_model_id, s.last_provider,
-                COUNT(m.id) as message_count,
-                (SELECT content FROM agent_messages WHERE session_id = s.id AND role != 'system'
-                 ORDER BY created_at DESC LIMIT 1) as last_message
-         FROM agent_sessions s
-         LEFT JOIN agent_messages m ON s.id = m.session_id
-         GROUP BY s.id
-         ORDER BY s.updated_at DESC",
+        "INSERT INTO agent_threads (id, title, model_id, provider, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![id, "New Chat", model_id, provider, now, now],
     )?;
 
-    let sessions = stmt
-        .query_map([], |row| {
-            let created_at: i64 = row.get(2)?;
-            let updated_at: i64 = row.get(3)?;
-            let message_count: i64 = row.get(6)?;
-
-            Ok(SessionInfo {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                created_at: chrono::DateTime::from_timestamp(created_at, 0)
-                    .unwrap()
-                    .to_rfc3339(),
-                updated_at: chrono::DateTime::from_timestamp(updated_at, 0)
-                    .unwrap()
-                    .to_rfc3339(),
-                message_count: message_count as u32,
-                last_message: row.get(7)?,
-                model_id: row.get(4)?,
-                provider: row
-                    .get::<_, Option<String>>(5)?
-                    .and_then(|p| crate::features::agent::types::ProviderType::parse(&p)),
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to parse sessions: {}", e)))?;
-
-    Ok(sessions)
+    Ok(id)
 }
 
-/// Get a specific session by ID.
+/// Get all threads ordered by most recently updated.
+pub fn get_threads(project_path: &str) -> Result<Vec<ThreadInfo>, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    let mut stmt = conn.prepare(
+        "SELECT id, title, model_id, provider, created_at, updated_at
+         FROM agent_threads
+         ORDER BY updated_at DESC",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(ThreadInfo {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            model_id: row.get(2)?,
+            provider: row.get(3)?,
+            created_at: row.get(4)?,
+            updated_at: row.get(5)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+/// Get a specific thread by ID.
 ///
 /// # Returns
 ///
-/// `Some(SessionInfo)` if found, `None` otherwise
-pub fn get_session(conn: &Connection, id: &str) -> AgentResult<Option<SessionInfo>> {
+/// `Some(ThreadInfo)` if found, `None` otherwise
+pub fn get_thread(project_path: &str, id: &str) -> Result<Option<ThreadInfo>, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
     let mut stmt = conn.prepare(
-        "SELECT s.id, s.title, s.created_at, s.updated_at, s.last_model_id, s.last_provider,
-                COUNT(m.id) as message_count,
-                (SELECT content FROM agent_messages WHERE session_id = s.id AND role != 'system'
-                 ORDER BY created_at DESC LIMIT 1) as last_message
-         FROM agent_sessions s
-         LEFT JOIN agent_messages m ON s.id = m.session_id
-         WHERE s.id = ?1
-         GROUP BY s.id",
+        "SELECT id, title, model_id, provider, created_at, updated_at
+         FROM agent_threads
+         WHERE id = ?1",
     )?;
 
     let mut rows = stmt.query(params![id])?;
 
     if let Some(row) = rows.next()? {
-        let created_at: i64 = row.get(2)?;
-        let updated_at: i64 = row.get(3)?;
-        let message_count: i64 = row.get(6)?;
-
-        Ok(Some(SessionInfo {
+        Ok(Some(ThreadInfo {
             id: row.get(0)?,
             title: row.get(1)?,
-            created_at: chrono::DateTime::from_timestamp(created_at, 0)
-                .unwrap()
-                .to_rfc3339(),
-            updated_at: chrono::DateTime::from_timestamp(updated_at, 0)
-                .unwrap()
-                .to_rfc3339(),
-            message_count: message_count as u32,
-            last_message: row.get(7)?,
-            model_id: row.get(4)?,
-            provider: row
-                .get::<_, Option<String>>(5)?
-                .and_then(|p| crate::features::agent::types::ProviderType::parse(&p)),
+            model_id: row.get(2)?,
+            provider: row.get(3)?,
+            created_at: row.get(4)?,
+            updated_at: row.get(5)?,
         }))
     } else {
         Ok(None)
     }
 }
 
-/// Update a session's title.
-pub fn update_session_title(conn: &Connection, id: &str, title: &str) -> AgentResult<()> {
-    let now = chrono::Utc::now().timestamp();
-
-    let rows_affected = conn
-        .execute(
-            "UPDATE agent_sessions SET title = ?1, updated_at = ?2 WHERE id = ?3",
-            params![title, now, id],
-        )
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to update session: {}", e)))?;
-
-    if rows_affected == 0 {
-        return Err(AgentError::SessionNotFound(id.to_string()));
-    }
-
-    Ok(())
-}
-
-/// Update a session's last used model and provider.
-pub fn update_session_model(
-    conn: &Connection,
+/// Update a thread's title.
+pub fn update_thread_title(
+    project_path: &str,
     id: &str,
-    model_id: &str,
-    provider: &str,
-) -> AgentResult<()> {
-    let now = chrono::Utc::now().timestamp();
+    title: &str,
+) -> Result<(), rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    let now = chrono::Utc::now().to_rfc3339();
 
-    let rows_affected = conn.execute(
-        "UPDATE agent_sessions SET last_model_id = ?1, last_provider = ?2, updated_at = ?3
-         WHERE id = ?4",
-        params![model_id, provider, now, id],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to update session model: {}", e)))?;
-
-    if rows_affected == 0 {
-        return Err(AgentError::SessionNotFound(id.to_string()));
-    }
+    conn.execute(
+        "UPDATE agent_threads SET title = ?1, updated_at = ?2 WHERE id = ?3",
+        params![title, now, id],
+    )?;
 
     Ok(())
 }
 
-/// Delete a session and all its messages (cascade).
-pub fn delete_session(conn: &Connection, id: &str) -> AgentResult<()> {
-    let rows_affected = conn
-        .execute("DELETE FROM agent_sessions WHERE id = ?1", params![id])
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to delete session: {}", e)))?;
-
-    if rows_affected == 0 {
-        return Err(AgentError::SessionNotFound(id.to_string()));
-    }
-
+/// Delete a thread and all its messages (cascade).
+pub fn delete_thread(project_path: &str, id: &str) -> Result<(), rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    conn.execute("DELETE FROM agent_threads WHERE id = ?1", params![id])?;
     Ok(())
+}
+
+/// Check if a thread exists.
+pub fn thread_exists(project_path: &str, id: &str) -> Result<bool, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM agent_threads WHERE id = ?1)",
+            params![id],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+    Ok(exists)
 }
 
 // ============================================================================
@@ -197,229 +162,99 @@ pub fn delete_session(conn: &Connection, id: &str) -> AgentResult<()> {
 
 /// Save a message to the database.
 ///
-/// Automatically updates the session's updated_at timestamp.
-pub fn save_message(conn: &Connection, session_id: &str, message: &Message) -> AgentResult<()> {
-    let now = chrono::Utc::now().timestamp();
-    let created_at = message
-        .created_at
-        .parse::<chrono::DateTime<chrono::Utc>>()
-        .map(|dt| dt.timestamp())
-        .unwrap_or(now);
+/// Automatically updates the thread's updated_at timestamp.
+///
+/// # Arguments
+///
+/// * `project_path` - Path to the project directory
+/// * `thread_id` - Thread ID
+/// * `message_id` - Unique message ID
+/// * `role` - Message role: "user" or "assistant"
+/// * `content_json` - Full assistant-ui message format as JSON string
+/// * `model_id` - Optional model identifier
+/// * `provider` - Optional provider name
+pub fn save_message(
+    project_path: &str,
+    thread_id: &str,
+    message_id: &str,
+    role: &str,
+    content_json: &str,
+    model_id: Option<&str>,
+    provider: Option<&str>,
+) -> Result<(), rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    let now = chrono::Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO agent_messages
-         (id, session_id, role, content, created_at, model_id, provider,
-          tool_call_id, tool_name, tool_args_json, tool_result_json)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-        params![
-            &message.id,
-            session_id,
-            message.role.to_string(),
-            &message.content,
-            created_at,
-            &message.model_id,
-            message.provider.as_ref().map(|p| p.to_string()),
-            &message.tool_call_id,
-            &message.tool_name,
-            &message.tool_args_json,
-            &message.tool_result_json,
-        ],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to save message: {}", e)))?;
+        "INSERT INTO agent_messages (id, thread_id, role, content_json, model_id, provider, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![message_id, thread_id, role, content_json, model_id, provider, now],
+    )?;
 
-    // Update session's updated_at timestamp
+    // Update thread's updated_at timestamp
     conn.execute(
-        "UPDATE agent_sessions SET updated_at = ?1 WHERE id = ?2",
-        params![now, session_id],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to update session: {}", e)))?;
+        "UPDATE agent_threads SET updated_at = ?1 WHERE id = ?2",
+        params![now, thread_id],
+    )?;
 
     Ok(())
 }
 
-/// Save multiple messages in a single transaction.
-pub fn save_messages(conn: &mut Connection, session_id: &str, messages: &[Message]) -> AgentResult<()> {
-    let tx = conn
-        .transaction()
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to start transaction: {}", e)))?;
-
-    for message in messages {
-        // Save each message within the transaction
-        let now = chrono::Utc::now().timestamp();
-        let created_at = message
-            .created_at
-            .parse::<chrono::DateTime<chrono::Utc>>()
-            .map(|dt| dt.timestamp())
-            .unwrap_or(now);
-
-        tx.execute(
-            "INSERT INTO agent_messages
-             (id, session_id, role, content, created_at, model_id, provider,
-              tool_call_id, tool_name, tool_args_json, tool_result_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![
-                &message.id,
-                session_id,
-                message.role.to_string(),
-                &message.content,
-                created_at,
-                &message.model_id,
-                message.provider.as_ref().map(|p| p.to_string()),
-                &message.tool_call_id,
-                &message.tool_name,
-                &message.tool_args_json,
-                &message.tool_result_json,
-            ],
-        )
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to save message: {}", e)))?;
-    }
-
-    // Update session's updated_at timestamp once at the end
-    let now = chrono::Utc::now().timestamp();
-    tx.execute(
-        "UPDATE agent_sessions SET updated_at = ?1 WHERE id = ?2",
-        params![now, session_id],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to update session: {}", e)))?;
-
-    tx.commit()
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
-
-    Ok(())
-}
-
-/// Get all messages for a session in chronological order.
-pub fn get_messages(conn: &Connection, session_id: &str) -> AgentResult<Vec<Message>> {
+/// Get all messages for a thread in chronological order.
+pub fn get_messages(project_path: &str, thread_id: &str) -> Result<Vec<MessageInfo>, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
     let mut stmt = conn.prepare(
-        "SELECT id, role, content, created_at, model_id, provider,
-                tool_call_id, tool_name, tool_args_json, tool_result_json
+        "SELECT id, role, content_json, model_id, provider, created_at
          FROM agent_messages
-         WHERE session_id = ?1
+         WHERE thread_id = ?1
          ORDER BY created_at ASC",
     )?;
 
-    let messages = stmt
-        .query_map(params![session_id], |row| {
-            let created_at: i64 = row.get(3)?;
-            let role_str: String = row.get(1)?;
-            let role = match role_str.as_str() {
-                "system" => MessageRole::System,
-                "user" => MessageRole::User,
-                "assistant" => MessageRole::Assistant,
-                "tool" => MessageRole::Tool,
-                _ => MessageRole::User, // Default fallback
-            };
-
-            Ok(Message {
-                id: row.get(0)?,
-                role,
-                content: row.get(2)?,
-                created_at: chrono::DateTime::from_timestamp(created_at, 0)
-                    .unwrap()
-                    .to_rfc3339(),
-                model_id: row.get(4)?,
-                provider: row
-                    .get::<_, Option<String>>(5)?
-                    .and_then(|p| crate::features::agent::types::ProviderType::parse(&p)),
-                tool_call_id: row.get(6)?,
-                tool_name: row.get(7)?,
-                tool_args_json: row.get(8)?,
-                tool_result_json: row.get(9)?,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to parse messages: {}", e)))?;
-
-    Ok(messages)
-}
-
-/// Get a specific message by ID.
-pub fn get_message(conn: &Connection, message_id: &str) -> AgentResult<Option<Message>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, role, content, created_at, model_id, provider,
-                tool_call_id, tool_name, tool_args_json, tool_result_json
-         FROM agent_messages
-         WHERE id = ?1",
-    )?;
-
-    let mut rows = stmt.query(params![message_id])?;
-
-    if let Some(row) = rows.next()? {
-        let created_at: i64 = row.get(2)?;
-        let role_str: String = row.get(1)?;
-        let role = match role_str.as_str() {
-            "system" => MessageRole::System,
-            "user" => MessageRole::User,
-            "assistant" => MessageRole::Assistant,
-            "tool" => MessageRole::Tool,
-            _ => MessageRole::User,
-        };
-
-        Ok(Some(Message {
+    let rows = stmt.query_map(params![thread_id], |row| {
+        Ok(MessageInfo {
             id: row.get(0)?,
-            role,
-            content: row.get(2)?,
-            created_at: chrono::DateTime::from_timestamp(created_at, 0)
-                .unwrap()
-                .to_rfc3339(),
+            role: row.get(1)?,
+            content_json: row.get(2)?,
             model_id: row.get(3)?,
-            provider: row
-                .get::<_, Option<String>>(4)?
-                .and_then(|p| crate::features::agent::types::ProviderType::parse(&p)),
-            tool_call_id: row.get(5)?,
-            tool_name: row.get(6)?,
-            tool_args_json: row.get(7)?,
-            tool_result_json: row.get(8)?,
-        }))
-    } else {
-        Ok(None)
-    }
+            provider: row.get(4)?,
+            created_at: row.get(5)?,
+        })
+    })?;
+
+    rows.collect()
 }
 
 /// Delete a specific message.
-pub fn delete_message(conn: &Connection, message_id: &str) -> AgentResult<()> {
-    conn.execute("DELETE FROM agent_messages WHERE id = ?1", params![message_id])
-        .map_err(|e| AgentError::DatabaseError(format!("Failed to delete message: {}", e)))?;
-
-    Ok(())
-}
-
-/// Delete all messages for a session (but keep the session).
-pub fn clear_session_messages(conn: &Connection, session_id: &str) -> AgentResult<()> {
+pub fn delete_message(project_path: &str, message_id: &str) -> Result<(), rusqlite::Error> {
+    let conn = get_connection(project_path)?;
     conn.execute(
-        "DELETE FROM agent_messages WHERE session_id = ?1",
-        params![session_id],
-    )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to clear messages: {}", e)))?;
-
+        "DELETE FROM agent_messages WHERE id = ?1",
+        params![message_id],
+    )?;
     Ok(())
 }
 
-/// Count messages in a session.
-pub fn count_messages(conn: &Connection, session_id: &str) -> AgentResult<i64> {
+/// Delete all messages for a thread (but keep the thread).
+pub fn clear_thread_messages(
+    project_path: &str,
+    thread_id: &str,
+) -> Result<(), rusqlite::Error> {
+    let conn = get_connection(project_path)?;
+    conn.execute(
+        "DELETE FROM agent_messages WHERE thread_id = ?1",
+        params![thread_id],
+    )?;
+    Ok(())
+}
+
+/// Count messages in a thread.
+pub fn count_messages(project_path: &str, thread_id: &str) -> Result<i64, rusqlite::Error> {
+    let conn = get_connection(project_path)?;
     conn.query_row(
-        "SELECT COUNT(*) FROM agent_messages WHERE session_id = ?1",
-        params![session_id],
+        "SELECT COUNT(*) FROM agent_messages WHERE thread_id = ?1",
+        params![thread_id],
         |row| row.get(0),
     )
-    .map_err(|e| AgentError::DatabaseError(format!("Failed to count messages: {}", e)))
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/// Check if a session exists.
-pub fn session_exists(conn: &Connection, id: &str) -> AgentResult<bool> {
-    let exists: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM agent_sessions WHERE id = ?1)",
-            params![id],
-            |row| row.get(0),
-        )
-        .unwrap_or(false);
-
-    Ok(exists)
 }
 
 // ============================================================================
@@ -434,216 +269,208 @@ mod tests {
     /// Create an in-memory database for testing.
     fn setup_test_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        init_schema(&conn).unwrap();
+        conn.execute_batch(super::super::SCHEMA_SQL).unwrap();
         conn
     }
 
-    #[test]
-    fn test_schema_creation() {
-        let conn = setup_test_db();
-
-        // Verify tables exist
-        let tables: Vec<String> = conn
-            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-            .unwrap()
-            .query_map([], |row| row.get(0))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-
-        assert!(tables.contains(&"agent_sessions".to_string()));
-        assert!(tables.contains(&"agent_messages".to_string()));
+    /// Get a temporary project path for testing.
+    /// The TempDir is leaked to keep the directory alive for the test duration.
+    fn temp_project_path() -> String {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().to_str().unwrap().to_string();
+        // Leak the TempDir to prevent it from being dropped (and directory deleted)
+        Box::leak(Box::new(dir));
+        path
     }
 
     #[test]
-    fn test_create_session() {
-        let conn = setup_test_db();
-        let id = "test-session-1";
-        let title = "Test Session";
+    fn test_create_and_list_threads() {
+        let project_path = temp_project_path();
 
-        let result = create_session(&conn, id, title).unwrap();
-        assert_eq!(result, id);
+        let id = create_thread(&project_path, "gemini-2.5-flash", "google").unwrap();
+        assert!(!id.is_empty());
 
-        // Verify session was created
-        let info = get_session(&conn, id).unwrap();
-        assert!(info.is_some());
-        let session = info.unwrap();
-        assert_eq!(session.id, id);
-        assert_eq!(session.title, title);
-        assert_eq!(session.message_count, 0);
+        let threads = get_threads(&project_path).unwrap();
+        assert_eq!(threads.len(), 1);
+        assert_eq!(threads[0].id, id);
+        assert_eq!(threads[0].title, "New Chat");
+        assert_eq!(threads[0].model_id, "gemini-2.5-flash");
+        assert_eq!(threads[0].provider, "google");
     }
 
     #[test]
-    fn test_get_sessions_empty() {
-        let conn = setup_test_db();
+    fn test_get_thread_by_id() {
+        let project_path = temp_project_path();
 
-        let sessions = get_sessions(&conn).unwrap();
-        assert!(sessions.is_empty());
+        let id = create_thread(&project_path, "gpt-4", "openai").unwrap();
+
+        let thread = get_thread(&project_path, &id).unwrap();
+        assert!(thread.is_some());
+        let info = thread.unwrap();
+        assert_eq!(info.id, id);
+        assert_eq!(info.model_id, "gpt-4");
+
+        // Non-existent thread
+        let none_thread = get_thread(&project_path, "non-existent").unwrap();
+        assert!(none_thread.is_none());
     }
 
     #[test]
-    fn test_get_sessions_multiple() {
-        let conn = setup_test_db();
+    fn test_update_thread_title() {
+        let project_path = temp_project_path();
 
-        // Create sessions in reverse chronological order
-        create_session(&conn, "session-2", "Session 2").unwrap();
+        let id = create_thread(&project_path, "test", "test").unwrap();
+        update_thread_title(&project_path, &id, "Custom Title").unwrap();
+
+        let thread = get_thread(&project_path, &id).unwrap().unwrap();
+        assert_eq!(thread.title, "Custom Title");
+    }
+
+    #[test]
+    fn test_delete_thread() {
+        let project_path = temp_project_path();
+
+        let id = create_thread(&project_path, "test", "test").unwrap();
+        assert!(thread_exists(&project_path, &id).unwrap());
+
+        delete_thread(&project_path, &id).unwrap();
+        assert!(!thread_exists(&project_path, &id).unwrap());
+    }
+
+    #[test]
+    fn test_thread_ordering() {
+        let project_path = temp_project_path();
+
+        // Create threads with delays to ensure different timestamps
+        let id1 = create_thread(&project_path, "model1", "provider1").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        create_session(&conn, "session-1", "Session 1").unwrap();
+        let id2 = create_thread(&project_path, "model2", "provider2").unwrap();
 
-        let sessions = get_sessions(&conn).unwrap();
-        assert_eq!(sessions.len(), 2);
+        let threads = get_threads(&project_path).unwrap();
+        assert_eq!(threads.len(), 2);
         // Most recently updated should be first
-        assert_eq!(sessions[0].id, "session-1");
-        assert_eq!(sessions[1].id, "session-2");
+        assert_eq!(threads[0].id, id2);
+        assert_eq!(threads[1].id, id1);
     }
 
     #[test]
-    fn test_update_session_title() {
-        let conn = setup_test_db();
-        let id = "test-session";
-        create_session(&conn, id, "Original Title").unwrap();
+    fn test_save_and_get_messages() {
+        let project_path = temp_project_path();
 
-        update_session_title(&conn, id, "Updated Title").unwrap();
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
 
-        let session = get_session(&conn, id).unwrap().unwrap();
-        assert_eq!(session.title, "Updated Title");
+        // Use content_json format
+        let user_msg = r#"{"content":[{"type":"text","text":"Hello"}],"role":"user"}"#;
+        save_message(
+            &project_path,
+            &thread_id,
+            "msg1",
+            "user",
+            user_msg,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let assistant_msg = r#"{"content":[{"type":"text","text":"Hi there!"}],"role":"assistant","status":{"type":"complete"}}"#;
+        save_message(
+            &project_path,
+            &thread_id,
+            "msg2",
+            "assistant",
+            assistant_msg,
+            Some("gemini-2.5-flash"),
+            Some("google"),
+        )
+        .unwrap();
+
+        let messages = get_messages(&project_path, &thread_id).unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].role, "user");
+        assert!(messages[0].content_json.contains("Hello"));
+        assert_eq!(messages[1].role, "assistant");
+        assert!(messages[1].content_json.contains("Hi there!"));
+        assert_eq!(messages[1].model_id, Some("gemini-2.5-flash".to_string()));
+        assert_eq!(messages[1].provider, Some("google".to_string()));
     }
 
     #[test]
-    fn test_update_session_model() {
-        let conn = setup_test_db();
-        let id = "test-session";
-        create_session(&conn, id, "Test").unwrap();
+    fn test_message_with_tool_calls() {
+        let project_path = temp_project_path();
 
-        update_session_model(&conn, id, "gemini-2.5-flash", "google").unwrap();
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
 
-        let session = get_session(&conn, id).unwrap().unwrap();
-        assert_eq!(session.model_id, Some("gemini-2.5-flash".to_string()));
-        assert_eq!(session.provider, Some(crate::features::agent::types::ProviderType::Google));
-    }
+        // Tool calls are now embedded in content_json
+        let msg_with_tools = r#"{"content":[{"type":"text","text":"Let me search"},{"type":"tool-call","toolCallId":"tc_1","toolName":"search","args":{}}],"role":"assistant"}"#;
+        save_message(
+            &project_path,
+            &thread_id,
+            "msg1",
+            "assistant",
+            msg_with_tools,
+            None,
+            None,
+        )
+        .unwrap();
 
-    #[test]
-    fn test_delete_session() {
-        let conn = setup_test_db();
-        let id = "test-session";
-        create_session(&conn, id, "Test").unwrap();
-
-        // Verify session exists
-        assert!(session_exists(&conn, id).unwrap());
-
-        delete_session(&conn, id).unwrap();
-
-        // Verify session is deleted
-        assert!(!session_exists(&conn, id).unwrap());
-        let session = get_session(&conn, id).unwrap();
-        assert!(session.is_none());
-    }
-
-    #[test]
-    fn test_save_and_get_message() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
-
-        let message = Message::user("Hello, world!");
-        save_message(&conn, session_id, &message).unwrap();
-
-        let messages = get_messages(&conn, session_id).unwrap();
+        let messages = get_messages(&project_path, &thread_id).unwrap();
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].role, MessageRole::User);
-        assert_eq!(messages[0].content, "Hello, world!");
-    }
-
-    #[test]
-    fn test_save_multiple_messages() {
-        let mut conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
-
-        let messages = vec![
-            Message::user("Question 1"),
-            Message::assistant("Answer 1"),
-            Message::user("Question 2"),
-        ];
-
-        save_messages(&mut conn, session_id, &messages).unwrap();
-
-        let loaded = get_messages(&conn, session_id).unwrap();
-        assert_eq!(loaded.len(), 3);
-        assert_eq!(loaded[0].content, "Question 1");
-        assert_eq!(loaded[1].content, "Answer 1");
-        assert_eq!(loaded[2].content, "Question 2");
-    }
-
-    #[test]
-    fn test_message_ordering() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
-
-        // Save messages with delays to ensure different timestamps
-        save_message(&conn, session_id, &Message::user("First")).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        save_message(&conn, session_id, &Message::assistant("Response")).unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        save_message(&conn, session_id, &Message::user("Second")).unwrap();
-
-        let messages = get_messages(&conn, session_id).unwrap();
-        assert_eq!(messages.len(), 3);
-        assert_eq!(messages[0].content, "First");
-        assert_eq!(messages[1].content, "Response");
-        assert_eq!(messages[2].content, "Second");
+        assert!(messages[0].content_json.contains("tool-call"));
+        assert!(messages[0].content_json.contains("search"));
     }
 
     #[test]
     fn test_count_messages() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
+        let project_path = temp_project_path();
 
-        assert_eq!(count_messages(&conn, session_id).unwrap(), 0);
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
 
-        save_message(&conn, session_id, &Message::user("Test")).unwrap();
-        assert_eq!(count_messages(&conn, session_id).unwrap(), 1);
+        assert_eq!(count_messages(&project_path, &thread_id).unwrap(), 0);
 
-        save_message(&conn, session_id, &Message::assistant("Reply")).unwrap();
-        assert_eq!(count_messages(&conn, session_id).unwrap(), 2);
+        save_message(&project_path, &thread_id, "msg1", "user", r#"{"content":[]}"#, None, None).unwrap();
+        assert_eq!(count_messages(&project_path, &thread_id).unwrap(), 1);
+
+        save_message(&project_path, &thread_id, "msg2", "assistant", r#"{"content":[]}"#, None, None)
+            .unwrap();
+        assert_eq!(count_messages(&project_path, &thread_id).unwrap(), 2);
     }
 
     #[test]
-    fn test_clear_session_messages() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
+    fn test_clear_thread_messages() {
+        let project_path = temp_project_path();
 
-        save_message(&conn, session_id, &Message::user("Test")).unwrap();
-        save_message(&conn, session_id, &Message::assistant("Reply")).unwrap();
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
 
-        clear_session_messages(&conn, session_id).unwrap();
+        save_message(&project_path, &thread_id, "msg1", "user", r#"{"content":[]}"#, None, None).unwrap();
+        save_message(&project_path, &thread_id, "msg2", "assistant", r#"{"content":[]}"#, None, None)
+            .unwrap();
 
-        let messages = get_messages(&conn, session_id).unwrap();
+        clear_thread_messages(&project_path, &thread_id).unwrap();
+
+        let messages = get_messages(&project_path, &thread_id).unwrap();
         assert!(messages.is_empty());
 
-        // Session should still exist
-        assert!(session_exists(&conn, session_id).unwrap());
+        // Thread should still exist
+        assert!(thread_exists(&project_path, &thread_id).unwrap());
     }
 
     #[test]
-    fn test_cascade_delete_session_deletes_messages() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
+    fn test_cascade_delete_thread_deletes_messages() {
+        let project_path = temp_project_path();
 
-        save_message(&conn, session_id, &Message::user("Test")).unwrap();
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
 
-        // Delete the session
-        delete_session(&conn, session_id).unwrap();
+        save_message(&project_path, &thread_id, "msg1", "user", r#"{"content":[]}"#, None, None).unwrap();
+
+        // Delete the thread
+        delete_thread(&project_path, &thread_id).unwrap();
 
         // Messages should also be deleted (cascade)
+        let conn = get_connection(&project_path).unwrap();
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM agent_messages WHERE session_id = ?1",
-                params![session_id],
+                "SELECT COUNT(*) FROM agent_messages WHERE thread_id = ?1",
+                params![&thread_id],
                 |row| row.get(0),
             )
             .unwrap();
@@ -651,46 +478,27 @@ mod tests {
     }
 
     #[test]
-    fn test_session_message_count() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
+    fn test_message_updates_thread_timestamp() {
+        let project_path = temp_project_path();
 
-        save_message(&conn, session_id, &Message::user("Q1")).unwrap();
-        save_message(&conn, session_id, &Message::assistant("A1")).unwrap();
+        let thread_id = create_thread(&project_path, "test", "test").unwrap();
+        let thread_before = get_thread(&project_path, &thread_id).unwrap().unwrap();
 
-        let session = get_session(&conn, session_id).unwrap().unwrap();
-        assert_eq!(session.message_count, 2);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        save_message(&project_path, &thread_id, "msg1", "user", r#"{"content":[]}"#, None, None).unwrap();
+
+        let thread_after = get_thread(&project_path, &thread_id).unwrap().unwrap();
+
+        // updated_at should be later after saving a message
+        assert_ne!(thread_before.updated_at, thread_after.updated_at);
     }
 
     #[test]
-    fn test_session_not_found() {
-        let conn = setup_test_db();
+    fn test_get_empty_threads_list() {
+        let project_path = temp_project_path();
 
-        let result = get_session(&conn, "non-existent");
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
-
-        let err = update_session_title(&conn, "non-existent", "New Title");
-        assert!(matches!(err, Err(AgentError::SessionNotFound(_))));
-
-        let err = delete_session(&conn, "non-existent");
-        assert!(matches!(err, Err(AgentError::SessionNotFound(_))));
-    }
-
-    #[test]
-    fn test_tool_message_fields() {
-        let conn = setup_test_db();
-        let session_id = "test-session";
-        create_session(&conn, session_id, "Test").unwrap();
-
-        let mut message = Message::assistant("I'll call a tool");
-        message.tool_args_json = Some(r#"{"query": "test"}"#.to_string());
-
-        save_message(&conn, session_id, &message).unwrap();
-
-        let messages = get_messages(&conn, session_id).unwrap();
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].tool_args_json, Some(r#"{"query": "test"}"#.to_string()));
+        let threads = get_threads(&project_path).unwrap();
+        assert!(threads.is_empty());
     }
 }

@@ -4,7 +4,7 @@
 
 import { ExecutionContext, ExecutionResult, RecipeManifest } from '@/types/recipe';
 import { modelRegistry } from '@features/models';
-import { ModelExecutionInput, ModelExecutionResult } from '@features/models/types';
+import { ModelExecutionInput, ModelExecutionResult, ProviderKey } from '@features/models/types';
 import { getSettings, getProviderCredentials } from '@/lib/settings';
 import { interpolate } from '@features/recipes/promptUtils';
 import { extractJson } from '@features/models/utils';
@@ -12,6 +12,57 @@ import { apiClient } from '@/lib/apiClient';
 import { Executor } from '../types';
 
 type Credentials = { apiKey?: string; baseUrl?: string } | null;
+
+// ============================================================================
+// Backend LLM Execution (unified for all LLM providers)
+// ============================================================================
+
+async function executeBackendLLM(
+    provider: ProviderKey,
+    modelId: string,
+    input: ModelExecutionInput
+): Promise<ModelExecutionResult> {
+    const { systemPrompt, jsonMode } = input;
+    const userPrompt = input.userPrompt || input.prompt || '';
+
+    try {
+        console.log(`[AgentExecutor]: Calling backend execute_model_command for ${provider}/${modelId}`);
+        const { invoke } = await import('@tauri-apps/api/core');
+
+        const result = await invoke<{
+            success: boolean;
+            error?: string;
+            text?: string;
+        }>('execute_model_command', {
+            request: {
+                provider: provider,
+                modelId: modelId,
+                prompt: userPrompt,
+                systemPrompt: systemPrompt,
+            }
+        });
+
+        if (!result.success) {
+            return { success: false, error: result.error || 'Backend execution failed' };
+        }
+
+        const responseText = result.text || '';
+
+        if (jsonMode) {
+            const { data, success } = extractJson(responseText);
+            if (success) {
+                return { success: true, text: responseText, data };
+            } else {
+                return { success: false, text: responseText, error: 'Failed to parse JSON' };
+            }
+        }
+
+        return { success: true, text: responseText };
+    } catch (error: any) {
+        console.error(`[AgentExecutor] Backend call failed for ${provider}:`, error);
+        return { success: false, error: error.message || `${provider} backend call failed` };
+    }
+}
 
 // ============================================================================
 // Agent Executor (Single Entry Point for Model-based Recipes)
@@ -60,7 +111,15 @@ export const AgentExecutor: Executor = {
                 : prepareLLMInput(ctx, credentials, manifest);
 
             // 6. Execute model
-            const result = await modelPlugin.execute(input);
+            let result: ModelExecutionResult;
+
+            if (modelPlugin.execute) {
+                // Custom executor (image/video gen models)
+                result = await modelPlugin.execute(input);
+            } else {
+                // Default: use backend execute_model_command (LLMs)
+                result = await executeBackendLLM(provider, modelId, input);
+            }
 
             if (!result.success) {
                 return { success: false, error: result.error };

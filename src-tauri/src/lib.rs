@@ -13,7 +13,6 @@ use std::sync::{Mutex, Arc};
 use tauri::{Manager, State};
 use serde::{Serialize, Deserialize};
 use ts_rs::TS;
-use crate::features::agent::AgentState;
 
 // ============================================
 // NEW Modular Architecture
@@ -77,19 +76,14 @@ pub fn run() {
     // Start Local File Server
     let server_port = infrastructure::server::init(current_project_path.clone());
 
-    // Initialize Agent State
-    let agent_state = Arc::new(Mutex::new(AgentState::new()));
-
     tauri::Builder::default()
         .manage(core::AppState {
             current_project_path,
             server_port,
-            agent_state,
         })
-        // Note: agent_new uses AppState directly instead of its own state
+        // Note: agent uses AppState directly instead of its own state
         .setup(|app| {
             app.handle().plugin(tauri_plugin_dialog::init())?;
-            app.handle().plugin(tauri_plugin_mcp_bridge::init())?;
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -213,41 +207,18 @@ pub fn run() {
             infrastructure::http::proxy_request,
             infrastructure::http::fetch_image_as_base64,
 
-            // Chat persistence
-            features::chat::chat_get_index,
-            features::chat::chat_save_index,
-            features::chat::chat_get_thread,
-            features::chat::chat_save_thread,
-            features::chat::chat_delete_thread,
-
-            // Agent module commands
-            features::agent::commands::chat_send_message,
-            features::agent::commands::chat_stream,
-            features::agent::commands::chat_switch_model,
-            features::agent::commands::get_sessions,
-            features::agent::commands::get_session_messages,
-            features::agent::commands::create_session,
-            features::agent::commands::update_session,
-            features::agent::commands::delete_session,
-            features::agent::commands::get_session,
-            features::agent::commands::get_models,
-            features::agent::commands::get_model,
-            features::agent::commands::get_available_providers,
-            features::agent::commands::get_all_providers,
-            features::agent::commands::execute_model,
-
             // Agent_new module commands (simplified reimplementation)
-            features::agent_new::commands::get_threads_command,
-            features::agent_new::commands::get_thread_command,
-            features::agent_new::commands::create_thread_command,
-            features::agent_new::commands::update_thread_command,
-            features::agent_new::commands::delete_thread_command,
-            features::agent_new::commands::get_messages_command,
-            features::agent_new::commands::chat_send_command,
-            features::agent_new::commands::chat_stream_command,
-            features::agent_new::commands::get_available_providers_command,
-            features::agent_new::commands::get_all_providers_command,
-            features::agent_new::commands::execute_model_command,
+            features::agent::commands::get_threads_command,
+            features::agent::commands::get_thread_command,
+            features::agent::commands::create_thread_command,
+            features::agent::commands::update_thread_command,
+            features::agent::commands::delete_thread_command,
+            features::agent::commands::get_messages_command,
+            features::agent::commands::chat_send_command,
+            features::agent::commands::chat_stream_command,
+            features::agent::commands::get_available_providers_command,
+            features::agent::commands::get_all_providers_command,
+            features::agent::commands::execute_model_command,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

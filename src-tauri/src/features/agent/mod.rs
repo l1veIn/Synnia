@@ -1,64 +1,84 @@
-//! AI Agent module.
+//! Agent module - A simplified AI agent chat implementation.
 //!
-//! Backend implementation of AI agents using Rig.rs for multi-step tool calling
-//! and unified model management.
-//!
-//! ## Architecture
-//!
-//! - **types**: Core type definitions for models, providers, messages
-//! - **providers**: Client implementations for Google and Zhipu
-//! - **tools**: Tool definitions (nodes, assets, etc.)
-//! - **storage**: Persistence layer for sessions and messages
-//! - **commands**: Tauri command handlers
-//!
-//! ## Phases
-//!
-//! 1. Phase 1: Infrastructure (types and module structure)
-//! 2. Phase 2: Storage layer (database schema and repository)
-//! 3. Phase 3: Provider layer (Google and Zhipu clients)
-//! 4. Phase 4: Model registry (model listing and filtering)
-//! 5. Phase 5: State management (runtime session state)
-//! 6. Phase 6: Agent engine (core execution logic)
-//! 7. Phase 7: Tauri commands (expose API to frontend)
+//! This is a reimplementation of the agent/chat modules with:
+//! - Backend-driven AI execution
+//! - WAL即时持久化
+//! - Database connection pooling
+//! - Stream event buffering
+//! - Streaming/non-streaming fallback
 
-// Re-export public types
-pub mod types;
+pub mod storage;
+pub mod providers;
+pub mod tools;
+pub mod executor;
+pub mod commands;
 
-pub use types::{
-    AgentError,
-    AgentResult,
-    Message,
-    MessageRole,
-    ModelCapability,
-    ModelCategory,
-    ModelInfo,
+// Re-export storage types and functions
+pub use storage::{
+    get_connection,
+    ThreadInfo,
+    MessageInfo,
+    create_thread,
+    get_threads,
+    get_thread,
+    update_thread_title,
+    delete_thread,
+    thread_exists,
+    save_message,
+    get_messages,
+    delete_message,
+    clear_thread_messages,
+    count_messages,
+};
+
+// Re-export provider types and functions
+pub use providers::{
     ProviderType,
-    SessionInfo,
-    AiConfig,
-    ProviderCredentials,
+    ProviderError,
+    ProviderResult,
+    GeminiClient,
+    is_provider_available,
+    get_available_providers,
 };
 
-// Re-export state module types
-pub use state::{
-    AgentState,
-    ChatSession,
-    SessionNotFoundError,
+// Re-export tool types
+pub use tools::{
+    GetNodesListTool,
+    NodeInfo,
+    NodesToolError,
+    GetNodesListArgs,
 };
 
-// Re-export engine types
-pub use engine::{
-    AgentEngine,
-    AgentResponse,
-    EngineConfig,
+// Re-export executor types
+pub use executor::{
     StreamEvent,
-    TokenUsage,
+    StreamBuffer,
+    AgentExecutor,
+    ExecutorError,
+    ExecutorResult,
+    ExecutorResponse,
     ToolCallInfo,
 };
 
-// Submodules (to be implemented in later phases)
-pub mod commands;
-pub mod providers;
-pub mod tools;
-pub mod storage;
-pub mod state;
-pub mod engine;
+// Re-export commands
+pub use commands::{
+    // Thread commands
+    get_threads_command,
+    get_thread_command,
+    create_thread_command,
+    update_thread_command,
+    delete_thread_command,
+    // Message commands
+    get_messages_command,
+    // Chat commands
+    chat_send_command,
+    chat_stream_command,
+    // Provider commands
+    get_available_providers_command,
+    // Request/Response types
+    CreateThreadRequest,
+    CreateThreadResponse,
+    ChatRequest,
+    ChatResponse,
+    UpdateThreadRequest,
+};

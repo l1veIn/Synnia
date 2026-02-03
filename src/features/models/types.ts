@@ -134,10 +134,9 @@ export interface ModelPlugin {
     // Validation
     validate?: (config: any) => { valid: boolean; errors?: string[] };
 
-    // Execution: The Black Box (for Recipe single-shot execution)
-    execute: (input: ModelExecutionInput) => Promise<ModelExecutionResult>;
-
-
+    // Execution: Optional custom executor (for image/video gen)
+    // If not provided, AgentExecutor will use backend execute_model_command
+    execute?: (input: ModelExecutionInput) => Promise<ModelExecutionResult>;
 
     // Chat Adapter: Returns a ChatModelAdapter for integration with assistant-ui
     // Uses the ChatModelAdapter type from @assistant-ui/react

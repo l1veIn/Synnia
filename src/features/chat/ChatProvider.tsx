@@ -1,12 +1,12 @@
 /**
- * ChatProvider - Runtime integration for agent_new module.
+ * ChatProvider - Runtime integration for agent module.
  *
  * This provider sets up the assistant-ui runtime with:
  * - Backend chat adapter for AI model execution
  * - Thread list adapter for multi-thread management
  * - Per-thread history adapter for message persistence
  *
- * Reference: src/features/chat/ChatRuntimeProvider.tsx
+ *
  */
 
 import { ReactNode, useMemo, useEffect } from 'react';
@@ -216,7 +216,7 @@ function useThreadListAdapter() {
 }
 
 /**
- * ChatProvider - Main runtime provider for agent_new module.
+ * ChatProvider - Main runtime provider for agent module.
  *
  * Uses useRemoteThreadListRuntime for multi-thread management with
  * backend persistence.

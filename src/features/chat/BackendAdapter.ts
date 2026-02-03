@@ -1,11 +1,11 @@
 /**
- * BackendAdapter - Tauri backend chat adapter for agent_new module.
+ * BackendAdapter - Tauri backend chat adapter for agent module.
  *
  * This adapter calls the Rust backend `chat_stream_command` and listens for
  * streaming events. It implements chronological content ordering to ensure
  * proper rendering of mixed text and tool-call content parts.
  *
- * Reference: src/features/chat/BackendChatModelAdapter.ts
+ *
  */
 
 import { invoke } from '@tauri-apps/api/core';

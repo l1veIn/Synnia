@@ -1,42 +1,28 @@
--- Agent storage schema for sessions and messages.
---
--- This schema stores AI agent chat sessions and messages in the global database.
--- Tables are created with IF NOT EXISTS to allow safe schema evolution.
+-- Schema for agent module
+-- Tables: agent_threads, agent_messages
 
--- Agent chat sessions
-CREATE TABLE IF NOT EXISTS agent_sessions (
+-- Thread (conversation) table
+CREATE TABLE IF NOT EXISTS agent_threads (
     id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    last_model_id TEXT,
-    last_provider TEXT
+    title TEXT NOT NULL DEFAULT 'New Chat',
+    model_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
--- Index for querying sessions by update time (most recent first)
-CREATE INDEX IF NOT EXISTS idx_agent_sessions_updated
-    ON agent_sessions(updated_at DESC);
-
--- Agent messages within a session
+-- Message table
 CREATE TABLE IF NOT EXISTS agent_messages (
     id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('system', 'user', 'assistant', 'tool')),
-    content TEXT,
-    created_at INTEGER NOT NULL,
+    thread_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content_json TEXT NOT NULL,
     model_id TEXT,
     provider TEXT,
-    tool_call_id TEXT,
-    tool_name TEXT,
-    tool_args_json TEXT,
-    tool_result_json TEXT,
-    FOREIGN KEY(session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (thread_id) REFERENCES agent_threads(id) ON DELETE CASCADE
 );
 
--- Index for loading messages in chronological order
-CREATE INDEX IF NOT EXISTS idx_agent_messages_session
-    ON agent_messages(session_id, created_at ASC);
-
--- Index for tool call lookups
-CREATE INDEX IF NOT EXISTS idx_agent_messages_tool_call
-    ON agent_messages(tool_call_id) WHERE tool_call_id IS NOT NULL;
+-- Indexes for efficient queries
+CREATE INDEX IF NOT EXISTS idx_agent_messages_thread ON agent_messages(thread_id);
+CREATE INDEX IF NOT EXISTS idx_agent_threads_updated ON agent_threads(updated_at DESC);

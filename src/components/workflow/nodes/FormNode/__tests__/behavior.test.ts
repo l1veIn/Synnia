@@ -30,13 +30,13 @@ vi.mock('@/hooks/useInspector', () => ({
     getConnectedFieldValues: vi.fn(() => ({})),
 }));
 
-vi.mock('@core/engine/smartResolve', () => ({
+vi.mock('@/domain/edge/ValueMappingService', () => ({
     smartResolveError: vi.fn(() => null),
 }));
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
-import { smartResolveError } from '@core/engine/smartResolve';
+import { smartResolveError } from '@/domain/edge/ValueMappingService';
 
 // ============================================================================
 // Test Helpers

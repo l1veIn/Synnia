@@ -22,11 +22,11 @@ import type { Asset } from '@/types/assets';
 // Mock smartResolve since it's imported
 // ============================================================================
 
-vi.mock('../smartResolve', () => ({
+vi.mock('@/domain/edge/ValueMappingService', () => ({
     smartResolveValue: vi.fn(),
 }));
 
-import { smartResolveValue } from '../smartResolve';
+import { smartResolveValue } from '@/domain/edge/ValueMappingService';
 
 // ============================================================================
 // Test Data

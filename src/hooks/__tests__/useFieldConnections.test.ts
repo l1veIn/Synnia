@@ -27,7 +27,7 @@ vi.mock('@core/engine/BehaviorRegistry', () => ({
     },
 }));
 
-vi.mock('@core/engine/smartResolve', () => ({
+vi.mock('@/domain/edge/ValueMappingService', () => ({
     smartResolveValue: vi.fn((value, field) => {
         // Simple mock: return value directly for most cases
         if (value && typeof value === 'object' && !Array.isArray(value)) {

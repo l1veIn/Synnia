@@ -34,14 +34,14 @@ vi.mock('@features/recipes', () => ({
     getResolvedRecipe: vi.fn(() => null),
 }));
 
-vi.mock('@core/engine/smartResolve', () => ({
+vi.mock('@/domain/edge/ValueMappingService', () => ({
     smartResolveError: vi.fn(() => null),
 }));
 
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
 import { getResolvedRecipe } from '@features/recipes';
-import { smartResolveError } from '@core/engine/smartResolve';
+import { smartResolveError } from '@/domain/edge/ValueMappingService';
 
 // ============================================================================
 // Test Helpers

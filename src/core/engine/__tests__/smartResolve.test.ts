@@ -450,7 +450,7 @@ describe("smartResolve", () => {
       expect(result).toEqual({
         success: true,
         value: [1, 2, 3],
-        strategy: "keyed",
+        strategy: "structural",
       });
     });
 
@@ -699,7 +699,7 @@ describe("smartResolve", () => {
   });
 
   describe("array sources", () => {
-    it("should treat array source as non-object", () => {
+    it("should match array source directly when target expects array", () => {
       const field = createField({
         key: "items",
         type: "array",
@@ -710,6 +710,77 @@ describe("smartResolve", () => {
 
       expect(result.success).toBe(true);
       expect(result.value).toBe(source);
+      expect(result.strategy).toBe("structural");
+    });
+
+    // ───────────────────────────────────────────────────────────────────
+    // Array → Single Fallback Tests
+    // ───────────────────────────────────────────────────────────────────
+
+    it("should extract field from first array item when target expects string", () => {
+      // User scenario: [{name: "金满囤", ...}] → target expects string field "name"
+      const field = createField({
+        key: "name",
+        type: "string",
+        required: true,
+      });
+      const source = [
+        { id: "opt-3", name: "金满囤", rationale: "test" },
+        { id: "opt-4", name: "其他名", rationale: "test2" }
+      ];
+      const result = smartResolve(source, field);
+
+      expect(result.success).toBe(true);
+      expect(result.value).toBe("金满囤");
+      expect(result.strategy).toBe("keyed");
+    });
+
+    it("should extract first item as object when target expects object", () => {
+      const field = createField({
+        key: "item",
+        type: "object",
+        required: true,
+      });
+      const source = [
+        { id: "opt-1", name: "item1" },
+        { id: "opt-2", name: "item2" }
+      ];
+      const result = smartResolve(source, field);
+
+      expect(result.success).toBe(true);
+      expect(result.value).toEqual({ id: "opt-1", name: "item1" });
+      expect(result.strategy).toBe("structural");
+    });
+
+    it("should fail when first array item lacks required field", () => {
+      const field = createField({
+        key: "missingField",
+        type: "string",
+        required: true,
+      });
+      const source = [{ name: "test" }];
+      const result = smartResolve(source, field);
+
+      expect(result.success).toBe(false);
+    });
+
+    // ───────────────────────────────────────────────────────────────────
+    // Single → Array Fallback Tests (via keyed extraction)
+    // ───────────────────────────────────────────────────────────────────
+
+    it("should wrap object in array when keyed extraction gets object but target expects array", () => {
+      const field = createField({
+        key: "items",
+        type: "array",
+        required: true,
+      });
+      const source = {
+        items: { id: "single-item", name: "test" }
+      };
+      const result = smartResolve(source, field);
+
+      expect(result.success).toBe(true);
+      expect(result.value).toEqual([{ id: "single-item", name: "test" }]);
       expect(result.strategy).toBe("keyed");
     });
   });

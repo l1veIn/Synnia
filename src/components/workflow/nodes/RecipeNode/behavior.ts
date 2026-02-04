@@ -3,7 +3,7 @@ import { StandardAssetBehavior } from '@core/registry/StandardBehavior';
 import { getResolvedRecipe } from '@features/recipes';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
-import { smartResolveError } from '@core/engine/smartResolve';
+import { smartResolveError } from '@/domain/edge/ValueMappingService';
 import type { SynniaNode } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';

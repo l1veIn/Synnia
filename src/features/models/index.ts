@@ -90,7 +90,7 @@ export async function getAllProviders(): Promise<BackendProviderInfo[]> {
 
     try {
         const { invoke } = await import('@tauri-apps/api/core');
-        const providers = await invoke<BackendProviderInfo[]>('get_all_providers');
+        const providers = await invoke<BackendProviderInfo[]>('get_all_providers_command');
         cachedAllProviders = providers;
         return providers;
     } catch (error) {
@@ -124,7 +124,7 @@ export async function getAvailableProviders(): Promise<string[]> {
 
     try {
         const { invoke } = await import('@tauri-apps/api/core');
-        const providers = await invoke<string[]>('get_available_providers');
+        const providers = await invoke<string[]>('get_available_providers_command');
         cachedAvailableProviders = providers;
         return providers;
     } catch (error) {
@@ -150,7 +150,8 @@ export async function getAvailableModels(category?: ModelCategory): Promise<Mode
     let models = category
         ? modelRegistry.getByCategory(category)
         : modelRegistry.getAll();
-
+    console.log('[Models] Available providers:', providers);
+    console.log('[Models] All models:', models);
     // Filter to only models from available providers
     return models.filter(model => providers.includes(model.provider));
 }

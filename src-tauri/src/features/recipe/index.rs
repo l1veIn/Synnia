@@ -2,9 +2,9 @@
 //!
 //! Provides recipe indexing and search functionality using the global database.
 
-use tauri::{AppHandle, Emitter};
-use crate::core::AppError;
-use crate::global::{database, recipes};
+use tauri::{AppHandle, Emitter, State};
+use crate::core::{AppError, AppState};
+use crate::infrastructure::surreal::global::recipes;
 
 // ============================================
 // Index Sync Commands
@@ -12,21 +12,18 @@ use crate::global::{database, recipes};
 
 /// Synchronize the recipe index by scanning all recipes (sync).
 #[tauri::command]
-pub fn sync_recipe_index() -> Result<recipes::ScanResult, AppError> {
-    let conn = database::init_global_db()?;
-    recipes::scan_all_recipes(&conn)
+pub async fn sync_recipe_index(state: State<'_, AppState>) -> Result<recipes::ScanResult, AppError> {
+    recipes::scan_all_recipes(&state.global_db).await
 }
 
 /// Synchronize the recipe index in the background (async).
 /// Emits "recipes:indexed" event when complete with ScanResult payload.
 #[tauri::command]
-pub async fn sync_recipe_index_async(app: AppHandle) -> Result<(), AppError> {
+pub async fn sync_recipe_index_async(app: AppHandle, state: State<'_, AppState>) -> Result<(), AppError> {
     // Spawn background task
+    let db = state.global_db.clone();
     tauri::async_runtime::spawn(async move {
-        let result = match database::init_global_db() {
-            Ok(conn) => recipes::scan_all_recipes(&conn),
-            Err(e) => Err(e),
-        };
+        let result = recipes::scan_all_recipes(&db).await;
         
         // Emit result to frontend
         match result {
@@ -48,20 +45,18 @@ pub async fn sync_recipe_index_async(app: AppHandle) -> Result<(), AppError> {
 
 /// Search recipes using FTS5 full-text search.
 #[tauri::command]
-pub fn search_recipes(query: String, limit: Option<i32>) -> Result<Vec<recipes::RecipeMeta>, AppError> {
-    let conn = database::init_global_db()?;
-    recipes::search_recipes(&conn, &query, limit)
+pub async fn search_recipes(query: String, limit: Option<i32>, state: State<'_, AppState>) -> Result<Vec<recipes::RecipeMeta>, AppError> {
+    recipes::search_recipes(&state.global_db, &query, limit).await
 }
 
 /// List recipes with optional filtering.
 #[tauri::command]
-pub fn list_indexed_recipes(
+pub async fn list_indexed_recipes(
     source: Option<String>,
     category: Option<String>,
     limit: Option<i32>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<recipes::RecipeMeta>, AppError> {
-    let conn = database::init_global_db()?;
-    
     let filter = recipes::RecipeFilter {
         source: source.map(|s| recipes::RecipeSource::from_str(&s)),
         category,
@@ -69,14 +64,13 @@ pub fn list_indexed_recipes(
         limit,
     };
     
-    recipes::list_recipes(&conn, filter)
+    recipes::list_recipes(&state.global_db, filter).await
 }
 
 /// Get a single recipe by ID.
 #[tauri::command]
-pub fn get_indexed_recipe(id: String) -> Result<Option<recipes::RecipeMeta>, AppError> {
-    let conn = database::init_global_db()?;
-    recipes::get_recipe_by_id(&conn, &id)
+pub async fn get_indexed_recipe(id: String, state: State<'_, AppState>) -> Result<Option<recipes::RecipeMeta>, AppError> {
+    recipes::get_recipe_by_id(&state.global_db, &id).await
 }
 
 // ============================================
@@ -85,16 +79,14 @@ pub fn get_indexed_recipe(id: String) -> Result<Option<recipes::RecipeMeta>, App
 
 /// Get all unique categories from indexed recipes.
 #[tauri::command]
-pub fn get_recipe_categories() -> Result<Vec<String>, AppError> {
-    let conn = database::init_global_db()?;
-    recipes::get_all_categories(&conn)
+pub async fn get_recipe_categories(state: State<'_, AppState>) -> Result<Vec<String>, AppError> {
+    recipes::get_all_categories(&state.global_db).await
 }
 
 /// Get all unique tags from indexed recipes.
 #[tauri::command]
-pub fn get_recipe_tags() -> Result<Vec<String>, AppError> {
-    let conn = database::init_global_db()?;
-    recipes::get_all_tags(&conn)
+pub async fn get_recipe_tags(state: State<'_, AppState>) -> Result<Vec<String>, AppError> {
+    recipes::get_all_tags(&state.global_db).await
 }
 
 // ============================================
@@ -104,23 +96,19 @@ pub fn get_recipe_tags() -> Result<Vec<String>, AppError> {
 /// Get the full recipe manifest with all $ref resolved.
 /// Used for on-demand loading when user selects a recipe.
 #[tauri::command]
-pub fn get_recipe_manifest(
+pub async fn get_recipe_manifest(
     source: String,
     path: String,
+    state: State<'_, AppState>,
 ) -> Result<serde_json::Value, AppError> {
     let source = recipes::RecipeSource::from_str(&source);
-    recipes::get_recipe_manifest(&source, &path)
+    recipes::get_recipe_manifest(&source, &path, &state.global_db).await
 }
 
 /// Get recipe manifest by ID (looks up source and path from index).
 #[tauri::command]
-pub fn get_recipe_manifest_by_id(id: String) -> Result<serde_json::Value, AppError> {
-    let conn = database::init_global_db()?;
-    
-    let meta = recipes::get_recipe_by_id(&conn, &id)?
-        .ok_or_else(|| AppError::NotFound(format!("Recipe not found: {}", id)))?;
-    
-    recipes::get_recipe_manifest(&meta.source, &meta.path)
+pub async fn get_recipe_manifest_by_id(id: String, state: State<'_, AppState>) -> Result<serde_json::Value, AppError> {
+    recipes::get_recipe_manifest_by_id(&state.global_db, &id).await
 }
 
 // ============================================
@@ -130,35 +118,12 @@ pub fn get_recipe_manifest_by_id(id: String) -> Result<serde_json::Value, AppErr
 /// Clear all recipes from the index.
 /// Does NOT delete the actual recipe files.
 #[tauri::command]
-pub fn clear_recipe_index() -> Result<u32, AppError> {
-    let conn = database::init_global_db()?;
-    
-    // First clear tags (foreign key constraint)
-    conn.execute("DELETE FROM recipe_tags", [])
-        .map_err(|e| AppError::Database(format!("Failed to clear recipe_tags: {}", e)))?;
-    
-    // Then clear main index
-    let deleted = conn.execute("DELETE FROM recipe_index", [])
-        .map_err(|e| AppError::Database(format!("Failed to clear recipe_index: {}", e)))?;
-    
-    // Rebuild FTS index
-    conn.execute("INSERT INTO recipe_fts(recipe_fts) VALUES('rebuild')", [])
-        .map_err(|e| AppError::Database(format!("Failed to rebuild FTS: {}", e)))?;
-    
-    log::info!("Cleared recipe index: {} recipes removed", deleted);
-    Ok(deleted as u32)
+pub async fn clear_recipe_index(state: State<'_, AppState>) -> Result<u32, AppError> {
+    recipes::clear_recipe_index(&state.global_db).await
 }
 
 /// Get the total count of indexed recipes.
 #[tauri::command]
-pub fn get_recipe_count() -> Result<u32, AppError> {
-    let conn = database::init_global_db()?;
-    
-    let count: i32 = conn.query_row(
-        "SELECT COUNT(*) FROM recipe_index",
-        [],
-        |row| row.get(0)
-    ).map_err(|e| AppError::Database(format!("Failed to count recipes: {}", e)))?;
-    
-    Ok(count as u32)
+pub async fn get_recipe_count(state: State<'_, AppState>) -> Result<u32, AppError> {
+    recipes::get_recipe_count(&state.global_db).await
 }

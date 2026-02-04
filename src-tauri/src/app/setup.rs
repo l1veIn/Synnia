@@ -20,11 +20,16 @@ pub fn build_app() -> tauri::Builder<tauri::Wry> {
     let server_port = server::init(current_project_path.clone());
 
     tauri::Builder::default()
-        .manage(AppState {
-            current_project_path,
-            server_port,
-        })
-        .setup(|app| {
+        .setup(move |app| {
+            let global_db = tauri::async_runtime::block_on(
+                crate::infrastructure::surreal::init_surreal_global_db(app.handle())
+            )?;
+            app.manage(AppState {
+                current_project_path,
+                server_port,
+                global_db,
+                project_db: Mutex::new(None),
+            });
             app.handle().plugin(tauri_plugin_dialog::init())?;
             if cfg!(debug_assertions) {
                 app.handle().plugin(

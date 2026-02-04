@@ -96,7 +96,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             edges: project.graph.edges as unknown as SynniaEdge[],
             assets: project.assets as unknown as Record<string, Asset>,
             // Load files if available in project (Phase 3 DDD)
-            files: (project as any).files as Record<string, File> ?? {},
+            files: (project.files as Record<string, File> | undefined) ?? {},
             projectMeta: project.meta,
             viewport: project.viewport,
           });

@@ -21,21 +21,13 @@ SurrealDB 切换时必须保留双层逻辑，而不是混成一个库。
 
 ## 推荐方案（SurrealDB 结构）
 
-### 方案 A（推荐）：同一引擎、不同 database
+### 方案：同一引擎、不同 database
 - Namespace: `synnia`
 - Global DB: `global`
 - Project DB: `project_<projectId>`
 
 优点：语义清晰；查询简单；隔离强。
 
-### 方案 B：同一 DB 内按表隔离
-- Namespace: `synnia`
-- Database: `app`
-- Table 以 `global_*` 与 `project_*` 区分
-
-缺点：容易混淆，不推荐。
-
----
 
 ## 数据模型映射
 

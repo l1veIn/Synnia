@@ -7,6 +7,7 @@ export type { SynniaProject } from './SynniaProject';
 export type { ProjectMeta } from './ProjectMeta';
 export type { Viewport } from './Viewport';
 export type { Graph } from './Graph';
+export type { File } from './File';
 
 // Asset Types
 // Re-export from local TypeScript types (discriminated union) instead of Rust bindings

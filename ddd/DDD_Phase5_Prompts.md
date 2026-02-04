@@ -8,6 +8,10 @@
 ## 重要约束
 - 项目尚未发布，**不需要旧数据迁移**。
 
+## 依赖与前置条件
+- **后端需要引入 SurrealDB 依赖（cargo add）**
+- 前端需要配置 SurrealDB 连接信息（如本地地址/认证）
+
 ## 已完成内容（Phase 0-4.5）
 - Domain 模型 + Use Cases 已建立
 - File 聚合与 Recipe/Execution 迁移完成

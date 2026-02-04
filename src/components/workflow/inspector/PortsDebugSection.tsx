@@ -13,6 +13,7 @@ import { lightTheme } from '@uiw/react-json-view/light';
 import { darkTheme } from '@uiw/react-json-view/dark';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 interface PortsDebugSectionProps {
     nodeId: string;
@@ -23,7 +24,8 @@ export const PortsDebugSection = ({ nodeId, defaultOpen = false }: PortsDebugSec
     const { t } = useTranslation('inspector');
     const { resolvedTheme } = useTheme();
     const node = useWorkflowStore(state => state.nodes.find(n => n.id === nodeId));
-    const asset = useWorkflowStore(state => node?.data.assetId ? state.assets[node.data.assetId] : null);
+    const assetId = resolveNodeAssetId(node);
+    const asset = useWorkflowStore(state => assetId ? state.assets[assetId] : null);
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     // Get Inputs

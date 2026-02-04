@@ -6,6 +6,7 @@ import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import type { ConnectionValidation } from './types';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
 import type { ConnectionContext } from '@core/engine/types/behavior';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 // ============================================================================
 // Semantic Handle Constants
@@ -78,8 +79,10 @@ export function validateConnection(
     }
 
     // Build ConnectionContext
-    const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
-    const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
+    const sourceAssetId = resolveNodeAssetId(sourceNode);
+    const targetAssetId = resolveNodeAssetId(targetNode);
+    const sourceAsset = sourceAssetId ? assets[sourceAssetId] : null;
+    const targetAsset = targetAssetId ? assets[targetAssetId] : null;
 
     // Pre-resolve source output
     const sourceBehavior = behaviorRegistry.get(sourceNode.type);

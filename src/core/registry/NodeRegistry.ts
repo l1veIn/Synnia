@@ -8,6 +8,7 @@ import type { GraphEngine } from '@core/engine/GraphEngine';
 import type { ExecutionResult } from '@/types/recipe';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import { portRegistry } from '@core/engine/ports';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 // ============================================================================
 // Node Meta - Static metadata for a node type
@@ -198,7 +199,7 @@ class NodeRegistry {
     getHookContext(nodeId: string, engine: GraphEngine): HookContext | undefined {
         const node = engine.state.nodes.find(n => n.id === nodeId);
         if (!node) return undefined;
-        const assetId = node.data.assetId as string | undefined;
+        const assetId = resolveNodeAssetId(node);
         const asset = assetId ? engine.state.assets[assetId] : undefined;
         return { node, asset, engine };
     }

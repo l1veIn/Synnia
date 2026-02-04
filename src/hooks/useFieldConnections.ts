@@ -20,6 +20,7 @@ import {
     resolveWithCapability,
     getDefaultCapability,
 } from '@core/engine/FieldCapability';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 import type { FieldDefinition } from '@/types/assets';
 import type { SynniaNode, SynniaEdge } from '@/types/project';
 import type { Asset } from '@/types/assets';
@@ -93,9 +94,8 @@ export function useFieldConnections(
             const sourceNode = nodes.find(n => n.id === edge.source);
             if (!sourceNode) continue;
 
-            const sourceAsset = sourceNode.data.assetId
-                ? assets[sourceNode.data.assetId]
-                : null;
+            const sourceAssetId = resolveNodeAssetId(sourceNode);
+            const sourceAsset = sourceAssetId ? assets[sourceAssetId] : null;
 
             // Resolve source port value via behavior
             const behavior = behaviorRegistry.get(sourceNode.type);
@@ -195,9 +195,8 @@ export function resolveFieldConnections(
         const sourceNode = nodes.find(n => n.id === edge.source);
         if (!sourceNode) continue;
 
-        const sourceAsset = sourceNode.data.assetId
-            ? assets[sourceNode.data.assetId]
-            : null;
+        const sourceAssetId = resolveNodeAssetId(sourceNode);
+        const sourceAsset = sourceAssetId ? assets[sourceAssetId] : null;
 
         const behavior = behaviorRegistry.get(sourceNode.type);
         const sourcePortId = edge.sourceHandle || 'output';

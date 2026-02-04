@@ -9,6 +9,7 @@ import { useAsset } from '@/hooks/useAsset';
 import { List, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 // Import types and views
 import type {
@@ -30,7 +31,7 @@ export { DEFAULT_OPTION_SCHEMA } from './types';
 export const SelectorNode = memo((props: NodeProps<SynniaNode>) => {
     const { id, selected } = props;
     const { state, actions } = useNode(id);
-    const assetId = state.node?.data.assetId;
+    const assetId = resolveNodeAssetId(state.node);
     const { updateConfig } = useAsset(assetId);
     const updateNodeInternals = useUpdateNodeInternals();
 

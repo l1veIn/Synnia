@@ -19,6 +19,7 @@ import { executorAdapter } from '@/application/adapters/ExecutorAdapter';
 import { ExecutionLoggerAdapter } from '@/application/adapters/ExecutionLoggerAdapter';
 import { graphMutatorAdapter } from '@/application/adapters/GraphMutatorAdapter';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 /**
  * Update node execution state using data.state field for nodeProjection compatibility
@@ -105,7 +106,10 @@ export function useRunRecipe() {
         try {
             // --- Create Execution Logger ---
             const projectRoot = store.projectRoot;
-            const modelId = (store.assets[node.data.assetId as string]?.config as any)?.extra?.modelConfig?.modelId;
+            const nodeAssetId = resolveNodeAssetId(node);
+            const modelId = nodeAssetId
+                ? (store.assets[nodeAssetId]?.config as any)?.extra?.modelConfig?.modelId
+                : undefined;
             const loggerAdapter = new ExecutionLoggerAdapter(() => projectRoot);
             const logger = await loggerAdapter.create(nodeId, recipeId, modelId);
             await logger?.log('info', 'Starting multi-turn execution', { recipeId, nodeId });
@@ -134,16 +138,14 @@ export function useRunRecipe() {
             const staticValues = getMergedInputValues(nodeId);
 
             // --- Build Context with Chat History ---
-            const assetConfig = node.data.assetId
-                ? store.assets[node.data.assetId as string]?.config
-                : undefined;
+            const assetConfig = nodeAssetId ? store.assets[nodeAssetId]?.config : undefined;
             const recipeConfig = assetConfig as any;
 
             const ctx = {
                 inputs: staticValues,
                 nodeId,
                 node,
-                asset: node.data.assetId ? store.assets[node.data.assetId as string] : undefined,
+                asset: nodeAssetId ? store.assets[nodeAssetId] : undefined,
                 engine: graphEngine,
                 manifest: recipe.manifest,
                 chatContext: chatMessages as any,
@@ -179,8 +181,9 @@ export function useRunRecipe() {
 
             if (existingOutputEdge) {
                 const existingProductNode = freshStore.nodes.find(n => n.id === existingOutputEdge.target);
-                if (existingProductNode && existingProductNode.data.assetId) {
-                    const existingAsset = freshStore.assets[existingProductNode.data.assetId as string];
+                const productAssetId = resolveNodeAssetId(existingProductNode);
+                if (existingProductNode && productAssetId) {
+                    const existingAsset = freshStore.assets[productAssetId];
                     if (existingAsset && result.data) {
                         graphEngine.assets.update(existingAsset.id, result.data);
                         await logger?.log('info', 'Updated existing product node', {
@@ -252,9 +255,10 @@ async function saveChatMessage(
 function getMergedInputValues(nodeId: string): Record<string, any> {
     const { nodes, edges, assets } = useWorkflowStore.getState();
     const node = nodes.find(n => n.id === nodeId);
-    if (!node || !node.data.assetId) return {};
+    const assetId = resolveNodeAssetId(node);
+    if (!node || !assetId) return {};
 
-    const asset = assets[node.data.assetId as string];
+    const asset = assets[assetId];
     const ownValue = (asset?.value && typeof asset.value === 'object')
         ? asset.value as Record<string, any>
         : {};

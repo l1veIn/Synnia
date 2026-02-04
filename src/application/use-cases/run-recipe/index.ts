@@ -19,6 +19,7 @@ import type { ExecutorService, GraphMutatorPort, ExecutionLoggerPort } from '@/a
 import type { SmartNodeSpec } from '@core/engine/GraphMutator';
 import { inferValueType, determineOutputAction } from '@features/executors/utils';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 // ============================================================================
 // Types
@@ -66,9 +67,10 @@ function getMergedInputValues(
     getConnectedFieldValues: RunRecipeDeps['getConnectedFieldValues']
 ): Record<string, unknown> {
     const node = nodes.find(n => n.id === nodeId);
-    if (!node || !node.data.assetId) return {};
+    const assetId = resolveNodeAssetId(node);
+    if (!node || !assetId) return {};
 
-    const asset = assets[node.data.assetId as string];
+    const asset = assets[assetId];
     const ownValue =
         asset?.value && typeof asset.value === 'object'
             ? (asset.value as Record<string, unknown>)
@@ -191,8 +193,9 @@ export async function runRecipeUseCase(
     graphMutator.updateNode(nodeId, { data: { executionResult: undefined } });
 
     // --- Create Logger ---
+    const nodeAssetId = resolveNodeAssetId(node);
     const modelId =
-        (assets[node.data.assetId as string]?.config as any)?.extra?.modelConfig?.modelId;
+        nodeAssetId ? (assets[nodeAssetId]?.config as any)?.extra?.modelConfig?.modelId : undefined;
     const execLogger = await logger.create(nodeId, recipe.id, modelId);
     await execLogger?.log('info', 'Starting recipe execution', { recipeId: recipe.id, nodeId });
 
@@ -208,16 +211,14 @@ export async function runRecipeUseCase(
         }
 
         // --- Build Context ---
-        const assetConfig = node.data.assetId
-            ? assets[node.data.assetId as string]?.config
-            : undefined;
+        const assetConfig = nodeAssetId ? assets[nodeAssetId]?.config : undefined;
         const recipeConfig = assetConfig as any;
 
         const ctx: ExecutionContext = {
             inputs: effectiveValues,
             nodeId,
             node,
-            asset: node.data.assetId ? assets[node.data.assetId as string] : undefined,
+            asset: nodeAssetId ? assets[nodeAssetId] : undefined,
             engine: null as any, // Will be provided by adapter
             manifest: recipe.manifest,
             chatContext: undefined,
@@ -318,9 +319,8 @@ async function handleOutputCreation(
         ? nodes.find(n => n.id === existingOutputEdge.target)
         : null;
 
-    const existingAsset = existingProductNode
-        ? assets[existingProductNode.data.assetId as string]
-        : null;
+    const existingAssetId = resolveNodeAssetId(existingProductNode);
+    const existingAsset = existingAssetId ? assets[existingAssetId] : null;
 
     // Determine action
     const action = determineOutputAction(

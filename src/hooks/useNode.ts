@@ -4,6 +4,7 @@ import { graphEngine } from '@core/engine/GraphEngine';
 import { BaseNodeData, SynniaNode } from '@/types/project';
 import { Asset } from '@/types/assets';
 import { cn } from '@/lib/utils';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 /**
  * useNode - Core Hook for Node Components (Deep Module)
@@ -116,7 +117,7 @@ export function computeHeaderClassName(state: ReturnType<typeof deriveViewState>
 export function useNode(nodeId: string): UseNodeReturn {
     // --- Read from Store ---
     const node = useWorkflowStore(s => s.nodes.find(n => n.id === nodeId));
-    const assetId = node?.data.assetId;
+    const assetId = resolveNodeAssetId(node);
     const asset = useWorkflowStore(s => assetId ? s.assets[assetId] : undefined);
 
     // --- Derive State ---
@@ -201,7 +202,7 @@ export function useNode(nodeId: string): UseNodeReturn {
  */
 export function useNodeAsset(nodeId: string) {
     const node = useWorkflowStore(s => s.nodes.find(n => n.id === nodeId));
-    const assetId = node?.data.assetId;
+    const assetId = resolveNodeAssetId(node);
     const asset = useWorkflowStore(s => assetId ? s.assets[assetId] : undefined);
 
     const updateContent = useCallback((content: any) => {

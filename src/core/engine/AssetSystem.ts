@@ -30,14 +30,21 @@ export class AssetSystem {
         valueType: ValueType,
         value: any,
         options: {
+            id?: string;
             name?: string;
             config?: any;
             source?: 'user' | 'ai' | 'import';
             sys?: Partial<AssetSysMetadata>;  // Partial sys to merge (e.g., isLibraryAsset)
         } = {}
     ): string {
-        const id = uuidv4();
+        const id = options.id ?? uuidv4();
         const now = Date.now();
+        const { assets } = this.store;
+
+        if (assets[id]) {
+            console.warn(`[AssetSystem] create skipped: asset ${id} already exists`);
+            return id;
+        }
 
         // Merge partial sys from options
         const sys: AssetSysMetadata = {
@@ -58,7 +65,6 @@ export class AssetSystem {
             sys,
         } as Asset;
 
-        const { assets } = this.store;
         this.setAssets({ ...assets, [id]: newAsset });
 
         // Save initial version to backend (creates first history entry)
@@ -163,7 +169,7 @@ export class AssetSystem {
         });
 
         if (sysUpdates.name) {
-            const nodesToUpdate = this.engine.state.nodes.filter(n => n.data?.assetId === id);
+            const nodesToUpdate = this.engine.state.nodes.filter(n => (n.data?.assetId ?? n.id) === id);
             if (nodesToUpdate.length > 0) {
                 this.engine.updateNodes(nodesToUpdate.map(n => ({
                     id: n.id,

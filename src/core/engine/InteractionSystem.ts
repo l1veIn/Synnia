@@ -18,6 +18,7 @@ import { validateConnection, wouldCreateCycle } from '@core/engine/ports';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { behaviorRegistry } from '@core/engine/BehaviorRegistry';
 import type { ConnectionContext } from '@core/engine/types/behavior';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 export class InteractionSystem {
     private engine: GraphEngine;
@@ -181,8 +182,10 @@ export class InteractionSystem {
         const targetNode = nodes.find(n => n.id === connection.target);
         if (!sourceNode || !targetNode) return;
 
-        const sourceAsset = sourceNode.data.assetId ? assets[sourceNode.data.assetId] : null;
-        const targetAsset = targetNode.data.assetId ? assets[targetNode.data.assetId] : null;
+        const sourceAssetId = resolveNodeAssetId(sourceNode);
+        const targetAssetId = resolveNodeAssetId(targetNode);
+        const sourceAsset = sourceAssetId ? assets[sourceAssetId] : null;
+        const targetAsset = targetAssetId ? assets[targetAssetId] : null;
 
         // Pre-resolve source output for ConnectionContext
         const sourceBehavior = behaviorRegistry.get(sourceNode.type);
@@ -211,14 +214,14 @@ export class InteractionSystem {
         const behavior = behaviorRegistry.get(targetNode.type);
         if (behavior.onConnect) {
             const updates = behavior.onConnect(ctx);
-            if (updates && targetNode.data.assetId) {
-                const currentAsset = this.engine.assets.get(targetNode.data.assetId);
+            if (updates && targetAssetId) {
+                const currentAsset = this.engine.assets.get(targetAssetId);
                 if (currentAsset) {
                     const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
                         ? currentAsset.value as Record<string, any>
                         : {};
                     const newValue = { ...currentValue, ...updates };
-                    this.engine.assets.update(targetNode.data.assetId, newValue);
+                    this.engine.assets.update(targetAssetId, newValue);
                 }
             }
         }
@@ -377,8 +380,10 @@ export class InteractionSystem {
         nodeB: SynniaNode,
         assets: Record<string, any>
     ): boolean {
-        const assetA = nodeA.data.assetId ? assets[nodeA.data.assetId] : null;
-        const assetB = nodeB.data.assetId ? assets[nodeB.data.assetId] : null;
+        const assetAId = resolveNodeAssetId(nodeA);
+        const assetBId = resolveNodeAssetId(nodeB);
+        const assetA = assetAId ? assets[assetAId] : null;
+        const assetB = assetBId ? assets[assetBId] : null;
 
         if (!assetA || !assetB) return false;
 

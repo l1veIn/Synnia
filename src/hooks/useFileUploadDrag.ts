@@ -4,6 +4,7 @@ import { graphEngine } from '@core/engine/GraphEngine';
 import { useCanvasLogic } from './useCanvasLogic';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { importHeavyNodeWithToast } from '@/lib/importHeavyNode';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 interface DragDropPayload {
   paths: string[];
@@ -124,10 +125,11 @@ export function useFileUploadDrag() {
 
           const reader = new FileReader();
           reader.onload = (e) => {
-            graphEngine.assets.update(
-              graphEngine.state.nodes.find(n => n.id === nodeId)?.data.assetId as string,
-              { content: e.target?.result as string, format: 'plain' }
-            );
+            const node = graphEngine.state.nodes.find(n => n.id === nodeId);
+            const assetId = resolveNodeAssetId(node);
+            if (assetId) {
+              graphEngine.assets.update(assetId, { content: e.target?.result as string, format: 'plain' });
+            }
           };
           reader.readAsText(file);
 

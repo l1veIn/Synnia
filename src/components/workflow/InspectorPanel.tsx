@@ -13,11 +13,12 @@ import { Bug, Settings2, GripHorizontal, History } from "lucide-react";
 import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { graphEngine } from "@core/engine/GraphEngine";
 import { useTranslation } from "react-i18next";
+import { resolveNodeAssetId } from "@core/utils/nodeAsset";
 
 // Helper Component for Asset/Recipe Editing
 const NodeInspector = ({ node }: { node: SynniaNode }) => {
     const { t } = useTranslation('inspector');
-    const assetId = node.data.assetId as string | undefined;
+    const assetId = resolveNodeAssetId(node);
     const recipeId = (node.data as any).recipeId as string | undefined;
 
     // Get the Inspector component for this node type (dynamic lookup for dynamically registered nodes)
@@ -100,7 +101,7 @@ export const InspectorPanel = () => {
     const outDegree = edges.filter(e => e.source === selectedNode.id).length;
 
     // Check if it's an Asset Node or Recipe Node (needs NodeInspector)
-    const assetId = selectedNode.data.assetId;
+    const assetId = resolveNodeAssetId(selectedNode);
     const recipeId = (selectedNode.data as any).recipeId;
     const hasInspector = assetId || recipeId || getInspectorTypes()[selectedNode.type];
 

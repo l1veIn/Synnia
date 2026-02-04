@@ -31,6 +31,7 @@ export interface ImportHeavyNodeOptions {
 
 export interface ImportHeavyNodeResult {
     nodeId: string;
+    /** Legacy name: node-backed asset id (now aligns with nodeId) */
     assetId: string;
     mediaType: string;
 }
@@ -95,8 +96,10 @@ function createNodeWithFile(params: {
     position: { x: number; y: number };
     style: { width: number; height: number };
 }): string {
+    const file = useWorkflowStore.getState().files[params.fileId];
+    const src = file?.relativePath ?? '';
     return graphEngine.mutator.createSmart({
-        assetId: params.fileId,
+        value: src,
         fileIds: [params.fileId],  // Write fileIds to node
         node: params.nodeType,
         name: params.name,
@@ -136,7 +139,7 @@ export async function importHeavyNode(
     // Map to legacy result format
     return {
         nodeId: result.nodeId,
-        assetId: result.fileId,
+        assetId: result.nodeId,
         mediaType: result.mediaType,
     };
 }

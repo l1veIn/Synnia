@@ -5,6 +5,7 @@ import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { XYPosition } from '@xyflow/react';
 import { createNodeUseCase } from '@/application/use-cases/create-node';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 // ============================================================================
 // Smart Node Creation API (TEP Crystallized)
@@ -126,7 +127,7 @@ export class GraphMutator {
 
     public duplicateNode(node: SynniaNode, position?: XYPosition) {
         const { assets } = this.engine.state;
-        const assetId = node.data.assetId;
+        const assetId = resolveNodeAssetId(node);
         const originalAsset = assetId ? assets[assetId] : null;
 
         if (!originalAsset) {
@@ -175,7 +176,7 @@ export class GraphMutator {
         const newIds: string[] = [];
 
         for (const node of copiedNodes) {
-            const assetId = node.data.assetId;
+            const assetId = resolveNodeAssetId(node);
             const originalAsset = assetId ? assets[assetId] : null;
 
             let newId: string | undefined;
@@ -289,7 +290,8 @@ export class GraphMutator {
         // ─────────────────────────────────────────────────────────────────────
         // Step 4: Get or Create Asset
         // ─────────────────────────────────────────────────────────────────────
-        let assetId = spec.assetId;
+        const nodeId = uuidv4();
+        let assetId = spec.assetId ?? nodeId;
 
         if (!assetId) {
             // Get node definition for create factory
@@ -319,6 +321,7 @@ export class GraphMutator {
                 finalValueType,
                 assetValue,
                 {
+                    id: assetId,
                     name,
                     config: assetConfig,
                     sys: createResult?.asset?.sys,
@@ -332,7 +335,7 @@ export class GraphMutator {
         const meta = nodeRegistry.getMeta(nodeType);
 
         const newNode: SynniaNode = {
-            id: uuidv4(),
+            id: nodeId,
             type: nodeType,
             position,
             data: {

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { apiClient, MediaAssetInfo } from '@/lib/apiClient';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { graphEngine } from '@core/engine/GraphEngine';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 import { Image as ImageIcon, FileImage, Search, MapPin, Trash2, Loader2, Upload, ChevronRight, ChevronDown, Copy, Code, X, Maximize2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
@@ -145,8 +146,8 @@ export const AssetLibraryDialog = ({ open, onOpenChange, onLocateNode }: AssetLi
     const referencingNodes = useMemo(() => {
         if (!selectedAsset) return [];
         return nodes.filter(n => {
-            if (n.data?.assetId === selectedAsset.id) return true;
-            const nodeAssetId = n.data?.assetId;
+            const nodeAssetId = resolveNodeAssetId(n);
+            if (nodeAssetId === selectedAsset.id) return true;
             if (nodeAssetId && storeAssets[nodeAssetId]) {
                 const nodeAsset = storeAssets[nodeAssetId] as any;
                 if (Array.isArray(nodeAsset.value)) {

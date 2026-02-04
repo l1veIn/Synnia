@@ -8,6 +8,7 @@ import { SynniaNode, SynniaEdge } from '@/types/project';
 import { addEdge, getConnectedEdges, Connection, Edge } from '@xyflow/react';
 import { NodePatch } from '@core/engine/types/behavior';
 import { updateNodeUseCase } from '@/application/use-cases/update-node';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 export class GraphEngine {
     public layout: LayoutSystem;
@@ -225,11 +226,12 @@ export class GraphEngine {
     private cleanupNodeAssets(nodeIds: string[], nodes: SynniaNode[]) {
         nodeIds.forEach(nodeId => {
             const node = nodes.find(n => n.id === nodeId);
-            if (node?.data?.assetId) {
-                const asset = this.assets.get(node.data.assetId as string);
+            const assetId = resolveNodeAssetId(node);
+            if (assetId) {
+                const asset = this.assets.get(assetId);
                 // Preserve library assets (media, etc.)
                 if (asset && !asset.sys.isLibraryAsset) {
-                    this.assets.delete(node.data.assetId as string);
+                    this.assets.delete(assetId);
                 }
             }
         });

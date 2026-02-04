@@ -16,6 +16,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { PortsDebugSection } from './PortsDebugSection';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 interface JsonEditorBlockProps {
     title: string;
@@ -129,7 +130,8 @@ interface DebugInspectorProps {
 export const DebugInspector = ({ nodeId }: DebugInspectorProps) => {
     const { t } = useTranslation('inspector');
     const node = useWorkflowStore(state => state.nodes.find(n => n.id === nodeId));
-    const asset = useWorkflowStore(state => node?.data.assetId ? state.assets[node.data.assetId] : null);
+    const assetId = resolveNodeAssetId(node);
+    const asset = useWorkflowStore(state => assetId ? state.assets[assetId] : null);
 
     if (!node) return <div className="p-4 text-xs text-muted-foreground">{t('debug.noNode')}</div>;
 

@@ -6,6 +6,7 @@ import { smartResolveError } from '@/domain/edge/ValueMappingService';
 import type { SynniaNode } from '@/types/project';
 import type { Asset, FieldDefinition } from '@/types/assets';
 import type { PortValue } from '@core/engine/ports/types';
+import { resolveNodeAssetId } from '@core/utils/nodeAsset';
 
 /**
  * FormNode Behavior
@@ -50,9 +51,8 @@ export const FormBehavior: NodeBehavior = {
                 const currentNode = store.nodes.find(n => n.id === currentId);
                 if (!currentNode) break;
 
-                const nodeAsset = currentNode.data.assetId
-                    ? store.assets[currentNode.data.assetId]
-                    : undefined;
+                const nodeAssetId = resolveNodeAssetId(currentNode);
+                const nodeAsset = nodeAssetId ? store.assets[nodeAssetId] : undefined;
 
                 // Get merged value for this node in the chain
                 const nodeOwnValue = (nodeAsset?.value as Record<string, any>) || {};

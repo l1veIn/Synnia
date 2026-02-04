@@ -20,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { Home, Image } from "lucide-react";
 import { toast } from "sonner";
 import { graphEngine } from "@core/engine/GraphEngine";
+import { resolveNodeAssetId } from "@core/utils/nodeAsset";
 import { NodePicker, NodePickerItem } from "./NodePicker";
 import { useTranslation } from "react-i18next";
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
@@ -141,12 +142,13 @@ export const EditorContextMenu = ({ children }: EditorContextMenuProps) => {
   const assets = useWorkflowStore((state) => state.assets);
 
   const handleSetAsThumbnail = async () => {
-    if (!targetNode?.data?.assetId) {
+    const assetId = resolveNodeAssetId(targetNode);
+    if (!assetId) {
       toast.error(t('contextMenu.noAssetFound'));
       return;
     }
 
-    const asset = assets[targetNode.data.assetId];
+    const asset = assets[assetId];
     if (!asset) {
       toast.error(t('contextMenu.assetMissing'));
       return;

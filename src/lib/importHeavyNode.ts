@@ -97,6 +97,7 @@ function createNodeWithFile(params: {
 }): string {
     return graphEngine.mutator.createSmart({
         assetId: params.fileId,
+        fileIds: [params.fileId],  // Write fileIds to node
         node: params.nodeType,
         name: params.name,
         position: params.position,

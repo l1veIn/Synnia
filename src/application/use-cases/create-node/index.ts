@@ -8,7 +8,7 @@ import { fromLegacy, toLegacyAsset, toLegacySynniaNode } from '@/application/ada
 
 export type CreateNodeInput = {
     id?: string;
-    type: string;
+    type?: string;  // Required unless legacyNode is provided
     data?: any;
     schema?: NodeSchema;
     valueType?: NodeValueType;
@@ -17,6 +17,7 @@ export type CreateNodeInput = {
     execution?: { state?: NodeExecutionState; errorMessage?: string };
     reference?: { isReference?: boolean; originalNodeId?: string };
     assetId?: string;
+    fileIds?: string[];  // References to File aggregates
     legacyNode?: SynniaNode;
 };
 
@@ -64,6 +65,10 @@ export function createNodeUseCase(input: CreateNodeInput, deps: CreateNodeDeps):
         if (input.assetId) {
             domainNode.meta.ext = { ...(domainNode.meta.ext || {}), assetId: input.assetId };
         }
+        // Write fileIds to domain node
+        if (input.fileIds && input.fileIds.length > 0) {
+            domainNode.fileIds = input.fileIds;
+        }
         const legacyNode = toLegacySynniaNode(domainNode, input.legacyNode);
         deps.setNodes([...deps.getNodes(), legacyNode]);
 
@@ -82,12 +87,13 @@ export function createNodeUseCase(input: CreateNodeInput, deps: CreateNodeDeps):
 
     const node: Node = {
         id: input.id || crypto.randomUUID(),
-        type: input.type,
+        type: input.type ?? 'form',  // Default to 'form' if not provided
         valueType: input.valueType ?? 'record',
         data: input.data ?? (input.valueType === 'array' ? [] : {}),
         schema: input.schema,
         meta,
         presentation: buildDefaultPresentation(input.presentation),
+        fileIds: input.fileIds,  // Write fileIds to node
         executionState: input.execution?.state,
         errorMessage: input.execution?.errorMessage,
         stateUpdatedAt: input.execution?.state ? (deps.now?.() ?? Date.now()) : undefined,

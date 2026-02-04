@@ -49,7 +49,7 @@ export interface WorkflowState {
 export interface WorkflowActions {
   // Project Lifecycle
   loadProject: (project: SynniaProject) => void;
-  restoreDraft: (nodes: SynniaNode[], edges: SynniaEdge[], assets: Record<string, Asset>) => void;
+  restoreDraft: (nodes: SynniaNode[], edges: SynniaEdge[], assets: Record<string, Asset>, files?: Record<string, File>) => void;
 
   // Pure Setters (for external updates)
   setProjectRoot: (path: string) => void;
@@ -95,17 +95,20 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
             nodes: loadedNodes,
             edges: project.graph.edges as unknown as SynniaEdge[],
             assets: project.assets as unknown as Record<string, Asset>,
+            // Load files if available in project (Phase 3 DDD)
+            files: (project as any).files as Record<string, File> ?? {},
             projectMeta: project.meta,
             viewport: project.viewport,
           });
         },
 
-        restoreDraft: (nodes, edges, assets) => {
+        restoreDraft: (nodes, edges, assets, files) => {
           const fixedNodes = graphEngine.layout.fixGlobalLayout(nodes);
           set({
             nodes: fixedNodes,
             edges,
             assets,
+            files: files ?? {},
             projectMeta: null,
             viewport: { x: 0, y: 0, zoom: 1 }
           });
@@ -131,6 +134,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
           nodes: state.nodes,
           edges: state.edges,
           assets: state.assets,
+          files: state.files,
         }),
         limit: 100,
         equality: (past, current) => {

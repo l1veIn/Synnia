@@ -25,6 +25,11 @@ export interface SmartNodeSpec {
     config?: Record<string, any>;  // Asset.config.extra
 
     // ═══════════════════════════════════════════
+    // FILE LAYER (Phase 3 DDD)
+    // ═══════════════════════════════════════════
+    fileIds?: string[];            // References to File aggregates for heavy resources
+
+    // ═══════════════════════════════════════════
     // NODE LAYER
     // ═══════════════════════════════════════════
     node?: string;                 // Node type (inferred from valueType)
@@ -347,6 +352,7 @@ export class GraphMutator {
         createNodeUseCase({
             legacyNode: newNode,
             assetId,
+            fileIds: spec.fileIds,
         }, {
             getNodes: () => this.engine.state.nodes,
             setNodes: (updated) => this.engine.setNodes(updated),

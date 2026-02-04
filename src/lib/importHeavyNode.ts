@@ -1,17 +1,23 @@
 /**
- * Unified heavy resource import function.
+ * Unified heavy resource import function (Facade).
  * 
- * Handles importing images (and future: audio, video, documents) from file paths
- * or base64 data, creating assets and nodes in one unified interface.
+ * This is a thin facade over the new DDD architecture:
+ * - Domain: File aggregate + FileIngestionService
+ * - Infrastructure: TauriFileAdapter
+ * - Application: ImportFileUseCase
+ * 
+ * Handles importing images, audio, video from file paths or base64 data.
  */
 
-import { apiClient } from '@/lib/apiClient';
 import { graphEngine } from '@core/engine/GraphEngine';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { toast } from 'sonner';
+import { getTauriFileAdapter } from '@/infrastructure/tauri/TauriFileAdapter';
+import { importFileUseCase, type ImportFileInput, type ImportFileOutput } from '@/application/use-cases/import-file';
+import type { File } from '@/domain/file/File';
 
 // ============================================
-// Types
+// Types (re-export for backward compatibility)
 // ============================================
 
 export interface ImportHeavyNodeOptions {
@@ -29,89 +35,73 @@ export interface ImportHeavyNodeResult {
     mediaType: string;
 }
 
-/** Backend response from import_resource command */
-interface ImportResourceResponse {
-    assetId: string;
-    mediaType: string;
-    mimeType: string;
-    relativePath: string;
-    thumbnailPath: string | null;
-    metadata: {
-        width?: number;
-        height?: number;
-        duration?: number;
-        [key: string]: unknown;
-    };
-}
-
 // ============================================
-// Media Type → Node Type Mapping
-// ============================================
-
-const MEDIA_TYPE_TO_NODE_TYPE: Record<string, string> = {
-    image: 'image',
-    audio: 'audio',
-    video: 'video',
-    // Future expansion:
-    // pdf: 'pdf',
-    // document: 'document',
-};
-
-/** Standard node dimensions */
-const STD_WIDTH = 384;
-const STD_HEIGHT = 240;
-
-// ============================================
-// Asset Sync
+// File Store Sync
 // ============================================
 
 /**
- * Sync a backend-created asset to frontend Zustand store.
- * Called after import_resource creates an asset that doesn't exist in the frontend.
+ * Sync a File entity to the frontend stores.
+ * Updates both the files store (new) and assets store (legacy compat).
  */
-async function syncAssetFromBackend(assetId: string): Promise<void> {
-    try {
-        const resp = await apiClient.getMediaAssets({ ids: [assetId] });
-        const assetInfo = resp.items[0];
+function syncFileToStore(file: File): void {
+    const { assets, files } = useWorkflowStore.getState();
 
-        if (!assetInfo) {
-            console.warn('[importHeavyNode] Asset not found in backend:', assetId);
-            return;
-        }
+    // Update files store
+    useWorkflowStore.setState({
+        files: {
+            ...files,
+            [file.id]: file,
+        },
+    });
 
-        const { assets } = useWorkflowStore.getState();
-
-        if (!assets[assetId]) {
-            useWorkflowStore.setState({
-                assets: {
-                    ...assets,
-                    [assetId]: {
-                        id: assetId,
-                        valueType: 'record',
-                        value: { src: assetInfo.content },
-                        config: {
-                            meta: {
-                                preview: assetInfo.thumbnailPath,
-                                width: assetInfo.width,
-                                height: assetInfo.height,
-                            }
-                        },
-                        sys: {
-                            name: assetInfo.name,
-                            createdAt: Date.now(),
-                            updatedAt: Date.now(),
-                            source: 'import',
-                            isLibraryAsset: true,
+    // Also sync to assets for backward compatibility during transition
+    if (!assets[file.id]) {
+        useWorkflowStore.setState({
+            assets: {
+                ...assets,
+                [file.id]: {
+                    id: file.id,
+                    valueType: 'record',
+                    value: { src: file.relativePath },
+                    config: {
+                        meta: {
+                            preview: file.variants.thumbnail?.path,
+                            width: file.metadata.width,
+                            height: file.metadata.height,
                         }
-                    } as any
-                }
-            });
-            console.log('[importHeavyNode] Synced asset to store:', assetId);
-        }
-    } catch (e) {
-        console.error('[importHeavyNode] Failed to sync asset:', e);
-        throw e;
+                    },
+                    sys: {
+                        name: file.originalName ?? 'Imported',
+                        createdAt: file.createdAt,
+                        updatedAt: file.updatedAt,
+                        source: 'import',
+                        isLibraryAsset: true,
+                    }
+                } as any
+            }
+        });
     }
+
+    console.log('[importHeavyNode] Synced file to store:', file.id);
+}
+
+/**
+ * Create a node with file reference using GraphEngine.
+ */
+function createNodeWithFile(params: {
+    fileId: string;
+    nodeType: string;
+    name: string;
+    position: { x: number; y: number };
+    style: { width: number; height: number };
+}): string {
+    return graphEngine.mutator.createSmart({
+        assetId: params.fileId,
+        node: params.nodeType,
+        name: params.name,
+        position: params.position,
+        style: params.style,
+    });
 }
 
 // ============================================
@@ -124,57 +114,28 @@ async function syncAssetFromBackend(assetId: string): Promise<void> {
  * @param source - File path (Tauri) or base64 data URL
  * @param options - Import options (position, name, style)
  * @returns Promise with nodeId, assetId, and mediaType
- * 
- * @example
- * // From file path (Tauri)
- * const { nodeId } = await importHeavyNode('/path/to/image.png', { position: { x: 100, y: 100 } });
- * 
- * @example
- * // From base64
- * const { nodeId } = await importHeavyNode('data:image/png;base64,...', { name: 'My Image' });
  */
 export async function importHeavyNode(
     source: string,
     options: ImportHeavyNodeOptions = {}
 ): Promise<ImportHeavyNodeResult> {
-    const { position = { x: 150, y: 150 }, name, style } = options;
-
-    // 1. Call backend unified import command
-    const result = await apiClient.invoke<ImportResourceResponse>('import_resource', {
+    const input: ImportFileInput = {
         source,
-        name: name ?? undefined,
-    });
-
-    // 2. Sync asset to frontend store
-    await syncAssetFromBackend(result.assetId);
-
-    // 3. Determine node type from media type
-    const nodeType = MEDIA_TYPE_TO_NODE_TYPE[result.mediaType];
-
-    if (!nodeType) {
-        throw new Error(`Unsupported media type: ${result.mediaType}`);
-    }
-
-    // 4. Calculate node size from metadata
-    const nodeStyle = style ?? {
-        width: STD_WIDTH,
-        height: result.metadata.height && result.metadata.width
-            ? Math.round(STD_WIDTH * (result.metadata.height / result.metadata.width))
-            : STD_HEIGHT,
+        name: options.name,
+        position: options.position,
+        style: options.style,
     };
 
-    // 5. Create node with backend-created asset
-    const nodeId = graphEngine.mutator.createSmart({
-        assetId: result.assetId,
-        node: nodeType,
-        name: name ?? source.split(/[/\\]/).pop() ?? 'Imported',
-        position,
-        style: nodeStyle,
+    const result = await importFileUseCase(input, {
+        fileIngestionService: getTauriFileAdapter(),
+        syncFileToStore,
+        createNodeWithFile,
     });
 
+    // Map to legacy result format
     return {
-        nodeId,
-        assetId: result.assetId,
+        nodeId: result.nodeId,
+        assetId: result.fileId,
         mediaType: result.mediaType,
     };
 }
@@ -182,22 +143,17 @@ export async function importHeavyNode(
 /**
  * Import a File object (from browser drag-drop or file input).
  * Converts to base64 and calls importHeavyNode.
- * 
- * @param file - File object from browser
- * @param options - Import options
  */
 export async function importHeavyNodeFromFile(
-    file: File,
+    file: globalThis.File,
     options: ImportHeavyNodeOptions = {}
 ): Promise<ImportHeavyNodeResult> {
-    // Size limit for base64 (50MB)
     const MAX_SIZE = 50 * 1024 * 1024;
 
     if (file.size > MAX_SIZE) {
         throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB (max ${MAX_SIZE / 1024 / 1024}MB)`);
     }
 
-    // Convert to base64
     const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target?.result as string);
@@ -215,7 +171,7 @@ export async function importHeavyNodeFromFile(
  * Wrapper with toast notifications for UI interactions.
  */
 export async function importHeavyNodeWithToast(
-    source: string | File,
+    source: string | globalThis.File,
     options: ImportHeavyNodeOptions = {}
 ): Promise<ImportHeavyNodeResult | null> {
     const fileName = typeof source === 'string'

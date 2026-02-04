@@ -3,6 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { Asset } from '@/types/assets';
+import type { File } from '@/domain/file/File';
 import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
 import { graphEngine } from '@core/engine/GraphEngine';
 
@@ -25,6 +26,7 @@ export interface WorkflowState {
   nodes: SynniaNode[];
   edges: SynniaEdge[];
   assets: Record<string, Asset>;
+  files: Record<string, File>;
 
   // UI State
   highlightedGroupId: string | null;
@@ -77,6 +79,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>()(
         nodes: [],
         edges: [],
         assets: {},
+        files: {},
         highlightedGroupId: null,
         dockPreviewId: null,
         contextMenuTarget: null,

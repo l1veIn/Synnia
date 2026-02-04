@@ -13,9 +13,12 @@ export interface Node {
     schema?: NodeSchema;
     meta: NodeMeta;
     presentation: NodePresentation;
+    /** References to File aggregates for heavy resources */
+    fileIds?: string[];
     executionState?: NodeExecutionState;
     errorMessage?: string;
     stateUpdatedAt?: number;
     isReference?: boolean;
     originalNodeId?: string;
 }
+

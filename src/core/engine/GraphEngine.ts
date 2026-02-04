@@ -7,6 +7,7 @@ import { AssetSystem } from './AssetSystem';
 import { SynniaNode, SynniaEdge } from '@/types/project';
 import { addEdge, getConnectedEdges, Connection, Edge } from '@xyflow/react';
 import { NodePatch } from '@core/engine/types/behavior';
+import { updateNodeUseCase } from '@/application/use-cases/update-node';
 
 export class GraphEngine {
     public layout: LayoutSystem;
@@ -69,12 +70,15 @@ export class GraphEngine {
     public updateNode(id: string, patch: Partial<SynniaNode>) {
         let nodes = this.state.nodes.map(n => {
             if (n.id === id) {
-                return {
-                    ...n,
-                    ...patch,
-                    style: patch.style ? { ...n.style, ...patch.style } : n.style,
-                    data: patch.data ? { ...n.data, ...patch.data } : n.data
-                };
+                const updated = updateNodeUseCase({
+                    id,
+                    legacyNode: n,
+                    legacyPatch: patch,
+                }, {
+                    getNodes: () => this.state.nodes,
+                    getAssets: () => this.state.assets,
+                });
+                return updated || n;
             }
             return n;
         });
@@ -138,13 +142,15 @@ export class GraphEngine {
         let nodes = this.state.nodes.map(n => {
             const patch = updateMap.get(n.id);
             if (patch) {
-                return {
-                    ...n,
-                    ...patch,
-                    // Note: We merge patch against original node state here
-                    style: patch.style ? { ...n.style, ...patch.style } : n.style,
-                    data: patch.data ? { ...n.data, ...patch.data } : n.data
-                };
+                const updated = updateNodeUseCase({
+                    id: n.id,
+                    legacyNode: n,
+                    legacyPatch: patch,
+                }, {
+                    getNodes: () => this.state.nodes,
+                    getAssets: () => this.state.assets,
+                });
+                return updated || n;
             }
             return n;
         });

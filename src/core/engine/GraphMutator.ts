@@ -4,6 +4,7 @@ import { ValueType, FieldDefinition } from '@/types/assets';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { v4 as uuidv4 } from 'uuid';
 import { XYPosition } from '@xyflow/react';
+import { createNodeUseCase } from '@/application/use-cases/create-node';
 
 // ============================================================================
 // Smart Node Creation API (TEP Crystallized)
@@ -343,7 +344,15 @@ export class GraphMutator {
             },
         };
 
-        this.engine.setNodes([...nodes, newNode]);
+        createNodeUseCase({
+            legacyNode: newNode,
+            assetId,
+        }, {
+            getNodes: () => this.engine.state.nodes,
+            setNodes: (updated) => this.engine.setNodes(updated),
+            getAssets: () => this.engine.state.assets,
+            setAssets: (updated) => this.engine.assets.setAssets(updated),
+        });
 
         // ─────────────────────────────────────────────────────────────────────
         // Step 6: Create connections if specified

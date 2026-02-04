@@ -9,6 +9,7 @@ import { ExecutionContext } from '@/types/recipe';
 import { nodeRegistry } from '@core/registry/NodeRegistry';
 import { getConnectedFieldValues } from '@/hooks/useInspector';
 import { inferValueType, determineOutputAction } from '@features/executors/utils';
+import { updateNodeExecutionUseCase } from '@/application/use-cases/update-node-execution';
 
 // ============================================
 // Execution Logging (TEP #001: Operational Layer)
@@ -152,6 +153,16 @@ function getMergedInputValues(nodeId: string): Record<string, any> {
     return { ...ownValue, ...connectedValue };
 }
 
+function updateExecutionState(nodeId: string, state: 'idle' | 'running' | 'paused' | 'error' | 'success' | 'stale', errorMessage?: string) {
+    const store = useWorkflowStore.getState();
+    const updated = updateNodeExecutionUseCase(nodeId, state, errorMessage, {
+        getNodes: () => store.nodes,
+        getAssets: () => store.assets,
+    });
+    if (!updated) return;
+    graphEngine.setNodes(store.nodes.map(n => n.id === nodeId ? updated : n));
+}
+
 /**
  * Hook to run a Recipe Definition.
  */
@@ -172,8 +183,9 @@ export function useRunRecipe() {
         }
 
         // Set Node State to Running
+        updateExecutionState(nodeId, 'running');
         graphEngine.updateNode(nodeId, {
-            data: { state: 'running', errorMessage: undefined, executionResult: undefined }
+            data: { executionResult: undefined }
         });
 
         try {
@@ -379,15 +391,13 @@ export function useRunRecipe() {
             });
 
             toast.success(`${recipe.name} completed`);
-            graphEngine.updateNode(nodeId, { data: { state: 'success' } });
-            setTimeout(() => graphEngine.updateNode(nodeId, { data: { state: 'idle' } }), 2000);
+            updateExecutionState(nodeId, 'success');
+            setTimeout(() => updateExecutionState(nodeId, 'idle'), 2000);
 
         } catch (e: any) {
             console.error('[RunRecipe] Error:', e);
             toast.error(e.message || String(e));
-            graphEngine.updateNode(nodeId, {
-                data: { state: 'error', errorMessage: e.message || String(e) }
-            });
+            updateExecutionState(nodeId, 'error', e.message || String(e));
         }
     }, []);
 
@@ -415,9 +425,7 @@ export function useRunRecipe() {
         }
 
         // Set Node State to Running
-        graphEngine.updateNode(nodeId, {
-            data: { state: 'running', errorMessage: undefined }
-        });
+        updateExecutionState(nodeId, 'running');
 
         try {
             // --- Create Execution Logger ---
@@ -518,15 +526,13 @@ export function useRunRecipe() {
             });
 
             toast.success('Response generated');
-            graphEngine.updateNode(nodeId, { data: { state: 'success' } });
-            setTimeout(() => graphEngine.updateNode(nodeId, { data: { state: 'idle' } }), 2000);
+            updateExecutionState(nodeId, 'success');
+            setTimeout(() => updateExecutionState(nodeId, 'idle'), 2000);
 
         } catch (e: any) {
             console.error('[RunRecipeWithChat] Error:', e);
             toast.error(e.message || String(e));
-            graphEngine.updateNode(nodeId, {
-                data: { state: 'error', errorMessage: e.message || String(e) }
-            });
+            updateExecutionState(nodeId, 'error', e.message || String(e));
         }
     }, []);
 

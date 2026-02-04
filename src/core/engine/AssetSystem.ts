@@ -162,6 +162,16 @@ export class AssetSystem {
             [id]: updatedAsset
         });
 
+        if (sysUpdates.name) {
+            const nodesToUpdate = this.engine.state.nodes.filter(n => n.data?.assetId === id);
+            if (nodesToUpdate.length > 0) {
+                this.engine.updateNodes(nodesToUpdate.map(n => ({
+                    id: n.id,
+                    patch: { data: { title: sysUpdates.name } }
+                })));
+            }
+        }
+
         // Persist to backend (no history created since value unchanged)
         this.saveAssetToBackend(updatedAsset).catch(err => {
             console.warn('Failed to persist asset sys:', err);

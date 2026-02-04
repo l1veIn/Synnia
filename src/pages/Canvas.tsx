@@ -28,8 +28,6 @@ import { NodePicker } from '@/components/workflow/NodePicker';
 import { AssistantModal } from '@/components/assistant-ui/assistant-modal';
 import { AssistantFullscreen } from '@/components/assistant-ui/assistant-fullscreen';
 import { ChatProvider } from '@/features/chat';
-import { getSurrealRepositories } from '@/infrastructure/surreal';
-import { loadProjectSnapshot, saveProjectSnapshot } from '@/application/use-cases/project-persistence';
 const STORAGE_KEY = 'synnia-workflow-autosave-v1';
 
 function CanvasFlow() {
@@ -75,33 +73,9 @@ function CanvasFlow() {
           } catch (e) { console.warn("Failed to resolve project root", e); }
 
           const project = await apiClient.invoke<SynniaProject>('load_project', { path });
-          let projectToLoad = project;
-          const surrealRepos = getSurrealRepositories();
-
-          if (surrealRepos && project.meta?.id) {
-            try {
-              const snapshot = await loadProjectSnapshot({
-                projectId: project.meta.id,
-                nodeRepository: surrealRepos.nodeRepository,
-                edgeRepository: surrealRepos.edgeRepository,
-                fileRepository: surrealRepos.fileRepository,
-              });
-
-              projectToLoad = {
-                ...project,
-                graph: { nodes: snapshot.nodes, edges: snapshot.edges },
-                assets: snapshot.assets,
-                settings: project.settings ?? {},
-              };
-              (projectToLoad as any).files = snapshot.files;
-            } catch (e) {
-              console.warn('[Surreal] Load failed, falling back to SQLite data', e);
-              projectToLoad = project;
-            }
-          }
 
           // Pre-register recipe nodes used in this project before loading
-          const recipeNodeTypes = projectToLoad.graph?.nodes
+          const recipeNodeTypes = project.graph?.nodes
             ?.filter(n => n.type?.startsWith('recipe:'))
             ?.map(n => n.type!.slice(7)) || [];
 
@@ -110,7 +84,7 @@ function CanvasFlow() {
             await ensureRecipeNodesRegistered(recipeNodeTypes);
           }
 
-          loadProject(projectToLoad);
+          loadProject(project);
 
           // Restore viewport after a short delay to ensure ReactFlow is ready
           setTimeout(() => {
@@ -174,7 +148,7 @@ function CanvasFlow() {
   } = useCanvasLogic();
 
   const handleSave = async () => {
-    const { nodes, edges, projectMeta, viewport, assets, files } = useWorkflowStore.getState();
+    const { nodes, edges, projectMeta, viewport } = useWorkflowStore.getState();
 
     if (!projectMeta) {
       toast.warning("No project open. Use File > New Project first.");
@@ -182,30 +156,14 @@ function CanvasFlow() {
     }
 
     try {
-      const surrealRepos = getSurrealRepositories();
-      if (surrealRepos && projectMeta.id) {
-        await saveProjectSnapshot({
-          projectId: projectMeta.id,
-          nodes: nodes as any,
-          edges: edges as any,
-          assets,
-          files,
-          nodeRepository: surrealRepos.nodeRepository,
-          edgeRepository: surrealRepos.edgeRepository,
-          fileRepository: surrealRepos.fileRepository,
-        });
-        toast.success("Project saved to SurrealDB");
-        return;
-      }
-
-      // Fallback to legacy persistence
+      // Assets are synced in real-time via AssetSystem, so we pass empty here.
+      // Manual save is essentially a "comfort button" - auto-save already handles persistence.
       const project: SynniaProject = {
         version: "2.0.0",
         meta: projectMeta,
         viewport,
         graph: { nodes: nodes as any, edges: edges as any },
-        assets: {},  // Empty - assets managed separately via AssetSystem
-        files: files as any,
+        assets: {},  // Empty - assets managed by AssetSystem
         settings: {}
       };
       await apiClient.invoke('save_project', { project });

@@ -46,7 +46,6 @@ dirs = "5"
 serde_yaml = "0.9"
 rig-core = { git = "https://github.com/Serein-sz/rig", package = "rig-core" }
 futures = "0.3"
-surrealdb = { version = "2.0", features = ["kv-surrealkv"] }
 
 [dev-dependencies]
 tempfile = "3"

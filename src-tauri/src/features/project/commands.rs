@@ -8,9 +8,8 @@ use image::GenericImageView;
 
 use crate::core::{AppError, AppState};
 use crate::domain::SynniaProject;
-use crate::global::database;
-use crate::infrastructure::surreal::global::{projects, settings};
-use super::{persistence, surreal_persistence};
+use crate::global::{database, projects, settings};
+use super::persistence;
 
 // ============================================
 // Types for frontend compatibility
@@ -48,21 +47,23 @@ impl From<projects::ProjectInfo> for RecentProjectInfo {
 // ============================================
 
 #[tauri::command]
-pub async fn get_recent_projects(state: State<'_, AppState>) -> Result<Vec<RecentProjectInfo>, AppError> {
-    let projects_list = projects::list_projects(&state.global_db, Some(20)).await?;
+pub fn get_recent_projects() -> Result<Vec<RecentProjectInfo>, AppError> {
+    let conn = database::init_global_db()?;
+    let projects_list = projects::list_projects(&conn, Some(20))?;
     Ok(projects_list.into_iter().map(Into::into).collect())
 }
 
 #[tauri::command]
-pub async fn get_default_projects_path(_app: AppHandle, state: State<'_, AppState>) -> Result<String, AppError> {
+pub fn get_default_projects_path(app: AppHandle) -> Result<String, AppError> {
+    let conn = database::init_global_db()?;
     
     // Check for projects_directory setting first
-    if let Some(path) = settings::get_setting(&state.global_db, database::SETTING_PROJECTS_DIR).await? {
+    if let Some(path) = settings::get_setting(&conn, database::SETTING_PROJECTS_DIR)? {
         return Ok(database::expand_path(&path).to_string_lossy().to_string());
     }
     
     // Legacy: check for default_workspace
-    if let Some(ws) = settings::get_setting(&state.global_db, "default_workspace").await? {
+    if let Some(ws) = settings::get_setting(&conn, "default_workspace")? {
         return Ok(ws);
     }
 
@@ -75,8 +76,9 @@ pub async fn get_default_projects_path(_app: AppHandle, state: State<'_, AppStat
 }
 
 #[tauri::command]
-pub async fn set_default_projects_path(path: String, state: State<'_, AppState>) -> Result<(), AppError> {
-    settings::set_setting(&state.global_db, "default_workspace", &path).await?;
+pub fn set_default_projects_path(path: String) -> Result<(), AppError> {
+    let conn = database::init_global_db()?;
+    settings::set_setting(&conn, "default_workspace", &path)?;
     Ok(())
 }
 
@@ -85,10 +87,10 @@ pub async fn set_default_projects_path(path: String, state: State<'_, AppState>)
 // ============================================
 
 #[tauri::command]
-pub async fn create_project(
+pub fn create_project(
     name: String, 
     parent_path: String, 
-    state: State<'_, AppState>, 
+    state: State<AppState>, 
     app: AppHandle
 ) -> Result<String, AppError> {
     let safe_name: String = name.chars()
@@ -102,13 +104,13 @@ pub async fn create_project(
         )));
     }
 
-    init_project(project_path.to_string_lossy().to_string(), state, app).await
+    init_project(project_path.to_string_lossy().to_string(), state, app)
 }
 
 #[tauri::command]
-pub async fn init_project(
+pub fn init_project(
     path: String, 
-    state: State<'_, AppState>, 
+    state: State<AppState>, 
     app: AppHandle
 ) -> Result<String, AppError> {
     let project_path = PathBuf::from(&path);
@@ -126,24 +128,16 @@ pub async fn init_project(
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Project");
     
-    #[cfg(debug_assertions)]
-    {
-        persistence::init_project_sqlite(&project_path, name)?;
-    }
+    persistence::init_project_sqlite(&project_path, name)?;
     
-    // Register in global database
-    let project_id = projects::register_project(&state.global_db, &path, name).await?;
-
-    let project_db = crate::infrastructure::surreal::init_surreal_project_db(&app, &project_id).await?;
-    surreal_persistence::init_project_surreal(&project_db, &project_id, name).await?;
-
     // Update AppState
     let mut path_guard = state.current_project_path.lock()
         .map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
     *path_guard = Some(path.clone());
-    let mut project_db_guard = state.project_db.lock()
-        .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-    *project_db_guard = Some(project_db);
+
+    // Register in global database
+    let conn = database::init_global_db()?;
+    projects::register_project(&conn, &path, name)?;
     
     app.emit("project:active", serde_json::json!({ "name": name }))
         .map_err(|e| AppError::Unknown(e.to_string()))?;
@@ -152,9 +146,9 @@ pub async fn init_project(
 }
 
 #[tauri::command]
-pub async fn load_project(
+pub fn load_project(
     path: String, 
-    state: State<'_, AppState>, 
+    state: State<AppState>, 
     app: AppHandle
 ) -> Result<SynniaProject, AppError> {
     let project_path = PathBuf::from(&path);
@@ -162,22 +156,16 @@ pub async fn load_project(
         return Err(AppError::NotFound(format!("Project path not found: {}", path)));
     }
 
-    let project_info = projects::get_project_by_path(&state.global_db, &path).await?
-        .ok_or_else(|| AppError::NotFound("Project not registered".to_string()))?;
-    let project_db = crate::infrastructure::surreal::init_surreal_project_db(&app, &project_info.id).await?;
-    let project = surreal_persistence::load_project_surreal(&project_db, &project_info.id).await?;
-
-    // Update last_opened in global database
-    projects::register_project(&state.global_db, &path, &project.meta.name).await?;
+    let project = persistence::load_project_sqlite(&project_path)?;
 
     // Update AppState
     let mut path_guard = state.current_project_path.lock()
         .map_err(|_| AppError::Unknown("Path Lock Poisoned".to_string()))?;
     *path_guard = Some(path.clone());
 
-    let mut project_db_guard = state.project_db.lock()
-        .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-    *project_db_guard = Some(project_db);
+    // Update last_opened in global database
+    let conn = database::init_global_db()?;
+    projects::register_project(&conn, &path, &project.meta.name)?;
 
     app.emit("project:active", serde_json::json!({ "name": project.meta.name }))
         .map_err(|e| AppError::Unknown(e.to_string()))?;
@@ -186,9 +174,9 @@ pub async fn load_project(
 }
 
 #[tauri::command]
-pub async fn save_project_autosave(
+pub fn save_project_autosave(
     project: SynniaProject, 
-    state: State<'_, AppState>
+    state: State<AppState>
 ) -> Result<(), AppError> {
     let project_path_str = {
         let path_guard = state.current_project_path.lock()
@@ -196,21 +184,15 @@ pub async fn save_project_autosave(
         path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
     };
     
-    let project_info = projects::get_project_by_path(&state.global_db, &project_path_str).await?
-        .ok_or_else(|| AppError::NotFound("Project not registered".to_string()))?;
-    let project_db = {
-        let project_db_guard = state.project_db.lock()
-            .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-        project_db_guard.clone().ok_or(AppError::ProjectNotLoaded)?
-    };
-    surreal_persistence::save_project_surreal(&project_db, &project_info.id, &project).await?;
+    let project_path = PathBuf::from(project_path_str);
+    persistence::save_project_sqlite(&project_path, &project)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn save_project(
+pub fn save_project(
     project: SynniaProject, 
-    state: State<'_, AppState>
+    state: State<AppState>
 ) -> Result<(), AppError> {
     let project_path_str = {
         let path_guard = state.current_project_path.lock()
@@ -218,14 +200,8 @@ pub async fn save_project(
         path_guard.clone().ok_or(AppError::ProjectNotLoaded)?
     };
     
-    let project_info = projects::get_project_by_path(&state.global_db, &project_path_str).await?
-        .ok_or_else(|| AppError::NotFound("Project not registered".to_string()))?;
-    let project_db = {
-        let project_db_guard = state.project_db.lock()
-            .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-        project_db_guard.clone().ok_or(AppError::ProjectNotLoaded)?
-    };
-    surreal_persistence::save_project_surreal(&project_db, &project_info.id, &project).await?;
+    let project_path = PathBuf::from(project_path_str);
+    persistence::save_project_sqlite(&project_path, &project)?;
     Ok(())
 }
 
@@ -237,9 +213,9 @@ pub fn get_current_project_path(state: State<AppState>) -> Result<String, AppErr
 }
 
 #[tauri::command]
-pub async fn delete_project(
+pub fn delete_project(
     path: String, 
-    state: State<'_, AppState>, 
+    state: State<AppState>, 
 ) -> Result<(), AppError> {
     let path_buf = PathBuf::from(&path);
     
@@ -264,9 +240,6 @@ pub async fn delete_project(
         if let Some(current) = &*path_guard {
             if PathBuf::from(current) == path_buf {
                 *path_guard = None;
-                let mut project_db_guard = state.project_db.lock()
-                    .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-                *project_db_guard = None;
             }
         }
     }
@@ -274,16 +247,17 @@ pub async fn delete_project(
     std::fs::remove_dir_all(&path_buf)?;
 
     // Remove from global database
-    projects::remove_project(&state.global_db, &path).await?;
+    let conn = database::init_global_db()?;
+    projects::remove_project(&conn, &path)?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn rename_project(
+pub fn rename_project(
     old_path: String, 
     new_name: String, 
-    state: State<'_, AppState>, 
+    state: State<AppState>, 
 ) -> Result<String, AppError> {
     let old_path_buf = PathBuf::from(&old_path);
     if !old_path_buf.exists() {
@@ -308,9 +282,6 @@ pub async fn rename_project(
         if let Some(current) = &*path_guard {
             if PathBuf::from(current) == old_path_buf {
                 *path_guard = None;
-                let mut project_db_guard = state.project_db.lock()
-                    .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-                *project_db_guard = None;
             }
         }
     }
@@ -319,16 +290,16 @@ pub async fn rename_project(
 
     // Update in global database
     let new_path_str = new_path_buf.to_string_lossy().to_string();
-    projects::remove_project(&state.global_db, &old_path).await?;
-    projects::register_project(&state.global_db, &new_path_str, &safe_name).await?;
+    let conn = database::init_global_db()?;
+    projects::remove_project(&conn, &old_path)?;
+    projects::register_project(&conn, &new_path_str, &safe_name)?;
 
     Ok(new_path_str)
 }
 
 #[tauri::command]
-pub async fn reset_project(
-    state: State<'_, AppState>, 
-    app: AppHandle,
+pub fn reset_project(
+    state: State<AppState>, 
 ) -> Result<SynniaProject, AppError> {
     let project_path_str = {
         let path_guard = state.current_project_path.lock()
@@ -342,16 +313,8 @@ pub async fn reset_project(
         .and_then(|n| n.to_str())
         .unwrap_or("Untitled Project");
     
-    let project_info = projects::get_project_by_path(&state.global_db, &project_path_str).await?
-        .ok_or_else(|| AppError::NotFound("Project not registered".to_string()))?;
-    let project_db = crate::infrastructure::surreal::init_surreal_project_db(&app, &project_info.id).await?;
-    surreal_persistence::init_project_surreal(&project_db, &project_info.id, name).await?;
-    let project = surreal_persistence::load_project_surreal(&project_db, &project_info.id).await?;
-
-    let mut project_db_guard = state.project_db.lock()
-        .map_err(|_| AppError::Unknown("Lock poisoned".to_string()))?;
-    *project_db_guard = Some(project_db);
-
+    let project = persistence::init_project_sqlite(&project_path, name)?;
+    
     Ok(project)
 }
 
@@ -392,7 +355,7 @@ pub async fn set_thumbnail(
     let project_path_clone = project_path.clone();
     let image_path_clone = image_relative_path.clone();
 
-    let data_url = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         let src = PathBuf::from(&project_path_clone).join(&image_path_clone);
         
         if !src.exists() {
@@ -423,13 +386,14 @@ pub async fn set_thumbnail(
             &base64::engine::general_purpose::STANDARD,
             buffer.into_inner()
         );
-        Ok::<_, AppError>(format!("data:image/png;base64,{}", base64_data))
+        let data_url = format!("data:image/png;base64,{}", base64_data);
+        
+        // Save to global database
+        let conn = database::init_global_db()?;
+        projects::update_thumbnail(&conn, &project_path_clone, Some(&data_url))?;
+        
+        Ok(())
     }).await.map_err(|e| AppError::Unknown(format!("Task panicked: {}", e)))?
-    ?;
-
-    projects::update_thumbnail(&state.global_db, &project_path, Some(&data_url)).await?;
-
-    Ok(())
 }
 
 // ============================================
@@ -437,6 +401,7 @@ pub async fn set_thumbnail(
 // ============================================
 
 #[tauri::command]
-pub async fn validate_projects(state: State<'_, AppState>) -> Result<projects::ValidateResult, AppError> {
-    projects::validate_projects(&state.global_db).await
+pub fn validate_projects() -> Result<projects::ValidateResult, AppError> {
+    let conn = database::init_global_db()?;
+    projects::validate_projects(&conn)
 }

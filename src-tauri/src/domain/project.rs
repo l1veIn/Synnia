@@ -5,7 +5,6 @@ use ts_rs::TS;
 use std::collections::HashMap;
 
 use super::asset::Asset;
-use super::file::File;
 use super::graph::{Graph, Viewport};
 
 /// The root project structure.
@@ -21,11 +20,6 @@ pub struct SynniaProject {
     /// Central Asset Registry
     #[ts(type = "Record<string, Asset>")]
     pub assets: HashMap<String, Asset>,
-
-    /// Project file registry
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(type = "Record<string, File>")]
-    pub files: Option<HashMap<String, File>>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(type = "Record<string, any>")]

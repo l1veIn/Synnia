@@ -72,8 +72,31 @@ src-tauri/src/
 | `domain/asset/types.ts` | Legacy 类型 | 收敛到 `domain/node/`，然后删除 |
 | `presentation/engine/AssetSystem.ts` | 兼容层 | 移除，Node CRUD 直接走 Use Cases |
 | `application/adapters/nodeProjection.ts` | 兼容适配 | 移除，UI 直接使用 Domain Node |
-| `presentation/components/workflow/nodes/*` | 业务组件 | 更新为基于 Domain Node |
 | Recipe 相关业务类型 | 类型定义 | 更新为基于 `domain/recipe/` |
+
+### 节点组件迁移（`presentation/components/workflow/nodes/*`）
+
+**通用改动：**
+| 文件 | 当前实现 | 目标实现 |
+|------|----------|----------|
+| `*/behavior.ts` | 直接操作 Store/AssetSystem | 调用 Use Cases |
+| `*/Inspector.tsx` | 使用 `useAsset` + legacy 类型 | 使用 Domain Node + Use Cases |
+| `*/definition.ts` | `create()` 返回 `asset` 对象 | 返回 Domain Node 格式 |
+
+**具体节点：**
+| 节点 | 关键改动 |
+|------|----------|
+| `TextNode` | behavior 调用 `updateNodeUseCase` |
+| `ImageNode` | behavior 调用 `updateNodeUseCase` + `importFileUseCase` |
+| `FormNode` | behavior 调用 `updateNodeUseCase` |
+| `TableNode` | behavior 调用 `updateNodeUseCase` |
+| `SelectorNode` | behavior 调用 `updateNodeUseCase` |
+| `GalleryNode` | behavior 调用 `updateNodeUseCase` |
+| `RecipeNode` | behavior 调用 `runRecipeUseCase` + `updateNodeExecutionUseCase` |
+
+**portRegistry 改动：**
+- `dynamic()` 函数：访问 `node.data` 而非 `asset.value`
+
 
 ### 后端
 | 模块 | 类型 | 目标 |

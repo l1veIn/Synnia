@@ -107,19 +107,20 @@ src-tauri/src/                         # Tauri 后端根目录
 - Infrastructure 实现 Ports
 - Presentation 只调用 Application
 
-## 当前目录结构中“过时/待迁移”的部分（列表）
-- `src/core/engine/*`：领域规则与状态管理混合，需拆分到 Domain/Application。
-- `src/features/recipes/*`：UI 与领域逻辑混合，需迁移 Recipe/Execution 相关部分。
-- `src/features/executors/*`：执行器应成为 Infrastructure 适配。
-- `src/features/models/*`：模型 Provider 应迁移到 Infrastructure。
-- `src/lib/importHeavyNode.ts`：文件导入逻辑混合 UI+领域+基础设施，应拆成 FileIngestionService + Adapter。
-- `src/types/assets.ts`：资产模型需与 Node=Asset 合并并迁移到 Domain。
-- `src/types/project.ts`：节点/画布类型应收敛到 Domain + Presentation VO。
-- `src-tauri/src/features/*/commands.rs`：用例逻辑混杂，需迁移到 application/use_cases。
-- `src-tauri/src/infrastructure/database.rs`：SQLite 逻辑后续将被 SurrealDB 适配替换。
+## 当前目录结构中"过时/待迁移"的部分（列表）
+
+> ✅ **Stage 2-4 迁移已完成（2026-02-05）**
+> - `src/core/*` → 已拆分到 `domain/` 和 `presentation/`
+> - `src/features/*` → 已迁移到 `infrastructure/`
+> - `src/types/*` → 已分层到 `domain/` 和 `presentation/`
+
+**剩余待优化项：**
+- `src/lib/importHeavyNode.ts`：文件导入逻辑混合 UI+领域+基础设施，可拆成 FileIngestionService + Adapter
+- `src-tauri/src/features/*/commands.rs`：用例逻辑混杂，需迁移到 application/use_cases
+- `src-tauri/src/infrastructure/database.rs`：SQLite 逻辑后续将被 SurrealDB 适配替换
 
 ## 迁移节奏建议
-- 先抽 Domain/ValueMappingService
-- 再抽 Node 模型
+- ~~先抽 Domain/ValueMappingService~~ ✅ 已完成
+- ~~再抽 Node 模型~~ ✅ 已完成
 - 再引入 File
 - 最后替换持久化

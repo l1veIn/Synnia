@@ -1,4 +1,4 @@
-import type { SmartNodeSpec } from '@core/engine/GraphMutator';
+import type { SmartNodeSpec } from '@/presentation/engine/GraphMutator';
 
 /**
  * GraphMutatorPort

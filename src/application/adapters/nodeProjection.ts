@@ -1,5 +1,5 @@
-import type { SynniaNode } from '@/types/project';
-import type { Asset } from '@/types/assets';
+import type { SynniaNode } from '@/presentation/types/project';
+import type { Asset } from '@/domain/asset/types';
 import type { Node } from '@/domain/node/Node';
 import type { NodeLayoutMode, NodePresentation } from '@/domain/node/NodePresentation';
 import type { NodeMeta, NodeSysMetadata, NodeValueMeta } from '@/domain/node/NodeMeta';

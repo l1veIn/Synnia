@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
-import { SynniaNode, SynniaEdge } from '@/types/project';
-import { Asset } from '@/types/assets';
+import { SynniaNode, SynniaEdge } from '@/presentation/types/project';
+import { Asset } from '@/domain/asset/types';
 import type { File } from '@/domain/file/File';
 import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
-import { graphEngine } from '@core/engine/GraphEngine';
+import { graphEngine } from '@/presentation/engine/GraphEngine';
 
 
 

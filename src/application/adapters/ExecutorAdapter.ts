@@ -6,9 +6,9 @@
  */
 
 import type { ExecutorService } from '@/application/ports/ExecutorService';
-import type { ExecutionContext, ExecutionResult } from '@/types/recipe';
-import { getExecutorForManifest } from '@features/executors';
-import { graphEngine } from '@core/engine/GraphEngine';
+import type { ExecutionContext, ExecutionResult } from '@/domain/recipe/manifest';
+import { getExecutorForManifest } from '@/infrastructure/executors';
+import { graphEngine } from '@/presentation/engine/GraphEngine';
 
 export class ExecutorAdapter implements ExecutorService {
     async execute(ctx: ExecutionContext): Promise<ExecutionResult> {

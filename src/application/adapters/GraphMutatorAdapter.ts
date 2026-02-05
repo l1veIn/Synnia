@@ -5,8 +5,8 @@
  */
 
 import type { GraphMutatorPort } from '@/application/ports/GraphMutatorPort';
-import type { SmartNodeSpec } from '@core/engine/GraphMutator';
-import { graphEngine } from '@core/engine/GraphEngine';
+import type { SmartNodeSpec } from '@/presentation/engine/GraphMutator';
+import { graphEngine } from '@/presentation/engine/GraphEngine';
 
 export class GraphMutatorAdapter implements GraphMutatorPort {
     createSmartBatch(specs: SmartNodeSpec[]): void {

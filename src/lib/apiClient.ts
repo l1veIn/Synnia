@@ -227,7 +227,7 @@ export const apiClient = {
     // Recipe Management Commands
     // ========================================
 
-    listRecipeDirectory: (subpath?: string): Promise<import('@/types/recipe').DirectoryListing> =>
+    listRecipeDirectory: (subpath?: string): Promise<import('@/domain/recipe/manifest').DirectoryListing> =>
         apiClient.invoke('list_recipe_directory', { subpath }),
 
     createRecipe: (recipeId: string, parentPath?: string): Promise<string> =>
@@ -239,7 +239,7 @@ export const apiClient = {
     deleteRecipe: (recipePath: string): Promise<void> =>
         apiClient.invoke('delete_recipe', { recipePath }),
 
-    getRecipeFileTree: (recipePath: string): Promise<import('@/types/recipe').FileNode[]> =>
+    getRecipeFileTree: (recipePath: string): Promise<import('@/domain/recipe/manifest').FileNode[]> =>
         apiClient.invoke('get_recipe_file_tree', { recipePath }),
 
     readRecipeFile: (recipePath: string, filePath: string): Promise<string> =>

@@ -1,0 +1,402 @@
+import { GraphEngine } from './GraphEngine';
+import {
+    OnNodeDrag,
+    OnConnect,
+    OnNodesChange,
+    OnEdgesChange,
+    applyNodeChanges,
+    applyEdgeChanges,
+    addEdge,
+    Connection
+} from '@xyflow/react';
+import { SynniaNode, SynniaEdge } from '@/presentation/types/project';
+
+import { v4 as uuidv4 } from 'uuid';
+import { sanitizeNodeForClipboard } from '@/presentation/utils/graph';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { validateConnection, wouldCreateCycle } from '@/presentation/engine/ports';
+import { nodeRegistry } from '@/domain/registry/NodeRegistry';
+import { behaviorRegistry } from '@/presentation/engine/BehaviorRegistry';
+import type { ConnectionContext } from '@/presentation/engine/types/behavior';
+import { resolveNodeAssetId } from '@/domain/node/utils/nodeAsset';
+
+export class InteractionSystem {
+    private engine: GraphEngine;
+    private dockingLayoutScheduled = false;  // Throttle flag for docking layout
+
+    constructor(engine: GraphEngine) {
+        this.engine = engine;
+    }
+
+    public handleAltDragStart(nodeId: string): string {
+        const { nodes, edges } = this.engine.state;
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return "";
+
+        // Create stationary clone (left behind)
+        const cloneId = uuidv4();
+        const stationaryNode: SynniaNode = {
+            ...node,
+            id: cloneId,
+            selected: false,
+            data: JSON.parse(JSON.stringify(node.data))
+        };
+
+        // Clone edges connected to this node
+        const newEdges: SynniaEdge[] = [];
+        edges.forEach(edge => {
+            if (edge.source === nodeId || edge.target === nodeId) {
+                newEdges.push({
+                    ...edge,
+                    id: uuidv4(),
+                    source: edge.source === nodeId ? cloneId : edge.source,
+                    target: edge.target === nodeId ? cloneId : edge.target,
+                    selected: false
+                });
+            }
+        });
+
+        // Sanitize moving node (being dragged)
+        const sanitizedNode = sanitizeNodeForClipboard(node);
+        const updatedMovingNode = {
+            ...sanitizedNode,
+            style: { ...sanitizedNode.style, opacity: 0.5 },
+            data: {
+                ...sanitizedNode.data,
+                isReference: true
+            }
+        } as SynniaNode;
+
+        // Apply changes
+        const finalNodes = nodes.map(n => n.id === nodeId ? updatedMovingNode : n).concat([stationaryNode]);
+
+        this.engine.setNodes(finalNodes);
+        this.engine.setEdges([...edges, ...newEdges]);
+
+        return cloneId;
+    }
+
+    public handleDragStopOpacity(nodeId: string) {
+        const { nodes } = this.engine.state;
+        const updatedNodes = nodes.map(n => {
+            if (n.id === nodeId) {
+                const { opacity, ...restStyle } = n.style || {};
+                return { ...n, style: { ...restStyle, opacity: 1 } };
+            }
+            return n;
+        }) as SynniaNode[];
+        this.engine.setNodes(updatedNodes);
+    }
+
+    public onNodesChange: OnNodesChange<SynniaNode> = (changes) => {
+        const { nodes } = this.engine.state;
+        const updatedNodes = applyNodeChanges(changes, nodes) as SynniaNode[];
+
+        // Detect dimension changes to nodes inside Racks/Collapsed Groups
+        // OR dimension changes to nodes in a docked chain
+        const shouldGlobalLayout = changes.some(c => {
+            if (c.type !== 'dimensions') return false;
+            const node = updatedNodes.find(n => n.id === c.id);
+            if (!node) return false;
+
+            // Check if inside collapsed parent (deprecated: RACK/GROUP container types removed)
+            if (node.parentId) {
+                const parent = updatedNodes.find(p => p.id === node.parentId);
+                if (parent && parent.data.collapsed) {
+                    return true;
+                }
+            }
+
+            // Check if part of a docked chain (master or follower)
+            const isDockedMaster = updatedNodes.some(n => n.data.dockedTo === node.id);
+            const isDockedFollower = !!node.data.dockedTo;
+            return isDockedMaster || isDockedFollower;
+        });
+
+        let finalNodes = updatedNodes;
+
+        if (shouldGlobalLayout) {
+            // Rack layout fixes (which includes docking fix at the end)
+            finalNodes = this.engine.layout.fixGlobalLayout(updatedNodes);
+            this.engine.setNodes(finalNodes);
+        } else {
+            // Check if any node has docking relationships before running expensive layout
+            const hasDocking = updatedNodes.some(n => n.data.dockedTo);
+
+            if (hasDocking && !this.dockingLayoutScheduled) {
+                // Throttle docking layout using requestAnimationFrame
+                this.dockingLayoutScheduled = true;
+                requestAnimationFrame(() => {
+                    this.dockingLayoutScheduled = false;
+                    const currentNodes = this.engine.state.nodes;
+                    const laidOutNodes = this.engine.layout.fixDockingLayout(currentNodes);
+                    this.engine.setNodes(laidOutNodes);
+                });
+            }
+
+            // Always apply node changes immediately for smooth dragging
+            this.engine.setNodes(updatedNodes);
+        }
+    };
+
+    public onEdgesChange: OnEdgesChange<SynniaEdge> = (changes) => {
+        const { edges } = this.engine.state;
+        this.engine.setEdges(applyEdgeChanges(changes, edges) as SynniaEdge[]);
+    };
+
+    public onConnect: OnConnect = (connection) => {
+        const { nodes, edges, assets } = this.engine.state;
+
+        // Cycle detection: check if adding this edge would create a cycle
+        if (wouldCreateCycle(nodes, edges, connection)) {
+            // Import toast dynamically to avoid circular deps
+            import('sonner').then(({ toast }) => {
+                toast.error('Cannot create connection: would create a cycle');
+            });
+            return;
+        }
+
+        // Data validation: delegate to EdgeValidator
+        const validationResult = validateConnection(connection);
+        if (!validationResult.valid) {
+            import('sonner').then(({ toast }) => {
+                toast.error(validationResult.message || 'Cannot connect: incompatible data');
+            });
+            return;
+        }
+
+        this.engine.setEdges(addEdge(connection, edges) as SynniaEdge[]);
+
+        // === IoC: Delegate to target node's onConnect behavior ===
+        this.handleConnectionBehavior(connection);
+    }
+
+    /**
+     * Handle connection behavior via IoC pattern.
+     * If target node's behavior has onConnect, use it.
+     * Otherwise, fall back to legacy auto-fill logic.
+     */
+    private handleConnectionBehavior(connection: Connection): void {
+        const { nodes, assets } = this.engine.state;
+        const sourceNode = nodes.find(n => n.id === connection.source);
+        const targetNode = nodes.find(n => n.id === connection.target);
+        if (!sourceNode || !targetNode) return;
+
+        const sourceAssetId = resolveNodeAssetId(sourceNode);
+        const targetAssetId = resolveNodeAssetId(targetNode);
+        const sourceAsset = sourceAssetId ? assets[sourceAssetId] : null;
+        const targetAsset = targetAssetId ? assets[targetAssetId] : null;
+
+        // Pre-resolve source output for ConnectionContext
+        const sourceBehavior = behaviorRegistry.get(sourceNode.type);
+        const sourcePortId = connection.sourceHandle || 'origin';
+        const sourcePortValue = sourceBehavior.resolveOutput?.(sourceNode, sourceAsset, sourcePortId) || null;
+
+        // Build ConnectionContext
+        const ctx: ConnectionContext = {
+            getNodes: () => this.engine.state.nodes,
+            getNode: (id) => this.engine.state.nodes.find(n => n.id === id),
+            sourceNode,
+            targetNode,
+            edge: {
+                id: '',
+                source: connection.source,
+                target: connection.target,
+                sourceHandle: connection.sourceHandle ?? undefined,
+                targetHandle: connection.targetHandle ?? undefined,
+            } as SynniaEdge,
+            sourceAsset: sourceAsset as any,
+            targetAsset: targetAsset as any,
+            sourcePortValue,
+        };
+
+        // Try behavior.onConnect first (IoC)
+        const behavior = behaviorRegistry.get(targetNode.type);
+        if (behavior.onConnect) {
+            const updates = behavior.onConnect(ctx);
+            if (updates && targetAssetId) {
+                const currentAsset = this.engine.assets.get(targetAssetId);
+                if (currentAsset) {
+                    const currentValue = (typeof currentAsset.value === 'object' && currentAsset.value !== null)
+                        ? currentAsset.value as Record<string, any>
+                        : {};
+                    const newValue = { ...currentValue, ...updates };
+                    this.engine.assets.update(targetAssetId, newValue);
+                }
+            }
+        }
+        // Note: All nodes now have onConnect behaviors, legacy fallback removed
+    }
+
+    public onNodeDrag: OnNodeDrag = (_event, node) => {
+        // Detect hover over Rack/Group for highlighting
+        const { nodes, highlightedGroupId } = this.engine.state;
+
+        // === Undock on Drag Away ===
+        // If this node is docked to another, check if it's being dragged too far away
+        const dockedTo = (node.data as any)?.dockedTo;
+        if (dockedTo) {
+            const master = nodes.find(n => n.id === dockedTo);
+            if (master) {
+                const UNDOCK_THRESHOLD = 50; // pixels to trigger undock
+                const masterBottom = master.position.y + (master.measured?.height ?? master.height ?? 100);
+                const nodeTop = node.position.y;
+                const distance = Math.abs(nodeTop - masterBottom);
+
+                // Check horizontal alignment too
+                const masterX = master.position.x;
+                const nodeX = node.position.x;
+                const xDistance = Math.abs(nodeX - masterX);
+
+                if (distance > UNDOCK_THRESHOLD || xDistance > UNDOCK_THRESHOLD) {
+                    // Undock: clear dockedTo
+                    this.engine.updateNode(node.id, {
+                        data: { dockedTo: undefined }
+                    });
+
+                    // Trigger layout fix to update hasDockedFollower on master
+                    const updatedNodes = this.engine.layout.fixDockingLayout(this.engine.state.nodes);
+                    this.engine.setNodes(updatedNodes);
+                }
+            }
+        }
+
+        // === Dock Preview Detection ===
+        // Check if this dockable node is near another dockable node for docking preview
+        if (nodeRegistry.isDockable(node.type || '') && !dockedTo) {
+            const DOCK_PREVIEW_THRESHOLD = 50;
+            const nodeTop = node.position.y;
+            const nodeWidth = node.measured?.width ?? node.width ?? 200;
+
+            // Find nearby dockable nodes that could be docking targets
+            const potentialTargets = nodes.filter(n =>
+                nodeRegistry.isDockable(n.type) &&
+                n.id !== node.id &&
+                !n.parentId &&
+                !(n.data as any).hasDockedFollower
+            );
+
+            let previewTarget: string | null = null;
+
+            for (const target of potentialTargets) {
+                const targetBottom = target.position.y + (target.measured?.height ?? target.height ?? 100);
+                const targetWidth = target.measured?.width ?? target.width ?? 200;
+
+                // Check horizontal alignment
+                const xOverlap = Math.min(node.position.x + nodeWidth, target.position.x + targetWidth) -
+                    Math.max(node.position.x, target.position.x);
+                if (xOverlap < nodeWidth * 0.3) continue;
+
+                // Check if node top is near target bottom
+                const distance = Math.abs(nodeTop - targetBottom);
+                if (distance < DOCK_PREVIEW_THRESHOLD) {
+                    // Validate schema match
+                    if (this.schemasMatch(node as SynniaNode, target, this.engine.state.assets)) {
+                        previewTarget = target.id;
+                        break;
+                    }
+                }
+            }
+
+            // Update preview only if changed
+            const currentPreview = useWorkflowStore.getState().dockPreviewId;
+            if (currentPreview !== previewTarget) {
+                useWorkflowStore.setState({ dockPreviewId: previewTarget });
+            }
+        }
+    };
+
+    public onNodeDragStop: OnNodeDrag = (_event, node) => {
+        // Clear highlight and dock preview
+        useWorkflowStore.setState({ highlightedGroupId: null, dockPreviewId: null });
+
+        const { nodes, assets } = this.engine.state;
+
+        // === Dockable Node Auto-Docking ===
+        if (nodeRegistry.isDockable(node.type || '')) {
+            const DOCK_THRESHOLD = 50; // pixels to trigger dock (matching preview)
+            const nodeTop = node.position.y;
+            const nodeWidth = node.measured?.width ?? node.width ?? 200;
+
+            // Find nearby dockable nodes that could be docking targets
+            const potentialTargets = nodes.filter(n =>
+                nodeRegistry.isDockable(n.type) &&
+                n.id !== node.id &&
+                !n.parentId && // Both must be root nodes
+                !(n.data as any).hasDockedFollower // Target must not already have a follower
+            );
+
+            let bestTarget: SynniaNode | null = null;
+            let bestDistance = Infinity;
+
+            for (const target of potentialTargets) {
+                const targetBottom = target.position.y + (target.measured?.height ?? target.height ?? 100);
+                const targetWidth = target.measured?.width ?? target.width ?? 200;
+
+                // Check horizontal alignment (must overlap significantly)
+                const xOverlap = Math.min(node.position.x + nodeWidth, target.position.x + targetWidth) -
+                    Math.max(node.position.x, target.position.x);
+                if (xOverlap < nodeWidth * 0.3) continue;
+
+                // Check if node TOP is near target BOTTOM (node will dock below target)
+                const distance = Math.abs(nodeTop - targetBottom);
+                if (distance < DOCK_THRESHOLD && distance < bestDistance) {
+                    // Validate schema match
+                    if (this.schemasMatch(node as SynniaNode, target, assets)) {
+                        bestTarget = target;
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            if (bestTarget) {
+                // Dock: set dockedTo and snap position
+                const targetHeight = bestTarget.measured?.height ?? bestTarget.height ?? 100;
+                const targetWidth = bestTarget.measured?.width ?? bestTarget.width ?? 200;
+
+                this.engine.updateNode(node.id, {
+                    position: {
+                        x: bestTarget.position.x,
+                        y: bestTarget.position.y + targetHeight
+                    },
+                    data: { dockedTo: bestTarget.id },
+                    style: { width: targetWidth },
+                    width: targetWidth
+                });
+
+                // Trigger docking layout fix
+                const updatedNodes = this.engine.layout.fixDockingLayout(this.engine.state.nodes);
+                this.engine.setNodes(updatedNodes);
+                return;
+            }
+        }
+    };
+
+    /**
+     * Check if two JSON nodes have matching schemas.
+     */
+    private schemasMatch(
+        nodeA: SynniaNode,
+        nodeB: SynniaNode,
+        assets: Record<string, any>
+    ): boolean {
+        const assetAId = resolveNodeAssetId(nodeA);
+        const assetBId = resolveNodeAssetId(nodeB);
+        const assetA = assetAId ? assets[assetAId] : null;
+        const assetB = assetBId ? assets[assetBId] : null;
+
+        if (!assetA || !assetB) return false;
+
+        const schemaA = assetA.content?.schema;
+        const schemaB = assetB.content?.schema;
+
+        if (!Array.isArray(schemaA) || !Array.isArray(schemaB)) return false;
+        if (schemaA.length !== schemaB.length) return false;
+
+        // Compare by key
+        const keysA = schemaA.map((f: any) => f.key).sort();
+        const keysB = schemaB.map((f: any) => f.key).sort();
+
+        return JSON.stringify(keysA) === JSON.stringify(keysB);
+    }
+}

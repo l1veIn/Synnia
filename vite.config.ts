@@ -11,6 +11,7 @@ export default defineConfig({
       "@core": path.resolve(__dirname, "./src/core"),
       "@features": path.resolve(__dirname, "./src/features"),
       "@/bindings": path.resolve(__dirname, "./src-tauri/bindings"),
+      "@presentation": path.resolve(__dirname, "./src/presentation"),
     },
   },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -1,4 +1,4 @@
-import type { ExecutionRun, LogLevel } from '@/domain/recipe/ExecutionRun';
+import type { LogLevel } from '@/domain/recipe/ExecutionRun';
 
 /**
  * ExecutionLogger Port

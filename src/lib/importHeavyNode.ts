@@ -9,11 +9,11 @@
  * Handles importing images, audio, video from file paths or base64 data.
  */
 
-import { graphEngine } from '@core/engine/GraphEngine';
+import { graphEngine } from '@/presentation/engine/GraphEngine';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { toast } from 'sonner';
 import { getTauriFileAdapter } from '@/infrastructure/tauri/TauriFileAdapter';
-import { importFileUseCase, type ImportFileInput, type ImportFileOutput } from '@/application/use-cases/import-file';
+import { importFileUseCase, type ImportFileInput } from '@/application/use-cases/import-file';
 import type { File } from '@/domain/file/File';
 
 // ============================================

@@ -1,5 +1,5 @@
-import type { FieldDefinition } from '@/types/assets';
-import type { RecipeManifest } from '@/types/recipe';
+import type { FieldDefinition } from '@/domain/asset/types';
+import type { RecipeManifest } from '@/domain/recipe/manifest';
 
 /**
  * Recipe Domain Entity

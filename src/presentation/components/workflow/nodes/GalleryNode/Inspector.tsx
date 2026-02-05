@@ -1,0 +1,327 @@
+import { useAsset } from '@/presentation/hooks/useAsset';
+import { Label } from '@/presentation/components/ui/label';
+import { Switch } from '@/presentation/components/ui/switch';
+import { Button } from '@/presentation/components/ui/button';
+import { Slider } from '@/presentation/components/ui/slider';
+import { Save, AlertCircle, FolderOpen, Upload } from 'lucide-react';
+import { GalleryImageRef } from './types';
+import { AssetPicker } from '@/presentation/components/AssetPicker';
+import { MediaAssetInfo, apiClient } from '@/lib/apiClient';
+import { useWorkflowStore } from '@/store/workflowStore';
+import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { useTranslation } from 'react-i18next';
+
+interface InspectorProps {
+    assetId: string;
+    nodeId?: string;
+}
+
+export function Inspector({ assetId, nodeId }: InspectorProps) {
+    const { t } = useTranslation(['nodes', 'common']);
+    const { asset, setValue, updateConfig } = useAsset(assetId);
+    const serverPort = useWorkflowStore(s => s.serverPort);
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+    // Get images from value (pure array) and settings from config.extra
+    const images: GalleryImageRef[] = useMemo(() => {
+        const raw = asset?.value;
+        if (Array.isArray(raw)) {
+            return raw.map((item: any, i: number) => ({
+                id: item.id || `img-${i}`,
+                mediaAssetId: item.mediaAssetId || '',
+                starred: item.starred ?? false,
+                caption: item.caption || '',
+            }));
+        }
+        return [];
+    }, [asset?.value]);
+
+    const savedSettings = useMemo(() => {
+        const config = asset?.config as any || {};
+        const extra = config.extra || {};
+        return {
+            viewMode: extra.viewMode ?? 'grid' as 'grid' | 'list' | 'single',
+            columnsPerRow: extra.columnsPerRow ?? 4,
+            allowStar: extra.allowStar ?? true,
+            allowDelete: extra.allowDelete ?? true,
+        };
+    }, [asset?.config]);
+
+    // Draft state for settings
+    const [draftViewMode, setDraftViewMode] = useState<'grid' | 'list' | 'single'>('grid');
+    const [draftColumns, setDraftColumns] = useState(4);
+    const [draftAllowStar, setDraftAllowStar] = useState(true);
+    const [draftAllowDelete, setDraftAllowDelete] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    // Initialize draft from saved
+    useEffect(() => {
+        if (!isInitialized && asset) {
+            setDraftViewMode(savedSettings.viewMode);
+            setDraftColumns(savedSettings.columnsPerRow);
+            setDraftAllowStar(savedSettings.allowStar);
+            setDraftAllowDelete(savedSettings.allowDelete);
+            setIsInitialized(true);
+        }
+    }, [savedSettings, isInitialized, asset]);
+
+    // Reset on asset change
+    useEffect(() => {
+        setDraftViewMode(savedSettings.viewMode);
+        setDraftColumns(savedSettings.columnsPerRow);
+        setDraftAllowStar(savedSettings.allowStar);
+        setDraftAllowDelete(savedSettings.allowDelete);
+        setIsInitialized(true);
+    }, [assetId]);
+
+    // Check for changes
+    const hasChanges = useMemo(() => {
+        if (!isInitialized) return false;
+        return draftViewMode !== savedSettings.viewMode ||
+            draftColumns !== savedSettings.columnsPerRow ||
+            draftAllowStar !== savedSettings.allowStar ||
+            draftAllowDelete !== savedSettings.allowDelete;
+    }, [draftViewMode, draftColumns, draftAllowStar, draftAllowDelete, savedSettings, isInitialized]);
+
+    // Save settings to config.extra via updateConfig
+    const handleSave = () => {
+        const currentConfig = asset?.config as any || {};
+        updateConfig({
+            ...currentConfig,
+            extra: {
+                viewMode: draftViewMode,
+                columnsPerRow: draftColumns,
+                allowStar: draftAllowStar,
+                allowDelete: draftAllowDelete,
+            },
+        });
+        toast.success(t('common:settings.saved'));
+    };
+
+    // Discard
+    const handleDiscard = () => {
+        setDraftViewMode(savedSettings.viewMode);
+        setDraftColumns(savedSettings.columnsPerRow);
+        setDraftAllowStar(savedSettings.allowStar);
+        setDraftAllowDelete(savedSettings.allowDelete);
+        toast.info(t('common:changes.discarded'));
+    };
+
+    // Handle assets selected from picker - only store mediaAssetId reference
+    const handleAssetsSelected = (selectedAssets: MediaAssetInfo[]) => {
+        const newImages: GalleryImageRef[] = selectedAssets.map(asset => ({
+            id: uuidv4(),
+            mediaAssetId: asset.id,
+            starred: false,
+            caption: asset.name,
+        }));
+
+        setValue([...images, ...newImages]);
+        toast.success(t('nodes:gallery.addedImages', { count: selectedAssets.length }));
+    };
+
+    // Clear all images
+    const clearAllImages = () => {
+        setValue([]);
+        toast.success(t('nodes:gallery.allCleared'));
+    };
+
+    // Clear all stars
+    const clearAllStars = () => {
+        setValue(images.map((img: GalleryImageRef) => ({ ...img, starred: false })));
+        toast.success(t('nodes:gallery.starsCleared'));
+    };
+
+    if (!asset) return <div className="p-4 text-xs">{t('common:errors.assetNotFound')}</div>;
+
+    const starredCount = images.filter((img: GalleryImageRef) => img.starred).length;
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Add from Asset Library */}
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setIsPickerOpen(true)}
+                >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    {t('nodes:gallery.addFromLibrary')}
+                </Button>
+
+                <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                        const selected = await openDialog({
+                            multiple: true,
+                            filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+                        });
+                        if (selected && Array.isArray(selected) && selected.length > 0) {
+                            const toastId = toast.loading(t('nodes:gallery.importing', { count: selected.length }));
+                            try {
+                                const results = await apiClient.batchImportImages(selected);
+                                const succeeded = results.filter(r => r.result);
+                                const failed = results.filter(r => r.error).length;
+
+                                if (succeeded.length > 0) {
+                                    // Use assetId directly from import result (auto-created)
+                                    const newImages: GalleryImageRef[] = succeeded.map(r => ({
+                                        id: uuidv4(),
+                                        mediaAssetId: r.result!.assetId,
+                                        starred: false,
+                                        caption: r.sourcePath.split('/').pop() || 'Imported',
+                                    }));
+
+                                    if (newImages.length > 0) {
+                                        setValue([...images, ...newImages]);
+                                    }
+                                }
+
+                                if (failed > 0) {
+                                    toast.warning(t('nodes:gallery.addedFailed', { added: succeeded.length, failed }), { id: toastId });
+                                } else {
+                                    toast.success(t('nodes:gallery.addedImages', { count: succeeded.length }), { id: toastId });
+                                }
+                            } catch (e) {
+                                console.error('Batch import failed:', e);
+                                toast.error(t('nodes:gallery.importFailed'), { id: toastId });
+                            }
+                        }
+                    }}
+                >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {t('nodes:gallery.addFromLocal')}
+                </Button>
+
+                <div className="border-t" />
+
+                <div className="flex items-center justify-between text-xs">
+                    <span>{t('nodes:gallery.imagesCount', { count: images.length })}</span>
+                    {starredCount > 0 && (
+                        <span className="text-yellow-500">⭐ {starredCount}</span>
+                    )}
+                </div>
+
+                {/* Bulk actions */}
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        onClick={clearAllStars}
+                        disabled={starredCount === 0}
+                    >
+                        {t('nodes:gallery.clearStars')}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-7 text-xs text-destructive hover:text-destructive"
+                        onClick={clearAllImages}
+                        disabled={images.length === 0}
+                    >
+                        {t('nodes:gallery.clearAll')}
+                    </Button>
+                </div>
+
+                <div className="border-t" />
+
+                {/* Display Settings */}
+                <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
+                    {t('nodes:gallery.displaySettings')}
+                </div>
+
+                {/* View Mode */}
+                <div className="space-y-2">
+                    <Label className="text-xs">{t('nodes:gallery.viewMode')}</Label>
+                    <div className="flex gap-2">
+                        {(['grid', 'list', 'single'] as const).map((mode) => (
+                            <Button
+                                key={mode}
+                                variant={draftViewMode === mode ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className="flex-1 h-7 text-xs capitalize"
+                                onClick={() => setDraftViewMode(mode)}
+                            >
+                                {mode}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Columns */}
+                {draftViewMode === 'grid' && (
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs">{t('nodes:gallery.columns')}</Label>
+                            <span className="text-xs text-muted-foreground">{draftColumns}</span>
+                        </div>
+                        <Slider
+                            value={[draftColumns]}
+                            onValueChange={(v) => setDraftColumns(v[0])}
+                            min={2}
+                            max={6}
+                            step={1}
+                        />
+                    </div>
+                )}
+
+                {/* Toggles */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs">{t('nodes:gallery.allowStar')}</Label>
+                        <Switch checked={draftAllowStar} onCheckedChange={setDraftAllowStar} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs">{t('nodes:gallery.allowDelete')}</Label>
+                        <Switch checked={draftAllowDelete} onCheckedChange={setDraftAllowDelete} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Fixed Footer */}
+            <div className="px-4 py-3 border-t bg-muted/10 flex items-center justify-between shrink-0">
+                <div className="text-[10px] text-muted-foreground font-mono">
+                    {hasChanges && (
+                        <span className="text-amber-600 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {t('common:status.unsaved')}
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    {hasChanges && (
+                        <Button size="sm" variant="ghost" onClick={handleDiscard} className="h-7 text-xs">
+                            {t('common:actions.discard')}
+                        </Button>
+                    )}
+                    <Button
+                        size="sm"
+                        variant={hasChanges ? "default" : "outline"}
+                        onClick={handleSave}
+                        className={cn("h-7 gap-1.5", hasChanges && "bg-primary")}
+                        disabled={!hasChanges}
+                    >
+                        <Save className="h-3.5 w-3.5" />
+                        {t('common:actions.save')}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Asset Picker Dialog */}
+            <AssetPicker
+                open={isPickerOpen}
+                onOpenChange={setIsPickerOpen}
+                onSelect={handleAssetsSelected}
+                multiple={true}
+                title={t('nodes:gallery.selectImages')}
+                assetType="image"
+            />
+        </div>
+    );
+}

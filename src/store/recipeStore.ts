@@ -11,7 +11,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import type { RecipeManifest } from '@/types/recipe';
+import type { RecipeManifest } from '@/domain/recipe/manifest';
 
 // ============================================
 // Types

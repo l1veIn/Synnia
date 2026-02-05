@@ -10,7 +10,7 @@ import {
   selectRecipesByCategory,
   selectRecipeById,
 } from "../recipeStore";
-import type { RecipeManifest } from "@/types/recipe";
+import type { RecipeManifest } from "@/domain/recipe/manifest";
 
 // ============================================================================
 // Mocks

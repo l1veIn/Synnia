@@ -1,4 +1,4 @@
-import type { ExecutionContext, ExecutionResult } from '@/types/recipe';
+import type { ExecutionContext, ExecutionResult } from '@/domain/recipe/manifest';
 
 /**
  * ExecutorService Port

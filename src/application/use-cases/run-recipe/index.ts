@@ -12,14 +12,14 @@
  * 5. Execution logging
  */
 
-import type { SynniaNode, SynniaEdge } from '@/types/project';
-import type { Asset, FieldDefinition } from '@/types/assets';
-import type { ExecutionContext, RecipeDefinition } from '@/types/recipe';
+import type { SynniaNode, SynniaEdge } from '@/presentation/types/project';
+import type { Asset, FieldDefinition } from '@/domain/asset/types';
+import type { ExecutionContext, RecipeDefinition } from '@/domain/recipe/manifest';
 import type { ExecutorService, GraphMutatorPort, ExecutionLoggerPort } from '@/application/ports';
-import type { SmartNodeSpec } from '@core/engine/GraphMutator';
-import { inferValueType, determineOutputAction } from '@features/executors/utils';
-import { nodeRegistry } from '@core/registry/NodeRegistry';
-import { resolveNodeAssetId } from '@core/utils/nodeAsset';
+import type { SmartNodeSpec } from '@/presentation/engine/GraphMutator';
+import { inferValueType, determineOutputAction } from '@/infrastructure/executors/utils';
+import { nodeRegistry } from '@/domain/registry/NodeRegistry';
+import { resolveNodeAssetId } from '@/domain/node/utils/nodeAsset';
 
 // ============================================================================
 // Types

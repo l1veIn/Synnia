@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { CustomTitleBar } from "@/components/CustomTitleBar";
+import { CustomTitleBar } from "@/presentation/components/CustomTitleBar";
 import { Toaster } from "sonner";
 import { useState, useEffect } from "react";
 import { useRecipeStore } from "@/store/recipeStore";

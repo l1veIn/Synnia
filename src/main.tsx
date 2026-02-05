@@ -1,11 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/presentation/components/theme-provider";
 import App from "./App";
-import Dashboard from "./pages/Dashboard";
-import CanvasPage from "./pages/Canvas";
-import RecipesPage from "./pages/RecipesPage";
-import RecipeEditorPage from "./pages/RecipeEditorPage";
+import Dashboard from "@/presentation/pages/Dashboard";
+import CanvasPage from "@/presentation/pages/Canvas";
+import RecipesPage from "@/presentation/pages/RecipesPage";
+import RecipeEditorPage from "@/presentation/pages/RecipeEditorPage";
 import "./index.css";
 import "@/lib/i18n";
 import { HashRouter, Route, Routes } from "react-router-dom"; // Import Navigate

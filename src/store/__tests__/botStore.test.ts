@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useBotStore } from '../botStore';
 import { useWorkflowStore } from '../workflowStore';
-import { SynniaNode } from '@/types/project';
+import { SynniaNode } from '@/presentation/types/project';
 
 // ============================================================================
 // Test Data

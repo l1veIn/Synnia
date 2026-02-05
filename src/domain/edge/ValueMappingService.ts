@@ -13,7 +13,7 @@
  * - NO Tauri dependencies
  */
 
-import type { FieldDefinition } from '@/types/assets';
+import type { FieldDefinition } from '@/domain/asset/types';
 
 // ============================================================================
 // Required Field Validation

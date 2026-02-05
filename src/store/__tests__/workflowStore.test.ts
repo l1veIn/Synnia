@@ -6,9 +6,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useWorkflowStore } from '../workflowStore';
-import { graphEngine } from '@core/engine/GraphEngine';
-import { SynniaNode, SynniaEdge } from '@/types/project';
-import { Asset } from '@/types/assets';
+import { graphEngine } from '@/presentation/engine/GraphEngine';
+import { SynniaNode, SynniaEdge } from '@/presentation/types/project';
+import { Asset } from '@/domain/asset/types';
 import { SynniaProject, ProjectMeta, Viewport } from '@/bindings';
 
 // ============================================================================

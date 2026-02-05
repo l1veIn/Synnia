@@ -25,12 +25,10 @@ src/
       index.ts                    # ports 统一出口
 
   domain/                         # 领域层：实体、值对象、领域服务
-    asset/
-      types.ts                    # Asset 类型定义（从 types/assets.ts 迁入）
-    node/
-      Node.ts                     # Node 实体
-      NodePresentation.ts         # Presentation VO
-      NodeMeta.ts                 # Meta VO
+    node/                         # Node=Asset 合一聚合（核心设计）
+      Node.ts                     # Node 实体（包含原 Asset 的 schema/data/meta）
+      NodePresentation.ts         # Presentation VO（样式/位置/折叠）
+      NodeMeta.ts                 # Meta VO（名称/时间戳）
       NodeSchema.ts               # Schema VO
       utils/nodeAsset.ts          # 统一节点资产解析
     edge/
@@ -38,7 +36,7 @@ src/
     recipe/
       Recipe.ts                   # Recipe 实体
       ExecutionRun.ts             # ExecutionRun 实体
-      manifest.ts                 # Recipe 清单类型（从 types/recipe.ts 迁入）
+      manifest.ts                 # Recipe 清单类型
       types.ts                    # Recipe 运行时类型
     file/
       File.ts                     # File 聚合根
@@ -48,8 +46,10 @@ src/
     registry/
       NodeRegistry.ts             # 节点注册
       StandardBehavior.ts         # 标准行为
+    asset/                        # ⚠️ Legacy 兼容层（待移除）
+      types.ts                    # @deprecated - 类型已收敛到 Node
     shared-types/
-      widgets.ts                  # WidgetType 共享类型（从 types/widgets.ts 迁入）
+      widgets.ts                  # WidgetType 共享类型
 
   infrastructure/                 # 适配层：实现 ports
     tauri/

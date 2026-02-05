@@ -1,89 +1,130 @@
-# DDD 重构目标（冻结版）
+# DDD 重构目标（结晶版）
 
-> **目的**：定义重构终点，作为进度追踪的北极星。
-> **冻结时间**：2026-02-05
-> **重要**：本项目未发布，不需要向后兼容。
+> **TEP Crystallization:** v1.0  
+> **固化指数 (S):** 3  
+> **语义漂移 (Δ):** 5%  
+> **冻结时间:** 2026-02-05  
+> **重要:** 本项目未发布，不需要向后兼容。
 
 ---
 
-## 1. 核心约束（不可违反）
+## 1. 核心约束（公理级）
 
-### 架构
-- **四层 DDD**：`domain → application → infrastructure ← presentation`
-- **前后端一致**：前端 TS 和后端 Rust 均采用相同四层划分
+### 1.1 架构依赖方向
+```
+presentation → application → domain ← infrastructure
+```
+- **presentation** 依赖 **application**（调用用例）
+- **application** 依赖 **domain**（使用实体）
+- **infrastructure** 实现 **application/ports/**（依赖倒置）
+- **domain** 不依赖任何外层
 
-### 领域模型
-- **Node=Asset 合一**：永久合并，无独立 Asset 概念
-- **File 独立聚合**：Node 持有 `fileIds`，File 独立管理生命周期
-- **Edge 单一类型**：靠 port 类型判断（Value/Product），无代码层分离
+### 1.2 领域模型
+| 聚合 | 约束 | 说明 |
+|------|------|------|
+| **Node** | Node=Asset 永久合一 | 无独立 Asset 概念，schema/data/meta 统一存于 Node |
+| **File** | 独立聚合，独立仓储 | Node 持有 `fileIds` 引用；删除 Node 不删除 File |
+| **Edge** | 单一类型 | 通过 `FieldDefinition.connection` 判断 Value/Product，无代码层分离 |
 
-### 持久化
-- **SQLite 为最终方案**
-- **单通道 Graph Snapshot**：`nodes[] + edges[] + viewport + meta`
-- **Schema 直接对应 Domain**：DB ↔ Domain 无投影层
+### 1.3 持久化
+| 约束 | 说明 |
+|------|------|
+| **SQLite 最终方案** | 不引入其他数据库 |
+| **单通道 Graph Snapshot** | `nodes[] + edges[] + viewport + meta` 为唯一持久化通道 |
+| **Schema 直接映射 Domain** | DB 字段与 Domain 实体一一对应，无运行时投影 |
 
 ---
 
 ## 2. 目录边界
 
-### 必须存在
+### 前端（必须存在）
 ```
-src/{domain, application, infrastructure, presentation}
-src-tauri/src/{domain, application, infrastructure}
-```
-
-### 必须删除（已完成 ✅）
-```
-src/core/      ✅
-src/features/  ✅
-src/types/     ✅
+src/
+├── domain/          # 实体、值对象、领域服务
+├── application/     # Use Cases、Ports
+├── infrastructure/  # Ports 实现、外部适配
+└── presentation/    # UI 组件、ReactFlow、Hooks
 ```
 
-### 必须删除（待完成）
+### 后端（必须存在）
 ```
-src-tauri/src/features/   # 需拆分到 domain/application/infrastructure
+src-tauri/src/
+├── domain/          # Node、Edge、File、Recipe 实体
+├── application/     # use_cases、ports
+└── infrastructure/  # SQLite、Tauri commands
 ```
+
+### 必须删除
+| 目录 | 状态 |
+|------|------|
+| `src/core/` | ✅ 已删除 |
+| `src/features/` | ✅ 已删除 |
+| `src/types/` | ✅ 已删除 |
+| `src-tauri/src/features/` | ⏳ 待拆分 |
 
 ---
 
-## 3. Legacy 清理清单（验收必须完成）
+## 3. Legacy 清理清单
 
 ### 前端
-| 模块 | 范围 | 目标 |
+| 模块 | 类型 | 目标 |
 |------|------|------|
-| `domain/asset/types.ts` | 类型 | 移除，收敛到 `domain/node/` |
-| `presentation/engine/AssetSystem.ts` | 兼容层 | 移除，直接使用 Node |
+| `domain/asset/types.ts` | Legacy 类型 | 收敛到 `domain/node/`，然后删除 |
+| `presentation/engine/AssetSystem.ts` | 兼容层 | 移除，Node CRUD 直接走 Use Cases |
+| `application/adapters/nodeProjection.ts` | 兼容适配 | 移除，UI 直接使用 Domain Node |
 | `presentation/components/workflow/nodes/*` | 业务组件 | 更新为基于 Domain Node |
-| Recipe 相关 | 业务类型 | 更新为基于 Domain Recipe |
+| Recipe 相关业务类型 | 类型定义 | 更新为基于 `domain/recipe/` |
 
 ### 后端
-| 模块 | 范围 | 目标 |
+| 模块 | 类型 | 目标 |
 |------|------|------|
 | `src-tauri/src/features/*` | 目录 | 拆分到 domain/application/infrastructure |
-| SQLite Schema | 数据库 | 直接对应 Domain（Node=Asset） |
+| SQLite Schema | 数据库 | 重构为直接映射 Domain（Node=Asset） |
 
 ---
 
 ## 4. 关键接口（稳定边界）
 
-- `src/application/ports/*` — 业务层唯一依赖接口
-- `src/presentation/engine/GraphEngine.ts` — UI 图写入入口
-- `src/lib/apiClient.ts` — Tauri 调用唯一入口
+| 接口 | 职责 |
+|------|------|
+| `application/ports/*` | 业务层唯一依赖接口（仓储、外部服务） |
+| `presentation/engine/GraphEngine.ts` | UI 图协调入口（调用 Use Cases，不直接写 Store） |
+| `lib/apiClient.ts` | Tauri invoke 唯一入口 |
 
 ---
 
-## 5. 验收标准
+## 5. Use Cases 清单
 
-1. **目录结构**：四层 DDD 完整，无 legacy 目录
-2. **Legacy 清理**：上述清单全部完成
-3. **类型一致**：所有业务 type 基于最新 Domain
-4. **DB Schema**：直接映射 Domain，无投影
-5. **测试通过**：现有测试全部通过
+### 前端
+- `create-node` — 创建节点
+- `update-node` — 更新节点数据
+- `update-node-presentation` — 更新节点展示态（位置、样式）
+- `update-node-execution` — 更新执行状态
+- `run-recipe` — 运行配方
+- `import-file` — 导入文件
+
+### 后端（期望对称）
+- `load_project` / `save_project`
+- `create_node` / `update_node`
+- `import_file`
+- `execute_recipe`
 
 ---
 
-## 6. 详细参考
+## 6. 验收标准
 
-- 目录注释：[DDD_Target_Directory_Annotated.md](./DDD_Target_Directory_Annotated.md)
-- 原始规格：[DDD_Target_Spec.md](./DDD_Target_Spec.md)
-- 归档索引：[DDD_Archive_Index.md](./DDD_Archive_Index.md)
+| 标准 | 可量化指标 |
+|------|-----------|
+| **目录结构** | 四层 DDD 完整，无 legacy 目录 |
+| **Legacy 清理** | §3 清单全部完成 |
+| **类型一致** | 所有业务 type 基于 `domain/*` |
+| **DB Schema** | 直接映射 Domain，无 `nodeProjection` |
+| **CI 通过** | `pnpm lint` 0 errors + `pnpm tsc --noEmit` + `cargo check` |
+
+---
+
+## 7. 详细参考
+
+- [DDD_Target_Directory_Annotated.md](./DDD_Target_Directory_Annotated.md) — 目录注释
+- [DDD_Target_Spec.md](./DDD_Target_Spec.md) — 原始规格
+- [DDD_Archive_Index.md](./DDD_Archive_Index.md) — 归档索引

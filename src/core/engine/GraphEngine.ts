@@ -1,3 +1,18 @@
+/**
+ * GraphEngine - UI Layer Coordinator
+ * 
+ * Phase 6 DDD Status: UI-only operations.
+ * Business logic has been migrated to application/use-cases.
+ * 
+ * This class primarily handles:
+ * - Node/Edge state management (setNodes, setEdges)
+ * - Selection and interaction (selectNodes, deselectAll)
+ * - Layout coordination (via LayoutSystem)
+ * - Connection management (connect, disconnect)
+ * 
+ * @see application/use-cases for business logic
+ * @see domain/node for Node entity
+ */
 import { invoke } from '@tauri-apps/api/core';
 import { useWorkflowStore, WorkflowState } from '@/store/workflowStore';
 import { LayoutSystem } from './LayoutSystem';

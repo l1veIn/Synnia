@@ -25,6 +25,7 @@ export interface WorkflowState {
   // Graph Data
   nodes: SynniaNode[];
   edges: SynniaEdge[];
+  /** @readonly Projection layer - write through graphEngine.assets */
   assets: Record<string, Asset>;
   files: Record<string, File>;
 

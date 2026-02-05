@@ -1,4 +1,11 @@
 /**
+ * @deprecated LEGACY TYPES - Phase 6 DDD Migration
+ * Node types are being consolidated into domain/node.
+ * Keep for backward compatibility until full migration.
+ * @see domain/node for Node entity and value objects
+ */
+
+/**
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                   🎯 Synnia Project Types                       │
  * │              React Flow Extensions & Node Registry              │

@@ -1,3 +1,13 @@
+/**
+ * @deprecated LEGACY COMPATIBILITY LAYER - Phase 6 DDD Migration
+ * 
+ * AssetSystem is retained for backward compatibility only.
+ * New code should use domain/node + application/use-cases directly.
+ * Will be removed when all Asset operations are fully migrated.
+ * 
+ * @see domain/node for Node entity
+ * @see application/use-cases for business logic
+ */
 import { GraphEngine } from './GraphEngine';
 import { Asset, ValueType, AssetSysMetadata } from '@/types/assets';
 import { useWorkflowStore } from '@/store/workflowStore';

@@ -1,4 +1,11 @@
 /**
+ * @deprecated LEGACY TYPES - Phase 6 DDD Migration
+ * Core types are being consolidated into domain/node.
+ * Keep for backward compatibility until full migration.
+ * @see domain/node for Node entity and value objects
+ */
+
+/**
  * ┌─────────────────────────────────────────────────────────────────┐
  * │                     📦 Synnia Asset Model                       │
  * │                 Form-Centric Unified Data Layer                 │

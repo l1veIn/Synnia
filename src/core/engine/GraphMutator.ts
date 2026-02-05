@@ -1,3 +1,13 @@
+/**
+ * GraphMutator - UI Mutation Adapter
+ * 
+ * Phase 6 DDD Status: UI-only mutation operations.
+ * Create/Update business logic migrated to application/use-cases.
+ * This class serves as the bridge between UI and domain layer.
+ * 
+ * @see application/adapters for domain integration
+ * @see application/use-cases/create-node for node creation logic
+ */
 import { GraphEngine } from './GraphEngine';
 import { SynniaNode } from '@/types/project';
 import { ValueType, FieldDefinition } from '@/types/assets';

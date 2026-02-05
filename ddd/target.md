@@ -146,8 +146,10 @@ src-tauri/src/
 
 ---
 
-## 7. 详细参考
+## 8. 详细参考
 
+- [reference.md](./reference.md) — **Agent 快速入门**（Domain 模型、Use Case 接口、迁移示例）
 - [DDD_Target_Directory_Annotated.md](./DDD_Target_Directory_Annotated.md) — 目录注释
 - [DDD_Target_Spec.md](./DDD_Target_Spec.md) — 原始规格
 - [DDD_Archive_Index.md](./DDD_Archive_Index.md) — 归档索引
+

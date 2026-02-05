@@ -82,4 +82,6 @@ src-tauri/src/
 ## 4. 参考链接
 
 - 目标锚点：[target.md](./target.md)
+- **执行参考**：[reference.md](./reference.md)（Domain 模型、Use Case 接口、迁移示例）
 - 历史锚点：[checkpoint/](./checkpoint/)
+

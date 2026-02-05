@@ -3,6 +3,11 @@
 ## 总体目标
 - 清理 legacy 依赖
 - 收束到 domain/application/infrastructure/presentation 四层
+- **不改持久化层（SQLite 暂时保留）**
+
+## 背景约束
+- Phase5 已跳过/延期
+- 当前阶段不做 DB schema/引擎迁移
 
 ## 任务 A：资产依赖清理
 你是迁移工程师。
@@ -28,10 +33,10 @@
 - features 只保留 UI
 输出：迁移清单
 
-## 任务 D：SQLite 退役
+## 任务 D：持久化保持现状
 你是后端工程师。
-任务：退役 SQLite 旧路径。
+任务：确认 SQLite 投影持久化路径仍可用。
 要求：
-- database.rs 标记 deprecated
-- persistence.rs debug-only
-输出：清单 + 风险说明
+- 不修改数据库结构
+- 如有 Surreal/HTTP 通道，保持禁用或隔离
+输出：现状确认清单

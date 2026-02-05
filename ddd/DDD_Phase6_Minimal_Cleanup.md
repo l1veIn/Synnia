@@ -1,6 +1,7 @@
 # Phase 6 最小清理清单（路径导向）
 
 > 目标：清除 legacy 依赖，收束到 95%+ 理想结构。
+> 约束：**不改持久化层（SQLite 暂保）**
 
 ## 1) assetId 依赖清理
 - `src/core/engine/AssetSystem.ts`
@@ -21,11 +22,11 @@
   - assets 作为 projection（只读）
   - 主数据源是 Node + File
 
-## 4) SQLite 退役
+## 4) 持久化保持现状
 - `src-tauri/src/infrastructure/database.rs`
-  - 标记 deprecated
+  - 暂不改动
 - `src-tauri/src/features/project/persistence.rs`
-  - 仅 debug 或删除
+  - 保持 SQLite 路径
 
 ## 5) presentation 归位
 - `src/hooks/*` 只保留 UI hooks
